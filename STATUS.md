@@ -11,7 +11,7 @@ Authoritative as of: **2026-10-19**
   - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — LIVE (`/login` HTTP 200 OK)
   - **Database**: Neon PostgreSQL Free (SSL required, connection pooling limits, cold-start bounded retry) — LIVE
   - **Scheduling**: cron-job.org calling authenticated, idempotent job endpoints — READY (supports targeted symbols and providers)
-- **Production Ingestion Guard**: **STOPPED BEFORE PRODUCTION WRITE** (All LotusMarket adapters, schemas, and tests verified locally; awaiting user approval before triggering first cloud ingestion).
+- **Production Ingestion Guard**: **FIRST CONTROLLED INGESTION COMPLETE** (Bounded run for approved 5 tickers: FPT, VCB, MBB, MWG, HPG executed on 2026-10-19. 310 daily OHLCV candles promoted, 1 canonical insider event record ingested, 0 rejected/conflicting records. Research and Market APIs live with 200 OK. Generic recurring crons remain disabled).
 
 ---
 
