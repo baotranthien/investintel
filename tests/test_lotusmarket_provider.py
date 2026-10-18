@@ -427,7 +427,7 @@ def test_reconciliation_lotusmarket_against_dnse():
 # ------------------------------------------------------------------------------
 # 8. Bounded, Targeted Provider & Symbol Scheduling
 # ------------------------------------------------------------------------------
-def test_scheduler_targeted_lotusmarket_blocked_when_env_disabled(db_session):
+def test_scheduler_generic_lotusmarket_blocked_when_env_disabled(db_session):
     import asyncio
     import os
     from services.ingestion.scheduler import run_ingestion_cycle
@@ -436,11 +436,11 @@ def test_scheduler_targeted_lotusmarket_blocked_when_env_disabled(db_session):
         results = asyncio.run(run_ingestion_cycle(
             session_factory=lambda: db_session,
             target_symbols=["FPT"],
-            target_providers=["LOTUSMARKET"],
+            target_providers=None,
         ))
-        assert len(results) == 1
-        assert results[0]["provider"] == "LOTUSMARKET"
-        assert results[0]["status"] == "BLOCKED_FLAG_DISABLED"
+        lotus_results = [r for r in results if r.get("provider") == "LOTUSMARKET"]
+        assert len(lotus_results) == 1
+        assert lotus_results[0]["status"] == "BLOCKED_FLAG_DISABLED"
 
 
 def test_scheduler_targeted_lotusmarket_runs_only_selected_tickers(db_session):

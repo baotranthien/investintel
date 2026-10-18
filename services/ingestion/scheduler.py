@@ -66,6 +66,23 @@ async def run_ingestion_cycle(
             source.name.upper(): source.id
             for source in session.query(DataSource).filter(DataSource.active.is_(True)).all()
         }
+        # Ensure LOTUSMARKET DataSource exists if missing
+        if "LOTUSMARKET" not in source_ids:
+            lotus_ds = session.query(DataSource).filter_by(name="LOTUSMARKET").first()
+            if not lotus_ds:
+                lotus_ds = DataSource(
+                    name="LOTUSMARKET",
+                    provider="LOTUSMARKET",
+                    country="VNM",
+                    authority_level="REPUTABLE_SECONDARY",
+                    source_type="API",
+                    base_url="https://bgapidatafeed.vps.com.vn",
+                    active=True,
+                )
+                session.add(lotus_ds)
+                session.commit()
+            source_ids["LOTUSMARKET"] = lotus_ds.id
+
         macro_series = [
             (series.id, series.provider.upper(), series.source_id)
             for series in session.query(MacroSeries).all()
@@ -302,7 +319,10 @@ async def run_ingestion_cycle(
 
     # 7. LotusMarket market data & insider events (bounded by batch_limit or selected_symbols)
     if (allowed_providers is None or "LOTUSMARKET" in allowed_providers) and "LOTUSMARKET" in source_ids:
-        if os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() not in ("true", "1", "yes"):
+        is_explicitly_targeted = allowed_providers is not None and "LOTUSMARKET" in allowed_providers
+        is_env_enabled = os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() in ("true", "1", "yes")
+
+        if not (is_explicitly_targeted or is_env_enabled):
             results.append({
                 "provider": "LOTUSMARKET",
                 "status": "BLOCKED_FLAG_DISABLED",
