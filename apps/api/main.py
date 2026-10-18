@@ -235,8 +235,7 @@ async def system_observability():
                 freshness["total_price_records"] = session.query(Price).count()
                 freshness["lotusmarket_price_records"] = (
                     session.query(Price)
-                    .join(DataSource, Price.source_id == DataSource.id)
-                    .filter(DataSource.name == "LOTUSMARKET")
+                    .filter(Price.source == "LOTUSMARKET")
                     .count()
                 )
                 approved_symbols = ["FPT", "VCB", "MBB", "MWG", "HPG"]
