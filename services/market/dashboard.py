@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -210,7 +210,7 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
     ).filter(
         EventRecord.materiality.in_(["MATERIAL", "CRITICAL"]),
         EventRecord.published_at.is_not(None),
-        EventRecord.published_at <= datetime.combine(as_of, datetime.max.time()),
+        EventRecord.published_at <= datetime.combine(as_of, datetime.max.time(), tzinfo=timezone.utc),
     ).order_by(EventRecord.published_at.desc()).limit(8).all()
     major_events = [
         MarketEventItem(
