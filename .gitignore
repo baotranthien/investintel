@@ -1,7 +1,9 @@
-﻿# Secrets
+# Secrets
 .env
 .env.*
 !.env.example
+authsecr.txt
+*secret*
 
 # Python
 .venv/

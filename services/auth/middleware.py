@@ -17,7 +17,9 @@ SESSION_COOKIE_NAME = "investintel_session"
 # Endpoints explicitly allowed without session authentication
 EXEMPT_PATH_PATTERNS = [
     re.compile(r"^/health/?$"),
+    re.compile(r"^/ready/?$"),
     re.compile(r"^/api/v1/health/?$"),
+    re.compile(r"^/api/v1/ready/?$"),
     re.compile(r"^/api/v1/system/info/?$"),
     re.compile(r"^/api/v1/system/observability/?$"),
     re.compile(r"^/api/v1/auth/login/?$"),

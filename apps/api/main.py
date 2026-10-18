@@ -96,6 +96,23 @@ def health_check():
         return JSONResponse(status_code=503, content={"status": "unhealthy", "database": db_health})
     return {"status": "ok"}
 
+@app.get("/ready")
+@app.get("/api/v1/ready")
+def readiness_check():
+    """Readiness probe for cloud orchestrators (e.g. Render/k8s).
+
+    Returns 200 OK with {"status": "ready"} if database connection is alive.
+    Returns 503 Service Unavailable if database is unreachable.
+    Does not leak internal credentials, connection strings, or personal financial data.
+    """
+    db_health = check_database_health()
+    if not db_health.get("connected"):
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "disconnected"}
+        )
+    return {"status": "ready"}
+
 @app.get("/api/v1/health")
 def health_check_v1():
     db_health = check_database_health()

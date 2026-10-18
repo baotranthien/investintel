@@ -4,7 +4,7 @@ import hmac
 import logging
 import os
 from typing import Any, Optional
-from fastapi import APIRouter, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -55,7 +55,7 @@ def _get_target_date(date_str: Optional[str]) -> datetime.date:
 @router.post("/run-ingestion")
 async def run_cron_ingestion(
     request: Request,
-    payload: Optional[CronTriggerRequest] = None,
+    payload: Optional[CronTriggerRequest] = Body(None),
     x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
 ):
     """Idempotent cron-triggered EOD market & macro ingestion."""
@@ -143,7 +143,7 @@ async def run_cron_ingestion(
 @router.post("/run-analyst")
 async def run_cron_analyst(
     request: Request,
-    payload: Optional[CronTriggerRequest] = None,
+    payload: Optional[CronTriggerRequest] = Body(None),
     x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
 ):
     """Idempotent cron-triggered analyst briefs and thesis review."""

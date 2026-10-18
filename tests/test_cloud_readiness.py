@@ -108,11 +108,42 @@ def test_exempt_endpoints_accessible(auth_client):
     resp = client.get("/health")
     assert resp.status_code == 200
 
+    resp = client.get("/ready")
+    assert resp.status_code in (200, 503)
+
     resp = client.get("/api/v1/health")
+    assert resp.status_code in (200, 503)
+
+    resp = client.get("/api/v1/ready")
     assert resp.status_code in (200, 503)
 
     resp = client.get("/api/v1/system/info")
     assert resp.status_code == 200
+
+
+def test_readiness_probe_success_and_failure(auth_client):
+    client, _, _ = auth_client
+
+    # 1. Database alive -> 200 {"status": "ready"}
+    with patch("apps.api.main.check_database_health", return_value={"connected": True, "backend": "postgresql", "latency_ms": 1.5}):
+        resp = client.get("/ready")
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "ready"}
+
+        resp_v1 = client.get("/api/v1/ready")
+        assert resp_v1.status_code == 200
+        assert resp_v1.json() == {"status": "ready"}
+
+    # 2. Database disconnected -> 503 without leaking credentials or stack traces
+    with patch("apps.api.main.check_database_health", return_value={"connected": False, "error": "connection timeout"}):
+        resp_down = client.get("/ready")
+        assert resp_down.status_code == 503
+        data = resp_down.json()
+        assert data["status"] == "not_ready"
+        assert data["database"] == "disconnected"
+        # Ensure no secrets, hosts, or connection strings leak in public response
+        assert "password" not in str(data).lower()
+        assert "postgresql://" not in str(data).lower()
 
 
 def test_login_flow_and_session_cookie(auth_client):
@@ -262,6 +293,14 @@ def test_cron_endpoint_idempotency(auth_client):
         assert resp2.status_code == 200
         assert resp2.json()["status"] == "ALREADY_COMPLETED"
         assert "already succeeded" in resp2.json()["message"]
+
+        # Third execution without any JSON body (e.g. cron-job.org default)
+        resp3 = client.post(
+            "/api/v1/system/cron/run-ingestion",
+            headers=valid_headers,
+        )
+        assert resp3.status_code == 200
+        assert resp3.json()["status"] in ("SUCCESS", "ALREADY_COMPLETED")
 
 
 # ==============================================================================
