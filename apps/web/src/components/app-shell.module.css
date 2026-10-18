@@ -1,0 +1,274 @@
+.frame {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 26px 18px 20px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  margin: 0 7px 35px;
+}
+
+.brandMark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  background: var(--ink);
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand strong {
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.brand small {
+  margin-top: 2px;
+  color: var(--ink-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.desktopNav {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+}
+
+.navGroup {
+  display: grid;
+  gap: 3px;
+}
+
+.groupLabel {
+  margin: 0 10px 6px;
+  color: #8a938b;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 39px;
+  padding: 8px 10px;
+  border-left: 2px solid transparent;
+  color: #536057;
+  font-size: 13px;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.navItem:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.active {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.navMarker {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #9aa39b;
+  transform: rotate(45deg);
+}
+
+.active .navMarker {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.sidebarNote {
+  margin: auto 7px 0;
+  padding-top: 18px;
+  color: var(--ink-muted);
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.sidebarNote p {
+  margin: 3px 0;
+}
+
+.noteRule {
+  display: block;
+  width: 32px;
+  height: 2px;
+  margin-bottom: 12px;
+  background: var(--positive);
+}
+
+.mainColumn {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 36px;
+  border-bottom: 1px solid var(--line);
+  background: rgb(242 244 241 / 94%);
+  backdrop-filter: blur(12px);
+}
+
+.breadcrumb,
+.topbarMeta,
+.privateLabel {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb {
+  gap: 11px;
+  min-width: 0;
+  color: #89928b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.breadcrumb strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.privateLabel {
+  gap: 8px;
+  color: var(--ink-muted);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.content {
+  width: 100%;
+  max-width: 1440px;
+  flex: 1;
+  margin: 0 auto;
+  padding: 34px 36px 56px;
+}
+
+.mobileNav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .frame {
+    grid-template-columns: 205px minmax(0, 1fr);
+  }
+
+  .content {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .topbar {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+@media (max-width: 680px) {
+  .frame {
+    display: block;
+    min-height: 100dvh;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    min-height: 54px;
+    padding: 0 17px;
+  }
+
+  .topbarMeta {
+    display: none;
+  }
+
+  .content {
+    padding: 25px 17px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .mobileNav {
+    position: fixed;
+    z-index: 10;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    min-height: 68px;
+    padding: 9px 5px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+    background: rgb(255 255 255 / 97%);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobileItem {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: var(--ink-muted);
+    font-size: 10px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
+  .mobileMarker {
+    width: 15px;
+    height: 3px;
+    background: #c5ccc5;
+  }
+
+  .mobileActive {
+    color: var(--ink);
+  }
+
+  .mobileActive .mobileMarker {
+    background: var(--accent);
+  }
+}

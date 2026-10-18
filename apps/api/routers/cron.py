@@ -1,0 +1,218 @@
+"""Authenticated, idempotent cron endpoints for cloud-scheduled execution."""
+import datetime
+import hmac
+import logging
+import os
+from typing import Any, Optional
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from database.connection import SessionLocal
+from database.models import AnalystAutomationJob
+from services.ai.scheduler import run_analyst_automation_cycle
+from services.ingestion.scheduler import run_ingestion_cycle
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/system/cron", tags=["cron"])
+
+
+class CronTriggerRequest(BaseModel):
+    as_of_date: Optional[str] = None  # Format: YYYY-MM-DD
+    force: bool = False
+
+
+def _verify_cron_secret(x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret")):
+    """Verify cron caller using constant-time comparison against CRON_SECRET env var."""
+    expected_secret = os.getenv("CRON_SECRET")
+    if not expected_secret or not expected_secret.strip():
+        logger.warning("CRON_SECRET is not configured in environment.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cron scheduler secret is not configured on this server.",
+        )
+
+    if not x_cron_secret or not hmac.compare_digest(x_cron_secret.strip(), expected_secret.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing X-Cron-Secret header.",
+        )
+    return True
+
+
+def _get_target_date(date_str: Optional[str]) -> datetime.date:
+    if date_str:
+        try:
+            return datetime.date.fromisoformat(date_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+    # Vietnam timezone UTC+7
+    vn_tz = datetime.timezone(datetime.timedelta(hours=7))
+    return datetime.datetime.now(vn_tz).date()
+
+
+@router.post("/run-ingestion")
+async def run_cron_ingestion(
+    request: Request,
+    payload: Optional[CronTriggerRequest] = None,
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+):
+    """Idempotent cron-triggered EOD market & macro ingestion."""
+    _verify_cron_secret(x_cron_secret)
+
+    body = payload or CronTriggerRequest()
+    target_date = _get_target_date(body.as_of_date)
+    idempotency_key = f"INGEST_EOD_{target_date.isoformat()}"
+
+    db: Session = SessionLocal()
+    try:
+        # Check existing job
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job and job.status == "SUCCESS" and not body.force:
+            logger.info(f"Cron ingestion [{idempotency_key}] already completed. Skipping.")
+            return {
+                "status": "ALREADY_COMPLETED",
+                "idempotency_key": idempotency_key,
+                "as_of_date": target_date.isoformat(),
+                "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+                "message": "Ingestion cycle already succeeded for this date. Redundant execution skipped.",
+            }
+
+        # Create or update job to RUNNING
+        if not job:
+            job = AnalystAutomationJob(
+                job_key=idempotency_key,
+                job_type="INGESTION_EOD",
+                status="RUNNING",
+                started_at=datetime.datetime.now(datetime.timezone.utc),
+            )
+            db.add(job)
+        else:
+            job.status = "RUNNING"
+            job.started_at = datetime.datetime.now(datetime.timezone.utc)
+            job.finished_at = None
+            job.error = None
+        db.commit()
+
+        # Execute existing ingestion cycle
+        run_results = await run_ingestion_cycle(session_factory=SessionLocal)
+
+        # Sanitize results for JSON serialization (dates, etc.)
+        def _sanitize(val: Any) -> Any:
+            if isinstance(val, (datetime.date, datetime.datetime)):
+                return val.isoformat()
+            if isinstance(val, dict):
+                return {k: _sanitize(v) for k, v in val.items()}
+            if isinstance(val, list):
+                return [_sanitize(x) for x in val]
+            return val
+
+        # Update job to SUCCESS
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        job.status = "SUCCESS"
+        job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+        job.result = _sanitize({"results": run_results, "total_providers": len(run_results)})
+        db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "idempotency_key": idempotency_key,
+            "as_of_date": target_date.isoformat(),
+            "results_count": len(run_results),
+            "results": run_results,
+        }
+
+    except Exception as exc:
+        db.rollback()
+        logger.exception(f"Cron ingestion failed for [{idempotency_key}]: {exc}")
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job:
+            job.status = "FAILED"
+            job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+            job.error = str(exc)[:4000]
+            db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ingestion failed: {exc}",
+        )
+    finally:
+        db.close()
+
+
+@router.post("/run-analyst")
+async def run_cron_analyst(
+    request: Request,
+    payload: Optional[CronTriggerRequest] = None,
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+):
+    """Idempotent cron-triggered analyst briefs and thesis review."""
+    _verify_cron_secret(x_cron_secret)
+
+    body = payload or CronTriggerRequest()
+    target_date = _get_target_date(body.as_of_date)
+    idempotency_key = f"DAILY_BRIEF_{target_date.isoformat()}"
+
+    db: Session = SessionLocal()
+    try:
+        # Check existing job
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job and job.status == "SUCCESS" and not body.force:
+            logger.info(f"Cron analyst [{idempotency_key}] already completed. Skipping.")
+            return {
+                "status": "ALREADY_COMPLETED",
+                "idempotency_key": idempotency_key,
+                "as_of_date": target_date.isoformat(),
+                "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+                "message": "Analyst brief already succeeded for this date. Redundant execution skipped.",
+            }
+
+        if not job:
+            job = AnalystAutomationJob(
+                job_key=idempotency_key,
+                job_type="DAILY_BRIEF",
+                status="RUNNING",
+                started_at=datetime.datetime.now(datetime.timezone.utc),
+            )
+            db.add(job)
+        else:
+            job.status = "RUNNING"
+            job.started_at = datetime.datetime.now(datetime.timezone.utc)
+            job.finished_at = None
+            job.error = None
+        db.commit()
+
+        # Execute existing analyst automation cycle
+        analyst_results = await run_analyst_automation_cycle(
+            session_factory=SessionLocal,
+            as_of=target_date,
+        )
+
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        job.status = "SUCCESS"
+        job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+        job.result = _sanitize({"results": analyst_results})
+        db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "idempotency_key": idempotency_key,
+            "as_of_date": target_date.isoformat(),
+            "results": analyst_results,
+        }
+
+    except Exception as exc:
+        db.rollback()
+        logger.exception(f"Cron analyst failed for [{idempotency_key}]: {exc}")
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job:
+            job.status = "FAILED"
+            job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+            job.error = str(exc)[:4000]
+            db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Analyst automation failed: {exc}",
+        )
+    finally:
+        db.close()

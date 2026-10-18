@@ -1,0 +1,3002 @@
+[
+  {
+    "code": "FPT",
+    "itemCode": 23003.0,
+    "reportType": "ESTIMATION",
+    "modelType": 33.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2023-06-19 23:04:15",
+    "modifiedDate": "2023-06-19 23:04:15"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12630.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14170.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 1559995344872.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11490.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": -131545849438.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12140.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14190.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 87203093024.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12240.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 4018633151.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12260.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": -4013832181.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 15000.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12630.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12595.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 20200000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13160.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 848293082410.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13320.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13370.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 69317780976.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11100.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 8279156683221.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12500.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 3335009108332.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12510.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12620.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 360946956414.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13000.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 30349816316666.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14330.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14220.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 4471895918464.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14240.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 4958854855687.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14149.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12000.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 23577075781023.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13130.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 602100022731.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11520.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 531703625576.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12220.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 2508842600569.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12290.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": -119693364628.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12300.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14120.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 49941441360.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14130.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14150.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12140.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13220.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13210.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11510.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 5238022378.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13311.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11390.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": -7086267109.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11400.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 571307344.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11490.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13160.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 85012644864.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 865479467395.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22500.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 338549875820.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 700087.0,
+    "reportType": "QUARTER2",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31140.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -215869091.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31150.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 302409001610.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22509.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 338376949533.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22515.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -20483281846.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31160.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -1987914941.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31170.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -330620219083.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -5584770111.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 431400.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13170.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 431100.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 611530.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31111.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13180.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 412320.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 6325200000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14310.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 153008251801.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13320.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13350.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 37095617.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14145.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11300.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 4230589445101.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14000.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 18036849756719.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 6325200000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14100.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 18036849756719.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11120.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 1903300000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31130.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 34639938619.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11100.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 2537167414202.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31140.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 112699089.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33710.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12410.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12510.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 11039613409012.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32700.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 124540896799.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12580.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 500000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33100.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 412541.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12600.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 70788935374.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31120.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -126179141625.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14220.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14149.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12450.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 700036.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12690.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1283790079129.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22110.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 1316156285395.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22500.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 527556384763.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23500.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 322840809646.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23003.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 2051240770981.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23300.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 42347008961.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23003.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 7788049739616.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13160.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 882930232561.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13200.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 379618879870.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 412320.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 16104205358010.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13330.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 41914135058.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11110.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 5975127685903.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11000.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 36709543350385.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12410.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12420.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12520.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 2140003690320.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12590.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": -1623156391089.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12600.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 5042420397778.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12620.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 368684417542.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12180.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 299764585187.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13312.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14120.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 49713213411.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11350.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 869491618296.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14160.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": -17000608261.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11410.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1724956924671.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14180.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12440.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 1315270136003.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12111.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12270.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1257097141433.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11320.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 348405863076.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14120.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 49713213411.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14130.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1928602158147.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13346.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13311.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11400.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 1593411075233.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13300.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 698142760439.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13330.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 41914135058.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14145.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14193.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 192096283.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11120.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 2304028997318.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11000.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 36705751751876.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12580.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 2830348813038.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 412541.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12680.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12700.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 60282827532899.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13100.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 29651673556227.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13120.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 2602977290710.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13130.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 602010036721.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12110.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12130.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12260.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": -4013832181.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12180.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 1579629480.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12190.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12230.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": -417995386075.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12460.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 73481448.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12111.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 5199913463074.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13343.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13313.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13312.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11350.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 3839089110309.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11410.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 571307344.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13197.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 226476108000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12420.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12580.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 500000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 412541.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13140.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 2490753107.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14230.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 5176405724725.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14330.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14240.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11580.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12000.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 13729750441246.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12260.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12290.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": -119693364628.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14140.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22230.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 37176569726.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23810.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 3377826381944.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 36100.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 185478087.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14210.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11570.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11510.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 5238022378.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11350.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 3839089110309.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11400.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 571307344.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22052.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": -15162606551.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22051.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23200.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 21900.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 200956010920.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22052.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": -9060642842.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23110.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 9111745534433.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22200.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 6625373638359.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23500.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 1322859306994.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31140.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 171483828380.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33200.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31120.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 3284105396667.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22509.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 206644073232.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31120.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": 10989758903879.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31101.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 37000.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": 8279156683221.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31200.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": -347735082564.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 431400.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13197.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 132927038647.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11290.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14210.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12230.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": -9906845402941.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12460.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1315270136003.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14320.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 2750000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14400.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 60325276051932.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12290.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": -1338489590814.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13210.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14140.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14150.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14200.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 8679208502528.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13312.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11330.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11340.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 182965994736.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11390.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": -912156645080.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11410.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 1724956924671.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11210.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12410.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12520.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 2107616686383.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12590.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": -1623156391089.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13110.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 13837894474107.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13140.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1432356605157.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11520.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 528984574991.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11540.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 76405085212.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11580.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11540.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 84181723091.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14330.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12250.0,
+    "reportType": "QUARTER",
+    "modelType": 1.0,
+    "numericValue": 8032465332.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14110.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 12699688750000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14140.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14170.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 103009261.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12690.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11320.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 8649092862.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11330.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13360.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13370.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11310.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 139037509039.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11300.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 4230589445101.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11210.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12400.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12410.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12520.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 492500000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12620.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 53552150442.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12680.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13110.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 6824205700000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13120.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 767453716862.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13130.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 8699854627.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11520.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 67791546845.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11540.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 4022060681.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12220.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 2508842600569.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12240.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31101.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22515.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 5716419276.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32300.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -1564000000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31190.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 37000.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 2537167414202.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31200.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -1788654000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32100.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -16825118296.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12440.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 73481448.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14201.0,
+    "reportType": "QUARTER2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22900.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 340748760.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23800.0,
+    "reportType": "ANNUAL2",
+    "modelType": 2.0,
+    "numericValue": 6728849805890.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23001.0,
+    "reportType": "QUARTER2",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31130.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -15891547507.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33600.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -2372454757750.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 34000.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -599404257750.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32600.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31110.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": -7416350033579.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31101.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32200.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 134375189.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 35000.0,
+    "reportType": "ANNUAL2",
+    "modelType": 3.0,
+    "numericValue": 934572275769.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13160.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 85012644864.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13190.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 687887603497.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13340.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13360.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14193.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11110.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 633867414202.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33600.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -120674900.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12500.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 11532613409012.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32600.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33000.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": -985963346308.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33300.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 4380700000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31102.0,
+    "reportType": "QUARTER2",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-01-26 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13100.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 8631090342873.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13120.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 767453716862.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 13130.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 8699854627.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12000.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 13723873506658.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12100.0,
+    "reportType": "ANNUAL2",
+    "modelType": 1.0,
+    "numericValue": 1579629480.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-26 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14180.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12440.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 1315270136003.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 12140.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 11570.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14190.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 87203093024.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14201.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 14300.0,
+    "reportType": "ANNUAL",
+    "modelType": 1.0,
+    "numericValue": 2750000000.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 21900.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 64518573767.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22070.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 383852028610.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22052.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": -41129315871.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 21000.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 14695806584757.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 21500.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 520345470835.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22100.0,
+    "reportType": "QUARTER",
+    "modelType": 2.0,
+    "numericValue": 9058549143162.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23200.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 22900.0,
+    "reportType": "ANNUAL",
+    "modelType": 2.0,
+    "numericValue": 109695446783.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31110.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": -436657963650.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 23810.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 2435092799591.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 32300.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": -7266476702593.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31190.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31200.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": -8949467333.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 431100.0,
+    "reportType": "QUARTER",
+    "modelType": 3.0,
+    "numericValue": 0.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-01-25 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33500.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": -30169775111.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31130.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": -1163209212196.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33600.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": -2930628448135.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 31150.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": 1380255770889.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  },
+  {
+    "code": "FPT",
+    "itemCode": 33000.0,
+    "reportType": "ANNUAL",
+    "modelType": 3.0,
+    "numericValue": -6548374165711.0,
+    "fiscalDate": "2023-12-31",
+    "createdDate": "2024-01-25 00:00:00",
+    "modifiedDate": "2024-03-11 00:00:00"
+  }
+]

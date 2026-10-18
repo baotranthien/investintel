@@ -1,0 +1,19 @@
+import type { NextConfig } from "next";
+
+const backendUrl =
+  process.env.INTERNAL_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8000";
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl.replace(/\/$/, "")}/api/:path*`,
+      },
+    ];
+  },
+};
+
+export default nextConfig;

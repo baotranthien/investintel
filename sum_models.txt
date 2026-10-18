@@ -1,0 +1,1 @@
+modelType=203.0, companyForm=SECURITIES -> CASHFLOW (BC Lưu chuyển tiền tệ - Chứng khoán)

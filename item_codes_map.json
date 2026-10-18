@@ -1,0 +1,2072 @@
+{
+  "11000.0": {
+    "vn": "Tài sản ngắn hạn",
+    "en": "Current Assets",
+    "mt": 1
+  },
+  "11100.0": {
+    "vn": "Tiền và các khoản tương đương tiền",
+    "en": "Cash and Cash Equivalents",
+    "mt": 1
+  },
+  "11110.0": {
+    "vn": "Tiền",
+    "en": "Cash",
+    "mt": 1
+  },
+  "11120.0": {
+    "vn": "Các khoản tương đương tiền",
+    "en": "Cash equivalents",
+    "mt": 1
+  },
+  "11200.0": {
+    "vn": "Các khoản đầu tư tài chính ngắn hạn",
+    "en": "Short term financial investment",
+    "mt": 1
+  },
+  "11210.0": {
+    "vn": "Đầu tư ngắn hạn",
+    "en": "Short-term investments",
+    "mt": 1
+  },
+  "11290.0": {
+    "vn": "Dự phòng giảm giá đầu tư ngắn hạn",
+    "en": "Provision for  short term investment loss",
+    "mt": 1
+  },
+  "412320.0": {
+    "vn": "Đầu tư giữ đến ngày đáo hạn",
+    "en": "Held to maturity Investment",
+    "mt": 1
+  },
+  "11457.0": {
+    "vn": "Dự phòng đầu tư nắm giữ đến ngày đáo hạn ngắn hạn",
+    "en": "Provision for Held-to-maturity investment",
+    "mt": 1
+  },
+  "11440.0": {
+    "vn": "Đầu tư ngắn hạn khác",
+    "en": "Other short-term investments",
+    "mt": 1
+  },
+  "11441.0": {
+    "vn": "Dự phòng tổn thất các khoản đầu tư ngắn hạn khác",
+    "en": "Provision for impairment of other short-term investments",
+    "mt": 1
+  },
+  "11300.0": {
+    "vn": "Các khoản phải thu ngắn hạn",
+    "en": "Short term Account Receivables",
+    "mt": 1
+  },
+  "11310.0": {
+    "vn": "Phải thu khách hàng",
+    "en": "Account Receivable",
+    "mt": 1
+  },
+  "11320.0": {
+    "vn": "Trả trước cho người bán",
+    "en": "Prepaid for suppliers",
+    "mt": 1
+  },
+  "11330.0": {
+    "vn": "Phải thu nội bộ ngắn hạn",
+    "en": "Short term Internal Receivable",
+    "mt": 1
+  },
+  "11340.0": {
+    "vn": "Phải thu theo tiến độ kế hoạch hợp đồng xây dựng",
+    "en": "Construction contract in progress receivables",
+    "mt": 1
+  },
+  "11345.0": {
+    "vn": "Phải thu về cho vay ngắn hạn",
+    "en": "Short-term loan Receivables",
+    "mt": 1
+  },
+  "11350.0": {
+    "vn": "Các khoản phải thu khác",
+    "en": "Other Receivables",
+    "mt": 1
+  },
+  "11390.0": {
+    "vn": "Dự phòng phải thu ngắn hạn khó đòi",
+    "en": "Provision for doublful debt",
+    "mt": 1
+  },
+  "611530.0": {
+    "vn": "Tài sản thiếu chờ xử lý",
+    "en": "Deficiency Assets  waiting for solution",
+    "mt": 1
+  },
+  "11400.0": {
+    "vn": "Hàng tồn kho",
+    "en": "Inventories",
+    "mt": 1
+  },
+  "11410.0": {
+    "vn": "Hàng tồn kho",
+    "en": "Inventory",
+    "mt": 1
+  },
+  "11490.0": {
+    "vn": "Dự phòng giảm giá hàng tồn kho",
+    "en": "Provision for decline in inventories",
+    "mt": 1
+  },
+  "11442.0": {
+    "vn": "Tài sản sinh học ngắn hạn",
+    "en": "Current biological assets",
+    "mt": 1
+  },
+  "11443.0": {
+    "vn": "Súc vật nuôi lấy sản phẩm một lần ngắn hạn",
+    "en": "Livestock held for one-time harvest",
+    "mt": 1
+  },
+  "11444.0": {
+    "vn": "Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần ngắn hạn",
+    "en": "Short-term seasonal crops or plants held for one-time harvest",
+    "mt": 1
+  },
+  "11445.0": {
+    "vn": "Dự phòng tổn thất tài sản sinh học ngắn hạn",
+    "en": "Provision for impairment of current biological assets",
+    "mt": 1
+  },
+  "11500.0": {
+    "vn": "Tài sản ngắn hạn khác",
+    "en": "Other Current Assets",
+    "mt": 1
+  },
+  "11510.0": {
+    "vn": "Chi phí trả trước ngắn hạn",
+    "en": "Short-term prepaid expenses",
+    "mt": 1
+  },
+  "11520.0": {
+    "vn": "Thuế GTGT được khấu trừ",
+    "en": "Discounted VAT",
+    "mt": 1
+  },
+  "11540.0": {
+    "vn": "Thuế và các khoản khác phải thu Nhà nước",
+    "en": "Tax and States Account Receivables",
+    "mt": 1
+  },
+  "11570.0": {
+    "vn": "Giao dịch mua bán lại trái phiếu chính phủ",
+    "en": "Government bonds purchased for resale",
+    "mt": 1
+  },
+  "11580.0": {
+    "vn": "Tài sản ngắn hạn khác",
+    "en": "Other current assets",
+    "mt": 1
+  },
+  "12000.0": {
+    "vn": "Tài sản dài hạn",
+    "en": "Long-term Assets",
+    "mt": 1
+  },
+  "12100.0": {
+    "vn": "Các khoản phải thu dài hạn",
+    "en": "Long term Account Receivable",
+    "mt": 1
+  },
+  "12110.0": {
+    "vn": "Phải thu dài hạn của khách hàng",
+    "en": "Long-term trade receivables from customers",
+    "mt": 1
+  },
+  "12111.0": {
+    "vn": "Trả trước dài hạn người bán",
+    "en": "Long term prepaid for suppliers",
+    "mt": 1
+  },
+  "12120.0": {
+    "vn": "Vốn kinh doanh ở đơn vị trực thuộc",
+    "en": "Business capital in subsidiary uints",
+    "mt": 1
+  },
+  "12130.0": {
+    "vn": "Phải thu dài hạn nội bộ",
+    "en": "Internal Longterm Receivables",
+    "mt": 1
+  },
+  "12140.0": {
+    "vn": "Phải thu về cho vay dài hạn",
+    "en": "Long-term loans receivables",
+    "mt": 1
+  },
+  "12180.0": {
+    "vn": "Phải thu dài hạn khác",
+    "en": "Other Long term Receivables",
+    "mt": 1
+  },
+  "12190.0": {
+    "vn": "Dự phòng phải thu dài hạn khó đòi",
+    "en": "Provision for doubtful Long-term receivable",
+    "mt": 1
+  },
+  "12200.0": {
+    "vn": "Tài sản cố định",
+    "en": "Fixed assets",
+    "mt": 1
+  },
+  "12210.0": {
+    "vn": "Tài sản cố định hữu hình",
+    "en": "Tangible Fixed Assets",
+    "mt": 1
+  },
+  "12220.0": {
+    "vn": "Nguyên giá TSCĐHH",
+    "en": "Original Price",
+    "mt": 1
+  },
+  "12230.0": {
+    "vn": "Hao mòn TSCĐHH",
+    "en": "Acumulated Depreation and Amortization",
+    "mt": 1
+  },
+  "12240.0": {
+    "vn": "Tài sản cố định thuê tài chính",
+    "en": "Financial leases fixed assets",
+    "mt": 1
+  },
+  "12250.0": {
+    "vn": "Nguyên giá TSCĐTTC",
+    "en": "Original Price",
+    "mt": 1
+  },
+  "12260.0": {
+    "vn": "Hao mòn TSCĐTTC",
+    "en": "Acumulated Depreation and Amortization",
+    "mt": 1
+  },
+  "12270.0": {
+    "vn": "Tài sản cố định vô hình",
+    "en": "Intangible Fixed Asset",
+    "mt": 1
+  },
+  "12280.0": {
+    "vn": "Nguyên giá TSCĐVH",
+    "en": "Original Price",
+    "mt": 1
+  },
+  "12290.0": {
+    "vn": "Hao mòn TSCĐVH",
+    "en": "Acumulated Depreation and Amortization",
+    "mt": 1
+  },
+  "12300.0": {
+    "vn": "Chi phí xây dựng cơ bản dở dang (trước 2015)",
+    "en": "Construction in progress (before 2015)",
+    "mt": 1
+  },
+  "11446.0": {
+    "vn": "Tài sản sinh học dài hạn",
+    "en": "Non-current biological assets",
+    "mt": 1
+  },
+  "11447.0": {
+    "vn": "Súc vật nuôi cho sản phẩm định kỳ",
+    "en": "Bearer livestock",
+    "mt": 1
+  },
+  "11448.0": {
+    "vn": "Súc vật nuôi cho sản phẩm định kỳ chưa đến giai đoạn trưởng thành",
+    "en": "Immature bearer livestock",
+    "mt": 1
+  },
+  "11449.0": {
+    "vn": "Súc vật nuôi cho sản phẩm định kỳ đến giai đoạn trưởng thành",
+    "en": "Mature bearer livestock",
+    "mt": 1
+  },
+  "11450.0": {
+    "vn": "Nguyên giá",
+    "en": "Cost",
+    "mt": 1
+  },
+  "11451.0": {
+    "vn": "Giá trị khấu hao luỹ kế",
+    "en": "Accumulated depreciation",
+    "mt": 1
+  },
+  "11452.0": {
+    "vn": "Súc vật nuôi lấy sản phẩm một lần dài hạn",
+    "en": "Non-current livestock held for one-time harvest",
+    "mt": 1
+  },
+  "11453.0": {
+    "vn": "Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần dài hạn",
+    "en": "Non-current seasonal crops or plants held for one-time harvest",
+    "mt": 1
+  },
+  "11454.0": {
+    "vn": "Dự phòng tổn thất tài sản sinh học dài hạn",
+    "en": "Provision for impairment of non-current biological assets",
+    "mt": 1
+  },
+  "12400.0": {
+    "vn": "Bất động sản đầu tư",
+    "en": "Real Estate Investment",
+    "mt": 1
+  },
+  "12410.0": {
+    "vn": "Nguyên giá bất động sản đầu tư",
+    "en": "Original Price",
+    "mt": 1
+  },
+  "12420.0": {
+    "vn": "Hao mòn bất động sản đầu tư",
+    "en": "Acumulated Depreation and Amortization",
+    "mt": 1
+  },
+  "12440.0": {
+    "vn": "Tài sản dở dang dài hạn",
+    "en": "Long-term incomplete assets",
+    "mt": 1
+  },
+  "12450.0": {
+    "vn": "Chi phí sản xuất, kinh doanh dở dang dài hạn",
+    "en": "Long-term cost of work in progress",
+    "mt": 1
+  },
+  "12460.0": {
+    "vn": "Chi phí xây dựng cơ bản dở dang ",
+    "en": "Capital Construction in Process",
+    "mt": 1
+  },
+  "12500.0": {
+    "vn": "Các khoản đầu tư tài chính dài hạn",
+    "en": "Long term Finacial  Investments",
+    "mt": 1
+  },
+  "12510.0": {
+    "vn": "Đầu tư vào công ty con",
+    "en": "Investments in subsidiaries",
+    "mt": 1
+  },
+  "12520.0": {
+    "vn": "Đầu tư vào công ty liên kết, liên doanh",
+    "en": "Investments in associates",
+    "mt": 1
+  },
+  "12580.0": {
+    "vn": "Đầu tư dài hạn khác",
+    "en": "Other long term Investments",
+    "mt": 1
+  },
+  "12590.0": {
+    "vn": "Dự phòng giảm giá đầu tư tài chính dài hạn",
+    "en": "Provision for long-term investments",
+    "mt": 1
+  },
+  "12595.0": {
+    "vn": "Đầu tư dài hạn giữ đến ngày đáo hạn",
+    "en": "Long term held-to-maturity Investment",
+    "mt": 1
+  },
+  "11455.0": {
+    "vn": "Dự phòng đầu tư nắm giữ đến ngày đáo hạn dài hạn",
+    "en": "Provision for Held-to-maturity investment",
+    "mt": 1
+  },
+  "12600.0": {
+    "vn": "Tài sản dài hạn khác",
+    "en": "Other long term assets",
+    "mt": 1
+  },
+  "12610.0": {
+    "vn": "Chi phí trả trước dài hạn",
+    "en": "Prepaid expenses",
+    "mt": 1
+  },
+  "12620.0": {
+    "vn": "Tài sản thuế thu nhập hoãn lại",
+    "en": "Deferred Income Tax",
+    "mt": 1
+  },
+  "12630.0": {
+    "vn": "Thiết bị, vật tư, phụ tùng thay thế dài hạn",
+    "en": "Long-term equipment, material and spare parts",
+    "mt": 1
+  },
+  "12680.0": {
+    "vn": "Tài sản dài hạn khác",
+    "en": "Other long term assets",
+    "mt": 1
+  },
+  "12690.0": {
+    "vn": "Lợi thế thương mại",
+    "en": "Goodwill",
+    "mt": 1
+  },
+  "412541.0": {
+    "vn": "Lợi thế thương mại (trước 2015)",
+    "en": "Goodwill (before 2015)",
+    "mt": 1
+  },
+  "12700.0": {
+    "vn": "TỔNG CỘNG TÀI SẢN",
+    "en": "TOTAL ASSETS",
+    "mt": 1
+  },
+  "13000.0": {
+    "vn": "Nợ phải trả",
+    "en": "Liabilities",
+    "mt": 1
+  },
+  "13100.0": {
+    "vn": "Nợ ngắn hạn",
+    "en": "Short term Liabilities",
+    "mt": 1
+  },
+  "13110.0": {
+    "vn": "Vay và nợ ngắn hạn",
+    "en": "Short term Loan and Liabilities",
+    "mt": 1
+  },
+  "13120.0": {
+    "vn": "Phải trả người bán",
+    "en": "Payment for suppliers",
+    "mt": 1
+  },
+  "13130.0": {
+    "vn": "Người mua trả tiền trước",
+    "en": "Prepaid from Customers",
+    "mt": 1
+  },
+  "613520.0": {
+    "vn": "Phải trả cổ tức cho cổ đông",
+    "en": "Dividend of shareholde Payable",
+    "mt": 1
+  },
+  "13140.0": {
+    "vn": "Thuế và các khoản phải nộp Nhà nước",
+    "en": "Tax and other payable to State Budget",
+    "mt": 1
+  },
+  "13150.0": {
+    "vn": "Phải trả người lao động",
+    "en": "Employees Payable",
+    "mt": 1
+  },
+  "13160.0": {
+    "vn": "Chi phí phải trả",
+    "en": "Expenses Payable",
+    "mt": 1
+  },
+  "13170.0": {
+    "vn": "Phải trả nội bộ",
+    "en": "Internal Payable",
+    "mt": 1
+  },
+  "13180.0": {
+    "vn": "Phải trả theo tiến độ kế hoạch hợp đồng xây dựng",
+    "en": "Construction contract in progress payables",
+    "mt": 1
+  },
+  "13190.0": {
+    "vn": "Các khoản phải trả, phải nộp ngắn hạn khác",
+    "en": "Other Account Payables",
+    "mt": 1
+  },
+  "14310.0": {
+    "vn": "Quỹ khen thưởng, phúc lợi",
+    "en": "Bonus and welfare funds",
+    "mt": 1
+  },
+  "13199.0": {
+    "vn": "Doanh thu chưa thực hiện ngắn hạn",
+    "en": "Short-term unrealized revenue",
+    "mt": 1
+  },
+  "13200.0": {
+    "vn": "Dự phòng phải trả ngắn hạn",
+    "en": "Provision for short term Payables",
+    "mt": 1
+  },
+  "13210.0": {
+    "vn": "Quỹ bình ổn giá",
+    "en": "Price stabilisation Fund",
+    "mt": 1
+  },
+  "13220.0": {
+    "vn": "Giao dịch mua bán lại trái phiếu chính phủ",
+    "en": "Government bonds purchased for resale",
+    "mt": 1
+  },
+  "13300.0": {
+    "vn": "Nợ dài hạn",
+    "en": "Long term Liabilities",
+    "mt": 1
+  },
+  "13310.0": {
+    "vn": "Phải trả dài hạn người bán",
+    "en": "Long-term Payable for suppliers",
+    "mt": 1
+  },
+  "13311.0": {
+    "vn": "Người mua trả trước dài hạn",
+    "en": "Long term prepaid from Customers",
+    "mt": 1
+  },
+  "11456.0": {
+    "vn": "Thuế và các khoản phải nộp Nhà nước dài hạn",
+    "en": "2.3. Long-term taxes and payables to the State",
+    "mt": 1
+  },
+  "13312.0": {
+    "vn": "Chi phí phải trả dài hạn",
+    "en": "Long term Expenses Payables",
+    "mt": 1
+  },
+  "13313.0": {
+    "vn": "Phải trả nội bộ về vốn kinh doanh",
+    "en": "Internal Payables of Business Capital",
+    "mt": 1
+  },
+  "13320.0": {
+    "vn": "Phải trả dài hạn nội bộ",
+    "en": "Internal Payable",
+    "mt": 1
+  },
+  "13330.0": {
+    "vn": "Phải trả dài hạn khác",
+    "en": "Other long-term payables",
+    "mt": 1
+  },
+  "13340.0": {
+    "vn": "Vay và nợ dài hạn",
+    "en": "Loans and Long term Liabilities",
+    "mt": 1
+  },
+  "13343.0": {
+    "vn": "Trái phiếu chuyển đổi",
+    "en": "convertible bond",
+    "mt": 1
+  },
+  "13346.0": {
+    "vn": "Cổ phiếu ưu đãi",
+    "en": "Preferred shares",
+    "mt": 1
+  },
+  "13350.0": {
+    "vn": "Thuế thu nhập hoãn lại phải trả",
+    "en": "Deferred Income Tax Payable",
+    "mt": 1
+  },
+  "13360.0": {
+    "vn": "Dự phòng trợ cấp mất việc làm",
+    "en": "Provision for  unemloyment pension  allowance",
+    "mt": 1
+  },
+  "13197.0": {
+    "vn": "Doanh thu chưa thực hiện dài hạn",
+    "en": "Unrealized Revenue (Long term)",
+    "mt": 1
+  },
+  "14193.0": {
+    "vn": "Quỹ phát triển khoa học và công nghệ",
+    "en": "Technology-science development fund",
+    "mt": 1
+  },
+  "13370.0": {
+    "vn": "Dự phòng phải trả dài hạn",
+    "en": "Provision for long-term liabilities",
+    "mt": 1
+  },
+  "14000.0": {
+    "vn": "Vốn chủ sở hữu",
+    "en": "Owners equity",
+    "mt": 1
+  },
+  "14100.0": {
+    "vn": "Vốn và các quỹ",
+    "en": "Capital and researves",
+    "mt": 1
+  },
+  "14110.0": {
+    "vn": "Vốn góp",
+    "en": "Paid-in capital",
+    "mt": 1
+  },
+  "14148.0": {
+    "vn": "Cổ phiếu phổ thông",
+    "en": "Common shares",
+    "mt": 1
+  },
+  "14145.0": {
+    "vn": "Cổ phiếu ưu đãi",
+    "en": "Prefered shares",
+    "mt": 1
+  },
+  "14120.0": {
+    "vn": "Thặng dư vốn cổ phần",
+    "en": "Share premium",
+    "mt": 1
+  },
+  "14149.0": {
+    "vn": "Quyền chọn chuyển đổi trái phiếu",
+    "en": "Convertible Bonds Option",
+    "mt": 1
+  },
+  "14130.0": {
+    "vn": "Vốn khác của chủ sở hữu",
+    "en": "Other capitals of Owners Equity",
+    "mt": 1
+  },
+  "14140.0": {
+    "vn": "Cổ phiếu quỹ",
+    "en": "Treasury shares",
+    "mt": 1
+  },
+  "14150.0": {
+    "vn": "Chênh lệch đánh giá lại tài sản",
+    "en": "Property revaluation differences",
+    "mt": 1
+  },
+  "14160.0": {
+    "vn": "Chênh lệch tỷ giá hối đoái",
+    "en": "Exchange differences",
+    "mt": 1
+  },
+  "14170.0": {
+    "vn": "Quỹ đầu tư phát triển",
+    "en": "Development and Investment Fund",
+    "mt": 1
+  },
+  "14180.0": {
+    "vn": "Quỹ dự phòng tài chính",
+    "en": "Financial Provision  Fund",
+    "mt": 1
+  },
+  "14190.0": {
+    "vn": "Quỹ khác thuộc vốn chủ sở hữu",
+    "en": "Other Funds of Owners Equity",
+    "mt": 1
+  },
+  "14200.0": {
+    "vn": "Lợi nhuận sau thuế chưa phân phối",
+    "en": "Undistributed Profit after Tax",
+    "mt": 1
+  },
+  "14220.0": {
+    "vn": "Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối kỳ trước",
+    "en": "Cummulative Undistributed Profit after Tax until last year",
+    "mt": 1
+  },
+  "14230.0": {
+    "vn": "Lợi nhuận sau thuế chưa phân phối kỳ này",
+    "en": "Undistributed Profit after Tax this year",
+    "mt": 1
+  },
+  "14240.0": {
+    "vn": "Lợi ích cổ đông không kiểm soát",
+    "en": "Non Controlling Shareholders",
+    "mt": 1
+  },
+  "14201.0": {
+    "vn": "Quỹ hỗ trợ sắp xếp doanh nghiệp",
+    "en": "Business Arrangement Assistance Fund",
+    "mt": 1
+  },
+  "14210.0": {
+    "vn": "Nguồn vốn đầu tư XDCB",
+    "en": "Capital Construction Investment",
+    "mt": 1
+  },
+  "14300.0": {
+    "vn": "Nguồn kinh phí và quỹ khác",
+    "en": "Expenditures and Other Funds",
+    "mt": 1
+  },
+  "700036.0": {
+    "vn": "Quỹ khen thưởng, phúc lợi (trước 2010)",
+    "en": "Bonus and welfare funds (Before 2010)",
+    "mt": 1
+  },
+  "14320.0": {
+    "vn": "Vốn ngân sách nhà nước",
+    "en": "Budget sources and other funds",
+    "mt": 1
+  },
+  "14330.0": {
+    "vn": "Nguồn kinh phí đã hình thành TSCĐ",
+    "en": "Fixed Assets expenditures",
+    "mt": 1
+  },
+  "15000.0": {
+    "vn": "Lợi ích của cổ đông không kiểm soát (trước 2015)",
+    "en": "Minority shareholderss Equity",
+    "mt": 1
+  },
+  "14400.0": {
+    "vn": "TỔNG CỘNG NGUỒN VỐN",
+    "en": "TOTAL EQUITY",
+    "mt": 1
+  },
+  "21000.0": {
+    "vn": "Tổng doanh thu hoạt động kinh doanh",
+    "en": "Gross Operating Revenue",
+    "mt": 2
+  },
+  "21090.0": {
+    "vn": "Các khoản giảm trừ doanh thu",
+    "en": "Deduction revenues",
+    "mt": 2
+  },
+  "21001.0": {
+    "vn": "Doanh thu thuần",
+    "en": "Net Sales",
+    "mt": 2
+  },
+  "22100.0": {
+    "vn": "Giá vốn hàng bán",
+    "en": "Cost of goods sold",
+    "mt": 2
+  },
+  "23100.0": {
+    "vn": "Lợi nhuận gộp",
+    "en": "Gross profit",
+    "mt": 2
+  },
+  "22500.0": {
+    "vn": "Chi phí tài chính",
+    "en": "Financial Expenses",
+    "mt": 2
+  },
+  "22110.0": {
+    "vn": "Chi phí bán hàng",
+    "en": "Selling Expenses",
+    "mt": 2
+  },
+  "23200.0": {
+    "vn": "Lợi nhuận hoặc lỗ trong công ty liên kết (trước 2015)",
+    "en": "Profit or lost from join venture companies (before 2015)",
+    "mt": 2
+  },
+  "24000.0": {
+    "vn": "Lãi/lỗ của hoạt động bán, thanh lý bất động sản đầu tư",
+    "en": "Gain/(loss) from disposals of investment properties",
+    "mt": 2
+  },
+  "23300.0": {
+    "vn": "Lợi nhuận hoặc lỗ trong công ty liên kết",
+    "en": "Profit or loss from join venture companies",
+    "mt": 2
+  },
+  "23110.0": {
+    "vn": "Lợi nhuận thuần từ hoạt động kinh doanh",
+    "en": "Net Profit from Operating activities",
+    "mt": 2
+  },
+  "23900.0": {
+    "vn": "Lợi nhuận khác",
+    "en": "Other profits",
+    "mt": 2
+  },
+  "22070.0": {
+    "vn": "Chi phí thuế TNDN",
+    "en": "Corporate Income Tax Expenses",
+    "mt": 2
+  },
+  "22051.0": {
+    "vn": "Chi phí thuế TNDN hiện hành",
+    "en": "Current Corporate Income Tax Expenses",
+    "mt": 2
+  },
+  "23000.0": {
+    "vn": "Lợi nhuận sau thuế của Công ty mẹ",
+    "en": "Net Profit After Tax of Parent Company",
+    "mt": 2
+  },
+  "21500.0": {
+    "vn": "Doanh thu hoạt động tài chính",
+    "en": "Financial income",
+    "mt": 2
+  },
+  "22510.0": {
+    "vn": "Trong đó: Chi phí lãi vay",
+    "en": "Of which: Interest Expenses",
+    "mt": 2
+  },
+  "22200.0": {
+    "vn": "Chi phí quản lý doanh nghiệp",
+    "en": "General and admin expenses",
+    "mt": 2
+  },
+  "21900.0": {
+    "vn": "Thu nhập khác",
+    "en": "Other incomes",
+    "mt": 2
+  },
+  "22900.0": {
+    "vn": "Chi phí khác",
+    "en": "Other Expenses",
+    "mt": 2
+  },
+  "23800.0": {
+    "vn": "Lợi nhuận kế toán trước thuế",
+    "en": "Pretax Profit",
+    "mt": 2
+  },
+  "22052.0": {
+    "vn": "Chi phí thuế TNDN hoãn lại",
+    "en": "Deferred Income Taxes Expenses",
+    "mt": 2
+  },
+  "23003.0": {
+    "vn": "Lợi nhuận sau thuế thu nhập doanh nghiệp",
+    "en": "Net Profit After Tax",
+    "mt": 2
+  },
+  "23500.0": {
+    "vn": "Lợi ích của cổ đông thiểu số",
+    "en": "Benefits of Minitory shareholders",
+    "mt": 2
+  },
+  "23001.0": {
+    "vn": "Lãi cơ bản trên cổ phiếu",
+    "en": "Earnings  per share",
+    "mt": 2
+  },
+  "700087.0": {
+    "vn": "Lãi suy giảm trên cổ phiếu",
+    "en": "EPS_diluted",
+    "mt": 2
+  },
+  "932000.0": {
+    "vn": "LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG KINH DOANH - GIÁN TIẾP",
+    "en": "Cash flows from Operating Activities - Indirect method",
+    "mt": 3
+  },
+  "23810.0": {
+    "vn": "Lợi nhuận kế toán trước thuế",
+    "en": "Pretax Profit",
+    "mt": 3
+  },
+  "30000.0": {
+    "vn": "Điều chỉnh cho các khoản",
+    "en": "Adjustments",
+    "mt": 3
+  },
+  "22230.0": {
+    "vn": "Chi phí khấu hao tài sản cố định",
+    "en": "Depreciation of Fixed Assets Expenses",
+    "mt": 3
+  },
+  "31111.0": {
+    "vn": "Phân bổ lợi thế thương mại",
+    "en": "Amortisation of goodwill",
+    "mt": 3
+  },
+  "22515.0": {
+    "vn": "Dự phòng giảm giá các khoản đầu tư ngắn hạn, dài hạn",
+    "en": "Provision for short term investment loss",
+    "mt": 3
+  },
+  "31100.0": {
+    "vn": "Lãi, lỗ chênh lệch tỷ giá hối đoái chưa thực hiện",
+    "en": "Unrealised foreign exchange gain/(loss)",
+    "mt": 3
+  },
+  "31101.0": {
+    "vn": "Lãi/(lỗ) từ thanh lý tài sản cố định",
+    "en": "Profit/(loss) from liquidating fixed assets",
+    "mt": 3
+  },
+  "31110.0": {
+    "vn": "Lãi, lỗ từ hoạt động đầu tư",
+    "en": "Profit/(loss) from investing activities",
+    "mt": 3
+  },
+  "22509.0": {
+    "vn": "Chi phí lãi vay",
+    "en": "Interest Expenses",
+    "mt": 3
+  },
+  "31102.0": {
+    "vn": "Thu lãi và cổ tức",
+    "en": "Interest income and dividend",
+    "mt": 3
+  },
+  "431100.0": {
+    "vn": "Các khoản điều chỉnh khác",
+    "en": "Other adjustments",
+    "mt": 3
+  },
+  "31120.0": {
+    "vn": "Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn  lưu động",
+    "en": "Operating profit/(loss) before changes in Working Capital",
+    "mt": 3
+  },
+  "31130.0": {
+    "vn": "Tăng, giảm các khoản phải thu",
+    "en": " Increase/(decrease) in receivables",
+    "mt": 3
+  },
+  "31140.0": {
+    "vn": "Tăng, giảm hàng tồn kho",
+    "en": "Increase/(decrease) in inventories",
+    "mt": 3
+  },
+  "31150.0": {
+    "vn": "Tăng, giảm các khoản phải trả (Không kể lãi vay phải trả, thuế TNDN phải nộp)",
+    "en": "(Increase)/decrease in payables",
+    "mt": 3
+  },
+  "31160.0": {
+    "vn": "Tăng, giảm chi phí trả trước",
+    "en": "Increase/(decrease) in prepaid expenses",
+    "mt": 3
+  },
+  "431400.0": {
+    "vn": "Tăng/ (Giảm) chứng khoán kinh doanh",
+    "en": "Increase/(decrease)  in trading securities",
+    "mt": 3
+  },
+  "31170.0": {
+    "vn": "Tiền lãi vay đã trả",
+    "en": "Interest paid",
+    "mt": 3
+  },
+  "31180.0": {
+    "vn": "Thuế thu nhập doanh nghiệp đã nộp",
+    "en": "Income Tax paid",
+    "mt": 3
+  },
+  "31190.0": {
+    "vn": "Tiền thu khác từ hoạt động kinh doanh",
+    "en": "Other Incomes from Operating Activities",
+    "mt": 3
+  },
+  "31200.0": {
+    "vn": "Tiền chi khác cho hoạt động kinh doanh",
+    "en": "Other Incomes from Operating Activities",
+    "mt": 3
+  },
+  "932001.0": {
+    "vn": "LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG KINH DOANH - TRỰC TIẾP",
+    "en": "Cash flows from Operating Activities - Direct method",
+    "mt": 3
+  },
+  "30100.0": {
+    "vn": "Tiền thu từ bán hàng, cung cấp dịch vụ và doanh thu khác",
+    "en": "Cash provided by Sales, services, and other revenues",
+    "mt": 3
+  },
+  "30200.0": {
+    "vn": "Tiền chi trả cho người cung cấp hàng hóa và dịch vụ",
+    "en": "Cash payments to goods and service Suppliers",
+    "mt": 3
+  },
+  "30300.0": {
+    "vn": "Tiền chi trả cho người lao động",
+    "en": "Cash payments to employees",
+    "mt": 3
+  },
+  "30400.0": {
+    "vn": "Tiền chi trả lãi vay",
+    "en": "Cash payments to Interest",
+    "mt": 3
+  },
+  "30500.0": {
+    "vn": "Tiền chi nộp thuế thu nhập doanh nghiệp",
+    "en": "Cash payments to Corporate Income Tax",
+    "mt": 3
+  },
+  "30600.0": {
+    "vn": "Tiền thu khác từ hoạt động kinh doanh",
+    "en": "Proceeds from operating activities",
+    "mt": 3
+  },
+  "30700.0": {
+    "vn": "Tiền chi khác cho hoạt động kinh doanh",
+    "en": "Other Cash payments to Operating activities",
+    "mt": 3
+  },
+  "32000.0": {
+    "vn": "Lưu chuyển tiền thuần từ hoạt động kinh doanh",
+    "en": "Net cashflow from operating activities",
+    "mt": 3
+  },
+  "933000.0": {
+    "vn": "LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG ĐẦU TƯ",
+    "en": "Cash flows  from Investing activities",
+    "mt": 3
+  },
+  "32100.0": {
+    "vn": "Mua sắm TSCĐ",
+    "en": "Purchases of fixed assets and other long term assets",
+    "mt": 3
+  },
+  "32200.0": {
+    "vn": "Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác",
+    "en": "Proceeds from depleting, acquisiting fixed assets and other long term assets",
+    "mt": 3
+  },
+  "32300.0": {
+    "vn": "Tiền chi cho vay, mua các công cụ nợ của đơn vị khác",
+    "en": "Loans granted, purchases of debt instruments",
+    "mt": 3
+  },
+  "32400.0": {
+    "vn": "Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác",
+    "en": "Collection of loans, proceeds from sales of debts instruments",
+    "mt": 3
+  },
+  "32500.0": {
+    "vn": "Tiền chi đầu tư góp vốn vào đơn vị khác",
+    "en": "Investments in other entities",
+    "mt": 3
+  },
+  "32600.0": {
+    "vn": "Tiền thu hồi đầu tư góp vốn vào đơn vị khác",
+    "en": "Proceeds from divestment in other entities",
+    "mt": 3
+  },
+  "32700.0": {
+    "vn": "Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia",
+    "en": "Proceeds from Interest, Dividends and shared profit.",
+    "mt": 3
+  },
+  "33000.0": {
+    "vn": "Lưu chuyển tiền thuần từ hoạt động đầu tư",
+    "en": "Net Cashflow from Investing activities",
+    "mt": 3
+  },
+  "934000.0": {
+    "vn": "LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG TÀI CHÍNH",
+    "en": "Cash flows  from Financing activities",
+    "mt": 3
+  },
+  "33100.0": {
+    "vn": "Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu",
+    "en": "Proceeds from  issue of  shares, capital contribution",
+    "mt": 3
+  },
+  "33200.0": {
+    "vn": "Tiền chi trả vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành",
+    "en": "Cash payments to capital contribution and Buy back  issued shares",
+    "mt": 3
+  },
+  "33300.0": {
+    "vn": "Tiền vay ngắn hạn, dài hạn nhận được",
+    "en": "Short , long term loan received",
+    "mt": 3
+  },
+  "33400.0": {
+    "vn": "Tiền chi trả nợ gốc vay",
+    "en": "Payment of Princial Loans",
+    "mt": 3
+  },
+  "33500.0": {
+    "vn": "Tiền chi trả nợ thuê tài chính",
+    "en": "Payment of financial lease",
+    "mt": 3
+  },
+  "33600.0": {
+    "vn": "Cổ tức, lợi nhuận đã trả cho chủ sở hữu",
+    "en": "Dividends and Profit paid",
+    "mt": 3
+  },
+  "33710.0": {
+    "vn": "Tiền lãi đã nhận",
+    "en": "Interests, dividends, profits received",
+    "mt": 3
+  },
+  "34000.0": {
+    "vn": "Lưu chuyển tiền thuần từ hoạt động tài chính",
+    "en": "Net Cashflow from Financing activities",
+    "mt": 3
+  },
+  "35000.0": {
+    "vn": "Lưu chuyển tiền thuần trong kỳ",
+    "en": "Net Cash and Cash equivalents during the period",
+    "mt": 3
+  },
+  "36000.0": {
+    "vn": "Tiền và tương đương tiền đầu kỳ",
+    "en": "Cash and cash equivalents at beginning of year",
+    "mt": 3
+  },
+  "36100.0": {
+    "vn": "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ",
+    "en": "Effect of foreign exchange differences",
+    "mt": 3
+  },
+  "37000.0": {
+    "vn": "Tiền và tương đương tiền cuối kỳ",
+    "en": "Cash and Cash equivalents at end of  year",
+    "mt": 3
+  },
+  "700000.0": {
+    "vn": "Tài sản tài chính ngắn hạn",
+    "en": "Short term financial assets ",
+    "mt": 89
+  },
+  "611140.0": {
+    "vn": "Tiền gửi của người đầu tư về giao dịch chứng khoán",
+    "en": "Cash deposited by investors for securities trading",
+    "mt": 89
+  },
+  "700002.0": {
+    "vn": "Các khoản tài chính sẵn sàng để bán (AFS)",
+    "en": "Available for sales assets ",
+    "mt": 89
+  },
+  "700001.0": {
+    "vn": "Các khoản cho vay",
+    "en": "Loans ",
+    "mt": 89
+  },
+  "700003.0": {
+    "vn": "Các khoản phải thu (từ 2016)",
+    "en": "Receivables (from 2016)",
+    "mt": 89
+  },
+  "700004.0": {
+    "vn": "Phải thu bán các tài sản tài chính",
+    "en": "Account receivables ",
+    "mt": 89
+  },
+  "700005.0": {
+    "vn": "Phải thu và dự thu cổ tức, tiền lãi các tài sản tài chính",
+    "en": "Receivables and accrued dividend/interest of financial assets ",
+    "mt": 89
+  },
+  "700006.0": {
+    "vn": "Phải thu cổ tức, tiền lãi đến ngày nhận",
+    "en": "Due or overdue receivables on dividend/interest",
+    "mt": 89
+  },
+  "700007.0": {
+    "vn": "Trong đó : phải thu khó đòi về cổ tức , tiền lãi đến ngày nhận nhưng chưa nhận được",
+    "en": "Doubtful debts on dividend/interest which are overdue ",
+    "mt": 89
+  },
+  "700008.0": {
+    "vn": "Dự thu cổ tức , tiền lãi chưa đến ngày nhận ",
+    "en": "Undue accrued dividend/interest ",
+    "mt": 89
+  },
+  "700009.0": {
+    "vn": "Phải thu các dịch vụ CTCK cung cấp ",
+    "en": "Receivables form services provided by the stock company ",
+    "mt": 89
+  },
+  "700010.0": {
+    "vn": "Phải thu về lỗi giao dịch CK",
+    "en": "Receivables arise from transaction error",
+    "mt": 89
+  },
+  "610000.0": {
+    "vn": "Phải thu hoạt động giao dịch chứng khoán",
+    "en": "Receivable from trading stocks",
+    "mt": 89
+  },
+  "700012.0": {
+    "vn": "Dự phòng suy giảm giá trị các khoản phải thu ",
+    "en": "Provision for short term receivables ",
+    "mt": 89
+  },
+  "11550.0": {
+    "vn": "Tạm ứng",
+    "en": "Advances to employees",
+    "mt": 89
+  },
+  "700013.0": {
+    "vn": "Vật tư văn phòng, công cụ, dụng cụ",
+    "en": "Tools and equipments ",
+    "mt": 89
+  },
+  "611560.0": {
+    "vn": "Tài sản cầm cố, ký cược, ký quỹ ngắn hạn",
+    "en": "Short term Collateral, deposits",
+    "mt": 89
+  },
+  "13141.0": {
+    "vn": "Thuế VAT được khấu trừ",
+    "en": "Value added Tax",
+    "mt": 89
+  },
+  "700014.0": {
+    "vn": " Dự phòng suy giảm giá trị TSNH khác ",
+    "en": "Provision for other current assets",
+    "mt": 89
+  },
+  "700017.0": {
+    "vn": "Tài sản tài chính dài hạn",
+    "en": "Long term financial assets",
+    "mt": 89
+  },
+  "612100.0": {
+    "vn": "Đầu tư chứng khoán dài hạn",
+    "en": "Long-term Investments in Securities",
+    "mt": 89
+  },
+  "610001.0": {
+    "vn": "Chứng khoán đầu tư sẵn sàng để bán",
+    "en": "Investment securities available for sale",
+    "mt": 89
+  },
+  "700018.0": {
+    "vn": "Đánh giá TSCĐHH theo giá trị hợp lý",
+    "en": "Revaluation of tangible fixed assets using fair value model ",
+    "mt": 89
+  },
+  "700019.0": {
+    "vn": "Đánh giá TSCĐTTC theo giá trị hợp lý",
+    "en": "Revaluation of fixed assets in financial lease using fair value model ",
+    "mt": 89
+  },
+  "700020.0": {
+    "vn": "Đánh giá TSCĐVH theo giá trị hợp lý",
+    "en": "Revaluation of intangible fixed assets using fair value model ",
+    "mt": 89
+  },
+  "700021.0": {
+    "vn": "Đánh giá BĐSĐT theo giá trị hợp lý",
+    "en": "Revaluation of investment property using fair value model ",
+    "mt": 89
+  },
+  "600000.0": {
+    "vn": "Cầm cố, ký quỹ, ký cược dài hạn khác",
+    "en": "Other long-term assets",
+    "mt": 89
+  },
+  "612620.0": {
+    "vn": "Tiền nộp Quỹ hỗ trợ thanh toán",
+    "en": "Payments to Settlement Assistance Fund",
+    "mt": 89
+  },
+  "700022.0": {
+    "vn": "Dự phòng suy giảm giá trị tài sản dài hạn",
+    "en": "Provision for long term assets ",
+    "mt": 89
+  },
+  "700023.0": {
+    "vn": "Vay ngắn hạn",
+    "en": "Short term borrowings ",
+    "mt": 89
+  },
+  "700024.0": {
+    "vn": "Nợ thuê tài sản tài chính ngắn hạn ",
+    "en": "Short term finance lease ",
+    "mt": 89
+  },
+  "700025.0": {
+    "vn": " Vay tài sản tài chính ngắn hạn ",
+    "en": "Short term financial assets borrowings ",
+    "mt": 89
+  },
+  "700026.0": {
+    "vn": " Trái phiếu chuyển đổi ngắn hạn",
+    "en": "Short term convertible bonds ",
+    "mt": 89
+  },
+  "613100.0": {
+    "vn": "Trái phiếu phát hành ngắn hạn",
+    "en": "short term issue bonds",
+    "mt": 89
+  },
+  "700027.0": {
+    "vn": " Vay quỹ hộ trợ thanh toán",
+    "en": "Borrowings form payable assistance fund ",
+    "mt": 89
+  },
+  "700028.0": {
+    "vn": "Các khoản trích nộp phúc lợi nhân viên",
+    "en": "Employees welfare payable to authorities ",
+    "mt": 89
+  },
+  "13196.0": {
+    "vn": "Nhận ký quỹ, ký cược ngắn hạn",
+    "en": "Short term deposit",
+    "mt": 89
+  },
+  "610003.0": {
+    "vn": "Phải trả hoạt động giao dịch chứng khoán",
+    "en": "Payables to securities trading",
+    "mt": 89
+  },
+  "700029.0": {
+    "vn": "Phải trả về lỗi giao dịch các tài sản tài chính",
+    "en": "Payable arise from transaction errors",
+    "mt": 89
+  },
+  "613510.0": {
+    "vn": "Phải trả hộ cổ tức, gốc và lãi trái phiếu",
+    "en": "Dividend, principal and interest payables",
+    "mt": 89
+  },
+  "613600.0": {
+    "vn": "Phải trả tổ chức phát hành chứng khoán",
+    "en": "Payment for securities issue institution",
+    "mt": 89
+  },
+  "613910.0": {
+    "vn": "Nhận ký quỹ, ký cược dài hạn",
+    "en": "Long term collaterals received",
+    "mt": 89
+  },
+  "12584.0": {
+    "vn": "Cho vay dài hạn",
+    "en": "Long term Loan",
+    "mt": 89
+  },
+  "700030.0": {
+    "vn": "Nợ thuê tài chính dài hạn",
+    "en": "Long term financial lease ",
+    "mt": 89
+  },
+  "700031.0": {
+    "vn": "Vay tài sản tài chính dài hạn ",
+    "en": "Long term financial assets borrowings ",
+    "mt": 89
+  },
+  "700032.0": {
+    "vn": "Trái phiếu phát hành dài hạn ",
+    "en": "Long term bonds ",
+    "mt": 89
+  },
+  "610087.0": {
+    "vn": "Dự phòng bồi thường thiệt hại cho nhà đầu tư",
+    "en": "Provision for compensation of investors",
+    "mt": 89
+  },
+  "14169.0": {
+    "vn": "Quỹ dự trự bổ sung vốn điều lệ",
+    "en": "Reserved fund to supplement the charter capital",
+    "mt": 89
+  },
+  "700034.0": {
+    "vn": "Lợi nhuận sau thuế đã thực hiện",
+    "en": "Realized gain ",
+    "mt": 89
+  },
+  "700035.0": {
+    "vn": "Lợi nhuận sau thuế chưa thực hiện",
+    "en": "Unrealized gain ",
+    "mt": 89
+  },
+  "700037.0": {
+    "vn": "LỢI  NHUẬN ĐÃ PHÂN PHỐI CHO NHÀ ĐẦU TƯ",
+    "en": "C. Distributed profit to investor ",
+    "mt": 89
+  },
+  "700038.0": {
+    "vn": "Lợi nhuận đã phân phối cho Nhà đầu tư trong năm",
+    "en": "Distributed profit to investor during the year ",
+    "mt": 89
+  },
+  "412522.0": {
+    "vn": "Lãi từ chứng khoán Nợ đầu tư sẵn sàng để bán",
+    "en": "Income from available for sales assets (AFS)\n",
+    "mt": 90
+  },
+  "700045.0": {
+    "vn": "Lãi từ các công cụ phát sinh phòng ngừa rủi ro ",
+    "en": "Income from derivatives ",
+    "mt": 90
+  },
+  "621110.0": {
+    "vn": "Doanh thu môi giới chứng khoán cho người đầu tư",
+    "en": "Securities Brokerage for investors Revenues",
+    "mt": 90
+  },
+  "610082.0": {
+    "vn": "Doanh thu hoạt động đầu tư chứng khoán, góp vốn",
+    "en": "Revenue in Securities investment and other investment activities",
+    "mt": 90
+  },
+  "610083.0": {
+    "vn": "Doanh thu bảo lãnh phát hành chứng khoán",
+    "en": "Revenue in Underwriting services",
+    "mt": 90
+  },
+  "610084.0": {
+    "vn": "Doanh thu đại lý phát hành chứng khoán",
+    "en": "Revenue in Issuance agency services",
+    "mt": 90
+  },
+  "621150.0": {
+    "vn": "Doanh thu tư vấn đầu tư chứng khoán cho người đầu tư",
+    "en": "Securities Investment Consult Revenue for investors",
+    "mt": 90
+  },
+  "621160.0": {
+    "vn": "Doanh thu lưu ký chứng khoán cho người đầu tư",
+    "en": "Securities Deposit Revenue for investors",
+    "mt": 90
+  },
+  "610085.0": {
+    "vn": "Doanh thu hoạt động ủy thác đấu giá",
+    "en": "Revenue in Auction trust services",
+    "mt": 90
+  },
+  "621190.0": {
+    "vn": "Doanh thu cho thuê tài sản, sử dụng thiết bị, sử dụng thông tin",
+    "en": "Leasing, using equipment and information Revenues",
+    "mt": 90
+  },
+  "631243.0": {
+    "vn": "Thu từ dịch vụ tư vấn",
+    "en": "Revenue from advisory services\n",
+    "mt": 90
+  },
+  "610086.0": {
+    "vn": "Doanh thu khác",
+    "en": "Others revenue",
+    "mt": 90
+  },
+  "622100.0": {
+    "vn": "Chi phí hoạt động kinh doanh chứng khoán  ",
+    "en": "Trading Securities activities Expenses",
+    "mt": 90
+  },
+  "700046.0": {
+    "vn": "Lỗ các tài sản tài chính ghi nhận thông qua lãi lỗ (FVTPL)",
+    "en": "Loss from financial assets recognized through profit/loss (FVTPL)",
+    "mt": 90
+  },
+  "700047.0": {
+    "vn": "Lỗ bán các tài sản tài chính",
+    "en": "Loss from selling financial assets FVTPL ",
+    "mt": 90
+  },
+  "700048.0": {
+    "vn": "Chênh lệch giảm đánh giá lại các TSTC thông qua lãi/lỗ",
+    "en": "FVTPL financial assets revaluation loss",
+    "mt": 90
+  },
+  "700049.0": {
+    "vn": "Chi phí giao dịch mua các tài sản tài chính FVTPL",
+    "en": "FVTPL financial assets purchase transaction costs ",
+    "mt": 90
+  },
+  "700050.0": {
+    "vn": "Lỗ các khoản đầu tư nắm giữ đến ngày đáo hạn (HTM)",
+    "en": "Loss form held to maturity investment (HTM)",
+    "mt": 90
+  },
+  "700051.0": {
+    "vn": "Chi phí lãi vay, lỗ từ các khoản cho vay và phải thu",
+    "en": "Interest cost, loss from loans and receivables ",
+    "mt": 90
+  },
+  "700052.0": {
+    "vn": "Lỗ bán các tài sản tài chính sẵn sàng để bán (AFS)",
+    "en": "Loss from available for sales assets (AFS)",
+    "mt": 90
+  },
+  "700053.0": {
+    "vn": "Cphí dự phòng TSTC, xử lý tổn thất các khoản phải thu khó đòi là lỗ suy giảm TSTC và CP đi vay",
+    "en": "Provision for losses from mortgage assets, uncollectible receivables, and borrowing expenses",
+    "mt": 90
+  },
+  "700054.0": {
+    "vn": "Lỗ từ các tài sản tài chính phái sinh phòng ngừa rủi ro",
+    "en": "Loss from derivatives ",
+    "mt": 90
+  },
+  "700055.0": {
+    "vn": "Chi phí hoạt động tự doanh",
+    "en": "Proprietary trading services expenses",
+    "mt": 90
+  },
+  "700056.0": {
+    "vn": "Chi phí môi giới chứng khoán",
+    "en": "Brokerage expenses",
+    "mt": 90
+  },
+  "700057.0": {
+    "vn": "Chi phí hoạt động bảo lãnh, đại lý phát hành chứng khoán",
+    "en": "Underwriting, securities issuance expenses ",
+    "mt": 90
+  },
+  "700058.0": {
+    "vn": "Chi phí tư vấn đầu tư chứng khoán",
+    "en": "Expenses for securities advisory ",
+    "mt": 90
+  },
+  "700059.0": {
+    "vn": "Chí phí hoạt động đấu giá, ủy thác",
+    "en": "Bidding agent service expenses ",
+    "mt": 90
+  },
+  "700060.0": {
+    "vn": "Chi phí lưu ký chứng khoán",
+    "en": "Investor securities depository expenses ",
+    "mt": 90
+  },
+  "700061.0": {
+    "vn": "Chi phí hoạt động tư vấn tài chính",
+    "en": "Expenses for financial advisory activities ",
+    "mt": 90
+  },
+  "700497.0": {
+    "vn": "Chi phí khác của HĐKD",
+    "en": "Other expenses Income",
+    "mt": 90
+  },
+  "700062.0": {
+    "vn": "Trong đó: Chi phí sửa lỗi giao dịch chứng khoán, lỗi khác",
+    "en": "Expenses arise from securities transaction errors and other errors ",
+    "mt": 90
+  },
+  "700063.0": {
+    "vn": "Chênh lệch lãi tỷ giá hối đoái đã và chưa thực hiện",
+    "en": "Realized and unrealized foreign exchange gain",
+    "mt": 90
+  },
+  "700064.0": {
+    "vn": "Doanh thu, dự thu cổ tức, lãi tiền gửi không cố định phát sinh trong kỳ",
+    "en": "Income from non fixed accrued dividend and interest ",
+    "mt": 90
+  },
+  "700065.0": {
+    "vn": "Lãi bán, thanh lý các khoản đầu tư vào công ty con, liên kết, liên doanh",
+    "en": "Gain from disposals or sales of investments in subsidiaries, associates and joint ventures ",
+    "mt": 90
+  },
+  "700066.0": {
+    "vn": "Doanh thu khác về đầu tư",
+    "en": "Other revenue from investments ",
+    "mt": 90
+  },
+  "700068.0": {
+    "vn": "Chênh lệch lỗ tỷ giá hối đoái đã và chưa thực hiện",
+    "en": "Realized and unrealized foreign exchange loss",
+    "mt": 90
+  },
+  "700070.0": {
+    "vn": "Lỗ bán, thanh lý các khoản đầu tư vào công ty con, liên kết, liên doanh",
+    "en": "Loss from disposals or sales of investments in subsidiaries, associates and joint ventures ",
+    "mt": 90
+  },
+  "700071.0": {
+    "vn": "Chi phí dự phòng suy giảm giá trị các khoản đầu tư tài chính dài hạn",
+    "en": "Provision for losses on long term financial investment",
+    "mt": 90
+  },
+  "700069.0": {
+    "vn": "Chi phí đầu tư khác",
+    "en": "Other investment expenses ",
+    "mt": 90
+  },
+  "700072.0": {
+    "vn": "Lợi nhuận trước thuế đã thực hiện",
+    "en": "Realized gain ",
+    "mt": 90
+  },
+  "700073.0": {
+    "vn": "Lợi nhuận trước thuế chưa thực hiện",
+    "en": "Unrealized gain ",
+    "mt": 90
+  },
+  "700074.0": {
+    "vn": "LNST trích các Quỹ dự trữ điều lệ, Dự phòng TC và rủi ro nghề nghiệp theo quy định cty",
+    "en": " Profit after tax deducted of Funds",
+    "mt": 90
+  },
+  "700086.0": {
+    "vn": "THU NHẬP THUẦN TRÊN CỔ PHIẾU PHỔ THÔNG",
+    "en": "Net income to common share",
+    "mt": 90
+  },
+  "700039.0": {
+    "vn": "Lãi từ các tài sản tài chính ghi nhận thông qua lãi/lỗ ( FVTPL)",
+    "en": "Income from financial assets regconized through profit/loss (FVTPL)",
+    "mt": 90
+  },
+  "700040.0": {
+    "vn": "Lãi bán các tài sản tài chính PVTPL",
+    "en": "Income from selling financial assets FVTPL ",
+    "mt": 90
+  },
+  "700041.0": {
+    "vn": "Chênh lệch tăng đánh giá lại các TSTC thông qua lãi/lỗ",
+    "en": "FVTPL revaluation gain ",
+    "mt": 90
+  },
+  "700042.0": {
+    "vn": "Cổ tức, tiền lãi phát sinh từ tài sản tài chính PVTPL",
+    "en": "Dividend, interest from FVTPL financial assets ",
+    "mt": 90
+  },
+  "700043.0": {
+    "vn": "Lãi từ các khoản đầu tư nắm giữ đến ngày đáo hạn",
+    "en": "Income from held to maturity investment (HTM)",
+    "mt": 90
+  },
+  "700044.0": {
+    "vn": "Lãi từ các khoản cho vay và phải thu ",
+    "en": "Income from loans and receivables ",
+    "mt": 90
+  },
+  "700075.0": {
+    "vn": "Lãi/(Lỗ) từ đánh giá lại các các khoản đầu tư giữ đến ngày đáo hạn",
+    "en": "Gain (loss) from revaluation of held to maturity investments ",
+    "mt": 90
+  },
+  "700076.0": {
+    "vn": "Lãi/(Lỗ) từ đánh giá lại các tài sản tài chính sẵn sàng để bán",
+    "en": "Gain (loss) from revaluation of available for sales financial assets",
+    "mt": 90
+  },
+  "700077.0": {
+    "vn": "Lãi (lỗ) toàn diện khác được chia từ hoạt động đầu tư vào công ty con, liên kết liên doanh",
+    "en": "Gain (loss) distributed from investments in subsidiaries, associates and joint ventures",
+    "mt": 90
+  },
+  "700078.0": {
+    "vn": "Lãi/(Lỗ) từ đánh giá lại các công cụ tài chính phái sinh",
+    "en": "Gain (loss) from revaluation of derivatives ",
+    "mt": 90
+  },
+  "700079.0": {
+    "vn": "Lãi/(lỗ) chênh lệch tỷ giá của hoạt động tại nước ngoài ",
+    "en": "Gain (loss) from foreign exchange difference of overseas operations ",
+    "mt": 90
+  },
+  "700080.0": {
+    "vn": "Lãi, lỗ từ các khoản đầu tư vào công ty con. Công ty liên kết, liên doanh chưa chia",
+    "en": "Pre-distributed gain (loss) from investments in subsidiaries, associates and joint ventures ",
+    "mt": 90
+  },
+  "700081.0": {
+    "vn": "Lãi, lỗ đánh giá công cụ phái sinh",
+    "en": "Gain (loss) from revaluation of derivatives ",
+    "mt": 90
+  },
+  "700082.0": {
+    "vn": "Lãi, lỗ đánh giá lại tài sản cố định theo mô hình giá trị hợp lý",
+    "en": "Gain (loss) from revaluation of fixed assets using fair value model ",
+    "mt": 90
+  },
+  "700083.0": {
+    "vn": "Tổng thu nhập toàn diện",
+    "en": "Total comprehensive income ",
+    "mt": 90
+  },
+  "700084.0": {
+    "vn": "Thu nhập toàn diện phân bổ cho chủ sở hữu",
+    "en": "Comprehensive income distributed to shareholders ",
+    "mt": 90
+  },
+  "700085.0": {
+    "vn": "Thu nhập toàn diện phân bổ cho cổ đông không nắm quyền kiểm soát",
+    "en": "Comprehensive income distributed to uncontrolled shareholders ",
+    "mt": 90
+  },
+  "700150.0": {
+    "vn": "Các khoản tiền tương đương đầu kỳ",
+    "en": "Cash equivalents",
+    "mt": 91
+  },
+  "700151.0": {
+    "vn": "Tiền mặt, tiền gửi ngân hàng kỳ",
+    "en": "Cash and bank deposit during the period",
+    "mt": 91
+  },
+  "700148.0": {
+    "vn": "Tiền mặt, tiền gửi ngân hàng đầu kỳ",
+    "en": "Cash and bank deposit at the beginning of the period",
+    "mt": 91
+  },
+  "700149.0": {
+    "vn": "Tiền gửi ngân hàng cho hoạt động CTCK_Đầu kỳ",
+    "en": "Bank deposit for the Securities company activities",
+    "mt": 91
+  },
+  "700152.0": {
+    "vn": "Tiền gửi ngân hàng cho hoạt động CTCK_Cuối kỳ",
+    "en": "Bank deposit for the Securities company activities",
+    "mt": 91
+  },
+  "700154.0": {
+    "vn": "Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ tổng hợp",
+    "en": "Effect of changes in foreign currency exchange rates",
+    "mt": 91
+  },
+  "700095.0": {
+    "vn": "Lỗ suy giảm giá trị các khoản cho vay",
+    "en": "Loss on the decrease in value of loans given",
+    "mt": 91
+  },
+  "700102.0": {
+    "vn": "Lỗ khác",
+    "en": "Other loss",
+    "mt": 91
+  },
+  "700103.0": {
+    "vn": "Giảm các doanh thu phi tiền tệ",
+    "en": "Decrease in non-cash revenue",
+    "mt": 91
+  },
+  "700104.0": {
+    "vn": "Lãi đánh giá giá trị các tài sản chính ghi nhận thông qua KQKD",
+    "en": "Profit from revaluation of fair value through profit and loss financial assets",
+    "mt": 91
+  },
+  "700105.0": {
+    "vn": "Lãi đánh giá giá trị các công nợ tài chính thông qua kết quả kinh doanh",
+    "en": "Profit from revaluation of fair value through profit and loss financial debts (Before 2016)",
+    "mt": 91
+  },
+  "700106.0": {
+    "vn": "Lãi từ thanh lý các tài sản tài chính sẵn sàng để bán",
+    "en": "Profit from sales of  available for sale assets  (Before 2016)",
+    "mt": 91
+  },
+  "700107.0": {
+    "vn": "Hoàn nhập suy giảm giá trị của các tài sản tài chính sẵn sàng để bán",
+    "en": "Reversal of loss from available for sale assets (Before 2016)",
+    "mt": 91
+  },
+  "700108.0": {
+    "vn": "Lãi về chênh lệch đánh giá theo giá trị hợp lý TSTC sẵn sàng để bán AFS khi phân loại lại",
+    "en": "Profit regconized when reclassification of AFS is made and fair value is used for revaluation",
+    "mt": 91
+  },
+  "700109.0": {
+    "vn": "Lãi đánh giá giá trị các công cụ tài chính phái sinh cho mục đích phòng ngừa",
+    "en": "Profit  from derivatives",
+    "mt": 91
+  },
+  "700110.0": {
+    "vn": "Lãi từ thanh lý các khoản cho vay và phải thu",
+    "en": "Profit from the decrease in value of loans given",
+    "mt": 91
+  },
+  "700111.0": {
+    "vn": "Hoàn nhập chi phí dự phòng",
+    "en": "Reversal of provision",
+    "mt": 91
+  },
+  "700112.0": {
+    "vn": "Lãi từ thanh lý tài sản cố định, BĐSĐT",
+    "en": "Profit from sales of fixed assets and properties",
+    "mt": 91
+  },
+  "700113.0": {
+    "vn": "Lãi từ thanh lý các khoản đầu tư vào công ty con và công ty liên doanh, liên kết",
+    "en": "Profit from disposals or sales of investments in subsidiaries, associates and joint ventures",
+    "mt": 91
+  },
+  "700114.0": {
+    "vn": "Lãi khác",
+    "en": "Other profit",
+    "mt": 91
+  },
+  "700115.0": {
+    "vn": "Thay đổi tài sản và nợ phải trả hoạt động",
+    "en": "Change in assets and operating liabilities",
+    "mt": 91
+  },
+  "700116.0": {
+    "vn": "Tăng (giảm) tài sản tài chính ghi nhận thông qua lãi lỗ",
+    "en": "Increase (decrease) in financial assets at fair value through profit or loss",
+    "mt": 91
+  },
+  "700117.0": {
+    "vn": "Tăng (giảm) các khoản đầu tư giữ đến ngày đáo hạn",
+    "en": "Increase (decrease) in held to marturity investments",
+    "mt": 91
+  },
+  "700118.0": {
+    "vn": "Tăng (giảm) các khoản cho vay ",
+    "en": "Increase (decrease) in loans given",
+    "mt": 91
+  },
+  "700129.0": {
+    "vn": "(-) Tăng, (+) giảm các khoản phải thu các dịch vụ CTCK cung cấp",
+    "en": "Increase (decrease) in receivable from services rendered",
+    "mt": 91
+  },
+  "700130.0": {
+    "vn": "(-) Tăng, (+) giảm các khoản phải thu về lỗi giao dịch CK",
+    "en": "Increase (decrease) in receivable from transaction errors",
+    "mt": 91
+  },
+  "400760.0": {
+    "vn": "(-) Tăng, (+) giảm chi phí phải trả (không bao gồm chi phí lãi vay)",
+    "en": "Increase (decrease) in payable expenses (excluding interest expenses)",
+    "mt": 91
+  },
+  "700131.0": {
+    "vn": "(+) Tăng, (-) giảm phải trả cho người bán",
+    "en": "Increase (decrease) in trade payables",
+    "mt": 91
+  },
+  "700132.0": {
+    "vn": "(+) Tăng, (-) giảm phải trả Tổ chức phát hành chứng khoán",
+    "en": "Increase (decrease) in payables to securities issuers (Before 2016)",
+    "mt": 91
+  },
+  "700133.0": {
+    "vn": "(+) Tăng, (-) giảm các khoản trích nộp phúc lợi nhân viên",
+    "en": "Increase (decrease) in contribution to employees welfare",
+    "mt": 91
+  },
+  "700134.0": {
+    "vn": "(+) Tăng, (-) giảm thuế và các khoản phải nộp Nhà nước",
+    "en": "Increase (decrease) in tax and payables to authority",
+    "mt": 91
+  },
+  "700135.0": {
+    "vn": "(+) Tăng, (-) giảm phải trả người lao động",
+    "en": "Increase (decrease) in payables to employees",
+    "mt": 91
+  },
+  "700136.0": {
+    "vn": "(+) Tăng, (-) giảm phải trả về lỗi giao dịch các tài sản tài chính",
+    "en": "Increase (decrease) in payable arise form financial asset transaction error",
+    "mt": 91
+  },
+  "700138.0": {
+    "vn": "Tiền thu khác",
+    "en": "Other receivables",
+    "mt": 91
+  },
+  "700499.0": {
+    "vn": "Lãi vay đã trả cho hoạt động kinh doanh",
+    "en": "Interest paid for Income",
+    "mt": 91
+  },
+  "431280.0": {
+    "vn": "Thuế TNDN đã nộp (*)",
+    "en": "Income tax paid (*)",
+    "mt": 91
+  },
+  "631253.0": {
+    "vn": "Các khoản chi khác",
+    "en": "Other expenses",
+    "mt": 91
+  },
+  "400750.0": {
+    "vn": "Tiền chi nộp thuế liên quan đến hoạt động CTCK",
+    "en": "",
+    "mt": 91
+  },
+  "610007.0": {
+    "vn": "Tiền thu từ hoạt động kinh doanh",
+    "en": "Receivables on operating activities",
+    "mt": 91
+  },
+  "610008.0": {
+    "vn": "Tiền chi hoạt động kinh doanh",
+    "en": "Payments on operating activities",
+    "mt": 91
+  },
+  "700139.0": {
+    "vn": "Tiền đã chi mua các tài sản tài chính",
+    "en": "",
+    "mt": 91
+  },
+  "700140.0": {
+    "vn": "Tiền đã thu từ bán các tài sản tài chính",
+    "en": "",
+    "mt": 91
+  },
+  "610009.0": {
+    "vn": "Tiền chi nộp Quỹ hỗ trợ thanh toán",
+    "en": "Payments to Settlement Assistance Fund",
+    "mt": 91
+  },
+  "610010.0": {
+    "vn": "Tiền thu giao dịch chứng khoán khách hàng",
+    "en": "receivables on securities transaction settlement of clients",
+    "mt": 91
+  },
+  "610011.0": {
+    "vn": "Tiền chi trả giao dịch chứng khoán khách hàng",
+    "en": "Cash outflow on securities transaction settlement of clients",
+    "mt": 91
+  },
+  "610012.0": {
+    "vn": "Tiền thu bán chứng khoán phát hành",
+    "en": "",
+    "mt": 91
+  },
+  "610013.0": {
+    "vn": "Tiền chi trả tổ chức phát hành chứng khoán",
+    "en": "Cash paid to issuing organizations",
+    "mt": 91
+  },
+  "700141.0": {
+    "vn": "Tiền chi trả Tổ chức cung cấp dịch vụ cho CTCK ",
+    "en": "",
+    "mt": 91
+  },
+  "700142.0": {
+    "vn": "Tiền chi thanh toán các chi phí cho hoạt động mua, bán các TSTC (chi phí giao dịch, phí chuyển tiền)",
+    "en": "Purchases of fixed assets and other long term assets",
+    "mt": 91
+  },
+  "610006.0": {
+    "vn": "Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác",
+    "en": "Purchases of fixed assets and other long term assets",
+    "mt": 91
+  },
+  "700498.0": {
+    "vn": "Chi phí phải trả, chi phí trả trước",
+    "en": "Accrued expenses",
+    "mt": 91
+  },
+  "60000.0": {
+    "vn": "Dự thu tiền lãi",
+    "en": "Interest income and dividend",
+    "mt": 91
+  },
+  "700088.0": {
+    "vn": "Tăng các chi phí phi tiền tệ ",
+    "en": "Increase in non-cash expense",
+    "mt": 91
+  },
+  "700089.0": {
+    "vn": "Lỗ đánh giá giá trị các tài sản tài chính ghi nhận thông qua KQKD",
+    "en": "Loss on valuation of fair value through profit/loss financial assets",
+    "mt": 91
+  },
+  "700090.0": {
+    "vn": "Lỗ đánh giá giá trị các công nợ tài chính ghi nhận thông qua KQKD",
+    "en": "Loss from financial assets sales  (Before 2016)",
+    "mt": 91
+  },
+  "700091.0": {
+    "vn": "Lỗ đánh giá giá trị các công cụ tài chính phái sinh",
+    "en": "Loss from derivatives",
+    "mt": 91
+  },
+  "700092.0": {
+    "vn": "Lỗ từ thanh lý các tài sản tài chính sẵn sàng để bán",
+    "en": "Loss on valuation of available for sale financial assets",
+    "mt": 91
+  },
+  "700093.0": {
+    "vn": "Suy giảm giá trị của các tài sản tài chính sẵn sàng để bán",
+    "en": "The decrease in value of available sales assets",
+    "mt": 91
+  },
+  "700094.0": {
+    "vn": "Lỗ suy giảm giá trị các khoản đầu tư nắm giữ đến ngày đáo hạn",
+    "en": "Loss on valuation of held to marturity investments",
+    "mt": 91
+  },
+  "700096.0": {
+    "vn": "Lỗ về chênh lệch đánh giá theo giá trị hợp lý TSTC sẵn sàng để bán AFS khi phân loại lại",
+    "en": "Loss regconized when reclassification of AFS is made and fair value is used for revaluation",
+    "mt": 91
+  },
+  "700097.0": {
+    "vn": "Lỗ đánh giá giá các công cụ tài chính phát sinh cho mục đích phòng ngừa rủi ro",
+    "en": "Loss from derivatives",
+    "mt": 91
+  },
+  "700098.0": {
+    "vn": "Lỗ từ thanh lý TSCĐ",
+    "en": "Loss from sales of fixed assets",
+    "mt": 91
+  },
+  "700099.0": {
+    "vn": "Suy giảm giá trị của các tài sản cố định",
+    "en": "Decrease in value of fixed assets",
+    "mt": 91
+  },
+  "700100.0": {
+    "vn": "Chi phí dự phòng suy giảm giá trị các khoản đầu tư tài chính dài hạn",
+    "en": "Provision for decrease in value of long term financial investments",
+    "mt": 91
+  },
+  "700101.0": {
+    "vn": "Lỗ từ thanh lý các khoản đầu tư vào công ty con và công ty liên doanh, liên kết",
+    "en": "Loss from disposals or sales of investments in subsidiaries, associates and joint ventures  (Before 2016)",
+    "mt": 91
+  },
+  "700119.0": {
+    "vn": "Tăng (giảm) tài sản tài chính sẵn sàng để bán ",
+    "en": "Increase (decrease) in available-for-sale financial assets",
+    "mt": 91
+  },
+  "700120.0": {
+    "vn": "Tăng (giảm) các tài sản khác",
+    "en": "Increase (decrease) in other assets",
+    "mt": 91
+  },
+  "700121.0": {
+    "vn": "Tăng (giảm) các khoản phải thu",
+    "en": "Increase (decrease) in receivable (Before 2016)",
+    "mt": 91
+  },
+  "700122.0": {
+    "vn": "Tăng (giảm) vay và nợ thuê tài sản tài chính",
+    "en": "Increase (decrease) in financial asset borrowings and financial lease (Before 2016)",
+    "mt": 91
+  },
+  "700123.0": {
+    "vn": "Tăng (giảm) vay tài sản tài chính",
+    "en": "Increase (decrease) in financial asset borrowings (Before 2016)",
+    "mt": 91
+  },
+  "700124.0": {
+    "vn": "Tăng (giảm) Trái phiếu chuyển đổi - Cấu phần nợ",
+    "en": "Increase (decrease) in convertible bond-equity portion (Before 2016)",
+    "mt": 91
+  },
+  "700125.0": {
+    "vn": "Tăng (giảm) Trái phiếu phát hành",
+    "en": "Increase (decrease) in issued bond (Before 2016)",
+    "mt": 91
+  },
+  "700126.0": {
+    "vn": "Tăng (giảm) vay Quỹ Hỗ trợ thanh toán",
+    "en": "Increase (decrease) in borrowing form Settlement Assistance Fund",
+    "mt": 91
+  },
+  "700127.0": {
+    "vn": "(-) Tăng, (+) giảm phải thu bán các tài sản tài chính",
+    "en": "Increase (decrease) in receivable form selling financial assets",
+    "mt": 91
+  },
+  "700128.0": {
+    "vn": "(-) Tăng, (+) giảm phải thu tiền lãi các tài sản tài chính",
+    "en": "Increase (decrease) in receivable from interest of financial assets",
+    "mt": 91
+  },
+  "700137.0": {
+    "vn": "Tiền lãi đã thu",
+    "en": "Interest received",
+    "mt": 91
+  },
+  "700143.0": {
+    "vn": "Tiền vay Quỹ Hỗ trợ thanh toán",
+    "en": "Loans from Settlement Assistance Fund received",
+    "mt": 91
+  },
+  "700144.0": {
+    "vn": "Tiền vay khác",
+    "en": "Other loans received",
+    "mt": 91
+  },
+  "700145.0": {
+    "vn": "Tiền chi trả gốc vay Quỹ Hỗ trợ thanh toán",
+    "en": "Loans Principal repaid to Settlement Assistance Fund",
+    "mt": 91
+  },
+  "700146.0": {
+    "vn": "Tiền chi trả nợ gốc vay tài sản tài chính",
+    "en": "Financial assets loans principal repaid",
+    "mt": 91
+  },
+  "700147.0": {
+    "vn": "Tiền chi trả gốc nợ vay khác",
+    "en": "Other Loans principal repaid",
+    "mt": 91
+  }
+}

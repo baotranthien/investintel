@@ -1,0 +1,333 @@
+"""Registry-driven recurring ingestion for supported external and local sources."""
+import asyncio
+import logging
+import os
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+from database.connection import SessionLocal
+from database.models import Asset, DataRun, DataSource, MacroSeries
+from .bls import BlsProvider
+from .fred import FredProvider
+from .nso import NsoProvider
+from .world_bank import WorldBankProvider
+from .open_fx import FreeFxProvider
+from .gdelt import GDELTNewsProvider
+from .vndirect import VndirectProvider
+from .http_client import ProviderUnavailableError
+from .market_data import MarketDataCsvProvider
+from .dnse import DnseProvider
+from .vietstock import VietstockNewsProvider
+from .reconciliation import MarketDataReconciliationEngine
+from .pipeline import IngestionPipeline
+
+logger = logging.getLogger(__name__)
+
+
+def _record_failure(session_factory: Callable, provider: str, dataset: str, status: str, error: str) -> None:
+    session = session_factory()
+    try:
+        session.add(DataRun(
+            run_id=f"run-{provider.lower()}-{uuid.uuid4().hex[:12]}",
+            provider=provider,
+            dataset=dataset,
+            started_at=datetime.now(timezone.utc),
+            finished_at=datetime.now(timezone.utc),
+            status=status,
+            records_fetched=0,
+            records_inserted=0,
+            records_updated=0,
+            records_rejected=0,
+            errors=error[:2000],
+        ))
+        session.commit()
+    except Exception:
+        session.rollback()
+        logger.exception("Could not persist failed ingestion state for %s/%s", provider, dataset)
+    finally:
+        session.close()
+
+
+async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[dict[str, Any]]:
+    """Fetch currently registered supported sources and persist honest run results."""
+    session = session_factory()
+    try:
+        source_ids = {
+            source.name.upper(): source.id
+            for source in session.query(DataSource).filter(DataSource.active.is_(True)).all()
+        }
+        macro_series = [
+            (series.id, series.provider.upper(), series.source_id)
+            for series in session.query(MacroSeries).all()
+            if series.provider.upper() in {"FRED", "BLS", "WORLD_BANK", "OPEN_EXCHANGE_RATES", "NSO_VIETNAM"}
+            and source_ids.get(series.provider.upper()) == series.source_id
+        ]
+        hose_assets = [
+            (asset.symbol, asset.exchange, source_ids.get("HOSE_CSV"))
+            for asset in session.query(Asset).filter(
+                Asset.status == "ACTIVE", Asset.exchange == "HOSE"
+            ).all()
+        ]
+    finally:
+        session.close()
+
+    results: list[dict[str, Any]] = []
+    lookback_days = max(1, int(os.getenv("INGESTION_LOOKBACK_DAYS", "90")))
+    start_date = date.today() - timedelta(days=lookback_days)
+    batch_limit = max(1, min(20, int(os.getenv("INGESTION_BATCH_LIMIT", "5"))))
+
+    providers = {
+        "FRED": FredProvider,
+        "BLS": BlsProvider,
+        "WORLD_BANK": WorldBankProvider,
+        "OPEN_EXCHANGE_RATES": FreeFxProvider,
+        "NSO_VIETNAM": NsoProvider,
+    }
+
+    # 1. Macro series ingestion (isolated per series)
+    for series_id, provider_name, source_id in macro_series:
+        if provider_name == "FRED" and not os.getenv("FRED_API_KEY"):
+            if os.getenv("ENABLE_FRED_CSV_FALLBACK", "false").lower() in ("true", "1", "yes"):
+                pass # Proceed to FredProvider which uses public CSV fallback
+            else:
+                results.append({
+                    "provider": "FRED",
+                    "series_id": series_id,
+                    "status": "BLOCKED_MISSING_CREDENTIAL",
+                    "records_received": 0,
+                    "reason": "FRED_API_KEY is not configured in environment"
+                })
+                continue
+
+        if provider_name == "BLS" and os.getenv("ENABLE_BLS_INGESTION", "true").lower() not in ("true", "1", "yes"):
+            continue
+
+        if provider_name == "WORLD_BANK" and os.getenv("ENABLE_WORLDBANK_INGESTION", "true").lower() not in ("true", "1", "yes"):
+            continue
+
+        if provider_name == "OPEN_EXCHANGE_RATES" and os.getenv("ENABLE_FX_INGESTION", "true").lower() not in ("true", "1", "yes"):
+            continue
+
+        if provider_name == "NSO_VIETNAM" and os.getenv("ENABLE_NSO_INGESTION", "true").lower() not in ("true", "1", "yes"):
+            continue
+
+        provider = providers[provider_name]()
+        try:
+            if provider_name == "FRED":
+                records = await provider.fetch_macro_series(series_id, start_date=start_date.isoformat())
+                source_url = (
+                    f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}"
+                    if os.getenv("FRED_API_KEY")
+                    else f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+                )
+            elif provider_name == "BLS":
+                first_year = max(2010, start_date.year)
+                records = await provider.fetch_macro_series(
+                    series_id, start_year=str(first_year), end_year=str(date.today().year)
+                )
+                source_url = getattr(provider, "base_url", "https://api.bls.gov/publicAPI/v1/timeseries/data/")
+            elif provider_name == "WORLD_BANK":
+                records = await provider.fetch_macro_series(series_id)
+                source_url = f"https://api.worldbank.org/v2/country/VNM/indicator/{series_id}?format=json"
+            elif provider_name == "OPEN_EXCHANGE_RATES":
+                records = await provider.fetch_macro_series(series_id)
+                source_url = "https://open.er-api.com/v6/latest/USD"
+            elif provider_name == "NSO_VIETNAM":
+                records = await provider.fetch_macro_series(series_id)
+                source_url = "https://nsdp.nso.gov.vn/GSO-chung/SDMXFiles/GSO"
+            else:
+                records = []
+                source_url = "unknown"
+
+            db = session_factory()
+            try:
+                outcome = IngestionPipeline(db).ingest_macro_series(
+                    provider_name, series_id, records, source_url, source_id
+                )
+                results.append(outcome)
+            finally:
+                db.close()
+        except Exception as exc:
+            state = "BLOCKED_MISSING_CREDENTIAL" if isinstance(exc, ProviderUnavailableError) and "required but not set" in str(exc) else "FAILURE"
+            _record_failure(session_factory, provider_name, f"macro_{series_id}", state, str(exc))
+            results.append({"provider": provider_name, "series_id": series_id,
+                            "status": state, "records_received": 0, "reason": str(exc)})
+            logger.warning("Ingestion failed for %s/%s: %s", provider_name, series_id, exc)
+
+    # 2. Local Market Data CSV (HOSE_CSV)
+    csv_provider = MarketDataCsvProvider()
+    repository_root = Path(__file__).resolve().parents[2]
+    for symbol, exchange, source_id in hose_assets[:batch_limit]:
+        csv_path = repository_root / "data" / "market" / f"{symbol.lower()}_historical.csv"
+        if not csv_path.is_file():
+            results.append({"provider": "HOSE_CSV", "symbol": symbol,
+                            "status": "BLOCKED", "records_received": 0,
+                            "reason": f"Registered local market file not found: {csv_path.name}"})
+            continue
+        try:
+            points = await csv_provider.fetch_market_data(
+                symbol, start_date, date.today(), file_path=str(csv_path)
+            )
+            records = [point.model_dump() for point in points]
+            db = session_factory()
+            try:
+                outcome = IngestionPipeline(db).ingest_market_data(
+                    provider="HOSE_CSV", symbol=symbol, exchange=exchange or "HOSE",
+                    records=records, source_url_or_path=str(csv_path), source_id=source_id,
+                )
+                results.append(outcome)
+            finally:
+                db.close()
+        except Exception as exc:
+            _record_failure(session_factory, "HOSE_CSV", f"market_data_{symbol}", "FAILURE", str(exc))
+            results.append({"provider": "HOSE_CSV", "symbol": symbol,
+                            "status": "FAILURE", "records_received": 0, "reason": str(exc)})
+            logger.warning("Ingestion failed for HOSE_CSV/%s: %s", symbol, exc)
+
+    # 3. Vietstock news ingestion (independent)
+    if "VIETSTOCK" in source_ids and os.getenv("ENABLE_VIETSTOCK_INGESTION", "false").lower() in ("true", "1", "yes"):
+        try:
+            vietstock_prov = VietstockNewsProvider()
+            db = session_factory()
+            try:
+                outcome = vietstock_prov.ingest_to_database(db, source_id=source_ids.get("VIETSTOCK"))
+                results.append(outcome)
+            finally:
+                db.close()
+        except Exception as exc:
+            _record_failure(session_factory, "VIETSTOCK", "news_events", "FAILURE", str(exc))
+            results.append({"provider": "VIETSTOCK", "dataset": "news_events", "status": "FAILURE", "reason": str(exc)})
+            logger.warning("Ingestion failed for VIETSTOCK: %s", exc)
+
+    # 4. GDELT news ingestion (independent)
+    if "GDELT" in source_ids and os.getenv("ENABLE_GDELT_INGESTION", "false").lower() in ("true", "1", "yes"):
+        try:
+            gdelt_prov = GDELTNewsProvider()
+            db = session_factory()
+            try:
+                outcome = await gdelt_prov.ingest_to_database(
+                    db, query="vietnam stock market", max_records=15, source_id=source_ids.get("GDELT")
+                )
+                results.append(outcome)
+            finally:
+                db.close()
+        except Exception as exc:
+            _record_failure(session_factory, "GDELT", "news_events", "FAILURE", str(exc))
+            results.append({"provider": "GDELT", "dataset": "news_events", "status": "FAILURE", "reason": str(exc)})
+            logger.warning("Ingestion failed for GDELT: %s", exc)
+
+    # 5. DNSE market data (bounded by batch_limit)
+    if "DNSE" in source_ids and os.getenv("ENABLE_DNSE_INGESTION", "false").lower() in ("true", "1", "yes"):
+        dnse_prov = DnseProvider()
+        for symbol, exchange, _ in hose_assets[:batch_limit]:
+            try:
+                db = session_factory()
+                try:
+                    outcome = dnse_prov.ingest_to_database(
+                        db, symbol, start_date=start_date, end_date=date.today(),
+                        exchange=exchange or "HOSE", source_id=source_ids.get("DNSE")
+                    )
+                    results.append(outcome)
+                finally:
+                    db.close()
+            except Exception as exc:
+                _record_failure(session_factory, "DNSE", f"market_data_{symbol}", "FAILURE", str(exc))
+                results.append({"provider": "DNSE", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                logger.warning("Ingestion failed for DNSE/%s: %s", symbol, exc)
+
+    # 6. VNDIRECT market data & fundamentals (bounded by batch_limit)
+    if "VNDIRECT" in source_ids and os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes"):
+        vndirect_prov = VndirectProvider()
+        for symbol, exchange, _ in hose_assets[:batch_limit]:
+            # Prices
+            try:
+                db = session_factory()
+                try:
+                    outcome = await vndirect_prov.ingest_to_database(
+                        db, symbol, start_date=start_date, end_date=date.today(),
+                        exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
+                    )
+                    results.append(outcome)
+                finally:
+                    db.close()
+            except Exception as exc:
+                _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
+                results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
+
+            # Fundamentals & Corporate Profile (if enabled)
+            if os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes"):
+                try:
+                    db = session_factory()
+                    try:
+                        await vndirect_prov.ingest_company_profile(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                        res_fs = await vndirect_prov.ingest_fundamentals(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                        await vndirect_prov.ingest_ratios(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                        await vndirect_prov.ingest_events(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                        results.append({
+                            "provider": "VNDIRECT",
+                            "symbol": symbol,
+                            "dataset": "fundamentals",
+                            "status": res_fs.get("status", "SUCCESS")
+                        })
+                    finally:
+                        db.close()
+                except Exception as exc:
+                    _record_failure(session_factory, "VNDIRECT", f"fundamentals_{symbol}", "FAILURE", str(exc))
+                    results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
+                    logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
+
+    # 7. Cross-Provider Reconciliation (if enabled)
+    if os.getenv("ENABLE_RECONCILIATION", "false").lower() in ("true", "1", "yes"):
+        recon_engine = MarketDataReconciliationEngine()
+        for symbol, _, _ in hose_assets[:batch_limit]:
+            try:
+                report = await recon_engine.compare_providers(symbol, start_date=start_date, end_date=date.today())
+                db = session_factory()
+                try:
+                    recon_engine.record_quality_report(db, report)
+                finally:
+                    db.close()
+                results.append({
+                    "provider": "RECONCILIATION",
+                    "symbol": symbol,
+                    "status": report.status,
+                    "matching_dates": report.matching_dates_count,
+                    "major_disagreements": report.major_disagreement_count
+                })
+            except Exception as exc:
+                logger.warning("Reconciliation failed for %s: %s", symbol, exc)
+
+    # 8. Report unsupported sources without machine-readable API
+    for unsupported in ("SBV",):
+        if unsupported in source_ids:
+            results.append({
+                "provider": unsupported,
+                "status": "BLOCKED_UNSUPPORTED_PUBLIC_INTERFACE",
+                "records_received": 0,
+                "reason": "No machine-readable public REST API is available for this official source"
+            })
+    return results
+
+
+async def scheduled_ingestion_loop(stop_event: asyncio.Event) -> None:
+    initial_delay = max(0, int(os.getenv("INGESTION_INITIAL_DELAY_SECONDS", "15")))
+    interval = max(60, int(os.getenv("INGESTION_INTERVAL_SECONDS", "3600")))
+    try:
+        await asyncio.wait_for(stop_event.wait(), timeout=initial_delay)
+        return
+    except asyncio.TimeoutError:
+        pass
+
+    while not stop_event.is_set():
+        try:
+            results = await run_ingestion_cycle()
+            logger.info("Scheduled ingestion cycle completed: %s", results)
+        except Exception:
+            logger.exception("Scheduled ingestion cycle failed")
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            continue

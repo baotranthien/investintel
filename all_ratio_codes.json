@@ -1,0 +1,367 @@
+{
+  "PRICE_CHG_CR_LL52W": {
+    "name": "Thay đổi giá so với đáy 52 tuần",
+    "group": "STOCK",
+    "sample": 14400.0
+  },
+  "PRICE_CHG_CR_3M": {
+    "name": "Thay đổi giá 3 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -0.4
+  },
+  "PRICE_CHG_PCT_CR_HH52W": {
+    "name": "Tỷ lệ thay đổi giá so với đỉnh 52 tuần",
+    "group": "STOCK",
+    "sample": -0.1562999075397159
+  },
+  "NMVOLUME_AVG_CR_5D": {
+    "name": "KLGD khớp lệnh TB 5 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 570240.0
+  },
+  "PRICE_CHG_CR_MD": {
+    "name": "Thay đổi giá từ đầu tháng",
+    "group": "STOCK",
+    "sample": 1.2
+  },
+  "PRICE_CHG_CR_1M": {
+    "name": "Thay đổi giá 1 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.8
+  },
+  "PRICE_CHG_CR_5D": {
+    "name": "Thay đổi giá 5 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -0.3
+  },
+  "PRICE_CHG_CR_1D": {
+    "name": "Thay đổi giá 1 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.0
+  },
+  "PRICE_CHG_PCT_CR_YD": {
+    "name": "Tỷ lệ thay đổi giá lũy kế ",
+    "group": "STOCK",
+    "sample": 0.044213263979193757
+  },
+  "PRICE_CHG_PCT_CR_3D": {
+    "name": "Tỷ lệ thay đổi giá 3 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -0.002484472049689441
+  },
+  "PRICE_HIGHEST_CR_52W": {
+    "name": "Giá cao nhất 52 tuần",
+    "group": "STOCK",
+    "sample": 95176.0
+  },
+  "BETA": {
+    "name": "Beta ",
+    "group": "STOCK",
+    "sample": 0.9271650469165226
+  },
+  "PRICE_CHG_CR_HH52W": {
+    "name": "Thay đổi giá so với đỉnh 52 tuần",
+    "group": "STOCK",
+    "sample": -14876.0
+  },
+  "PRICE_LOWEST_CR_52W": {
+    "name": "Giá thấp nhất 52 tuần",
+    "group": "STOCK",
+    "sample": 65900.0
+  },
+  "PRICE_CHG_CR_YD": {
+    "name": "Thay đổi giá lũy kế ",
+    "group": "STOCK",
+    "sample": 3.4
+  },
+  "PRICE_CHG_CR_5Y": {
+    "name": "Thay đổi giá 5 năm giao dịch",
+    "group": "STOCK",
+    "sample": 53.551
+  },
+  "PRICE_CHG_PCT_CR_LL52W": {
+    "name": "Tỷ lệ thay đổi giá so với đáy 52 tuần",
+    "group": "STOCK",
+    "sample": 0.21851289833080426
+  },
+  "PRICE_CHG_PCT_CR_1D": {
+    "name": "Tỷ lệ thay đổi giá 1 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.0
+  },
+  "NMVALUE_AVG_CR_20D": {
+    "name": "GTGD khớp lệnh TB 20 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 48403389500.0
+  },
+  "NMVOLUME_AVG_CR_10D": {
+    "name": "KLGD khớp lệnh TB 10 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 610800.0
+  },
+  "PRICE_TO_BOOK_AVG_CR_3M": {
+    "name": "Tỷ lệ PB bình quân 3 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 4.212559272556749
+  },
+  "PRICE_TO_BOOK_AVG_CR_YD": {
+    "name": "Tỷ lệ PB bình quân lũy kế ",
+    "group": "STOCK",
+    "sample": 4.238911378477581
+  },
+  "BVPS_CR": {
+    "name": "Giá trị sổ sách trên 1 cổ phiếu hiện tại ",
+    "group": "STOCK",
+    "sample": 19185.01242521772
+  },
+  "PRICE_TO_BOOK_AVG_CR_1Y": {
+    "name": "Tỷ lệ PB bình quân 1 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 4.6029092222927686
+  },
+  "PRICE_TO_BOOK_AVG_CR_1M": {
+    "name": "Tỷ lệ PB bình quân 1 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 4.138873932743145
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_1Y": {
+    "name": "Tỷ lệ PE bình quân 1 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 17.921851568201667
+  },
+  "PRICE_TO_BOOK_AVG_CR_5Y": {
+    "name": "Tỷ lệ PB bình quân 5 năm giao dịch",
+    "group": "STOCK",
+    "sample": 3.46143362805792
+  },
+  "PRICE_TO_BOOK_AVG_CR_6M": {
+    "name": "Tỷ lệ PB bình quân 6 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 4.19951457435027
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_YD": {
+    "name": "Tỷ lệ PE bình quân lũy kế ",
+    "group": "STOCK",
+    "sample": 16.68507336114918
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_5Y": {
+    "name": "Tỷ lệ PE bình quân 5 năm giao dịch",
+    "group": "STOCK",
+    "sample": 14.466626534832407
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_3M": {
+    "name": "Tỷ lệ PE bình quân 3 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 16.66726749315247
+  },
+  "PRICE_TO_BOOK_AVG_CR_3Y": {
+    "name": "Tỷ lệ PB bình quân 3 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 4.127305099286917
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_6M": {
+    "name": "Tỷ lệ PE bình quân 6 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 16.25464682892019
+  },
+  "PRICE_TO_EARNINGS_AVG_CR_3Y": {
+    "name": "Tỷ lệ PE bình quân 3 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 17.17207722169986
+  },
+  "DIVIDEND_YIELD": {
+    "name": "Cổ tức / Thị giá ",
+    "group": "STOCK",
+    "sample": 0.042617224665748826
+  },
+  "PRICE_TO_EARNINGS": {
+    "name": "Tỷ lệ PE ",
+    "group": "STOCK",
+    "sample": 10.942514795569487
+  },
+  "MARKETCAP": {
+    "name": "Thị giá vốn ",
+    "group": "STOCK",
+    "sample": 33079063670000.0
+  },
+  "DIVIDEND_PAYOUT_TR": {
+    "name": "Tỷ lệ trả cổ tức 4 quý liền kề",
+    "group": "STOCK",
+    "sample": 0.46633961145106545
+  },
+  "CASH_CONVERSION_CYCLE_TR_AVG5Q": {
+    "name": "Chu kỳ vận động vốn trong 4 quý ",
+    "group": "STOCK",
+    "sample": 50.24524910857099
+  },
+  "NET_MARGIN_QR": {
+    "name": "Biên lợi nhuận ròng quý",
+    "group": "STOCK",
+    "sample": 0.10714344640282303
+  },
+  "OPERATING_EBITDA_MARGIN_QR": {
+    "name": "Biên EBITDA hoạt động quý",
+    "group": "STOCK",
+    "sample": 0.19713596307676856
+  },
+  "CFO_TO_SALES_TR": {
+    "name": "Tỷ lệ CFO / doanh thu thuần 4 quý liền kề",
+    "group": "STOCK",
+    "sample": 0.0729226982306682
+  },
+  "OPERATING_EBIT_MARGIN_QR": {
+    "name": "Biên EBIT hoạt động quý",
+    "group": "STOCK",
+    "sample": 0.13943563538059425
+  },
+  "DIVIDEND_PAID_TR": {
+    "name": "Số tiền trả cổ tức 4 quý liền kề",
+    "group": "STOCK",
+    "sample": 1409737888157.0
+  },
+  "NET_SALES_MKTSHARE_TR": {
+    "name": "Thị phần Doanh thu thuần 4 quý liền kề trong ngành",
+    "group": "STOCK",
+    "sample": 0.8473855380150167
+  },
+  "OWNERS_EQUITY_AQ_GRYTD": {
+    "name": "Tăng trưởng Vốn chủ sở hữu so với đầu năm",
+    "group": "STOCK",
+    "sample": 0.04996535047081682
+  },
+  "DIVIDEND_PAID_TR_GRYOY": {
+    "name": "Tăng trưởng Số tiền trả cổ tức 4 quý liền kề so với cùng kỳ năm trước",
+    "group": "STOCK",
+    "sample": 0.2797066941517497
+  },
+  "NET_PROFIT_QR_GRYOY": {
+    "name": "Tăng trưởng LN ròng quý so với cùng kỳ năm trước",
+    "group": "STOCK",
+    "sample": 0.23277757570367996
+  },
+  "OWNERS_EQUITY_AQ_GRYOY": {
+    "name": "Tăng trưởng Vốn chủ sở hữu so với cùng kỳ năm trước",
+    "group": "STOCK",
+    "sample": 0.16020724441100592
+  },
+  "GROSS_MARGIN_QR": {
+    "name": "Biên lợi nhuận gộp quý",
+    "group": "STOCK",
+    "sample": 0.3905810782420806
+  },
+  "QUICK_RATIO_AQ": {
+    "name": "Tỷ lệ thanh toán nhanh ",
+    "group": "STOCK",
+    "sample": 0.15373297584192483
+  },
+  "DPO_TR_AVG5Q": {
+    "name": "Số ngày phải trả (DPO) 4 quý ",
+    "group": "STOCK",
+    "sample": 36.862664923490996
+  },
+  "DSO_QR_AVG2Q": {
+    "name": "Số ngày phải thu (DSO) quý ",
+    "group": "STOCK",
+    "sample": 88.39997519726545
+  },
+  "INTEREST_COVERAGE_TR": {
+    "name": "Khả năng thanh toán lãi vay 4 quý liền kề",
+    "group": "STOCK",
+    "sample": 10.494555768475372
+  },
+  "INVENTORY_TURNOVER_TR_AVG5Q": {
+    "name": "Vòng quay hàng tồn kho 4 quý ",
+    "group": "STOCK",
+    "sample": 9.119930490478405
+  },
+  "PRICE_CHG_CR_6M": {
+    "name": "Thay đổi giá 6 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -5.3
+  },
+  "NMVOLUME_AVG_CR_20D": {
+    "name": "KLGD khớp lệnh TB 20 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 746080.0
+  },
+  "PRICE_CHG_PCT_CR_1M": {
+    "name": "Tỷ lệ thay đổi giá 1 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -0.02599009900990099
+  },
+  "PRICE_CHG_CR_1Y": {
+    "name": "Thay đổi giá 1 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 3.768
+  },
+  "PRICE_CHG_CR_3Y": {
+    "name": "Thay đổi giá 3 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 50.727
+  },
+  "NMVALUE_AVG_CR_10D": {
+    "name": "GTGD khớp lệnh TB 10 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 57538310000.0
+  },
+  "PRICE_TO_SALES": {
+    "name": "Tỷ lệ PS ",
+    "group": "STOCK",
+    "sample": 0.7566450497705777
+  },
+  "PRICE_TO_BOOK": {
+    "name": "Tỷ lệ PB ",
+    "group": "STOCK",
+    "sample": 2.8241712413021727
+  },
+  "PRICE_CHG_PCT_CR_6M": {
+    "name": "Tỷ lệ thay đổi giá 6 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": -0.04664226941096944
+  },
+  "PRICE_CHG_PCT_CR_1Y": {
+    "name": "Tỷ lệ thay đổi giá 1 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.07871450989700782
+  },
+  "PRICE_CHG_PCT_CR_MD": {
+    "name": "Tỷ lệ thay đổi giá từ đầu tháng",
+    "group": "STOCK",
+    "sample": -0.02035928143712575
+  },
+  "PRICE_CHG_PCT_CR_5D": {
+    "name": "Tỷ lệ thay đổi giá 5 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.0024509803921568627
+  },
+  "PRICE_CHG_PCT_CR_3Y": {
+    "name": "Tỷ lệ thay đổi giá 3 năm giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 1.5741888787487806
+  },
+  "PRICE_CHG_PCT_CR_3M": {
+    "name": "Tỷ lệ thay đổi giá 3 tháng giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.16028368794326242
+  },
+  "PRICE_CHG_PCT_CR_5Y": {
+    "name": "Tỷ lệ thay đổi giá 5 năm giao dịch",
+    "group": "STOCK",
+    "sample": 2.3303476915560624
+  },
+  "PRICE_CHG_CR_QD": {
+    "name": "Thay đổi giá từ đầu quý",
+    "group": "STOCK",
+    "sample": 4.9
+  },
+  "PRICE_CHG_PCT_CR_QD": {
+    "name": "Tỷ lệ thay đổi giá từ đầu quý",
+    "group": "STOCK",
+    "sample": 0.06371911573472042
+  },
+  "PRICE_CHG_CR_3D": {
+    "name": "Thay đổi giá 3 ngày giao dịch gần nhất",
+    "group": "STOCK",
+    "sample": 0.2
+  }
+}

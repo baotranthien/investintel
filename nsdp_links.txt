@@ -1,0 +1,57 @@
+Status: 200
+Total links: 55
+index.htm
+http://www.mof.gov.vn
+http://gso.gov.vn
+https://www.sbv.gov.vn
+https://dsbb.imf.org
+https://sdmxcentral.imf.org/
+./GSO-chung/Tuấn Anh/excel chung/GDP_VNM.xlsx
+http://nsdp.gso.gov.vn/GSO-chung/SDMXFiles/GSO/GDPVNM.xml
+./GSO-chung/Tuấn Anh/metadata tieng Viet-moi/GSO.GDP_Tieng Viet.docx
+.\GSO-chung\Tuấn Anh\excel chung\CPI_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\CPIVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\GSO.CS Giatieudung_2018.docx
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/19/MoF%20GGO_Vietnam.xls
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/19/MoF%20GGO_Vietnam.xml
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/19/VNM_GDDS_DQAF_FIS_GGO00_General%20government%20operations_Blank%20Ho%E1%BA%A1t%20%C4%91%E1%BB%99ng%20c%E1%BB%A7a%20Ch%C3%ADnh%20ph%E1%BB%A7%20chung.doc
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/18/VNM_GDDS_DQAF_FIS_CGO00_Central%20government%20operations-Ho%E1%BA%A1t%20%C4%91%E1%BB%99ng%20c%E1%BB%A7a%20Ch%C3%ADnh%20ph%E1%BB%A7%20Trung%20%C6%B0%C6%A1ng.doc
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/17/Vay%20v%C3%A0%20tra%20no%20nuoc%20ngoai%20cua%20quoc%20gia%20%20tu%202017%202021.xlsx
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/17/MOF_CGD_Vietnam.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\MoF.No Chinh phu Trung uong.docx
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV.Khao sat cac to chuc nhan tien gui.docx
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV.HD cua NHTW.docx
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471010//idcPrimaryFile&revision=latestreleased
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471011//idcPrimaryFile&revision=latestreleased
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471012//idcPrimaryFile&revision=latestreleased
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/16/MOF%20SPI122.2023.xlsx
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/16/MOF%20SPI122%20(3).xml
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/16/DQAF_Stock%20Market%202019_EngLish-1.doc
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471016//idcPrimaryFile&revision=latestreleased
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471017//idcPrimaryFile&revision=latestreleased
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471018//idcPrimaryFile&revision=latestreleased
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/15/Z_EXD_VNM.xlsx
+http://ckns.mof.gov.vn/Lists/GDDSManager/Attachments/15/Z_EXDVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV. No nuoc ngoai.doc
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV.Tong du tru chinh thuc.docx
+.\GSO-chung\Tuấn Anh\excel chung\MET_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\METVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\GSO.XNK hang hoa.docx
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV.Vi the dau tu QT (IIP).docx
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471013//idcPrimaryFile&revision=latestreleased
+https://sbv.gov.vn/webcenter/ShowProperty?nodeId=/UCMServer/SBV471014//idcPrimaryFile&revision=latestreleased
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\SBV.Ty gia hoi doai.docx
+.\GSO-chung\Tuấn Anh\excel chung\IIP_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\IIPVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\GSO.Chi so cong nghipe.IIP. Tieng Viet.docx
+.\GSO-chung\Tuấn Anh\excel chung\LMI_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\LMIVNM.xml
+http://nsdp.gso.gov.vn/popup2.htm
+.\GSO-chung\Tuấn Anh\excel chung\PPI_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\PPIVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\GSO.CS Giasanxuat_2018.docx
+.\GSO-chung\Tuấn Anh\excel chung\POP_VNM.xlsx
+.\GSO-chung\SDMXFiles\GSO\POPVNM.xml
+.\GSO-chung\Tuấn Anh\metadata tieng Viet-moi\GSO. Danso2018.docx
+https://www.imf.org/en/Countries/VNM#ataglance
+http://whos.amung.us/stats/9a38omrag67v/

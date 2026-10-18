@@ -1,0 +1,226 @@
+=== INCOME STATEMENT (mt=2) ===
+21000.0: Gross Operating Revenue | Tổng doanh thu hoạt động kinh doanh
+21001.0: Net Sales | Doanh thu thuần
+21090.0: Deduction revenues | Các khoản giảm trừ doanh thu
+21500.0: Financial income | Doanh thu hoạt động tài chính
+21900.0: Other incomes | Thu nhập khác
+22051.0: Current Corporate Income Tax Expenses | Chi phí thuế TNDN hiện hành
+22052.0: Deferred Income Taxes Expenses | Chi phí thuế TNDN hoãn lại
+22070.0: Corporate Income Tax Expenses | Chi phí thuế TNDN
+22100.0: Cost of goods sold | Giá vốn hàng bán
+22110.0: Selling Expenses | Chi phí bán hàng
+22200.0: General and admin expenses | Chi phí quản lý doanh nghiệp
+22500.0: Financial Expenses | Chi phí tài chính
+22510.0: Of which: Interest Expenses | Trong đó: Chi phí lãi vay
+22900.0: Other Expenses | Chi phí khác
+23000.0: Net Profit After Tax of Parent Company | Lợi nhuận sau thuế của Công ty mẹ
+23001.0: Earnings  per share | Lãi cơ bản trên cổ phiếu
+23003.0: Net Profit After Tax | Lợi nhuận sau thuế thu nhập doanh nghiệp
+23100.0: Gross profit | Lợi nhuận gộp
+23110.0: Net Profit from Operating activities | Lợi nhuận thuần từ hoạt động kinh doanh
+23200.0: Profit or lost from join venture companies (before 2015) | Lợi nhuận hoặc lỗ trong công ty liên kết (trước 2015)
+23300.0: Profit or loss from join venture companies | Lợi nhuận hoặc lỗ trong công ty liên kết
+23500.0: Benefits of Minitory shareholders | Lợi ích của cổ đông thiểu số
+23800.0: Pretax Profit | Lợi nhuận kế toán trước thuế
+23900.0: Other profits | Lợi nhuận khác
+24000.0: Gain/(loss) from disposals of investment properties | Lãi/lỗ của hoạt động bán, thanh lý bất động sản đầu tư
+700087.0: EPS_diluted | Lãi suy giảm trên cổ phiếu
+
+=== BALANCE SHEET KEY TOTALS (mt=1) ===
+11000.0: Current Assets | Tài sản ngắn hạn
+11100.0: Cash and Cash Equivalents | Tiền và các khoản tương đương tiền
+11110.0: Cash | Tiền
+11120.0: Cash equivalents | Các khoản tương đương tiền
+11200.0: Short term financial investment | Các khoản đầu tư tài chính ngắn hạn
+11210.0: Short-term investments | Đầu tư ngắn hạn
+11290.0: Provision for  short term investment loss | Dự phòng giảm giá đầu tư ngắn hạn
+11300.0: Short term Account Receivables | Các khoản phải thu ngắn hạn
+11310.0: Account Receivable | Phải thu khách hàng
+11320.0: Prepaid for suppliers | Trả trước cho người bán
+11330.0: Short term Internal Receivable | Phải thu nội bộ ngắn hạn
+11340.0: Construction contract in progress receivables | Phải thu theo tiến độ kế hoạch hợp đồng xây dựng
+11345.0: Short-term loan Receivables | Phải thu về cho vay ngắn hạn
+11350.0: Other Receivables | Các khoản phải thu khác
+11390.0: Provision for doublful debt | Dự phòng phải thu ngắn hạn khó đòi
+11400.0: Inventories | Hàng tồn kho
+11410.0: Inventory | Hàng tồn kho
+11440.0: Other short-term investments | Đầu tư ngắn hạn khác
+11441.0: Provision for impairment of other short-term investments | Dự phòng tổn thất các khoản đầu tư ngắn hạn khác
+11442.0: Current biological assets | Tài sản sinh học ngắn hạn
+11443.0: Livestock held for one-time harvest | Súc vật nuôi lấy sản phẩm một lần ngắn hạn
+11444.0: Short-term seasonal crops or plants held for one-time harvest | Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần ngắn hạn
+11445.0: Provision for impairment of current biological assets | Dự phòng tổn thất tài sản sinh học ngắn hạn
+11446.0: Non-current biological assets | Tài sản sinh học dài hạn
+11447.0: Bearer livestock | Súc vật nuôi cho sản phẩm định kỳ
+11448.0: Immature bearer livestock | Súc vật nuôi cho sản phẩm định kỳ chưa đến giai đoạn trưởng thành
+11449.0: Mature bearer livestock | Súc vật nuôi cho sản phẩm định kỳ đến giai đoạn trưởng thành
+11450.0: Cost | Nguyên giá
+11451.0: Accumulated depreciation | Giá trị khấu hao luỹ kế
+11452.0: Non-current livestock held for one-time harvest | Súc vật nuôi lấy sản phẩm một lần dài hạn
+11453.0: Non-current seasonal crops or plants held for one-time harvest | Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần dài hạn
+11454.0: Provision for impairment of non-current biological assets | Dự phòng tổn thất tài sản sinh học dài hạn
+11455.0: Provision for Held-to-maturity investment | Dự phòng đầu tư nắm giữ đến ngày đáo hạn dài hạn
+11456.0: 2.3. Long-term taxes and payables to the State | Thuế và các khoản phải nộp Nhà nước dài hạn
+11457.0: Provision for Held-to-maturity investment | Dự phòng đầu tư nắm giữ đến ngày đáo hạn ngắn hạn
+11490.0: Provision for decline in inventories | Dự phòng giảm giá hàng tồn kho
+11500.0: Other Current Assets | Tài sản ngắn hạn khác
+11510.0: Short-term prepaid expenses | Chi phí trả trước ngắn hạn
+11520.0: Discounted VAT | Thuế GTGT được khấu trừ
+11540.0: Tax and States Account Receivables | Thuế và các khoản khác phải thu Nhà nước
+11570.0: Government bonds purchased for resale | Giao dịch mua bán lại trái phiếu chính phủ
+11580.0: Other current assets | Tài sản ngắn hạn khác
+12000.0: Long-term Assets | Tài sản dài hạn
+12100.0: Long term Account Receivable | Các khoản phải thu dài hạn
+12110.0: Long-term trade receivables from customers | Phải thu dài hạn của khách hàng
+12111.0: Long term prepaid for suppliers | Trả trước dài hạn người bán
+12120.0: Business capital in subsidiary uints | Vốn kinh doanh ở đơn vị trực thuộc
+12130.0: Internal Longterm Receivables | Phải thu dài hạn nội bộ
+12140.0: Long-term loans receivables | Phải thu về cho vay dài hạn
+12180.0: Other Long term Receivables | Phải thu dài hạn khác
+12190.0: Provision for doubtful Long-term receivable | Dự phòng phải thu dài hạn khó đòi
+12200.0: Fixed assets | Tài sản cố định
+12210.0: Tangible Fixed Assets | Tài sản cố định hữu hình
+12220.0: Original Price | Nguyên giá TSCĐHH
+12230.0: Acumulated Depreation and Amortization | Hao mòn TSCĐHH
+12240.0: Financial leases fixed assets | Tài sản cố định thuê tài chính
+12250.0: Original Price | Nguyên giá TSCĐTTC
+12260.0: Acumulated Depreation and Amortization | Hao mòn TSCĐTTC
+12270.0: Intangible Fixed Asset | Tài sản cố định vô hình
+12280.0: Original Price | Nguyên giá TSCĐVH
+12290.0: Acumulated Depreation and Amortization | Hao mòn TSCĐVH
+12300.0: Construction in progress (before 2015) | Chi phí xây dựng cơ bản dở dang (trước 2015)
+12400.0: Real Estate Investment | Bất động sản đầu tư
+12410.0: Original Price | Nguyên giá bất động sản đầu tư
+12420.0: Acumulated Depreation and Amortization | Hao mòn bất động sản đầu tư
+12440.0: Long-term incomplete assets | Tài sản dở dang dài hạn
+12450.0: Long-term cost of work in progress | Chi phí sản xuất, kinh doanh dở dang dài hạn
+12460.0: Capital Construction in Process | Chi phí xây dựng cơ bản dở dang 
+12500.0: Long term Finacial  Investments | Các khoản đầu tư tài chính dài hạn
+12510.0: Investments in subsidiaries | Đầu tư vào công ty con
+12520.0: Investments in associates | Đầu tư vào công ty liên kết, liên doanh
+12580.0: Other long term Investments | Đầu tư dài hạn khác
+12590.0: Provision for long-term investments | Dự phòng giảm giá đầu tư tài chính dài hạn
+12595.0: Long term held-to-maturity Investment | Đầu tư dài hạn giữ đến ngày đáo hạn
+12600.0: Other long term assets | Tài sản dài hạn khác
+12610.0: Prepaid expenses | Chi phí trả trước dài hạn
+12620.0: Deferred Income Tax | Tài sản thuế thu nhập hoãn lại
+12630.0: Long-term equipment, material and spare parts | Thiết bị, vật tư, phụ tùng thay thế dài hạn
+12680.0: Other long term assets | Tài sản dài hạn khác
+12690.0: Goodwill | Lợi thế thương mại
+12700.0: TOTAL ASSETS | TỔNG CỘNG TÀI SẢN
+13000.0: Liabilities | Nợ phải trả
+13100.0: Short term Liabilities | Nợ ngắn hạn
+13110.0: Short term Loan and Liabilities | Vay và nợ ngắn hạn
+13120.0: Payment for suppliers | Phải trả người bán
+13130.0: Prepaid from Customers | Người mua trả tiền trước
+13140.0: Tax and other payable to State Budget | Thuế và các khoản phải nộp Nhà nước
+13150.0: Employees Payable | Phải trả người lao động
+13160.0: Expenses Payable | Chi phí phải trả
+13170.0: Internal Payable | Phải trả nội bộ
+13180.0: Construction contract in progress payables | Phải trả theo tiến độ kế hoạch hợp đồng xây dựng
+13190.0: Other Account Payables | Các khoản phải trả, phải nộp ngắn hạn khác
+13197.0: Unrealized Revenue (Long term) | Doanh thu chưa thực hiện dài hạn
+13199.0: Short-term unrealized revenue | Doanh thu chưa thực hiện ngắn hạn
+13200.0: Provision for short term Payables | Dự phòng phải trả ngắn hạn
+13210.0: Price stabilisation Fund | Quỹ bình ổn giá
+13220.0: Government bonds purchased for resale | Giao dịch mua bán lại trái phiếu chính phủ
+13300.0: Long term Liabilities | Nợ dài hạn
+13310.0: Long-term Payable for suppliers | Phải trả dài hạn người bán
+13311.0: Long term prepaid from Customers | Người mua trả trước dài hạn
+13312.0: Long term Expenses Payables | Chi phí phải trả dài hạn
+13313.0: Internal Payables of Business Capital | Phải trả nội bộ về vốn kinh doanh
+13320.0: Internal Payable | Phải trả dài hạn nội bộ
+13330.0: Other long-term payables | Phải trả dài hạn khác
+13340.0: Loans and Long term Liabilities | Vay và nợ dài hạn
+13343.0: convertible bond | Trái phiếu chuyển đổi
+13346.0: Preferred shares | Cổ phiếu ưu đãi
+13350.0: Deferred Income Tax Payable | Thuế thu nhập hoãn lại phải trả
+13360.0: Provision for  unemloyment pension  allowance | Dự phòng trợ cấp mất việc làm
+13370.0: Provision for long-term liabilities | Dự phòng phải trả dài hạn
+14000.0: Owners equity | Vốn chủ sở hữu
+14100.0: Capital and researves | Vốn và các quỹ
+14110.0: Paid-in capital | Vốn góp
+14120.0: Share premium | Thặng dư vốn cổ phần
+14130.0: Other capitals of Owners Equity | Vốn khác của chủ sở hữu
+14140.0: Treasury shares | Cổ phiếu quỹ
+14145.0: Prefered shares | Cổ phiếu ưu đãi
+14148.0: Common shares | Cổ phiếu phổ thông
+14149.0: Convertible Bonds Option | Quyền chọn chuyển đổi trái phiếu
+14150.0: Property revaluation differences | Chênh lệch đánh giá lại tài sản
+14160.0: Exchange differences | Chênh lệch tỷ giá hối đoái
+14170.0: Development and Investment Fund | Quỹ đầu tư phát triển
+14180.0: Financial Provision  Fund | Quỹ dự phòng tài chính
+14190.0: Other Funds of Owners Equity | Quỹ khác thuộc vốn chủ sở hữu
+14193.0: Technology-science development fund | Quỹ phát triển khoa học và công nghệ
+14200.0: Undistributed Profit after Tax | Lợi nhuận sau thuế chưa phân phối
+14201.0: Business Arrangement Assistance Fund | Quỹ hỗ trợ sắp xếp doanh nghiệp
+14210.0: Capital Construction Investment | Nguồn vốn đầu tư XDCB
+14220.0: Cummulative Undistributed Profit after Tax until last year | Lợi nhuận sau thuế chưa phân phối lũy kế đến cuối kỳ trước
+14230.0: Undistributed Profit after Tax this year | Lợi nhuận sau thuế chưa phân phối kỳ này
+14240.0: Non Controlling Shareholders | Lợi ích cổ đông không kiểm soát
+14300.0: Expenditures and Other Funds | Nguồn kinh phí và quỹ khác
+14310.0: Bonus and welfare funds | Quỹ khen thưởng, phúc lợi
+14320.0: Budget sources and other funds | Vốn ngân sách nhà nước
+14330.0: Fixed Assets expenditures | Nguồn kinh phí đã hình thành TSCĐ
+14400.0: TOTAL EQUITY | TỔNG CỘNG NGUỒN VỐN
+15000.0: Minority shareholderss Equity | Lợi ích của cổ đông không kiểm soát (trước 2015)
+412320.0: Held to maturity Investment | Đầu tư giữ đến ngày đáo hạn
+412541.0: Goodwill (before 2015) | Lợi thế thương mại (trước 2015)
+611530.0: Deficiency Assets  waiting for solution | Tài sản thiếu chờ xử lý
+613520.0: Dividend of shareholde Payable | Phải trả cổ tức cho cổ đông
+700036.0: Bonus and welfare funds (Before 2010) | Quỹ khen thưởng, phúc lợi (trước 2010)
+
+=== CASH FLOW KEY TOTALS (mt=3) ===
+22230.0: Depreciation of Fixed Assets Expenses | Chi phí khấu hao tài sản cố định
+22509.0: Interest Expenses | Chi phí lãi vay
+22515.0: Provision for short term investment loss | Dự phòng giảm giá các khoản đầu tư ngắn hạn, dài hạn
+23810.0: Pretax Profit | Lợi nhuận kế toán trước thuế
+30000.0: Adjustments | Điều chỉnh cho các khoản
+30100.0: Cash provided by Sales, services, and other revenues | Tiền thu từ bán hàng, cung cấp dịch vụ và doanh thu khác
+30200.0: Cash payments to goods and service Suppliers | Tiền chi trả cho người cung cấp hàng hóa và dịch vụ
+30300.0: Cash payments to employees | Tiền chi trả cho người lao động
+30400.0: Cash payments to Interest | Tiền chi trả lãi vay
+30500.0: Cash payments to Corporate Income Tax | Tiền chi nộp thuế thu nhập doanh nghiệp
+30600.0: Proceeds from operating activities | Tiền thu khác từ hoạt động kinh doanh
+30700.0: Other Cash payments to Operating activities | Tiền chi khác cho hoạt động kinh doanh
+31100.0: Unrealised foreign exchange gain/(loss) | Lãi, lỗ chênh lệch tỷ giá hối đoái chưa thực hiện
+31101.0: Profit/(loss) from liquidating fixed assets | Lãi/(lỗ) từ thanh lý tài sản cố định
+31102.0: Interest income and dividend | Thu lãi và cổ tức
+31110.0: Profit/(loss) from investing activities | Lãi, lỗ từ hoạt động đầu tư
+31111.0: Amortisation of goodwill | Phân bổ lợi thế thương mại
+31120.0: Operating profit/(loss) before changes in Working Capital | Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn  lưu động
+31130.0:  Increase/(decrease) in receivables | Tăng, giảm các khoản phải thu
+31140.0: Increase/(decrease) in inventories | Tăng, giảm hàng tồn kho
+31150.0: (Increase)/decrease in payables | Tăng, giảm các khoản phải trả (Không kể lãi vay phải trả, thuế TNDN phải nộp)
+31160.0: Increase/(decrease) in prepaid expenses | Tăng, giảm chi phí trả trước
+31170.0: Interest paid | Tiền lãi vay đã trả
+31180.0: Income Tax paid | Thuế thu nhập doanh nghiệp đã nộp
+31190.0: Other Incomes from Operating Activities | Tiền thu khác từ hoạt động kinh doanh
+31200.0: Other Incomes from Operating Activities | Tiền chi khác cho hoạt động kinh doanh
+32000.0: Net cashflow from operating activities | Lưu chuyển tiền thuần từ hoạt động kinh doanh
+32100.0: Purchases of fixed assets and other long term assets | Mua sắm TSCĐ
+32200.0: Proceeds from depleting, acquisiting fixed assets and other long term assets | Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác
+32300.0: Loans granted, purchases of debt instruments | Tiền chi cho vay, mua các công cụ nợ của đơn vị khác
+32400.0: Collection of loans, proceeds from sales of debts instruments | Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác
+32500.0: Investments in other entities | Tiền chi đầu tư góp vốn vào đơn vị khác
+32600.0: Proceeds from divestment in other entities | Tiền thu hồi đầu tư góp vốn vào đơn vị khác
+32700.0: Proceeds from Interest, Dividends and shared profit. | Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia
+33000.0: Net Cashflow from Investing activities | Lưu chuyển tiền thuần từ hoạt động đầu tư
+33100.0: Proceeds from  issue of  shares, capital contribution | Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu
+33200.0: Cash payments to capital contribution and Buy back  issued shares | Tiền chi trả vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành
+33300.0: Short , long term loan received | Tiền vay ngắn hạn, dài hạn nhận được
+33400.0: Payment of Princial Loans | Tiền chi trả nợ gốc vay
+33500.0: Payment of financial lease | Tiền chi trả nợ thuê tài chính
+33600.0: Dividends and Profit paid | Cổ tức, lợi nhuận đã trả cho chủ sở hữu
+33710.0: Interests, dividends, profits received | Tiền lãi đã nhận
+34000.0: Net Cashflow from Financing activities | Lưu chuyển tiền thuần từ hoạt động tài chính
+35000.0: Net Cash and Cash equivalents during the period | Lưu chuyển tiền thuần trong kỳ
+36000.0: Cash and cash equivalents at beginning of year | Tiền và tương đương tiền đầu kỳ
+36100.0: Effect of foreign exchange differences | Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ
+37000.0: Cash and Cash equivalents at end of  year | Tiền và tương đương tiền cuối kỳ
+431100.0: Other adjustments | Các khoản điều chỉnh khác
+431400.0: Increase/(decrease)  in trading securities | Tăng/ (Giảm) chứng khoán kinh doanh
+932000.0: Cash flows from Operating Activities - Indirect method | LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG KINH DOANH - GIÁN TIẾP
+932001.0: Cash flows from Operating Activities - Direct method | LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG KINH DOANH - TRỰC TIẾP
+933000.0: Cash flows  from Investing activities | LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG ĐẦU TƯ
+934000.0: Cash flows  from Financing activities | LƯU CHUYỂN TIỀN TỪ HOẠT ĐỘNG TÀI CHÍNH
