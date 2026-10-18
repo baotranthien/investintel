@@ -18,12 +18,13 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini 
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT & READINESS COMPLETE**.
+Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT & UI UNICODE INTEGRITY COMPLETE**.
 
 Authoritative audit last updated 2026-10-19 (verified live against Render, Vercel, Neon, and local test suite):
-- Full test suite: **198 passed, 0 failed** in 123.71s (100% pass rate).
-- Frontend production build: **12 routes, Turbopack, TypeScript clean** in 420ms compile, 812ms static generation (Next.js 16.3.7).
-- Git Repository & Commit: **VERIFIED & PUSHED** — Commit `9f92a58` (`Fix cloud readiness and cron request handling`) pushed to `main`.
+- Full test suite: **202 passed, 0 failed** in 133.85s (100% pass rate).
+- UI Unicode Integrity: **AUDITED & VERIFIED** (119 files checked; 0 mojibake, 0 BOM, regression suite `tests/test_unicode_integrity.py` 4/4 passed).
+- Frontend production build: **12 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
+- Git Repository & Commit: **VERIFIED & PUSHED** — Branch `main`.
 - Render Backend Deployment: **LIVE & VERIFIED** (`https://investintel-api.onrender.com`)
   - `GET /health` → **200 OK** `{"status":"ok"}`
   - `GET /ready` & `GET /api/v1/ready` → **200 OK** `{"status":"ready"}` (probes database reachability with 0 credential leakage)
@@ -46,10 +47,10 @@ Authoritative audit last updated 2026-10-19 (verified live against Render, Verce
 
 * **Date**: 2026-10-19
 * **Phase**: **PHASE 6 — LOCAL ACCEPTED / PRODUCTION CONDITIONAL**
-* **Milestone**: **Cloud Deployment & Readiness Finalization (Commit `9f92a58`, Render Live `/health` + `/ready` 200 OK, Vercel Live `/login` 200 OK, Neon PG Active, 198/198 Tests Pass) — VERIFIED**
+* **Milestone**: **UI Unicode Audit & Cloud Deployment Finalization (202/202 Tests Pass, 0 Mojibake across 119 files, 12 routes clean build) — VERIFIED**
 * **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **198 passed, 0 failed** in 123.71s (100% pass rate).
-* **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean, 420ms compile (Next.js 16.3.7).
+* **Test Result**: **202 passed, 0 failed** (100% pass rate).
+* **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean.
 * **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
 * **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)
 * **Live HOSE Provider**: **BLOCKED**

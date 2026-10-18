@@ -3,9 +3,9 @@
 Authoritative as of: **2026-10-19**
 
 ## 1. Overall System Status
-- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment COMPLETE**
-- **Test Suite**: **198 / 198 PASSED (100% Pass Rate)**
-- **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active)
+- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity COMPLETE**
+- **Test Suite**: **202 / 202 PASSED (100% Pass Rate)**
+- **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active, 0 mojibake / 0 BOM)
 - **Deployment Status**:
   - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — LIVE (`/health` & `/ready` HTTP 200 OK)
   - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — LIVE (`/login` HTTP 200 OK)
@@ -15,6 +15,13 @@ Authoritative as of: **2026-10-19**
 ---
 
 ## 2. Key Milestones Completed
+
+### UI Unicode & Vietnamese Integrity Audit (2026-10-19)
+- **Full Scope Audit**: Scanned 119 frontend and API router source files across `apps/web/src`, `apps/api/routers`, and `services`.
+- **Mojibake Root Cause & Fix**: Resolved Windows-1252 / UTF-8 double-encoding in `apps/web/src/app/portfolio/page.tsx`. Restored clean Vietnamese accents across all positions, action buttons, notifications, error states, and form labels (`Danh mục`, `không đặt lệnh`, `Làm mới`, `Tổng giá trị`, `Chưa có holding`, etc.).
+- **BOM Sanitization**: Removed UTF-8 Byte Order Mark (`\xef\xbb\xbf`) from `apps/web/src/app/portfolio/page.tsx` and `apps/web/src/app/watchlist/page.tsx`.
+- **API Template Integration**: Connected portfolio template loading to `getPortfolioTemplates` in `@/lib/api` with authenticated credentials.
+- **Automated Regression Suite**: Added `tests/test_unicode_integrity.py` with 4 dedicated automated tests verifying absence of corrupted byte sequences, replacement characters (`\ufffd`), and BOM across frontend and API routers.
 
 ### Data & Financial Intelligence
 - **Canonical Financial Statements**: 115 Income Statements, 115 Balance Sheets, 115 Cash Flows (100% matched across 23/23 quarters for FPT, VCB, MBB, MWG, HPG).

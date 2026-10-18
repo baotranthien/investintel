@@ -349,15 +349,22 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
   + **Lập lịch Idempotent Cron:** Vô hiệu hóa loop in-process khi chạy trên cloud để tránh xung đột task; cung cấp 2 endpoint cron `POST /api/v1/system/cron/run-ingestion` và `POST /api/v1/system/cron/run-analyst`, xác thực `X-Cron-Secret` qua `hmac.compare_digest`, hỗ trợ payload rỗng `Body(None)` tương thích cron-job.org, ghi nhận lịch sử vào `analyst_automation_jobs`.
   + **AI Gateway Zero-Budget:** Chuỗi ưu tiên Gemini (tối đa 5 lần thử) → Groq → OpenRouter (chỉ model free kết thúc bằng `:free`) → Ollama (khi có mạng an toàn) → Typed `AI_UNAVAILABLE`. Giữ vững nguyên tắc `AI_ALLOW_PAID_APIS=false`.
 
+### 5. Rà soát & Chuẩn hóa Unicode / Tiếng Việt toàn bộ UI (UI Unicode Integrity Audit)
+- **Phạm vi kiểm tra:** Quét toàn diện 119 file mã nguồn giao diện và API routers trong `apps/web/src`, `apps/api/routers`, và `services`.
+- **Phát hiện & Khắc phục Mojibake:** Tìm ra nguyên nhân gốc rễ do file `apps/web/src/app/portfolio/page.tsx` bị lưu đè dạng UTF-8 byte stream đọc qua bảng mã Windows-1252/CP1252. Đã khôi phục 100% tiếng Việt có dấu chuẩn xác cho toàn bộ giao diện Danh mục (`Danh mục`, `không đặt lệnh`, `Làm mới`, `Tổng giá trị`, `Chưa có holding`, `Cấu hình khởi đầu cá nhân`, v.v.).
+- **Làm sạch BOM:** Loại bỏ ký tự UTF-8 BOM (`\xef\xbb\xbf`) ở đầu các file `portfolio/page.tsx` và `watchlist/page.tsx`.
+- **Tích hợp API Template:** Chuyển lời gọi template sang `getPortfolioTemplates` từ `@/lib/api` đảm bảo cookie session và credentials được gửi an toàn.
+- **Bộ kiểm thử hồi quy tự động:** Bổ sung `tests/test_unicode_integrity.py` với 4 test độc lập, xác nhận 0 ký tự mojibake, 0 ký tự thay thế `\ufffd`, và 0 UTF-8 BOM trên toàn bộ mã nguồn frontend/backend.
+
 ---
 
 ## TỔNG KẾT HỆ THỐNG HIỆN TẠI (CẬP NHẬT 2026-10-19)
 
 | Tiêu chí | Trạng thái hiện tại | Đánh giá |
 | :--- | :--- | :--- |
-| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
-| **Test Suite** | **198/198 PASSED** (100% Pass) | 198 test xanh hoàn toàn, kiểm chứng toàn bộ tính năng và bảo mật Cloud |
-| **Frontend UI/UX** | Hoàn thành 12 Routes, PWA | Responsive Mobile/Desktop, Vercel build 420ms sạch 100% |
+| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud + Unicode) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
+| **Test Suite** | **202/202 PASSED** (100% Pass) | 202 test xanh hoàn toàn (198 logic/cloud + 4 unicode regression) |
+| **Frontend UI/UX** | Hoàn thành 12 Routes, PWA, 0 lỗi Mojibake | Tiếng Việt chuẩn UTF-8, Responsive Mobile/Desktop, Next.js build 100% sạch |
 | **Cơ sở dữ liệu** | Neon PostgreSQL Free (Cloud) + Local PG 18.6 | 38 bảng, pooling an toàn, cold-start retry, SHA-256 lineage |
 | **BCTC Lịch sử thực tế** | **115 KQKD / 115 CĐKT / 115 LCTT (100% Khớp)** | Khớp tuyệt đối 23/23 quý trên 5 mã cốt lõi FPT, VCB, MBB, MWG, HPG |
 | **Dữ liệu giá OHLCV** | **8.465 nến giá thực tế (2020-2026)** | 1.693 nến/mã, đồng bộ EOD CSV backup đầy đủ |
