@@ -370,7 +370,7 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
   + Tích hợp vào [`services/ingestion/scheduler.py`](file:///c:/Users/baotr/Downloads/trading/services/ingestion/scheduler.py) với cờ `ENABLE_LOTUSMARKET_INGESTION` (mặc định `"false"`).
   + Khi nạp vào `IngestionPipeline`, nếu ngày giao dịch đã có giá chuẩn (từ DNSE/VNDirect), nến giá mới không được ghi đè (`Conflicting observation already exists; historical canonical price was preserved`).
   + Toàn bộ quan sát được gắn nhãn nguồn `"LOTUSMARKET"`, lưu mã băm SHA-256 và giữ nguyên mốc thời gian Point-In-Time.
-- **Kiểm thử tự động:** Xây dựng `tests/test_lotusmarket_provider.py` với 15 test mock deterministic kiểm tra toàn bộ trường hợp thành công, lỗi HTTP, timeout, nến dị thường, và suy thoái mềm. Toàn bộ test suite đạt **217/217 PASSED**.
+- **Kiểm thử tự động:** Xây dựng `tests/test_lotusmarket_provider.py` với 17 test mock deterministic kiểm tra toàn bộ trường hợp thành công, lỗi HTTP, timeout, nến dị thường, suy thoái mềm, và lọc bounded provider/symbol. Toàn bộ test suite đạt **219/219 PASSED**.
 
 ---
 
@@ -379,7 +379,7 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
 | Tiêu chí | Trạng thái hiện tại | Đánh giá |
 | :--- | :--- | :--- |
 | **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud + Unicode + LotusMarket) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
-| **Test Suite** | **217/217 PASSED** (100% Pass) | 217 test xanh hoàn toàn (198 logic/cloud + 4 unicode + 15 lotusmarket) |
+| **Test Suite** | **219/219 PASSED** (100% Pass) | 219 test xanh hoàn toàn (198 logic/cloud + 4 unicode + 17 lotusmarket) |
 | **Frontend UI/UX** | Hoàn thành 12 Routes, PWA, 0 lỗi Mojibake | Tiếng Việt chuẩn UTF-8, Responsive Mobile/Desktop, Next.js build 100% sạch |
 | **Cơ sở dữ liệu** | Neon PostgreSQL Free (Cloud) + Local PG 18.6 | 38 bảng, pooling an toàn, cold-start retry, SHA-256 lineage |
 | **BCTC Lịch sử thực tế** | **115 KQKD / 115 CĐKT / 115 LCTT (100% Khớp)** | Khớp tuyệt đối 23/23 quý trên 5 mã cốt lõi FPT, VCB, MBB, MWG, HPG |

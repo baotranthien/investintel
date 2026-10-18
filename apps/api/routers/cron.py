@@ -21,6 +21,8 @@ router = APIRouter(prefix="/api/v1/system/cron", tags=["cron"])
 class CronTriggerRequest(BaseModel):
     as_of_date: Optional[str] = None  # Format: YYYY-MM-DD
     force: bool = False
+    symbols: Optional[list[str]] = None
+    providers: Optional[list[str]] = None
 
 
 def _verify_cron_secret(x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret")):
@@ -63,7 +65,12 @@ async def run_cron_ingestion(
 
     body = payload or CronTriggerRequest()
     target_date = _get_target_date(body.as_of_date)
-    idempotency_key = f"INGEST_EOD_{target_date.isoformat()}"
+    sub_key = ""
+    if body.providers:
+        sub_key += f"_{'_'.join(sorted(p.upper() for p in body.providers))}"
+    if body.symbols:
+        sub_key += f"_{'_'.join(sorted(s.upper() for s in body.symbols))}"
+    idempotency_key = f"INGEST{sub_key}_{target_date.isoformat()}" if sub_key else f"INGEST_EOD_{target_date.isoformat()}"
 
     db: Session = SessionLocal()
     try:
@@ -95,8 +102,12 @@ async def run_cron_ingestion(
             job.error = None
         db.commit()
 
-        # Execute existing ingestion cycle
-        run_results = await run_ingestion_cycle(session_factory=SessionLocal)
+        # Execute existing ingestion cycle with targeted filters if provided
+        run_results = await run_ingestion_cycle(
+            session_factory=SessionLocal,
+            target_symbols=body.symbols,
+            target_providers=body.providers,
+        )
 
         # Sanitize results for JSON serialization (dates, etc.)
         def _sanitize(val: Any) -> Any:
@@ -108,11 +119,17 @@ async def run_cron_ingestion(
                 return [_sanitize(x) for x in val]
             return val
 
-        # Update job to SUCCESS
+        # Update job status honestly
         job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
-        job.status = "SUCCESS"
+        is_blocked = any(r.get("status") == "BLOCKED_FLAG_DISABLED" for r in run_results)
+        has_success = any(r.get("status") == "SUCCESS" for r in run_results)
+
+        job.status = "SUCCESS" if has_success else ("BLOCKED" if is_blocked else ("PARTIAL" if run_results else "SUCCESS"))
         job.finished_at = datetime.datetime.now(datetime.timezone.utc)
         job.result = _sanitize({"results": run_results, "total_providers": len(run_results)})
+        if is_blocked and not has_success:
+            job.error = "ENABLE_LOTUSMARKET_INGESTION is not enabled in environment."
+        db.commit()
         db.commit()
 
         return {

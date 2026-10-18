@@ -4,13 +4,13 @@ Authoritative as of: **2026-10-19**
 
 ## 1. Overall System Status
 - **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity + LotusMarket Integration COMPLETE**
-- **Test Suite**: **217 / 217 PASSED (100% Pass Rate)**
+- **Test Suite**: **219 / 219 PASSED (100% Pass Rate)**
 - **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active, 0 mojibake / 0 BOM)
 - **Deployment Status**:
   - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — LIVE (`/health` & `/ready` HTTP 200 OK)
   - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — LIVE (`/login` HTTP 200 OK)
   - **Database**: Neon PostgreSQL Free (SSL required, connection pooling limits, cold-start bounded retry) — LIVE
-  - **Scheduling**: cron-job.org calling authenticated, idempotent job endpoints — READY
+  - **Scheduling**: cron-job.org calling authenticated, idempotent job endpoints — READY (supports targeted symbols and providers)
 - **Production Ingestion Guard**: **STOPPED BEFORE PRODUCTION WRITE** (All LotusMarket adapters, schemas, and tests verified locally; awaiting user approval before triggering first cloud ingestion).
 
 ---
@@ -24,8 +24,9 @@ Authoritative as of: **2026-10-19**
   - **CafeF Insider Trading**: Shareholder and insider transactions promoted to canonical `EventRecord` with Point-In-Time timestamps.
   - **KBS Fundamentals**: Bounded error handling (graceful degradation on HTTP 400/404 without fabricating data).
 - **Lineage & Pipeline**: StagingRecord, DataRun, DataQualityReportRecord, and DataLineage tracking preserved. Conflicting records rejected to protect canonical prices.
-- **Automated Test Suite**: Added `tests/test_lotusmarket_provider.py` (15 deterministic offline tests passing 100%).
-- **Total Test Count**: **217 / 217 tests PASSED**.
+- **Targeted & Bounded Scheduling**: Added `symbols` and `providers` filters to `run_ingestion_cycle` and `POST /api/v1/system/cron/run-ingestion`. Guarantees bounded one-time ingestion for specific approved tickers without launching full universe or unrelated macro providers.
+- **Automated Test Suite**: Added `tests/test_lotusmarket_provider.py` (17 deterministic offline tests passing 100%).
+- **Total Test Count**: **219 / 219 tests PASSED**.
 
 ### UI Unicode & Vietnamese Integrity Audit (2026-10-19)
 - **Full Scope Audit**: Scanned 119 frontend and API router source files across `apps/web/src`, `apps/api/routers`, and `services`.

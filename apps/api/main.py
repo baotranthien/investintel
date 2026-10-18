@@ -156,6 +156,8 @@ async def system_info():
     return {
         "version": "0.1.0",
         "environment": os.getenv("APP_ENV", "development"),
+        "git_commit": os.getenv("RENDER_GIT_COMMIT", os.getenv("GIT_COMMIT", "dev")),
+        "lotusmarket_enabled": os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() in ("true", "1", "yes"),
         "timestamp": time.time(),
         "database_status": db_status_str,
         "database_health": db_health,
@@ -198,11 +200,17 @@ async def system_observability():
     # Background Job & Data Freshness statistics
     job_stats = {"total": 0, "success": 0, "failed": 0, "running": 0}
     ingestion_stats = {"total_runs": 0, "successful_runs": 0, "failed_runs": 0}
-    freshness = {"latest_price_date": None, "latest_macro_date": None}
+    freshness = {
+        "latest_price_date": None,
+        "latest_macro_date": None,
+        "total_price_records": 0,
+        "lotusmarket_price_records": 0,
+        "price_counts_by_symbol": {},
+    }
 
     if db_health.get("connected"):
         try:
-            from database.models import AnalystAutomationJob, DataRun, Price, MacroObservation
+            from database.models import AnalystAutomationJob, DataRun, Price, MacroObservation, Asset, DataSource
             from database.connection import SessionLocal
             session = SessionLocal()
             try:
@@ -223,6 +231,20 @@ async def system_observability():
                 latest_macro = session.query(func.max(MacroObservation.observation_date)).scalar()
                 if latest_macro:
                     freshness["latest_macro_date"] = latest_macro.isoformat()
+
+                freshness["total_price_records"] = session.query(Price).count()
+                freshness["lotusmarket_price_records"] = (
+                    session.query(Price)
+                    .join(DataSource, Price.source_id == DataSource.id)
+                    .filter(DataSource.name == "LOTUSMARKET")
+                    .count()
+                )
+                approved_symbols = ["FPT", "VCB", "MBB", "MWG", "HPG"]
+                symbol_counts = {}
+                for sym in approved_symbols:
+                    cnt = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(Asset.symbol == sym).count()
+                    symbol_counts[sym] = cnt
+                freshness["price_counts_by_symbol"] = symbol_counts
             finally:
                 session.close()
         except Exception:

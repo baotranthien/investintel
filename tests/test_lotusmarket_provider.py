@@ -422,3 +422,46 @@ def test_reconciliation_lotusmarket_against_dnse():
     assert report.matching_dates_count == 2
     assert report.major_disagreement_count == 0
     assert report.max_close_diff_pct == 0.0
+
+
+# ------------------------------------------------------------------------------
+# 8. Bounded, Targeted Provider & Symbol Scheduling
+# ------------------------------------------------------------------------------
+def test_scheduler_targeted_lotusmarket_blocked_when_env_disabled(db_session):
+    import asyncio
+    import os
+    from services.ingestion.scheduler import run_ingestion_cycle
+
+    with patch.dict(os.environ, {"ENABLE_LOTUSMARKET_INGESTION": "false"}):
+        results = asyncio.run(run_ingestion_cycle(
+            session_factory=lambda: db_session,
+            target_symbols=["FPT"],
+            target_providers=["LOTUSMARKET"],
+        ))
+        assert len(results) == 1
+        assert results[0]["provider"] == "LOTUSMARKET"
+        assert results[0]["status"] == "BLOCKED_FLAG_DISABLED"
+
+
+def test_scheduler_targeted_lotusmarket_runs_only_selected_tickers(db_session):
+    import asyncio
+    import os
+    from services.ingestion.scheduler import run_ingestion_cycle
+
+    with patch.dict(os.environ, {"ENABLE_LOTUSMARKET_INGESTION": "true"}):
+        with patch.object(LotusMarketProvider, "ingest_to_database") as mock_ingest_prices, \
+             patch.object(LotusMarketProvider, "ingest_insider_events") as mock_ingest_events:
+            mock_ingest_prices.return_value = {"provider": "LOTUSMARKET", "symbol": "FPT", "status": "SUCCESS", "records_promoted": 10}
+            mock_ingest_events.return_value = {"provider": "LOTUSMARKET", "symbol": "FPT", "status": "SUCCESS", "events_ingested": 2}
+
+            results = asyncio.run(run_ingestion_cycle(
+                session_factory=lambda: db_session,
+                target_symbols=["FPT"],
+                target_providers=["LOTUSMARKET"],
+            ))
+
+            # Assert ONLY LOTUSMARKET was called, FRED and other providers were skipped
+            providers_called = {r.get("provider") for r in results}
+            assert providers_called == {"LOTUSMARKET"}
+            # Verify ingest_to_database called for FPT
+            assert mock_ingest_prices.called

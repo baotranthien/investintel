@@ -5,7 +5,7 @@ import os
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from database.connection import SessionLocal
 from database.models import Asset, DataRun, DataSource, MacroSeries
@@ -51,8 +51,15 @@ def _record_failure(session_factory: Callable, provider: str, dataset: str, stat
         session.close()
 
 
-async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[dict[str, Any]]:
+async def run_ingestion_cycle(
+    session_factory: Callable = SessionLocal,
+    target_symbols: Optional[list[str]] = None,
+    target_providers: Optional[list[str]] = None,
+) -> list[dict[str, Any]]:
     """Fetch currently registered supported sources and persist honest run results."""
+    allowed_providers = {p.upper() for p in target_providers} if target_providers else None
+    selected_symbols = {s.upper() for s in target_symbols} if target_symbols else None
+
     session = session_factory()
     try:
         source_ids = {
@@ -65,11 +72,17 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
             if series.provider.upper() in {"FRED", "BLS", "WORLD_BANK", "OPEN_EXCHANGE_RATES", "NSO_VIETNAM"}
             and source_ids.get(series.provider.upper()) == series.source_id
         ]
+
+        # Query assets: filter by selected_symbols if provided
+        asset_query = session.query(Asset)
+        if selected_symbols:
+            asset_query = asset_query.filter(Asset.symbol.in_(list(selected_symbols)))
+        else:
+            asset_query = asset_query.filter(Asset.status == "ACTIVE", Asset.exchange == "HOSE")
+
         hose_assets = [
-            (asset.symbol, asset.exchange, source_ids.get("HOSE_CSV"))
-            for asset in session.query(Asset).filter(
-                Asset.status == "ACTIVE", Asset.exchange == "HOSE"
-            ).all()
+            (asset.symbol, asset.exchange or "HOSE", source_ids.get("HOSE_CSV") or source_ids.get("LOTUSMARKET"))
+            for asset in asset_query.all()
         ]
     finally:
         session.close()
@@ -78,6 +91,7 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
     lookback_days = max(1, int(os.getenv("INGESTION_LOOKBACK_DAYS", "90")))
     start_date = date.today() - timedelta(days=lookback_days)
     batch_limit = max(1, min(20, int(os.getenv("INGESTION_BATCH_LIMIT", "5"))))
+    effective_assets = hose_assets if selected_symbols else hose_assets[:batch_limit]
 
     providers = {
         "FRED": FredProvider,
@@ -88,107 +102,113 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
     }
 
     # 1. Macro series ingestion (isolated per series)
-    for series_id, provider_name, source_id in macro_series:
-        if provider_name == "FRED" and not os.getenv("FRED_API_KEY"):
-            if os.getenv("ENABLE_FRED_CSV_FALLBACK", "false").lower() in ("true", "1", "yes"):
-                pass # Proceed to FredProvider which uses public CSV fallback
-            else:
-                results.append({
-                    "provider": "FRED",
-                    "series_id": series_id,
-                    "status": "BLOCKED_MISSING_CREDENTIAL",
-                    "records_received": 0,
-                    "reason": "FRED_API_KEY is not configured in environment"
-                })
+    run_macro = allowed_providers is None or any(p in allowed_providers for p in ("FRED", "BLS", "WORLD_BANK", "OPEN_EXCHANGE_RATES", "NSO_VIETNAM", "MACRO"))
+    if run_macro:
+        for series_id, provider_name, source_id in macro_series:
+            if allowed_providers is not None and provider_name not in allowed_providers and "MACRO" not in allowed_providers:
                 continue
 
-        if provider_name == "BLS" and os.getenv("ENABLE_BLS_INGESTION", "true").lower() not in ("true", "1", "yes"):
-            continue
+            if provider_name == "FRED" and not os.getenv("FRED_API_KEY"):
+                if os.getenv("ENABLE_FRED_CSV_FALLBACK", "false").lower() in ("true", "1", "yes"):
+                    pass # Proceed to FredProvider which uses public CSV fallback
+                else:
+                    results.append({
+                        "provider": "FRED",
+                        "series_id": series_id,
+                        "status": "BLOCKED_MISSING_CREDENTIAL",
+                        "records_received": 0,
+                        "reason": "FRED_API_KEY is not configured in environment"
+                    })
+                    continue
 
-        if provider_name == "WORLD_BANK" and os.getenv("ENABLE_WORLDBANK_INGESTION", "true").lower() not in ("true", "1", "yes"):
-            continue
+            if provider_name == "BLS" and os.getenv("ENABLE_BLS_INGESTION", "true").lower() not in ("true", "1", "yes"):
+                continue
 
-        if provider_name == "OPEN_EXCHANGE_RATES" and os.getenv("ENABLE_FX_INGESTION", "true").lower() not in ("true", "1", "yes"):
-            continue
+            if provider_name == "WORLD_BANK" and os.getenv("ENABLE_WORLDBANK_INGESTION", "true").lower() not in ("true", "1", "yes"):
+                continue
 
-        if provider_name == "NSO_VIETNAM" and os.getenv("ENABLE_NSO_INGESTION", "true").lower() not in ("true", "1", "yes"):
-            continue
+            if provider_name == "OPEN_EXCHANGE_RATES" and os.getenv("ENABLE_FX_INGESTION", "true").lower() not in ("true", "1", "yes"):
+                continue
 
-        provider = providers[provider_name]()
-        try:
-            if provider_name == "FRED":
-                records = await provider.fetch_macro_series(series_id, start_date=start_date.isoformat())
-                source_url = (
-                    f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}"
-                    if os.getenv("FRED_API_KEY")
-                    else f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
-                )
-            elif provider_name == "BLS":
-                first_year = max(2010, start_date.year)
-                records = await provider.fetch_macro_series(
-                    series_id, start_year=str(first_year), end_year=str(date.today().year)
-                )
-                source_url = getattr(provider, "base_url", "https://api.bls.gov/publicAPI/v1/timeseries/data/")
-            elif provider_name == "WORLD_BANK":
-                records = await provider.fetch_macro_series(series_id)
-                source_url = f"https://api.worldbank.org/v2/country/VNM/indicator/{series_id}?format=json"
-            elif provider_name == "OPEN_EXCHANGE_RATES":
-                records = await provider.fetch_macro_series(series_id)
-                source_url = "https://open.er-api.com/v6/latest/USD"
-            elif provider_name == "NSO_VIETNAM":
-                records = await provider.fetch_macro_series(series_id)
-                source_url = "https://nsdp.nso.gov.vn/GSO-chung/SDMXFiles/GSO"
-            else:
-                records = []
-                source_url = "unknown"
+            if provider_name == "NSO_VIETNAM" and os.getenv("ENABLE_NSO_INGESTION", "true").lower() not in ("true", "1", "yes"):
+                continue
 
-            db = session_factory()
+            provider = providers[provider_name]()
             try:
-                outcome = IngestionPipeline(db).ingest_macro_series(
-                    provider_name, series_id, records, source_url, source_id
-                )
-                results.append(outcome)
-            finally:
-                db.close()
-        except Exception as exc:
-            state = "BLOCKED_MISSING_CREDENTIAL" if isinstance(exc, ProviderUnavailableError) and "required but not set" in str(exc) else "FAILURE"
-            _record_failure(session_factory, provider_name, f"macro_{series_id}", state, str(exc))
-            results.append({"provider": provider_name, "series_id": series_id,
-                            "status": state, "records_received": 0, "reason": str(exc)})
-            logger.warning("Ingestion failed for %s/%s: %s", provider_name, series_id, exc)
+                if provider_name == "FRED":
+                    records = await provider.fetch_macro_series(series_id, start_date=start_date.isoformat())
+                    source_url = (
+                        f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}"
+                        if os.getenv("FRED_API_KEY")
+                        else f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+                    )
+                elif provider_name == "BLS":
+                    first_year = max(2010, start_date.year)
+                    records = await provider.fetch_macro_series(
+                        series_id, start_year=str(first_year), end_year=str(date.today().year)
+                    )
+                    source_url = getattr(provider, "base_url", "https://api.bls.gov/publicAPI/v1/timeseries/data/")
+                elif provider_name == "WORLD_BANK":
+                    records = await provider.fetch_macro_series(series_id)
+                    source_url = f"https://api.worldbank.org/v2/country/VNM/indicator/{series_id}?format=json"
+                elif provider_name == "OPEN_EXCHANGE_RATES":
+                    records = await provider.fetch_macro_series(series_id)
+                    source_url = "https://open.er-api.com/v6/latest/USD"
+                elif provider_name == "NSO_VIETNAM":
+                    records = await provider.fetch_macro_series(series_id)
+                    source_url = "https://nsdp.nso.gov.vn/GSO-chung/SDMXFiles/GSO"
+                else:
+                    records = []
+                    source_url = "unknown"
+
+                db = session_factory()
+                try:
+                    outcome = IngestionPipeline(db).ingest_macro_series(
+                        provider_name, series_id, records, source_url, source_id
+                    )
+                    results.append(outcome)
+                finally:
+                    db.close()
+            except Exception as exc:
+                state = "BLOCKED_MISSING_CREDENTIAL" if isinstance(exc, ProviderUnavailableError) and "required but not set" in str(exc) else "FAILURE"
+                _record_failure(session_factory, provider_name, f"macro_{series_id}", state, str(exc))
+                results.append({"provider": provider_name, "series_id": series_id,
+                                "status": state, "records_received": 0, "reason": str(exc)})
+                logger.warning("Ingestion failed for %s/%s: %s", provider_name, series_id, exc)
 
     # 2. Local Market Data CSV (HOSE_CSV)
-    csv_provider = MarketDataCsvProvider()
-    repository_root = Path(__file__).resolve().parents[2]
-    for symbol, exchange, source_id in hose_assets[:batch_limit]:
-        csv_path = repository_root / "data" / "market" / f"{symbol.lower()}_historical.csv"
-        if not csv_path.is_file():
-            results.append({"provider": "HOSE_CSV", "symbol": symbol,
-                            "status": "BLOCKED", "records_received": 0,
-                            "reason": f"Registered local market file not found: {csv_path.name}"})
-            continue
-        try:
-            points = await csv_provider.fetch_market_data(
-                symbol, start_date, date.today(), file_path=str(csv_path)
-            )
-            records = [point.model_dump() for point in points]
-            db = session_factory()
+    if allowed_providers is None or "HOSE_CSV" in allowed_providers:
+        csv_provider = MarketDataCsvProvider()
+        repository_root = Path(__file__).resolve().parents[2]
+        for symbol, exchange, source_id in effective_assets:
+            csv_path = repository_root / "data" / "market" / f"{symbol.lower()}_historical.csv"
+            if not csv_path.is_file():
+                results.append({"provider": "HOSE_CSV", "symbol": symbol,
+                                "status": "BLOCKED", "records_received": 0,
+                                "reason": f"Registered local market file not found: {csv_path.name}"})
+                continue
             try:
-                outcome = IngestionPipeline(db).ingest_market_data(
-                    provider="HOSE_CSV", symbol=symbol, exchange=exchange or "HOSE",
-                    records=records, source_url_or_path=str(csv_path), source_id=source_id,
+                points = await csv_provider.fetch_market_data(
+                    symbol, start_date, date.today(), file_path=str(csv_path)
                 )
-                results.append(outcome)
-            finally:
-                db.close()
-        except Exception as exc:
-            _record_failure(session_factory, "HOSE_CSV", f"market_data_{symbol}", "FAILURE", str(exc))
-            results.append({"provider": "HOSE_CSV", "symbol": symbol,
-                            "status": "FAILURE", "records_received": 0, "reason": str(exc)})
-            logger.warning("Ingestion failed for HOSE_CSV/%s: %s", symbol, exc)
+                records = [point.model_dump() for point in points]
+                db = session_factory()
+                try:
+                    outcome = IngestionPipeline(db).ingest_market_data(
+                        provider="HOSE_CSV", symbol=symbol, exchange=exchange or "HOSE",
+                        records=records, source_url_or_path=str(csv_path), source_id=source_id,
+                    )
+                    results.append(outcome)
+                finally:
+                    db.close()
+            except Exception as exc:
+                _record_failure(session_factory, "HOSE_CSV", f"market_data_{symbol}", "FAILURE", str(exc))
+                results.append({"provider": "HOSE_CSV", "symbol": symbol,
+                                "status": "FAILURE", "records_received": 0, "reason": str(exc)})
+                logger.warning("Ingestion failed for HOSE_CSV/%s: %s", symbol, exc)
 
     # 3. Vietstock news ingestion (independent)
-    if "VIETSTOCK" in source_ids and os.getenv("ENABLE_VIETSTOCK_INGESTION", "false").lower() in ("true", "1", "yes"):
+    if (allowed_providers is None or "VIETSTOCK" in allowed_providers) and "VIETSTOCK" in source_ids and os.getenv("ENABLE_VIETSTOCK_INGESTION", "false").lower() in ("true", "1", "yes"):
         try:
             vietstock_prov = VietstockNewsProvider()
             db = session_factory()
@@ -203,7 +223,7 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
             logger.warning("Ingestion failed for VIETSTOCK: %s", exc)
 
     # 4. GDELT news ingestion (independent)
-    if "GDELT" in source_ids and os.getenv("ENABLE_GDELT_INGESTION", "false").lower() in ("true", "1", "yes"):
+    if (allowed_providers is None or "GDELT" in allowed_providers) and "GDELT" in source_ids and os.getenv("ENABLE_GDELT_INGESTION", "false").lower() in ("true", "1", "yes"):
         try:
             gdelt_prov = GDELTNewsProvider()
             db = session_factory()
@@ -219,10 +239,10 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
             results.append({"provider": "GDELT", "dataset": "news_events", "status": "FAILURE", "reason": str(exc)})
             logger.warning("Ingestion failed for GDELT: %s", exc)
 
-    # 5. DNSE market data (bounded by batch_limit)
-    if "DNSE" in source_ids and os.getenv("ENABLE_DNSE_INGESTION", "false").lower() in ("true", "1", "yes"):
+    # 5. DNSE market data (bounded by batch_limit or selected_symbols)
+    if (allowed_providers is None or "DNSE" in allowed_providers) and "DNSE" in source_ids and os.getenv("ENABLE_DNSE_INGESTION", "false").lower() in ("true", "1", "yes"):
         dnse_prov = DnseProvider()
-        for symbol, exchange, _ in hose_assets[:batch_limit]:
+        for symbol, exchange, _ in effective_assets:
             try:
                 db = session_factory()
                 try:
@@ -238,10 +258,10 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
                 results.append({"provider": "DNSE", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
                 logger.warning("Ingestion failed for DNSE/%s: %s", symbol, exc)
 
-    # 6. VNDIRECT market data & fundamentals (bounded by batch_limit)
-    if "VNDIRECT" in source_ids and os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes"):
+    # 6. VNDIRECT market data & fundamentals (bounded by batch_limit or selected_symbols)
+    if (allowed_providers is None or "VNDIRECT" in allowed_providers) and "VNDIRECT" in source_ids and os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes"):
         vndirect_prov = VndirectProvider()
-        for symbol, exchange, _ in hose_assets[:batch_limit]:
+        for symbol, exchange, _ in effective_assets:
             # Prices
             try:
                 db = session_factory()
@@ -280,45 +300,53 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
                     results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
                     logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
 
-    # 7. LotusMarket market data & insider events (bounded by batch_limit)
-    if "LOTUSMARKET" in source_ids and os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() in ("true", "1", "yes"):
-        lotus_prov = LotusMarketProvider()
-        for symbol, exchange, _ in hose_assets[:batch_limit]:
-            # Market prices (VPS + Entrade fallback)
-            try:
-                db = session_factory()
+    # 7. LotusMarket market data & insider events (bounded by batch_limit or selected_symbols)
+    if (allowed_providers is None or "LOTUSMARKET" in allowed_providers) and "LOTUSMARKET" in source_ids:
+        if os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() not in ("true", "1", "yes"):
+            results.append({
+                "provider": "LOTUSMARKET",
+                "status": "BLOCKED_FLAG_DISABLED",
+                "reason": "ENABLE_LOTUSMARKET_INGESTION is not enabled in environment (set to true on Render to allow ingestion)"
+            })
+            logger.warning("LotusMarket ingestion skipped: ENABLE_LOTUSMARKET_INGESTION is not enabled")
+        else:
+            lotus_prov = LotusMarketProvider()
+            for symbol, exchange, _ in effective_assets:
+                # Market prices (VPS + Entrade fallback)
                 try:
-                    outcome = lotus_prov.ingest_to_database(
-                        db, symbol, start_date=start_date, end_date=date.today(),
-                        exchange=exchange or "HOSE", source_id=source_ids.get("LOTUSMARKET")
-                    )
-                    results.append(outcome)
-                finally:
-                    db.close()
-            except Exception as exc:
-                _record_failure(session_factory, "LOTUSMARKET", f"market_data_{symbol}", "FAILURE", str(exc))
-                results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
-                logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
+                    db = session_factory()
+                    try:
+                        outcome = lotus_prov.ingest_to_database(
+                            db, symbol, start_date=start_date, end_date=date.today(),
+                            exchange=exchange or "HOSE", source_id=source_ids.get("LOTUSMARKET")
+                        )
+                        results.append(outcome)
+                    finally:
+                        db.close()
+                except Exception as exc:
+                    _record_failure(session_factory, "LOTUSMARKET", f"market_data_{symbol}", "FAILURE", str(exc))
+                    results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                    logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
 
-            # Insider transactions (CafeF via LotusMarket)
-            try:
-                db = session_factory()
+                # Insider transactions (CafeF via LotusMarket)
                 try:
-                    outcome_events = lotus_prov.ingest_insider_events(
-                        db, symbol, source_id=source_ids.get("LOTUSMARKET")
-                    )
-                    results.append(outcome_events)
-                finally:
-                    db.close()
-            except Exception as exc:
-                _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
-                results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
-                logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
+                    db = session_factory()
+                    try:
+                        outcome_events = lotus_prov.ingest_insider_events(
+                            db, symbol, source_id=source_ids.get("LOTUSMARKET")
+                        )
+                        results.append(outcome_events)
+                    finally:
+                        db.close()
+                except Exception as exc:
+                    _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
+                    results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
+                    logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
 
     # 8. Cross-Provider Reconciliation (if enabled)
-    if os.getenv("ENABLE_RECONCILIATION", "false").lower() in ("true", "1", "yes"):
+    if (allowed_providers is None or "RECONCILIATION" in allowed_providers) and os.getenv("ENABLE_RECONCILIATION", "false").lower() in ("true", "1", "yes"):
         recon_engine = MarketDataReconciliationEngine()
-        for symbol, _, _ in hose_assets[:batch_limit]:
+        for symbol, _, _ in effective_assets:
             try:
                 report = await recon_engine.compare_providers(symbol, start_date=start_date, end_date=date.today())
                 db = session_factory()
@@ -336,15 +364,16 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
             except Exception as exc:
                 logger.warning("Reconciliation failed for %s: %s", symbol, exc)
 
-    # 8. Report unsupported sources without machine-readable API
-    for unsupported in ("SBV",):
-        if unsupported in source_ids:
-            results.append({
-                "provider": unsupported,
-                "status": "BLOCKED_UNSUPPORTED_PUBLIC_INTERFACE",
-                "records_received": 0,
-                "reason": "No machine-readable public REST API is available for this official source"
-            })
+    # 9. Report unsupported sources without machine-readable API
+    if allowed_providers is None:
+        for unsupported in ("SBV",):
+            if unsupported in source_ids:
+                results.append({
+                    "provider": unsupported,
+                    "status": "BLOCKED_UNSUPPORTED_PUBLIC_INTERFACE",
+                    "records_received": 0,
+                    "reason": "No machine-readable public REST API is available for this official source"
+                })
     return results
 
 

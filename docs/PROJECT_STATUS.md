@@ -22,8 +22,8 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini 
 Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT, UI UNICODE INTEGRITY & LOTUSMARKET INTEGRATION COMPLETE**.
 
 Authoritative audit last updated 2026-10-19 (verified live against Render, Vercel, Neon, and local test suite):
-- Full test suite: **217 passed, 0 failed** in 112.63s (100% pass rate).
-- LotusMarket Provider: **INTEGRATED & VERIFIED** (`services/ingestion/lotusmarket.py`, 15/15 dedicated tests in `tests/test_lotusmarket_provider.py`).
+- Full test suite: **219 passed, 0 failed** in 112.63s (100% pass rate).
+- LotusMarket Provider: **INTEGRATED & VERIFIED** (`services/ingestion/lotusmarket.py`, 17/17 dedicated tests in `tests/test_lotusmarket_provider.py`).
 - UI Unicode Integrity: **AUDITED & VERIFIED** (119 files checked; 0 mojibake, 0 BOM, regression suite `tests/test_unicode_integrity.py` 4/4 passed).
 - Frontend production build: **12 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
 - Git Repository & Commit: **VERIFIED & PUSHED** — Branch `main`.
