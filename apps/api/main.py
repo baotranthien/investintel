@@ -41,6 +41,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 from fastapi.middleware.cors import CORSMiddleware
+from services.ai.gateway import AIGateway
 from services.auth.middleware import AuthenticationMiddleware, get_allowed_origins
 
 # 1. Custom Authentication & CSRF & Private Cache-Control Middleware
@@ -258,7 +259,7 @@ async def system_observability():
     overall = "HEALTHY"
     if db_status == "UNAVAILABLE":
         overall = "UNAVAILABLE"
-    elif db_status == "DEGRADED" or ai_status == "UNAVAILABLE" or job_stats["failed"] > 0:
+    elif db_status == "DEGRADED" or (ai_status not in ("HEALTHY", "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD") and os.getenv("APP_ENV") != "production") or job_stats["failed"] > 0:
         overall = "DEGRADED"
 
     return {
