@@ -43,6 +43,16 @@ def _verify_cron_secret(x_cron_secret: Optional[str] = Header(None, alias="X-Cro
     return True
 
 
+def _sanitize(val: Any) -> Any:
+    if isinstance(val, (datetime.date, datetime.datetime)):
+        return val.isoformat()
+    if isinstance(val, dict):
+        return {k: _sanitize(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_sanitize(x) for x in val]
+    return val
+
+
 def _get_target_date(date_str: Optional[str]) -> datetime.date:
     if date_str:
         try:
@@ -52,6 +62,68 @@ def _get_target_date(date_str: Optional[str]) -> datetime.date:
     # Vietnam timezone UTC+7
     vn_tz = datetime.timezone(datetime.timedelta(hours=7))
     return datetime.datetime.now(vn_tz).date()
+
+
+@router.get("/history")
+async def get_cron_history(
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    limit: int = 20,
+):
+    """Inspect persisted cron execution history, idempotency records, and data runs."""
+    _verify_cron_secret(x_cron_secret)
+    db: Session = SessionLocal()
+    try:
+        from sqlalchemy import func
+        from database.models import DataRun, Price
+        jobs = db.query(AnalystAutomationJob).order_by(AnalystAutomationJob.started_at.desc()).limit(limit).all()
+        runs = db.query(DataRun).order_by(DataRun.started_at.desc()).limit(limit).all()
+        
+        total_jobs = db.query(AnalystAutomationJob).count()
+        success_jobs = db.query(AnalystAutomationJob).filter_by(status="SUCCESS").count()
+        failed_jobs = db.query(AnalystAutomationJob).filter_by(status="FAILED").count()
+        
+        dup_query = db.query(Price.asset_id, Price.trading_date, func.count(Price.id)).group_by(Price.asset_id, Price.trading_date).having(func.count(Price.id) > 1).all()
+        duplicate_prices_count = len(dup_query)
+        total_prices = db.query(Price).count()
+        
+        return {
+            "summary": {
+                "total_jobs": total_jobs,
+                "success_jobs": success_jobs,
+                "failed_jobs": failed_jobs,
+                "total_prices": total_prices,
+                "duplicate_prices_count": duplicate_prices_count,
+            },
+            "recent_jobs": [
+                {
+                    "id": j.id,
+                    "job_key": j.job_key,
+                    "job_type": j.job_type,
+                    "status": j.status,
+                    "started_at": j.started_at.isoformat() if j.started_at else None,
+                    "finished_at": j.finished_at.isoformat() if j.finished_at else None,
+                    "error": j.error,
+                    "result": j.result,
+                }
+                for j in jobs
+            ],
+            "recent_runs": [
+                {
+                    "id": r.id,
+                    "run_type": r.run_type,
+                    "status": r.status,
+                    "started_at": r.started_at.isoformat() if r.started_at else None,
+                    "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                    "records_staged": r.records_staged,
+                    "records_promoted": r.records_promoted,
+                    "records_rejected": r.records_rejected,
+                    "error_message": r.error_message,
+                }
+                for r in runs
+            ],
+        }
+    finally:
+        db.close()
 
 
 @router.post("/run-ingestion")
@@ -109,16 +181,6 @@ async def run_cron_ingestion(
             target_providers=body.providers,
         )
 
-        # Sanitize results for JSON serialization (dates, etc.)
-        def _sanitize(val: Any) -> Any:
-            if isinstance(val, (datetime.date, datetime.datetime)):
-                return val.isoformat()
-            if isinstance(val, dict):
-                return {k: _sanitize(v) for k, v in val.items()}
-            if isinstance(val, list):
-                return [_sanitize(x) for x in val]
-            return val
-
         # Update job status honestly
         job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
         is_blocked = any(r.get("status") == "BLOCKED_FLAG_DISABLED" for r in run_results)
@@ -129,7 +191,6 @@ async def run_cron_ingestion(
         job.result = _sanitize({"results": run_results, "total_providers": len(run_results)})
         if is_blocked and not has_success:
             job.error = "ENABLE_LOTUSMARKET_INGESTION is not enabled in environment."
-        db.commit()
         db.commit()
 
         return {

@@ -243,10 +243,14 @@ class LotusMarketProvider(BaseProvider):
         if not norm_sym:
             return []
 
+        is_index = norm_sym in {"VN100", "VN30", "VNINDEX", "VNX50"}
+        base_url = "https://services.entrade.com.vn/chart-api/v2/ohlcs/index" if is_index else _ENTRADE_BASE_URL
+        scale = 1.0 if is_index else _PRICE_SCALE
+
         from_ts = int(datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc).timestamp())
         to_ts = int(datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc).timestamp())
 
-        url = f"{_ENTRADE_BASE_URL}?from={from_ts}&to={to_ts}&symbol={norm_sym}&resolution=1D"
+        url = f"{base_url}?from={from_ts}&to={to_ts}&symbol={norm_sym}&resolution=1D"
         records: List[Dict[str, Any]] = []
 
         max_attempts = 3
@@ -295,10 +299,10 @@ class LotusMarketProvider(BaseProvider):
                         if bar_dt < start_date or bar_dt > end_date:
                             continue
 
-                        close_vnd = float(c_arr[i]) * _PRICE_SCALE
-                        open_vnd = float(o_arr[i]) * _PRICE_SCALE if i < len(o_arr) and o_arr[i] is not None else close_vnd
-                        high_vnd = float(h_arr[i]) * _PRICE_SCALE if i < len(h_arr) and h_arr[i] is not None else max(open_vnd, close_vnd)
-                        low_vnd = float(l_arr[i]) * _PRICE_SCALE if i < len(l_arr) and l_arr[i] is not None else min(open_vnd, close_vnd)
+                        close_vnd = float(c_arr[i]) * scale
+                        open_vnd = float(o_arr[i]) * scale if i < len(o_arr) and o_arr[i] is not None else close_vnd
+                        high_vnd = float(h_arr[i]) * scale if i < len(h_arr) and h_arr[i] is not None else max(open_vnd, close_vnd)
+                        low_vnd = float(l_arr[i]) * scale if i < len(l_arr) and l_arr[i] is not None else min(open_vnd, close_vnd)
                         vol = float(v_arr[i]) if i < len(v_arr) and v_arr[i] is not None else 0.0
 
                         # Ensure valid OHLC
@@ -327,9 +331,9 @@ class LotusMarketProvider(BaseProvider):
 
         records.sort(key=lambda r: r["observation_date"])
 
-        # Fallback check: if today's date is within range and missing from history, fetch VPS
+        # Fallback check: if today's date is within range and missing from history, fetch VPS (stocks only)
         today = datetime.now(tz=_VN_TZ).date()
-        if start_date <= today <= end_date:
+        if not is_index and start_date <= today <= end_date:
             dates_in_history = {r["observation_date"] for r in records}
             if today not in dates_in_history:
                 try:
@@ -542,7 +546,9 @@ class LotusMarketProvider(BaseProvider):
         """
         norm_sym = normalize_symbol(symbol)
         raw_records = self.fetch_ohlcv(norm_sym, start_date, end_date)
-        source_url = f"{_ENTRADE_BASE_URL}?symbol={norm_sym}"
+        is_index = norm_sym in {"VN100", "VN30", "VNINDEX", "VNX50"}
+        kind = "index" if is_index else "stock"
+        source_url = f"https://services.entrade.com.vn/chart-api/v2/ohlcs/{kind}?symbol={norm_sym}"
 
         pipeline = IngestionPipeline(session)
         result = pipeline.ingest_market_data(

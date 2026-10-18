@@ -138,17 +138,16 @@ def health_check_v1():
 async def system_info():
     db_health = check_database_health()
     redis_health = check_redis_health()
-    ai_status = "AI unavailable / AI tạm thời không khả dụng"
-    ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    
-    # Ping ollama
+    from services.ai.gateway import AIGateway
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            resp = await client.get(f"{ollama_base}/api/tags")
-            if resp.status_code == 200:
-                ai_status = "AI available"
+        gw_st = AIGateway().status()
+        active_prov = gw_st.get("active_provider") or "none"
+        if gw_st.get("available"):
+            ai_status = f"AI available ({active_prov})"
+        else:
+            ai_status = f"AI unavailable ({active_prov})"
     except Exception:
-        pass
+        ai_status = "AI unavailable"
 
     db_status_str = f"connected ({db_health.get('backend')}, {db_health.get('latency_ms')}ms)" if db_health.get("connected") else f"error ({db_health.get('error', 'disconnected')})"
     redis_status_str = f"connected ({redis_health.get('latency_ms')}ms)" if redis_health.get("connected") else f"error ({redis_health.get('error', 'disconnected')})"
@@ -186,16 +185,23 @@ async def system_observability():
     else:
         redis_status = "HEALTHY"
 
-    # AI Provider status
-    ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    ai_status = "UNAVAILABLE"
+    # AI Provider status via AIGateway
     try:
-        async with httpx.AsyncClient(timeout=1.5) as client:
-            resp = await client.get(f"{ollama_base}/api/tags")
-            if resp.status_code == 200:
-                ai_status = "HEALTHY"
+        gw = AIGateway()
+        gw_st = gw.status()
+        ai_status = gw_st.get("status", "UNAVAILABLE")
+        active_prov = gw_st.get("active_provider") or "none"
+        ai_available = bool(gw_st.get("available", False))
+        ai_model = (
+            gw_st.get("providers", {}).get(active_prov, {}).get("model")
+            if active_prov in gw_st.get("providers", {})
+            else None
+        )
     except Exception:
         ai_status = "UNAVAILABLE"
+        active_prov = "none"
+        ai_available = False
+        ai_model = None
 
     # Background Job & Data Freshness statistics
     job_stats = {"total": 0, "success": 0, "failed": 0, "running": 0}
@@ -238,7 +244,7 @@ async def system_observability():
                     .filter(Price.source == "LOTUSMARKET")
                     .count()
                 )
-                approved_symbols = ["FPT", "VCB", "MBB", "MWG", "HPG"]
+                approved_symbols = ["FPT", "VCB", "MBB", "MWG", "HPG", "VN100", "VN30"]
                 symbol_counts = {}
                 for sym in approved_symbols:
                     cnt = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(Asset.symbol == sym).count()
@@ -269,8 +275,9 @@ async def system_observability():
             },
             "ai_provider": {
                 "status": ai_status,
-                "provider": "Ollama",
-                "endpoint": ollama_base,
+                "provider": active_prov,
+                "available": ai_available,
+                "model": ai_model,
             },
         },
         "background_jobs": job_stats,

@@ -83,6 +83,20 @@ async def run_ingestion_cycle(
                 session.commit()
             source_ids["LOTUSMARKET"] = lotus_ds.id
 
+        # Ensure VN100 & VN30 Assets exist
+        for idx_sym, idx_name in [("VN100", "Chỉ số VN100 Index"), ("VN30", "Chỉ số VN30 Index")]:
+            existing_idx = session.query(Asset).filter_by(symbol=idx_sym).first()
+            if not existing_idx:
+                session.add(Asset(symbol=idx_sym, name=idx_name, asset_type="INDEX", exchange="HOSE", sector="Benchmark"))
+                session.commit()
+
+        # Ensure IndexMembership is seeded for VN100
+        from database.models import IndexMembership
+        vn100_members = session.query(IndexMembership).filter_by(index_symbol="VN100").count()
+        if vn100_members == 0:
+            from services.ingestion.seed_data import seed_index_memberships
+            seed_index_memberships(session, source_ids["LOTUSMARKET"])
+
         macro_series = [
             (series.id, series.provider.upper(), series.source_id)
             for series in session.query(MacroSeries).all()
@@ -348,22 +362,40 @@ async def run_ingestion_cycle(
                     results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
                     logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
 
-                # Insider transactions (CafeF via LotusMarket)
-                try:
-                    db = session_factory()
+                # Insider transactions (CafeF via LotusMarket - for equities only)
+                is_index = symbol.upper() in {"VN100", "VN30", "VNINDEX", "VNX50"}
+                if not is_index:
                     try:
-                        outcome_events = lotus_prov.ingest_insider_events(
-                            db, symbol, source_id=source_ids.get("LOTUSMARKET")
-                        )
-                        results.append(outcome_events)
-                    finally:
-                        db.close()
-                except Exception as exc:
-                    _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
-                    results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
-                    logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
+                        db = session_factory()
+                        try:
+                            outcome_events = lotus_prov.ingest_insider_events(
+                                db, symbol, source_id=source_ids.get("LOTUSMARKET")
+                            )
+                            results.append(outcome_events)
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
 
-    # 8. Cross-Provider Reconciliation (if enabled)
+    # 8. Financial News RSS Ingestion (CafeF & VnEconomy)
+    if allowed_providers is None or "FINANCIAL_NEWS" in allowed_providers:
+        try:
+            from .financial_news import FinancialNewsProvider
+            news_prov = FinancialNewsProvider()
+            db = session_factory()
+            try:
+                outcome_news = news_prov.ingest_to_database(db, max_articles=40)
+                results.append(outcome_news)
+            finally:
+                db.close()
+        except Exception as exc:
+            _record_failure(session_factory, "FINANCIAL_NEWS", "news_events", "FAILURE", str(exc))
+            results.append({"provider": "FINANCIAL_NEWS", "dataset": "news_events", "status": "FAILURE", "reason": str(exc)})
+            logger.warning("Ingestion failed for FINANCIAL_NEWS: %s", exc)
+
+    # 9. Cross-Provider Reconciliation (if enabled)
     if (allowed_providers is None or "RECONCILIATION" in allowed_providers) and os.getenv("ENABLE_RECONCILIATION", "false").lower() in ("true", "1", "yes"):
         recon_engine = MarketDataReconciliationEngine()
         for symbol, _, _ in effective_assets:

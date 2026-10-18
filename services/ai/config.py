@@ -112,7 +112,12 @@ class GeminiConfig:
 
     @classmethod
     def from_env(cls) -> "GeminiConfig":
-        raw_key = os.getenv("GEMINI_API_KEY")
+        raw_key = (
+            os.getenv("GEMINI_API_KEY")
+            or os.getenv("GOOGLE_API_KEY")
+            or os.getenv("GOOGLE_GENAI_API_KEY")
+            or os.getenv("GEMINI_KEY")
+        )
         key = raw_key.strip() if raw_key else None
         model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip() or "gemini-3.8-flash"
         fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash").strip() or "gemini-3.6-flash"
