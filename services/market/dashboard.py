@@ -212,6 +212,15 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
         EventRecord.published_at.is_not(None),
         EventRecord.published_at <= datetime.combine(as_of, datetime.max.time(), tzinfo=timezone.utc),
     ).order_by(EventRecord.published_at.desc()).limit(8).all()
+    def _format_source_doc(doc: Any) -> str:
+        if isinstance(doc, dict):
+            name = doc.get("name") or doc.get("title")
+            url = doc.get("url") or doc.get("link")
+            if name and url:
+                return f"{name} ({url})"
+            return str(url or name or doc)
+        return str(doc)
+
     major_events = [
         MarketEventItem(
             id=event.id,
@@ -221,7 +230,7 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
             severity=event.severity or 0.0,
             published_at=event.published_at,
             source=source.name if source else None,
-            source_documents=event.sources or [],
+            source_documents=[_format_source_doc(doc) for doc in (event.sources or [])],
         )
         for event, source in event_rows
     ]

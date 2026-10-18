@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 from typing import Any, Dict
 
@@ -8,6 +9,8 @@ from database.connection import get_db
 from services.market.dashboard import MarketDashboard, build_market_dashboard
 from services.ingestion.reconciliation import MarketDataReconciliationEngine
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/market", tags=["market"])
 
 
@@ -17,11 +20,10 @@ def get_market_dashboard(session: Session = Depends(get_db)) -> MarketDashboard:
     try:
         return build_market_dashboard(session, date.today())
     except Exception as exc:
-        import traceback
-        trace = traceback.format_exc()
+        logger.exception("Failed to build market dashboard: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=f"{type(exc).__name__}: {str(exc)} | TRACE: {trace.replace(chr(10), ' ;; ')}"
+            detail=f"Failed to build market dashboard: {exc}",
         )
 
 
