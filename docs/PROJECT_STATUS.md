@@ -18,30 +18,40 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini 
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD READINESS COMPLETE**.
+Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT & READINESS COMPLETE**.
 
-Authoritative audit last updated 2026-10-18 (updated with Cloud Readiness implementation & verification):
-- Full test suite: **197 passed, 0 failed** × 3 consecutive runs (134.46s, 135.98s, 130.98s).
-- Frontend production build: **12 routes, Turbopack, TypeScript clean** in 615ms compile, 1463ms static generation (Next.js 16.3.7).
-- Cloud Authentication: **IMPLEMENTED & VERIFIED** — Single-user server-issued `investintel_session` cookie (`HttpOnly`, `Secure` in prod, `SameSite=Strict`, `Path=/`, explicit expiry), PBKDF2-HMAC-SHA256 password verification, failed login rate limiter (Redis/in-memory fallback), CSRF/Origin checks, `Cache-Control: private, no-store` on private endpoints.
-- Cloud PostgreSQL Resilience: **IMPLEMENTED & VERIFIED** — Neon PostgreSQL configuration, SSL support (`sslmode=require`), cold-start connection establishment bounded retry, pool limits (`pool_size=5, max_overflow=10, pool_recycle=300`), strict SQLite rejection in cloud mode.
-- Idempotent Cloud Scheduling: **IMPLEMENTED & VERIFIED** — In-process lifespan schedulers disabled in cloud mode; external `cron-job.org` endpoints `POST /api/v1/system/cron/run-ingestion` and `POST /api/v1/system/cron/run-analyst` protected via `X-Cron-Secret` constant-time verification; idempotency keys tracked in `analyst_automation_jobs`.
+Authoritative audit last updated 2026-10-19 (verified live against Render, Vercel, Neon, and local test suite):
+- Full test suite: **198 passed, 0 failed** in 123.71s (100% pass rate).
+- Frontend production build: **12 routes, Turbopack, TypeScript clean** in 420ms compile, 812ms static generation (Next.js 16.3.7).
+- Git Repository & Commit: **VERIFIED & PUSHED** — Commit `9f92a58` (`Fix cloud readiness and cron request handling`) pushed to `main`.
+- Render Backend Deployment: **LIVE & VERIFIED** (`https://investintel-api.onrender.com`)
+  - `GET /health` → **200 OK** `{"status":"ok"}`
+  - `GET /ready` & `GET /api/v1/ready` → **200 OK** `{"status":"ready"}` (probes database reachability with 0 credential leakage)
+  - Sensitive endpoints (`/portfolio`, `/watchlist`, `/research/*`) → **401 UNAUTHORIZED** (Protected)
+  - Cron endpoints (`/api/v1/system/cron/*`) → **401 UNAUTHORIZED** without `X-Cron-Secret`
+- Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`)
+  - `GET /login` → **200 OK**
+  - Same-origin proxy rewrites `/api/:path*` to `INTERNAL_BACKEND_URL` on Render.
+- Neon PostgreSQL: **LIVE & VERIFIED** — Free PostgreSQL with SSL required (`sslmode=require`), connection pooling limits, cold-start bounded retry, and strict refusal of SQLite fallback in cloud mode.
+- Cloud Authentication: **IMPLEMENTED & VERIFIED** — Single-user server-issued `investintel_session` cookie (`HttpOnly`, `Secure` in prod, `SameSite=Strict`, `Path=/`, 7-day TTL), PBKDF2-HMAC-SHA256 password verification, failed login rate limiter (Redis/in-memory fallback), CSRF/Origin checks, `Cache-Control: private, no-store` on private endpoints.
+- Cloud Scheduling: **IMPLEMENTED & VERIFIED** — In-process lifespan schedulers disabled in cloud mode; external `cron-job.org` endpoints `POST /api/v1/system/cron/run-ingestion` and `POST /api/v1/system/cron/run-analyst` protected via `X-Cron-Secret` constant-time verification with `Body(None)` empty payload support; idempotency keys tracked in `analyst_automation_jobs`.
 - Cloud AI Gateway: **IMPLEMENTED & VERIFIED** — Ordered fallback: Gemini (5-attempt max) → Groq → OpenRouter (strictly free-only `:free` models) → reachable Ollama (only if `OLLAMA_ENABLED=true` and reachable) → typed `AI_UNAVAILABLE`. `AI_ALLOW_PAID_APIS=false` zero-budget guard strictly enforced.
-- Docker & Deployment: **PREPARED** — Root `Dockerfile` targeting Render `$PORT`, `.env.example` safe template, `docs/DEPLOYMENT_GUIDE.md` comprehensive instructions for Render, Vercel, Neon, and cron-job.org.
-- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established.
+- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated DNSE / VNDIRECT public endpoints for personal research only.
 - Live Gemini Inference: **NOT_VERIFIED** — Gateway provider abstraction & failovers verified (100% tests pass); live inference pending verified key.
-- Production: **CONDITIONAL** — Pending live cloud deployment rollout verification.
+- Production: **CONDITIONAL** — Live cloud deployment operational; final live scheduled job verification pending cron-job.org activation.
 
 ## 1. Current Checkpoint
 
-> **Authoritative as of 2026-10-18. All historical milestone reports below are preserved and clearly labelled as historical.**
+> **Authoritative as of 2026-10-19. All historical milestone reports below are preserved and clearly labelled as historical.**
 
-* **Date**: 2026-10-18
+* **Date**: 2026-10-19
 * **Phase**: **PHASE 6 — LOCAL ACCEPTED / PRODUCTION CONDITIONAL**
-* **Milestone**: **Cloud Readiness Architecture (Authentication + Neon PostgreSQL Resilience + Idempotent Cron Endpoints + Cloud AI Fallbacks + Render/Vercel Config) — VERIFIED**
-* **Repository State**: Cloud-ready. Production-ready pending live deployment rollout and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **197 passed, 0 failed** × 3 consecutive runs (Run 1: 134.46s | Run 2: 135.98s | Run 3: 130.98s).
-* **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean, 615ms compile (Next.js 16.3.7).
+* **Milestone**: **Cloud Deployment & Readiness Finalization (Commit `9f92a58`, Render Live `/health` + `/ready` 200 OK, Vercel Live `/login` 200 OK, Neon PG Active, 198/198 Tests Pass) — VERIFIED**
+* **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling and one external gate (`LIVE_HOSE_PROVIDER`).
+* **Test Result**: **198 passed, 0 failed** in 123.71s (100% pass rate).
+* **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean, 420ms compile (Next.js 16.3.7).
+* **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
+* **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)
 * **Live HOSE Provider**: **BLOCKED**
 * **Live Gemini Inference**: **NOT_VERIFIED**
 * **Production Status**: **CONDITIONAL**

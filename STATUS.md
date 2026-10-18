@@ -1,0 +1,50 @@
+# InvestIntel — Executive Status & Deployment Summary
+
+Authoritative as of: **2026-10-19**
+
+## 1. Overall System Status
+- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment COMPLETE**
+- **Test Suite**: **198 / 198 PASSED (100% Pass Rate)**
+- **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active)
+- **Deployment Status**:
+  - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — LIVE (`/health` & `/ready` HTTP 200 OK)
+  - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — LIVE (`/login` HTTP 200 OK)
+  - **Database**: Neon PostgreSQL Free (SSL required, connection pooling limits, cold-start bounded retry) — LIVE
+  - **Scheduling**: cron-job.org calling authenticated, idempotent job endpoints — READY
+
+---
+
+## 2. Key Milestones Completed
+
+### Data & Financial Intelligence
+- **Canonical Financial Statements**: 115 Income Statements, 115 Balance Sheets, 115 Cash Flows (100% matched across 23/23 quarters for FPT, VCB, MBB, MWG, HPG).
+- **Historical Market Bars**: 8,465 daily OHLCV candles (2020–2026) ingested with provenance lineage and EOD CSV backups.
+- **Macro Data**: FRED 10Y (1,698 observations via public CSV fallback), GSO GDP/CPI and SBV reference rates (78 observations) Point-In-Time compliant.
+- **RAG Document Intelligence**: 68 chunks across 5 core assets with temporal publication-date filters.
+- **Analytical Engines Active**: DCF, Residual Income, EV/EBITDA, P/E, 7-Factor Scoring, 10 Risk Categories, Decision Snapshots, and Point-In-Time Historical Backtesting (+67.34% return, +17.05% Alpha over VN100).
+
+### Cloud Readiness & Security
+- **Single-User Private Authentication**: PBKDF2-HMAC-SHA256 password hash, server-issued `investintel_session` cookie (`HttpOnly`, `SameSite=Strict`, `Path=/`, 7-day TTL), Origin/CSRF verification, rate-limiting on failed logins, `Cache-Control: private, no-store`.
+- **Public Health & Readiness Probes**:
+  - `GET /health` → 200 `{"status":"ok"}`
+  - `GET /ready` & `GET /api/v1/ready` → 200 `{"status":"ready"}` (checks DB reachability, zero credential leakage).
+  - Private APIs (`/portfolio`, `/watchlist`, `/research`, etc.) strictly require session auth (401 Unauthorized).
+- **Cloud Schedulers**: In-process background loops disabled on cloud; replaced by idempotent endpoints:
+  - `POST /api/v1/system/cron/run-ingestion`
+  - `POST /api/v1/system/cron/run-analyst`
+  - Protected by `X-Cron-Secret` header constant-time verification (`hmac.compare_digest`), supporting bodyless POST requests.
+- **Zero-Budget Cloud AI Gateway**: Gemini (5-attempt max) → Groq → OpenRouter (strictly `:free` models) → reachable Ollama → typed `AI_UNAVAILABLE`. `AI_ALLOW_PAID_APIS=false` preserved.
+
+---
+
+## 3. Preserved Operational Gates
+- `LIVE_HOSE_PROVIDER`: **BLOCKED** (Official licensed commercial HOSE feed contract is not established; unauthenticated DNSE/VNDirect used for personal research).
+- `LIVE_GEMINI`: **NOT_VERIFIED** (Gateway architecture verified 100%; live inference requires user's active API key).
+- `PRODUCTION`: **CONDITIONAL** (Cloud deployed and functional; live scheduled cron activation pending).
+
+---
+
+## 4. Detailed Documentation References
+- Canonical Project Status: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
+- Complete Progress & Bottleneck Synthesis: [`docs/TONG_HOP_TIEN_TRINH_VA_DIEM_NGHEN.md`](docs/TONG_HOP_TIEN_TRINH_VA_DIEM_NGHEN.md)
+- Cloud Deployment & Setup Guide: [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md)

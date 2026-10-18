@@ -339,19 +339,31 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
 - **Hệ số Sharpe:** **0.45**
 - **Tổng số lệnh khớp:** **190 lệnh** (Đã khấu trừ đầy đủ phí môi giới 0.15%, thuế bán 0.10%, trượt giá slippage 0.10% = 494.781 VND phí thực).
 
+### 4. Triển khai Cloud hoàn chỉnh & Sẵn sàng vận hành (Cloud Deployment)
+- **Kiến trúc Cloud Personal (Non-commercial):**
+  + **Backend:** Render Free Web Service (`https://investintel-api.onrender.com`), chạy Dockerfile chuẩn port `$PORT`, probe `/health` trả về `200 {"status":"ok"}`.
+  + **Readiness Probe:** Fix triệt để `/ready` và `/api/v1/ready` trả về `200 {"status":"ready"}` kiểm tra kết nối Neon PostgreSQL không rò rỉ credential.
+  + **Frontend:** Vercel Hobby PWA (`https://investintel-nine.vercel.app`), Next.js 16.3.7 Turbopack, 12 routes sạch (0 lỗi TypeScript), rewrite same-origin `/api/:path*`.
+  + **Database:** Neon PostgreSQL Free (SSL required, connection pool limits 5/10/300, cold-start bounded retry, cấm tuyệt đối SQLite fallback trên cloud).
+  + **Bảo mật & Private Authentication:** Cookie server-side `investintel_session` (`HttpOnly`, `SameSite=Strict`, `Path=/`, 7-day TTL), băm mật khẩu PBKDF2-HMAC-SHA256 (600.000 vòng), rate-limit chống brute-force, CSRF/Origin allowlist. Toàn bộ private endpoints (`/portfolio`, `/watchlist`, `/research`, etc.) trả về 401 Unauthorized nếu chưa đăng nhập.
+  + **Lập lịch Idempotent Cron:** Vô hiệu hóa loop in-process khi chạy trên cloud để tránh xung đột task; cung cấp 2 endpoint cron `POST /api/v1/system/cron/run-ingestion` và `POST /api/v1/system/cron/run-analyst`, xác thực `X-Cron-Secret` qua `hmac.compare_digest`, hỗ trợ payload rỗng `Body(None)` tương thích cron-job.org, ghi nhận lịch sử vào `analyst_automation_jobs`.
+  + **AI Gateway Zero-Budget:** Chuỗi ưu tiên Gemini (tối đa 5 lần thử) → Groq → OpenRouter (chỉ model free kết thúc bằng `:free`) → Ollama (khi có mạng an toàn) → Typed `AI_UNAVAILABLE`. Giữ vững nguyên tắc `AI_ALLOW_PAID_APIS=false`.
+
 ---
 
-## TỔNG KẾT HỆ THỐNG HIỆN TẠI
+## TỔNG KẾT HỆ THỐNG HIỆN TẠI (CẬP NHẬT 2026-10-19)
 
 | Tiêu chí | Trạng thái hiện tại | Đánh giá |
 | :--- | :--- | :--- |
-| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng) | Kiến trúc vững chắc, chuẩn Domain-Driven, không nợ kỹ thuật |
-| **Test Suite** | **182/182 PASSED** (100% Pass) | Tất cả test đều xanh, bảo vệ an toàn Point-In-Time và xung đột giá |
-| **Frontend UI/UX** | Hoàn thành 11 Routes, PWA | Responsive Desktop/Mobile, tiếng Việt chuẩn tài chính |
-| **Cơ sở dữ liệu** | PostgreSQL 18.6 + Redis | 38 bảng, hàng ngàn bản ghi thực tế, SHA-256 lineage |
-| **BCTC Lịch sử thực tế** | **115 KQKD / 115 CĐKT / 115 LCTT (100% Khớp)** | Khắc phục hoàn toàn độ lệch 82 vs 79 vs 77 |
+| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
+| **Test Suite** | **198/198 PASSED** (100% Pass) | 198 test xanh hoàn toàn, kiểm chứng toàn bộ tính năng và bảo mật Cloud |
+| **Frontend UI/UX** | Hoàn thành 12 Routes, PWA | Responsive Mobile/Desktop, Vercel build 420ms sạch 100% |
+| **Cơ sở dữ liệu** | Neon PostgreSQL Free (Cloud) + Local PG 18.6 | 38 bảng, pooling an toàn, cold-start retry, SHA-256 lineage |
+| **BCTC Lịch sử thực tế** | **115 KQKD / 115 CĐKT / 115 LCTT (100% Khớp)** | Khớp tuyệt đối 23/23 quý trên 5 mã cốt lõi FPT, VCB, MBB, MWG, HPG |
 | **Dữ liệu giá OHLCV** | **8.465 nến giá thực tế (2020-2026)** | 1.693 nến/mã, đồng bộ EOD CSV backup đầy đủ |
 | **Dữ liệu Vĩ mô** | **FRED 10Y (1.698 dòng), GSO & SBV (78 dòng)** | Thoát khỏi tình trạng thiếu dữ liệu và blocked key |
 | **RAG Hồ sơ tài liệu** | **5/5 mã cốt lõi (68 chunks)** | Lọc Point-In-Time nghiêm ngặt theo ngày công bố |
 | **Analytical Pipeline** | **ĐÃ CHẠY HOÀN THÀNH TOÀN BỘ ENGINES** | Định giá, 7 nhân tố, 10 rủi ro, Backtest sinh lời thực tế |
+| **Cloud Backend Live** | `https://investintel-api.onrender.com` | `/health` và `/ready` đạt 200 OK, bảo vệ API nhạy cảm 401 |
+| **Cloud Frontend Live** | `https://investintel-nine.vercel.app` | Giao diện đăng nhập, session cookie và PWA hoạt động trơn tru |
 
