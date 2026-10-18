@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
@@ -14,7 +14,15 @@ router = APIRouter(prefix="/api/v1/market", tags=["market"])
 @router.get("/dashboard", response_model=MarketDashboard)
 def get_market_dashboard(session: Session = Depends(get_db)) -> MarketDashboard:
     """Return market values and evidence from canonical database records only."""
-    return build_market_dashboard(session, date.today())
+    try:
+        return build_market_dashboard(session, date.today())
+    except Exception as exc:
+        import traceback
+        trace = traceback.format_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"{type(exc).__name__}: {str(exc)} | TRACE: {trace.replace(chr(10), ' ;; ')}"
+        )
 
 
 @router.get("/reconciliation/{symbol}")
