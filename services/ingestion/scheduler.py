@@ -20,6 +20,7 @@ from .http_client import ProviderUnavailableError
 from .market_data import MarketDataCsvProvider
 from .dnse import DnseProvider
 from .vietstock import VietstockNewsProvider
+from .lotusmarket import LotusMarketProvider
 from .reconciliation import MarketDataReconciliationEngine
 from .pipeline import IngestionPipeline
 
@@ -279,7 +280,42 @@ async def run_ingestion_cycle(session_factory: Callable = SessionLocal) -> list[
                     results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
                     logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
 
-    # 7. Cross-Provider Reconciliation (if enabled)
+    # 7. LotusMarket market data & insider events (bounded by batch_limit)
+    if "LOTUSMARKET" in source_ids and os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() in ("true", "1", "yes"):
+        lotus_prov = LotusMarketProvider()
+        for symbol, exchange, _ in hose_assets[:batch_limit]:
+            # Market prices (VPS + Entrade fallback)
+            try:
+                db = session_factory()
+                try:
+                    outcome = lotus_prov.ingest_to_database(
+                        db, symbol, start_date=start_date, end_date=date.today(),
+                        exchange=exchange or "HOSE", source_id=source_ids.get("LOTUSMARKET")
+                    )
+                    results.append(outcome)
+                finally:
+                    db.close()
+            except Exception as exc:
+                _record_failure(session_factory, "LOTUSMARKET", f"market_data_{symbol}", "FAILURE", str(exc))
+                results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
+
+            # Insider transactions (CafeF via LotusMarket)
+            try:
+                db = session_factory()
+                try:
+                    outcome_events = lotus_prov.ingest_insider_events(
+                        db, symbol, source_id=source_ids.get("LOTUSMARKET")
+                    )
+                    results.append(outcome_events)
+                finally:
+                    db.close()
+            except Exception as exc:
+                _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
+                results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
+                logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
+
+    # 8. Cross-Provider Reconciliation (if enabled)
     if os.getenv("ENABLE_RECONCILIATION", "false").lower() in ("true", "1", "yes"):
         recon_engine = MarketDataReconciliationEngine()
         for symbol, _, _ in hose_assets[:batch_limit]:

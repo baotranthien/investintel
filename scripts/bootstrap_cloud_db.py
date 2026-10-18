@@ -43,6 +43,15 @@ APPROVED_DATA_SOURCES = [
         "active": True,
     },
     {
+        "name": "LOTUSMARKET",
+        "provider": "LOTUSMARKET",
+        "country": "VNM",
+        "authority_level": "REPUTABLE_SECONDARY",
+        "source_type": "API",
+        "base_url": "https://bgapidatafeed.vps.com.vn",
+        "active": True,
+    },
+    {
         "name": "GSO",
         "provider": "GSO",
         "country": "VNM",

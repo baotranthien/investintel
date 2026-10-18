@@ -149,6 +149,16 @@ def seed_data_sources(session: Session) -> dict:
             "base_url": "https://api-finfo.vndirect.com.vn/v4/stock_prices",
             "license_status": "PUBLIC_RESEARCH_ONLY",
             "access_method": "PUBLIC_HTTP"
+        },
+        {
+            "name": "LOTUSMARKET",
+            "provider": "LotusMarket Toolkit (VPS / Entrade / CafeF / KBS)",
+            "country": "VNM",
+            "authority_level": "REPUTABLE_SECONDARY",
+            "source_type": "API",
+            "base_url": "https://bgapidatafeed.vps.com.vn",
+            "license_status": "MIT_OPEN_SOURCE",
+            "access_method": "PUBLIC_HTTP"
         }
     ]
 

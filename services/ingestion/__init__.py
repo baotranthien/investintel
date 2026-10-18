@@ -8,6 +8,7 @@ from .world_bank import WorldBankProvider
 from .open_fx import FreeFxProvider
 from .gdelt import GDELTNewsProvider
 from .vndirect import VndirectProvider
+from .lotusmarket import LotusMarketProvider
 from .reconciliation import MarketDataReconciliationEngine, ReconciliationReport
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "FreeFxProvider",
     "GDELTNewsProvider",
     "VndirectProvider",
+    "LotusMarketProvider",
     "MarketDataReconciliationEngine",
     "ReconciliationReport",
 ]

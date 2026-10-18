@@ -13,15 +13,17 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini 
 - `FREE_FX` (Frankfurter / open.er-api): `CONNECTED_AND_INGESTED` — Unauthenticated free FX rate providers. USD/VND daily reference rate.
 - `GDELT`: `CONNECTED_AND_INGESTED` — GDELT public news API with 5.5s inter-request pacing. Promotes to canonical `EventRecord`.
 - `BLS` (unauthenticated v1): `CONNECTED_AND_INGESTED` — BLS public unauthenticated API v1 mode with automatic 10-year window clamping.
+- `LOTUSMARKET`: `CONNECTED_AND_VERIFIED` — Unauthenticated secondary provider toolkit: VPS DataFeed (real-time quotes, foreign net flow, bid/ask), Entrade (historical daily OHLCV with VPS fallback), and CafeF (shareholder insider trading into EventRecord).
 - `LIVE_HOSE_PROVIDER`: **BLOCKED**. An approved, commercially licensed official HOSE feed contract has not been established. The availability of public unauthenticated endpoints does NOT pass Gate 8.
 - `LIVE_GEMINI`: **NOT_VERIFIED** until real live inference is confirmed.
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT & UI UNICODE INTEGRITY COMPLETE**.
+Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT, UI UNICODE INTEGRITY & LOTUSMARKET INTEGRATION COMPLETE**.
 
 Authoritative audit last updated 2026-10-19 (verified live against Render, Vercel, Neon, and local test suite):
-- Full test suite: **202 passed, 0 failed** in 133.85s (100% pass rate).
+- Full test suite: **217 passed, 0 failed** in 112.63s (100% pass rate).
+- LotusMarket Provider: **INTEGRATED & VERIFIED** (`services/ingestion/lotusmarket.py`, 15/15 dedicated tests in `tests/test_lotusmarket_provider.py`).
 - UI Unicode Integrity: **AUDITED & VERIFIED** (119 files checked; 0 mojibake, 0 BOM, regression suite `tests/test_unicode_integrity.py` 4/4 passed).
 - Frontend production build: **12 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
 - Git Repository & Commit: **VERIFIED & PUSHED** — Branch `main`.
@@ -37,9 +39,10 @@ Authoritative audit last updated 2026-10-19 (verified live against Render, Verce
 - Cloud Authentication: **IMPLEMENTED & VERIFIED** — Single-user server-issued `investintel_session` cookie (`HttpOnly`, `Secure` in prod, `SameSite=Strict`, `Path=/`, 7-day TTL), PBKDF2-HMAC-SHA256 password verification, failed login rate limiter (Redis/in-memory fallback), CSRF/Origin checks, `Cache-Control: private, no-store` on private endpoints.
 - Cloud Scheduling: **IMPLEMENTED & VERIFIED** — In-process lifespan schedulers disabled in cloud mode; external `cron-job.org` endpoints `POST /api/v1/system/cron/run-ingestion` and `POST /api/v1/system/cron/run-analyst` protected via `X-Cron-Secret` constant-time verification with `Body(None)` empty payload support; idempotency keys tracked in `analyst_automation_jobs`.
 - Cloud AI Gateway: **IMPLEMENTED & VERIFIED** — Ordered fallback: Gemini (5-attempt max) → Groq → OpenRouter (strictly free-only `:free` models) → reachable Ollama (only if `OLLAMA_ENABLED=true` and reachable) → typed `AI_UNAVAILABLE`. `AI_ALLOW_PAID_APIS=false` zero-budget guard strictly enforced.
-- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated DNSE / VNDIRECT public endpoints for personal research only.
+- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated DNSE / VNDIRECT / LotusMarket public endpoints for personal research only.
 - Live Gemini Inference: **NOT_VERIFIED** — Gateway provider abstraction & failovers verified (100% tests pass); live inference pending verified key.
 - Production: **CONDITIONAL** — Live cloud deployment operational; final live scheduled job verification pending cron-job.org activation.
+- Production Ingestion Guard: **STOPPED BEFORE PRODUCTION WRITE** — All local tests passing; awaiting user approval before triggering write to Neon.
 
 ## 1. Current Checkpoint
 
@@ -47,9 +50,9 @@ Authoritative audit last updated 2026-10-19 (verified live against Render, Verce
 
 * **Date**: 2026-10-19
 * **Phase**: **PHASE 6 — LOCAL ACCEPTED / PRODUCTION CONDITIONAL**
-* **Milestone**: **UI Unicode Audit & Cloud Deployment Finalization (202/202 Tests Pass, 0 Mojibake across 119 files, 12 routes clean build) — VERIFIED**
-* **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **202 passed, 0 failed** (100% pass rate).
+* **Milestone**: **LotusMarket Integration & UI Unicode Audit (217/217 Tests Pass, 0 Mojibake across 119 files, 12 routes clean build) — VERIFIED**
+* **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling, first approved cloud ingestion, and one external gate (`LIVE_HOSE_PROVIDER`).
+* **Test Result**: **217 passed, 0 failed** (100% pass rate).
 * **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean.
 * **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
 * **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)

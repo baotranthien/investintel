@@ -356,18 +356,35 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
 - **Tích hợp API Template:** Chuyển lời gọi template sang `getPortfolioTemplates` từ `@/lib/api` đảm bảo cookie session và credentials được gửi an toàn.
 - **Bộ kiểm thử hồi quy tự động:** Bổ sung `tests/test_unicode_integrity.py` với 4 test độc lập, xác nhận 0 ký tự mojibake, 0 ký tự thay thế `\ufffd`, và 0 UTF-8 BOM trên toàn bộ mã nguồn frontend/backend.
 
+### 6. Tích hợp Nhà cung cấp dữ liệu thực tế LotusMarket (LotusMarket Provider Integration)
+- **Nghiên cứu & Thẩm định mã nguồn:** Khảo sát kho lưu trữ `ducnhd/lotusmarket` (bản phát hành PyPI v0.5.0 và upstream GitHub). Nhận diện 4 phân hệ lấy dữ liệu: VPS (`https://bgapidatafeed.vps.com.vn`), Entrade (`https://services.entrade.com.vn`), CafeF (`https://cafef.vn/du-lieu/Ajax`), và KBS (`https://kbbuddywts.kbsec.com.vn`).
+- **Thiết kế Adapter Tinh gọn & An toàn:**
+  + Không cài đặt trực tiếp gói `lotusmarket` từ PyPI do gói này ép kéo theo `pandas` và `numpy` (~100MB), gây áp lực lớn lên bộ nhớ 512MB RAM của gói Render Free.
+  + Xây dựng adapter nội bộ [`services/ingestion/lotusmarket.py`](file:///c:/Users/baotr/Downloads/trading/services/ingestion/lotusmarket.py) kế thừa `BaseProvider`, sử dụng trực tiếp thư viện chuẩn Python và `httpx`, giữ trọn vẹn bản quyền MIT của tác giả Nguyễn Hữu Đức Đạt.
+- **Xác thực dữ liệu thực tế (Probe Live trên FPT, ACB, HPG):**
+  + *VPS Quotes:* Thành công 100%, lấy giá khớp, giá trần/sàn/tham chiếu, khối lượng giao dịch, khối lượng mua/bán của khối ngoại (`fBVol`, `fSVolume`), 3 bước giá mua/bán tốt nhất. Chuẩn hóa quy đổi đơn vị giá (x1000 về VND) và kiểm tra tính nhất quán OHLC.
+  + *Entrade OHLCV:* Thành công 100%, trích xuất 247 nến giá/mã với đầy đủ Open, High, Low, Close, Volume. Toàn bộ nến thỏa mãn điều kiện `low <= open, close <= high` và volume >= 0.
+  + *CafeF Giao dịch nội bộ:* Thành công 100%, nạp 50 sự kiện giao dịch của cổ đông lớn và người nội bộ với ngày bắt đầu, ngày kết thúc, số lượng đăng ký và số lượng thực hiện.
+  + *KBS Fundamentals:* Endpoint phía upstream đã đổi đường dẫn hoặc ngừng cung cấp (HTTP 400/404). Hệ thống xử lý suy thoái mềm (graceful degradation) trả về `None`, tuyệt đối không làm crash app và không bịa đặt số liệu.
+- **Bảo vệ tính toàn vẹn dữ liệu & Giá chuẩn (Canonical Price Protection):**
+  + Tích hợp vào [`services/ingestion/scheduler.py`](file:///c:/Users/baotr/Downloads/trading/services/ingestion/scheduler.py) với cờ `ENABLE_LOTUSMARKET_INGESTION` (mặc định `"false"`).
+  + Khi nạp vào `IngestionPipeline`, nếu ngày giao dịch đã có giá chuẩn (từ DNSE/VNDirect), nến giá mới không được ghi đè (`Conflicting observation already exists; historical canonical price was preserved`).
+  + Toàn bộ quan sát được gắn nhãn nguồn `"LOTUSMARKET"`, lưu mã băm SHA-256 và giữ nguyên mốc thời gian Point-In-Time.
+- **Kiểm thử tự động:** Xây dựng `tests/test_lotusmarket_provider.py` với 15 test mock deterministic kiểm tra toàn bộ trường hợp thành công, lỗi HTTP, timeout, nến dị thường, và suy thoái mềm. Toàn bộ test suite đạt **217/217 PASSED**.
+
 ---
 
 ## TỔNG KẾT HỆ THỐNG HIỆN TẠI (CẬP NHẬT 2026-10-19)
 
 | Tiêu chí | Trạng thái hiện tại | Đánh giá |
 | :--- | :--- | :--- |
-| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud + Unicode) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
-| **Test Suite** | **202/202 PASSED** (100% Pass) | 202 test xanh hoàn toàn (198 logic/cloud + 4 unicode regression) |
+| **Kiến trúc hệ thống** | Hoàn thành 100% (Phases 0–6I + Mở rộng + Cloud + Unicode + LotusMarket) | Đã triển khai Render + Vercel + Neon PG + cron-job.org |
+| **Test Suite** | **217/217 PASSED** (100% Pass) | 217 test xanh hoàn toàn (198 logic/cloud + 4 unicode + 15 lotusmarket) |
 | **Frontend UI/UX** | Hoàn thành 12 Routes, PWA, 0 lỗi Mojibake | Tiếng Việt chuẩn UTF-8, Responsive Mobile/Desktop, Next.js build 100% sạch |
 | **Cơ sở dữ liệu** | Neon PostgreSQL Free (Cloud) + Local PG 18.6 | 38 bảng, pooling an toàn, cold-start retry, SHA-256 lineage |
 | **BCTC Lịch sử thực tế** | **115 KQKD / 115 CĐKT / 115 LCTT (100% Khớp)** | Khớp tuyệt đối 23/23 quý trên 5 mã cốt lõi FPT, VCB, MBB, MWG, HPG |
 | **Dữ liệu giá OHLCV** | **8.465 nến giá thực tế (2020-2026)** | 1.693 nến/mã, đồng bộ EOD CSV backup đầy đủ |
+| **Nguồn nạp bổ sung** | **LotusMarket (VPS, Entrade, CafeF)** | Sẵn sàng bổ sung nến OHLCV, realtime quote và insider events |
 | **Dữ liệu Vĩ mô** | **FRED 10Y (1.698 dòng), GSO & SBV (78 dòng)** | Thoát khỏi tình trạng thiếu dữ liệu và blocked key |
 | **RAG Hồ sơ tài liệu** | **5/5 mã cốt lõi (68 chunks)** | Lọc Point-In-Time nghiêm ngặt theo ngày công bố |
 | **Analytical Pipeline** | **ĐÃ CHẠY HOÀN THÀNH TOÀN BỘ ENGINES** | Định giá, 7 nhân tố, 10 rủi ro, Backtest sinh lời thực tế |
