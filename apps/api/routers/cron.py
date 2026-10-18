@@ -82,7 +82,7 @@ async def get_cron_history(
         success_jobs = db.query(AnalystAutomationJob).filter_by(status="SUCCESS").count()
         failed_jobs = db.query(AnalystAutomationJob).filter_by(status="FAILED").count()
         
-        dup_query = db.query(Price.asset_id, Price.trading_date, func.count(Price.id)).group_by(Price.asset_id, Price.trading_date).having(func.count(Price.id) > 1).all()
+        dup_query = db.query(Price.asset_id, Price.observation_date, func.count(Price.id)).group_by(Price.asset_id, Price.observation_date).having(func.count(Price.id) > 1).all()
         duplicate_prices_count = len(dup_query)
         total_prices = db.query(Price).count()
         
