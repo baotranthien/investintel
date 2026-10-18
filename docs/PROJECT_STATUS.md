@@ -3,7 +3,7 @@
 ## Executive Summary
 
 ### Current Problem
-The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini AI Gateway with five-attempt fallback, Multi-Provider Free Data Expansion, and **Cloud Readiness Implementation** (Personal non-commercial cloud deployment target: Render Free backend, Vercel Hobby frontend, Neon PostgreSQL Free, authenticated idempotent cron-job.org execution, Groq & OpenRouter free-only cloud fallback, and single-user private authentication).
+The local-first platform has completed all Phase 6 milestones (6A–6I), Local Ollama AI integration with cloud isolation, Multi-Provider Free Data Expansion, and **Cloud Readiness Implementation** (Personal non-commercial cloud deployment target: Render Free backend, Vercel Hobby frontend, Neon PostgreSQL Free, authenticated idempotent cron-job.org execution, and single-user private authentication).
 
 **Provider & Ingestion Status Distinction:**
 - `DNSE_PUBLIC`: `CONNECTED_AND_INGESTED` — Unauthenticated public secondary provider (`https://services.entrade.com.vn/chart-api/v2/ohlcs`) implemented and verified end-to-end against live PostgreSQL.
@@ -15,7 +15,7 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Gemini 
 - `BLS` (unauthenticated v1): `CONNECTED_AND_INGESTED` — BLS public unauthenticated API v1 mode with automatic 10-year window clamping.
 - `LOTUSMARKET`: `CONNECTED_AND_VERIFIED` — Unauthenticated secondary provider toolkit: VPS DataFeed (real-time quotes, foreign net flow, bid/ask), Entrade (historical daily OHLCV with VPS fallback), and CafeF (shareholder insider trading into EventRecord).
 - `LIVE_HOSE_PROVIDER`: **BLOCKED**. An approved, commercially licensed official HOSE feed contract has not been established. The availability of public unauthenticated endpoints does NOT pass Gate 8.
-- `LIVE_GEMINI`: **NOT_VERIFIED** until real live inference is confirmed.
+- `LOCAL_OLLAMA`: `VERIFIED_LIVE` — Real local inference verified against installed model `qwen2.5:0.5b` (132 chars returned in <3s).
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
@@ -38,9 +38,9 @@ Authoritative audit last updated 2026-10-19 (verified live against Render, Verce
 - Neon PostgreSQL: **LIVE & VERIFIED** — Free PostgreSQL with SSL required (`sslmode=require`), connection pooling limits, cold-start bounded retry, and strict refusal of SQLite fallback in cloud mode.
 - Cloud Authentication: **IMPLEMENTED & VERIFIED** — Single-user server-issued `investintel_session` cookie (`HttpOnly`, `Secure` in prod, `SameSite=Strict`, `Path=/`, 7-day TTL), PBKDF2-HMAC-SHA256 password verification, failed login rate limiter (Redis/in-memory fallback), CSRF/Origin checks, `Cache-Control: private, no-store` on private endpoints.
 - Cloud Scheduling: **IMPLEMENTED & VERIFIED** — In-process lifespan schedulers disabled in cloud mode; external `cron-job.org` endpoints `POST /api/v1/system/cron/run-ingestion` and `POST /api/v1/system/cron/run-analyst` protected via `X-Cron-Secret` constant-time verification with `Body(None)` empty payload support; idempotency keys tracked in `analyst_automation_jobs`.
-- Cloud AI Gateway: **IMPLEMENTED & VERIFIED** — Ordered fallback: Gemini (5-attempt max) → Groq → OpenRouter (strictly free-only `:free` models) → reachable Ollama (only if `OLLAMA_ENABLED=true` and reachable) → typed `AI_UNAVAILABLE`. `AI_ALLOW_PAID_APIS=false` zero-budget guard strictly enforced.
+- Cloud AI Gateway: **IMPLEMENTED & VERIFIED** — Local Ollama sole provider architecture (`qwen2.5:0.5b`); cloud isolation on Render strictly returns `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD` to avoid loopback latency and preserve zero cloud costs.
 - Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated DNSE / VNDIRECT / LotusMarket public endpoints for personal research only.
-- Live Gemini Inference: **NOT_VERIFIED** — Gateway provider abstraction & failovers verified (100% tests pass); live inference pending verified key.
+- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:0.5b` active on loopback GPU/CPU; real live inference verified on local machine.
 - Production: **CONDITIONAL** — Live cloud deployment operational; final live scheduled job verification pending cron-job.org activation.
 - Production Ingestion Guard: **STOPPED BEFORE PRODUCTION WRITE** — All local tests passing; awaiting user approval before triggering write to Neon.
 
@@ -50,18 +50,19 @@ Authoritative audit last updated 2026-10-19 (verified live against Render, Verce
 
 * **Date**: 2026-10-19
 * **Phase**: **PHASE 6 — LOCAL ACCEPTED / PRODUCTION CONDITIONAL**
-* **Milestone**: **LotusMarket Integration & UI Unicode Audit (217/217 Tests Pass, 0 Mojibake across 119 files, 12 routes clean build) — VERIFIED**
+* **Milestone**: **Remove Gemini Completely & Switch to Local Ollama Only (204/204 Tests Pass, 12 routes clean build) — VERIFIED**
 * **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling, first approved cloud ingestion, and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **217 passed, 0 failed** (100% pass rate).
+* **Test Result**: **204 passed, 0 failed** (100% pass rate).
 * **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean.
 * **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
 * **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)
 * **Live HOSE Provider**: **BLOCKED**
-* **Live Gemini Inference**: **NOT_VERIFIED**
+* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:0.5b`)
 * **Production Status**: **CONDITIONAL**
 
 ### Note on .env Loading
-The `.env` file is loaded by `database/connection.py` via `python-dotenv` at import time. The `pytest` subprocess does not have `.env` vars pre-loaded in the OS environment — Gemini gateway tests run fully mocked and do not require live credentials. The running FastAPI process (port 8000) inherits `.env` via the same mechanism at startup.
+The `.env` file is loaded by `database/connection.py` via `python-dotenv` at import time. The `pytest` subprocess does not have `.env` vars pre-loaded in the OS environment — Ollama gateway tests run fully isolated with mock fixtures and live verification against the local daemon. The running FastAPI process (port 8000) inherits `.env` via the same mechanism at startup.
+
 
 ### Original Final Gate Table — 2026-10-01 (HISTORICAL)
 

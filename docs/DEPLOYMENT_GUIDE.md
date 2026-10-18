@@ -12,8 +12,7 @@ Tài liệu hướng dẫn triển khai nền tảng nghiên cứu đầu tư c�
 | **Backend** | **Render** | Free Web Service | Docker (FastAPI), chịu độ trễ khởi động lạnh (Cold Start ~30-50s) |
 | **Database** | **Neon** | Free Tier (PostgreSQL) | SSL (`sslmode=require`), Pooled connection, Tự động ngủ (Compute scale-to-zero) |
 | **Redis** | **Upstash / Memory** | Free / Optional | Tuỳ chọn; nếu không cấu hình sẽ tự động dùng in-memory rate-limiting an toàn |
-| **Cron Job** | **cron-job.org** | Free | Gọi webhook định kỳ qua HTTP POST có xác thực `X-Cron-Secret` |
-| **AI Gateway** | **Gemini / Groq / OpenRouter** | Free tiers | Chuỗi fallback: Gemini (5 attempts) → Groq → OpenRouter (:free) → Typed `AI_UNAVAILABLE` |
+| **AI Gateway** | **Local Ollama** | Free / Local Only | Local Ollama trên máy cá nhân (`qwen2.5:0.5b`); Trên Cloud Render tự động cách ly an toàn (`LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD`) |
 
 ---
 
@@ -68,10 +67,9 @@ Tài liệu hướng dẫn triển khai nền tảng nghiên cứu đầu tư c�
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` | Domain Vercel được phép gọi API |
 | `AI_ALLOW_PAID_APIS` | `false` | Khóa chặt ngân sách = 0 USD |
 | `AI_MONTHLY_BUDGET_USD` | `0` | Không cho phép phát sinh chi phí |
-| `GEMINI_API_KEY` | Key Gemini từ AI Studio | Key miễn phí của bạn |
-| `GROQ_API_KEY` | Key Groq (tuỳ chọn) | Nếu muốn dùng fallback Groq |
-| `OPENROUTER_API_KEY` | Key OpenRouter (tuỳ chọn) | Chỉ dùng model có hậu tố `:free` |
-| `OLLAMA_ENABLED` | `false` | Mặc định tắt trên cloud (trừ khi có VPN riêng) |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Endpoint cục bộ cho Ollama trên máy dev |
+| `OLLAMA_MODEL` | `qwen2.5:0.5b` | Model Ollama đã cài đặt thực tế |
+| `OLLAMA_ENABLED` | `false` | Mặc định tắt trên cloud (Render báo `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD`) |
 
 > **Cách tạo mật khẩu ứng dụng**:
 > Chạy lệnh sau trên terminal nội bộ để lấy hash:

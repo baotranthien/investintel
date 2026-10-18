@@ -90,13 +90,17 @@ class OllamaProvider:
             except httpx.HTTPStatusError as error:
                 detail = error.response.text[:500]
                 if error.response.status_code == 404:
-                    raise AIProviderError(f"Configured Ollama model '{model_to_use}' is unavailable.") from error
+                    raise AIProviderUnavailableError(f"Configured Ollama model '{model_to_use}' is unavailable.") from error
                 if error.response.status_code < 500 or attempt >= self.config.retries:
                     raise AIProviderError(f"Ollama request failed with HTTP {error.response.status_code}: {detail}") from error
-            except (httpx.TimeoutException, httpx.NetworkError) as error:
+            except httpx.TimeoutException as error:
                 if attempt >= self.config.retries:
-                    raise AIProviderError(f"Ollama is unavailable or timed out at {self.base_url}.") from error
-        raise AIProviderError("Ollama request failed after configured retries.")
+                    raise AIProviderTimeoutError(f"Ollama request timed out at {self.base_url}.") from error
+            except httpx.NetworkError as error:
+                if attempt >= self.config.retries:
+                    raise AIProviderUnavailableError(f"Ollama is unavailable at {self.base_url}.") from error
+        raise AIProviderUnavailableError("Ollama request failed after configured retries.")
+
 
     async def generate(self, prompt: str, system: str = "", model: str | None = None) -> str:
         text, _ = await self._generate_result(prompt, system, model)
@@ -149,8 +153,26 @@ class OllamaProvider:
                 item.get("name", "").split(":", 1)[0] == configured.split(":", 1)[0]
                 for item in running_models
             )
+            if not installed:
+                return {
+                    "status": "MODEL_NOT_FOUND",
+                    "available": False,
+                    "provider": "ollama",
+                    "version": version.json().get("version"),
+                    "models": models,
+                    "configured_models": {
+                        "fast": self.config.fast_model,
+                        "primary": self.config.primary_model,
+                        "reasoning": self.config.reasoning_model,
+                    },
+                    "configured_model_installed": False,
+                    "configured_model_loaded": False,
+                    "running_models": running_models,
+                    "gpu": self._detect_gpu(),
+                    "reason": f"Configured model '{configured}' is not installed in Ollama. Installed models: {models}",
+                }
             return {
-                "status": "HEALTHY" if installed and loaded else "DEGRADED",
+                "status": "HEALTHY" if loaded else "DEGRADED",
                 "available": True,
                 "provider": "ollama",
                 "version": version.json().get("version"),
@@ -160,7 +182,7 @@ class OllamaProvider:
                     "primary": self.config.primary_model,
                     "reasoning": self.config.reasoning_model,
                 },
-                "configured_model_installed": installed,
+                "configured_model_installed": True,
                 "configured_model_loaded": loaded,
                 "running_models": running_models,
                 "gpu": self._detect_gpu(),

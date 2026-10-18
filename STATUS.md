@@ -3,9 +3,10 @@
 Authoritative as of: **2026-10-19**
 
 ## 1. Overall System Status
-- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity + LotusMarket Integration + VN100/VN30 Real Index Candles + Financial News RSS Provider + Cloud AI Observability + Live End-to-End Production Validation COMPLETE**
-- **Test Suite**: **226 / 226 PASSED (100% Pass Rate)** in 154s (`python -m pytest -q`)
+- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity + LotusMarket Integration + VN100/VN30 Real Index Candles + Financial News RSS Provider + Complete Gemini Removal & Local Ollama Only + Cloud AI Isolation COMPLETE**
+- **Test Suite**: **204 / 204 PASSED (100% Pass Rate)** in 91s (`python -m pytest -q`)
 - **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active, 0 mojibake / 0 BOM)
+
 - **Deployment Status**:
   - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — **LIVE at commit `d339473`** (`/health` & `/ready` HTTP 200 OK)
   - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — **LIVE** (`/login` HTTP 200 OK)
@@ -57,14 +58,19 @@ Authoritative as of: **2026-10-19**
 - **Production Execution**: Bounded production run executed on Render: **40 real financial news articles** staged, promoted, and connected to the research timeline and market dashboard major events.
 - **Test Suite**: Added `tests/test_financial_news.py` with 7 dedicated unit tests covering XML parsing, ticker matching, duplicate prevention, and pipeline promotion.
 
-### Cloud AI Availability & Gateway Telemetry (2026-10-19)
-- **Root Cause & Fix**:
-  - Production observability previously reported AI as `UNAVAILABLE` because `apps/api/main.py` was hardcoded to probe `localhost:11434` Ollama, treating the cloud container as the user's personal machine.
-  - Replaced loopback probe with dynamic `AIGateway().status()` telemetry.
-  - Updated `services/ai/config.py` to support multi-variable detection (`GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GEMINI_KEY`), defaulting to `gemini-3.8-flash` with circuit breaker and bounded backoff.
-- **Production Status**:
-  - Telemetry cleanly reports `AI unavailable (none)` with HTTP 200 via `/api/v1/system/info` and `/api/v1/system/observability`.
-  - Deterministic financial calculations, market regime, valuation models, and risk analysis operate completely independently of AI availability without crashing or timeouts.
+### Local Ollama AI Sole Provider & Cloud Isolation (2026-10-19)
+- **Complete Gemini Removal**:
+  - Completely removed Google Generative AI / Gemini SDK (`google-genai`), provider files (`services/ai/gemini_provider.py`), Gemini-specific tests, circuit breakers, and configuration aliases.
+  - Zero paid or hosted AI APIs: InvestIntel now relies exclusively on local Ollama.
+- **Local Ollama Integration**:
+  - Discovered installed local model `qwen2.5:0.5b` (size 397MB, GGUF Q4_K_M) running via `ollama.exe serve` on port 11434.
+  - Executed and verified real local inference via Ollama API (`132 chars returned in <3s`).
+  - Added dedicated test suite `tests/test_ollama_provider.py` (15/15 tests passing 100%, covering model selection, timeouts, missing models, structured JSON, and cloud isolation).
+- **Cloud Isolation (Render Web Service)**:
+  - Render cloud container does not attempt to connect to user's localhost:11434, eliminating connection timeouts.
+  - When running in cloud mode, `AIGateway.status()` explicitly returns `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD` with HTTP 200 without attempting loopback network calls.
+  - Non-AI features (valuation engines, portfolio, risk, market regime, news, ingestion) operate normally with 100% functionality.
+
 
 ### Cron & Idempotency Safeguards (2026-10-19)
 - **Cron History Endpoint**: Added `GET /api/v1/system/cron/history` protected by `X-Cron-Secret` constant-time verification. Exposes job summaries, recent data runs, total prices, and duplicate price counts directly from the database.

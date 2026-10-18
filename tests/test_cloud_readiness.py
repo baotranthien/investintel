@@ -321,12 +321,15 @@ def test_openrouter_free_model_enforcement():
 
 
 def test_ai_gateway_provider_priority_order():
+    with patch.dict(os.environ, {"AI_PROVIDER_ORDER": "ollama"}):
+        cfg = GatewayConfig.from_env()
+        assert cfg.provider_priority == ("ollama",)
+
+    # Legacy or unsupported providers are ignored in favor of Ollama
     with patch.dict(os.environ, {"AI_PROVIDER_ORDER": "gemini,groq,openrouter,ollama"}):
         cfg = GatewayConfig.from_env()
-        assert cfg.provider_priority[0] == "gemini"
-        assert cfg.provider_priority[1] == "groq"
-        assert cfg.provider_priority[2] == "openrouter"
-        assert cfg.provider_priority[3] == "ollama"
+        assert cfg.provider_priority == ("ollama",)
+
 
 
 def test_ai_gateway_ollama_not_assumed_in_cloud():

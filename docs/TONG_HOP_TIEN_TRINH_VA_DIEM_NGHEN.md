@@ -21,7 +21,7 @@ Dự án **Personal Investment Intelligence Platform** là một nền tảng ph
 
 ### Các nguyên tắc cốt lõi được tuân thủ nghiêm ngặt trong mã nguồn:
 1. **Local-First & Data Privacy:** Toàn bộ danh mục đầu tư cá nhân, giao dịch, ghi chú luận điểm (thesis), watchlist đều lưu trữ nội bộ tại máy người dùng. Không lưu hoặc yêu cầu mật khẩu/API key công ty chứng khoán (Zero Broker Secrets).
-2. **Chi phí AI tối ưu (0 VND API Call):** Ưu tiên chạy Local LLM qua Ollama trên GPU phần cứng máy (RTX 3050). Mở rộng AI Gateway hỗ trợ Gemini API (bản Free/Quota an toàn) kết hợp cơ chế thử lại có giới hạn và tự động fallback về Ollama.
+2. **Chi phí AI tối ưu (0 VND API Call):** Chạy Local LLM độc quyền qua Ollama (`qwen2.5:0.5b`) trên máy cá nhân của người dùng. Trên môi trường cloud (Render), AI Gateway tự động cách ly an toàn (`LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD`), không loopback, không phát sinh chi phí API.
 3. **Trung thực về dữ liệu (Truthful & Evidence-Bound):** Tuyệt đối không để AI tự bịa đặt (hallucinate) các chỉ số tài chính hay mục tiêu giá. Mọi phân tích định lượng đều được trích xuất từ các công cụ đọc dữ liệu chỉ đọc (read-only tools). Khi thiếu dữ liệu, hệ thống bắt buộc phải trả về trạng thái `INSUFFICIENT_DATA` hoặc `STALE`, không tự động gán giá trị mặc định là 0.
 4. **Point-In-Time (PIT) Integrity:** Dữ liệu lịch sử và backtest không được vi phạm lỗi nhìn trước tương lai (Look-ahead bias). Mọi dữ liệu phải có nhãn thời gian thu thập và thời gian công bố chính thức (`publication_date <= as_of_date`).
 
@@ -105,8 +105,7 @@ Quá trình phát triển đã trải qua 7 giai đoạn chính (Phase 0 đến 
   + Hỗ trợ Progressive Web App (PWA): `manifest.json`, Service Worker `sw.js`, thông báo mất mạng Offline Banner.
   + Endpoint giám sát hệ thống chi tiết: `/api/v1/system/observability`.
 
-### Giai đoạn Mở rộng Mới Nhất (Multi-Provider Expansion & BCTC Finfo)
-- **Gemini AI Gateway (`services/ai/gateway.py`, `services/ai/gemini_provider.py`):** Triển khai Gateway thông minh sử dụng Gemini 3.8 Flash, cài đặt giới hạn 5 lần thử (bounded retry) và cơ chế tự động chuyển vùng dự phòng (failover) sang Ollama nếu Gemini gặp sự cố.
+- **Local Ollama AI Gateway (`services/ai/gateway.py`, `services/ai/providers.py`):** Triển khai Gateway thông minh sử dụng độc quyền Local Ollama (`qwen2.5:0.5b`), cách ly môi trường cloud bằng trạng thái minh bạch `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD`.
 - **Mở rộng các nguồn cấp dữ liệu công khai miễn phí:**
   1. `DNSE` (Entrade): Lấy nến OHLCV qua API đồ thị công khai, đã nạp thành công dữ liệu thật của FPT vào PostgreSQL có lineage.
   2. `Vietstock`: Lấy tin tức tài chính công khai trong ngày vào bảng `events`.
@@ -123,12 +122,12 @@ Quá trình phát triển đã trải qua 7 giai đoạn chính (Phase 0 đến 
 ## 3. HIỆN TRẠNG KIỂM THỬ & VẬN HÀNH THỰC TẾ
 
 ### 1. Kết quả kiểm thử tự động (Unit & Integration Tests)
-- **Số lượng test:** **177 passed, 0 failed, 1 warning** (chạy hoàn thành trong 66 giây).
+- **Số lượng test:** **204 passed, 0 failed, 1 warning** (chạy hoàn thành trong 91 giây).
 - **Phạm vi kiểm thử bao phủ toàn bộ:**
   + Kiến trúc dữ liệu Phase 1, Lineage, Point-in-time, Idempotency.
   + Toán học định giá DCF, Residual Income, P/E, P/B, kiểm soát ngoại lệ mẫu số âm.
   + Tính toàn vẹn của Risk Engine và Opportunity Engine (không chứa logic gán điểm tĩnh theo mã).
-  + Bộ định tuyến AI Gateway Gemini, cơ chế failover sang Ollama, kiểm tra bảo mật không lộ secret.
+  + Bộ định tuyến AI Gateway Ollama, kiểm tra bảo mật không lộ secret, cách ly cloud.
   + Các luồng Ingestion mới: DNSE, Vietstock, VNDirect, World Bank, Free FX, GDELT, BLS v1.
   + Khấu trừ chi phí và kiểm toán Look-ahead trong Backtest Engine.
 
@@ -179,9 +178,8 @@ flowchart TB
     end
 
     subgraph AI_Layer["Trí Tuệ Nhân Tạo & Tự Động Hóa"]
-        GW["AI Gateway"]
-        M1["Gemini 3.8 Flash (Upstream)"]
-        M2["Local Ollama qwen2.5 (RTX 3050 GPU Fallback)"]
+        GW["AI Gateway (Cloud-Isolated)"]
+        M1["Local Ollama qwen2.5:0.5b (127.0.0.1:11434)"]
         T["Whitelisted Read-Only AITools"]
         RAG["Local Document RAG"]
         SCH["Analyst Automation Scheduler"]
@@ -253,8 +251,8 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
 
 ### Điểm nghẽn 4: Tài nguyên AI & Kho tài liệu RAG thực tế (Document Corpus)
 * **Bản chất vấn đề:**
-  - **Cấu hình phần cứng vs Lựa chọn mô hình Local:** Máy của người dùng trang bị card đồ họa laptop RTX 3050 (VRAM 4GB). Trong khi đó file `.env` đang cấu hình `OLLAMA_DEFAULT_MODEL=qwen2.5:7b`. Mô hình 7B cần tối thiểu 5.5GB - 6GB VRAM để chạy mượt mà ở định dạng 4-bit; nếu chạy trên 4GB VRAM sẽ bị tràn sang RAM hệ thống (system RAM), dẫn đến tốc độ sinh token bị chậm đáng kể khi phân tích bài viết dài.
-  - **Kết nối Gemini API:** Mặc dù đã có code gateway xử lý 5 lần thử, nhưng trong thực tế gọi trực tiếp ra Google AI đôi khi gặp HTTP 503 hoặc giới hạn đường truyền quốc tế.
+  - **Cấu hình phần cứng & Mô hình Local:** Đã chuẩn hóa chọn mô hình đã cài đặt thực tế `qwen2.5:0.5b` (kích thước ~397MB, định dạng GGUF Q4_K_M). Mô hình chạy nhẹ nhàng trên GPU/CPU, sinh phản hồi trong <3s mà không bị tràn RAM.
+  - **Loại bỏ hoàn toàn Gemini:** Dự án đã gỡ bỏ 100% mã nguồn, cấu hình và phụ thuộc Gemini (`google-genai`), chuyển sang dùng duy nhất Local Ollama. Trên Render Cloud, hệ thống tự động trả về `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD` một cách minh bạch, trung thực, không cố kết nối localhost để tránh timeout/lag.
   - **Kho tài liệu RAG chưa được nạp (Empty Document Corpus):** Hệ thống RAG (`services/research/rag.py`) đã hoàn thiện toàn bộ mã nguồn xử lý và kiểm thử, nhưng **chưa có crawler nạp tài liệu thật** (Bản cáo bạch niêm yết, Báo cáo thường niên các năm, Nghị quyết ĐHCĐ, Báo cáo phân tích của các CTCK). Hiện tại RAG chỉ chạy trên các tài liệu mẫu (fixture documents).
 
 ---
@@ -347,7 +345,7 @@ Dù hệ thống đã đạt mức độ hoàn thiện kiểm thử nội bộ 1
   + **Database:** Neon PostgreSQL Free (SSL required, connection pool limits 5/10/300, cold-start bounded retry, cấm tuyệt đối SQLite fallback trên cloud).
   + **Bảo mật & Private Authentication:** Cookie server-side `investintel_session` (`HttpOnly`, `SameSite=Strict`, `Path=/`, 7-day TTL), băm mật khẩu PBKDF2-HMAC-SHA256 (600.000 vòng), rate-limit chống brute-force, CSRF/Origin allowlist. Toàn bộ private endpoints (`/portfolio`, `/watchlist`, `/research`, etc.) trả về 401 Unauthorized nếu chưa đăng nhập.
   + **Lập lịch Idempotent Cron:** Vô hiệu hóa loop in-process khi chạy trên cloud để tránh xung đột task; cung cấp 2 endpoint cron `POST /api/v1/system/cron/run-ingestion` và `POST /api/v1/system/cron/run-analyst`, xác thực `X-Cron-Secret` qua `hmac.compare_digest`, hỗ trợ payload rỗng `Body(None)` tương thích cron-job.org, ghi nhận lịch sử vào `analyst_automation_jobs`.
-  + **AI Gateway Zero-Budget:** Chuỗi ưu tiên Gemini (tối đa 5 lần thử) → Groq → OpenRouter (chỉ model free kết thúc bằng `:free`) → Ollama (khi có mạng an toàn) → Typed `AI_UNAVAILABLE`. Giữ vững nguyên tắc `AI_ALLOW_PAID_APIS=false`.
+  + **Local Ollama AI Gateway:** Sử dụng độc quyền Local Ollama (`qwen2.5:0.5b`). Trên cloud Render, AI Gateway trả về minh bạch `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD`, đảm bảo không gọi loopback gây treo container và không phát sinh bất kỳ chi phí API nào (`AI_MONTHLY_BUDGET_USD=0`).
 
 ### 5. Rà soát & Chuẩn hóa Unicode / Tiếng Việt toàn bộ UI (UI Unicode Integrity Audit)
 - **Phạm vi kiểm tra:** Quét toàn diện 119 file mã nguồn giao diện và API routers trong `apps/web/src`, `apps/api/routers`, và `services`.

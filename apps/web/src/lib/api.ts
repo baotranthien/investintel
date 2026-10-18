@@ -449,7 +449,13 @@ export type AICitation = {
 };
 
 export type AIStatus = {
-  status: "HEALTHY" | "DEGRADED" | "UNAVAILABLE" | "NOT_CONFIGURED";
+  status:
+    | "HEALTHY"
+    | "DEGRADED"
+    | "UNAVAILABLE"
+    | "NOT_CONFIGURED"
+    | "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"
+    | "MODEL_NOT_FOUND";
   available: boolean;
   provider: string;
   version?: string | null;
@@ -724,4 +730,4 @@ export const getAutomationAlerts = (params?: Record<string, string>, signal?: Ab
 };
 
 export const getAutomationAlert = (id: string, signal?: AbortSignal) =>
-  apiGet<AutomationAlert>(`/api/v1/automation/alerts/${encodeURIComponent(id)}`, signal);
+  apiGet<AutomationAlert>(`/api/v1/automation/alerts/${encodeURIComponent(id)}`, signal);

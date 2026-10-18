@@ -144,6 +144,8 @@ async def system_info():
         active_prov = gw_st.get("active_provider") or "none"
         if gw_st.get("available"):
             ai_status = f"AI available ({active_prov})"
+        elif gw_st.get("status") == "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD":
+            ai_status = "Local Ollama not available in cloud"
         else:
             ai_status = f"AI unavailable ({active_prov})"
     except Exception:
@@ -192,16 +194,14 @@ async def system_observability():
         ai_status = gw_st.get("status", "UNAVAILABLE")
         active_prov = gw_st.get("active_provider") or "none"
         ai_available = bool(gw_st.get("available", False))
-        ai_model = (
-            gw_st.get("providers", {}).get(active_prov, {}).get("model")
-            if active_prov in gw_st.get("providers", {})
-            else None
-        )
-    except Exception:
+        ai_model = gw_st.get("configured_models", {}).get("primary") if ai_available else None
+        ai_reason = gw_st.get("reason")
+    except Exception as exc:
         ai_status = "UNAVAILABLE"
         active_prov = "none"
         ai_available = False
         ai_model = None
+        ai_reason = str(exc)
 
     # Background Job & Data Freshness statistics
     job_stats = {"total": 0, "success": 0, "failed": 0, "running": 0}
@@ -278,6 +278,7 @@ async def system_observability():
                 "provider": active_prov,
                 "available": ai_available,
                 "model": ai_model,
+                "reason": ai_reason,
             },
         },
         "background_jobs": job_stats,
