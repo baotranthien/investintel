@@ -109,15 +109,16 @@ async def get_cron_history(
             ],
             "recent_runs": [
                 {
-                    "id": r.id,
-                    "run_type": r.run_type,
+                    "run_id": r.run_id,
+                    "provider": r.provider,
+                    "dataset": r.dataset,
                     "status": r.status,
                     "started_at": r.started_at.isoformat() if r.started_at else None,
-                    "completed_at": r.completed_at.isoformat() if r.completed_at else None,
-                    "records_staged": r.records_staged,
-                    "records_promoted": r.records_promoted,
+                    "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+                    "records_fetched": r.records_fetched,
+                    "records_inserted": r.records_inserted,
                     "records_rejected": r.records_rejected,
-                    "error_message": r.error_message,
+                    "errors": r.errors,
                 }
                 for r in runs
             ],
