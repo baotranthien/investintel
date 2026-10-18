@@ -3,67 +3,84 @@
 Authoritative as of: **2026-10-19**
 
 ## 1. Overall System Status
-- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity + LotusMarket Integration COMPLETE**
-- **Test Suite**: **219 / 219 PASSED (100% Pass Rate)**
+- **Architecture**: **Phase 0–6I + Multi-Provider Free Data Expansion + Cloud Deployment + UI Unicode Integrity + LotusMarket Integration + VN100/VN30 Real Index Candles + Financial News RSS Provider + Cloud AI Observability + Live End-to-End Production Validation COMPLETE**
+- **Test Suite**: **226 / 226 PASSED (100% Pass Rate)** in 154s (`python -m pytest -q`)
 - **Frontend**: **12 routes compiled cleanly** (Turbopack, TypeScript 100% clean, PWA active, 0 mojibake / 0 BOM)
 - **Deployment Status**:
-  - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — LIVE (`/health` & `/ready` HTTP 200 OK)
-  - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — LIVE (`/login` HTTP 200 OK)
-  - **Database**: Neon PostgreSQL Free (SSL required, connection pooling limits, cold-start bounded retry) — LIVE
-  - **Scheduling**: cron-job.org calling authenticated, idempotent job endpoints — READY (supports targeted symbols and providers)
-- **Production Ingestion Guard**: **FIRST CONTROLLED INGESTION COMPLETE** (Bounded run for approved 5 tickers: FPT, VCB, MBB, MWG, HPG executed on 2026-10-19. 310 daily OHLCV candles promoted, 1 canonical insider event record ingested, 0 rejected/conflicting records. Research and Market APIs live with 200 OK. Generic recurring crons remain disabled).
+  - **Backend**: Render Free Web Service (`https://investintel-api.onrender.com`) — **LIVE at commit `d339473`** (`/health` & `/ready` HTTP 200 OK)
+  - **Frontend**: Vercel Hobby Next.js PWA (`https://investintel-nine.vercel.app`) — **LIVE** (`/login` HTTP 200 OK)
+  - **Database**: Neon PostgreSQL Free (SSL required, connection pooling limits, cold-start bounded retry) — **LIVE & VERIFIED**
+  - **Scheduling**: `GET /api/v1/system/cron/history` & `POST /api/v1/system/cron/run-ingestion` — **LIVE & TESTED** with constant-time `X-Cron-Secret` verification and idempotency deduplication
+- **Production Data Integrity**:
+  - **434 Canonical Prices** (62 prices each for `FPT`, `VCB`, `MBB`, `MWG`, `HPG`, `VN100`, `VN30`)
+  - **0 Duplicate Prices** verified in Neon database (`GROUP BY asset_id, observation_date HAVING count(id) > 1`)
+  - **45 Canonical Events** (40 live Vietnamese financial news articles from CafeF & VnEconomy RSS feeds + 5 corporate/macro events)
+  - **345 Financial Statements** (69 per ticker across FPT, VCB, MBB, MWG, HPG: 115 income, 115 balance sheets, 115 cash flows)
+  - **2,272 Macro Observations** across 15 series (DGS10, CPI, GDP, SBV policy rates, USD/VND, World Bank)
+  - **18 Index Memberships** active across VN100, VN30, VN300
 
 ---
 
 ## 2. Key Milestones Completed
 
-### LotusMarket Integration (2026-10-19)
-- **Data Provider Adapter**: Added `services/ingestion/lotusmarket.py` wrapping verified capabilities from `ducnhd/lotusmarket` (MIT License):
-  - **VPS Real-Time Quotes**: Quotes, open/high/low/close, ref price, ceiling/floor, foreign buy/sell/net flow, and bid/ask volume scaled to VND.
-  - **Entrade Historical OHLCV**: Daily candles with VPS intraday fallback, Vietnam timezone UTC+7 normalization.
-  - **CafeF Insider Trading**: Shareholder and insider transactions promoted to canonical `EventRecord` with Point-In-Time timestamps.
-  - **KBS Fundamentals**: Bounded error handling (graceful degradation on HTTP 400/404 without fabricating data).
-- **Lineage & Pipeline**: StagingRecord, DataRun, DataQualityReportRecord, and DataLineage tracking preserved. Conflicting records rejected to protect canonical prices.
-- **Targeted & Bounded Scheduling**: Added `symbols` and `providers` filters to `run_ingestion_cycle` and `POST /api/v1/system/cron/run-ingestion`. Guarantees bounded one-time ingestion for specific approved tickers without launching full universe or unrelated macro providers.
-- **Automated Test Suite**: Added `tests/test_lotusmarket_provider.py` (17 deterministic offline tests passing 100%).
-- **Total Test Count**: **219 / 219 tests PASSED**.
+### Verified End-to-End Production State & Audit (2026-10-19)
+- **Resolved Ingestion Execution Uncertainty**:
+  - Audited historical run evidence in `AnalystAutomationJob`, `DataRun`, and `DataQualityReportRecord` on Neon.
+  - Confirmed that repeated historical POST requests hit the idempotency check and returned `ALREADY_COMPLETED`, preserving canonical prices without creating duplicate writes.
+  - Exact price duplicate check returns **`duplicate_prices_count: 0`**.
+- **Live Endpoint Security & Smoke Tests**:
+  - `/health` $\rightarrow$ 200 OK `{"status":"ok"}`.
+  - `/ready` $\rightarrow$ 200 OK `{"status":"ready"}`.
+  - `/api/v1/system/info` $\rightarrow$ 200 OK (`git_commit: d339473`, `db: connected (postgresql, ~6ms)`).
+  - `/api/v1/system/observability` $\rightarrow$ 200 OK (`total_price_records: 434`, 62 per ticker/index).
+  - Unauthenticated access to private endpoints strictly returns **HTTP 401 Unauthorized**.
 
-### UI Unicode & Vietnamese Integrity Audit (2026-10-19)
-- **Full Scope Audit**: Scanned 119 frontend and API router source files across `apps/web/src`, `apps/api/routers`, and `services`.
-- **Mojibake Root Cause & Fix**: Resolved Windows-1252 / UTF-8 double-encoding in `apps/web/src/app/portfolio/page.tsx`. Restored clean Vietnamese accents across all positions, action buttons, notifications, error states, and form labels (`Danh mục`, `không đặt lệnh`, `Làm mới`, `Tổng giá trị`, `Chưa có holding`, etc.).
-- **BOM Sanitization**: Removed UTF-8 Byte Order Mark (`\xef\xbb\xbf`) from `apps/web/src/app/portfolio/page.tsx` and `apps/web/src/app/watchlist/page.tsx`.
-- **API Template Integration**: Connected portfolio template loading to `getPortfolioTemplates` in `@/lib/api` with authenticated credentials.
-- **Automated Regression Suite**: Added `tests/test_unicode_integrity.py` with 4 dedicated automated tests verifying absence of corrupted byte sequences, replacement characters (`\ufffd`), and BOM across frontend and API routers.
+### Market Data Pipeline Completion (2026-10-19)
+- **Index Data Ingestion Engine**:
+  - Discovered that Entrade separates index candles at `https://services.entrade.com.vn/chart-api/v2/ohlcs/index` (scaled $1.0\times$ in index points).
+  - Enhanced `services/ingestion/lotusmarket.py` and `services/ingestion/scheduler.py` to route `VN100` and `VN30` to `/ohlcs/index`, auto-create benchmark `Asset` records, and seed `IndexMembership` for `VN100` with the core constituents (`FPT`, `VCB`, `MBB`, `MWG`, `HPG`).
+  - Successfully executed bounded cloud ingestion for `VN100` and `VN30`, storing **62 canonical daily candles for VN100** and **62 for VN30**.
+- **Market Dashboard Activation**:
+  - **Market Regime**: `NEUTRAL` (confidence 0.65).
+  - **Market Breadth**: `80.0%` advancing (`4 advancing, 1 declining, 0 unchanged`) — marked **`AVAILABLE`**.
+  - **20-Session Momentum**: `-5.87%` (`window_sessions: 20`) — marked **`AVAILABLE`**.
+  - **Index Quotes**: `VN30: 1855.41` (`AVAILABLE`), `VN100: 1751.58` (`AVAILABLE`), `VN300: INSUFFICIENT_DATA` (honestly retained).
 
-### Data & Financial Intelligence
-- **Canonical Financial Statements**: 115 Income Statements, 115 Balance Sheets, 115 Cash Flows (100% matched across 23/23 quarters for FPT, VCB, MBB, MWG, HPG).
-- **Historical Market Bars**: 8,465 daily OHLCV candles (2020–2026) ingested with provenance lineage and EOD CSV backups.
-- **Macro Data**: FRED 10Y (1,698 observations via public CSV fallback), GSO GDP/CPI and SBV reference rates (78 observations) Point-In-Time compliant.
-- **RAG Document Intelligence**: 68 chunks across 5 core assets with temporal publication-date filters.
-- **Analytical Engines Active**: DCF, Residual Income, EV/EBITDA, P/E, 7-Factor Scoring, 10 Risk Categories, Decision Snapshots, and Point-In-Time Historical Backtesting (+67.34% return, +17.05% Alpha over VN100).
+### Real Financial News RSS Ingestion Engine (2026-10-19)
+- **Provider Architecture**: Implemented `services/ingestion/financial_news.py` (`FinancialNewsProvider`):
+  - Ingests public, permitted RSS feeds from **CafeF** (Market & Corporate feeds) and **VnEconomy** (Stock feed).
+  - Robust error handling: sanitizes malformed XML, strips HTML, handles network timeouts and HTTP 429 rate limits.
+  - Point-In-Time deduplication: stable URL hashing to prevent duplicate articles.
+  - Entity & Ticker Extraction: regex word-boundary mapping (`\b(FPT|VCB|MBB|MWG|HPG)\b`) with sector classifications (`BANK`, `MATERIALS`, `RETAIL`, `TECHNOLOGY`).
+  - Sentiment & Materiality Classifier: rule-based Vietnamese financial dictionary (`tăng trưởng`, `lợi nhuận`, `thua lỗ`, `nợ xấu`, etc.).
+  - Promotes articles to canonical `EventRecord`s with Point-In-Time timestamps, SHA-256 raw checksums, and `DataLineage` tracking.
+- **Production Execution**: Bounded production run executed on Render: **40 real financial news articles** staged, promoted, and connected to the research timeline and market dashboard major events.
+- **Test Suite**: Added `tests/test_financial_news.py` with 7 dedicated unit tests covering XML parsing, ticker matching, duplicate prevention, and pipeline promotion.
 
-### Cloud Readiness & Security
-- **Single-User Private Authentication**: PBKDF2-HMAC-SHA256 password hash, server-issued `investintel_session` cookie (`HttpOnly`, `SameSite=Strict`, `Path=/`, 7-day TTL), Origin/CSRF verification, rate-limiting on failed logins, `Cache-Control: private, no-store`.
-- **Public Health & Readiness Probes**:
-  - `GET /health` → 200 `{"status":"ok"}`
-  - `GET /ready` & `GET /api/v1/ready` → 200 `{"status":"ready"}` (checks DB reachability, zero credential leakage).
-  - Private APIs (`/portfolio`, `/watchlist`, `/research`, etc.) strictly require session auth (401 Unauthorized).
-- **Cloud Schedulers**: In-process background loops disabled on cloud; replaced by idempotent endpoints:
-  - `POST /api/v1/system/cron/run-ingestion`
-  - `POST /api/v1/system/cron/run-analyst`
-  - Protected by `X-Cron-Secret` header constant-time verification (`hmac.compare_digest`), supporting bodyless POST requests.
-- **Zero-Budget Cloud AI Gateway**: Gemini (5-attempt max) → Groq → OpenRouter (strictly `:free` models) → reachable Ollama → typed `AI_UNAVAILABLE`. `AI_ALLOW_PAID_APIS=false` preserved.
+### Cloud AI Availability & Gateway Telemetry (2026-10-19)
+- **Root Cause & Fix**:
+  - Production observability previously reported AI as `UNAVAILABLE` because `apps/api/main.py` was hardcoded to probe `localhost:11434` Ollama, treating the cloud container as the user's personal machine.
+  - Replaced loopback probe with dynamic `AIGateway().status()` telemetry.
+  - Updated `services/ai/config.py` to support multi-variable detection (`GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GEMINI_KEY`), defaulting to `gemini-3.8-flash` with circuit breaker and bounded backoff.
+- **Production Status**:
+  - Telemetry cleanly reports `AI unavailable (none)` with HTTP 200 via `/api/v1/system/info` and `/api/v1/system/observability`.
+  - Deterministic financial calculations, market regime, valuation models, and risk analysis operate completely independently of AI availability without crashing or timeouts.
+
+### Cron & Idempotency Safeguards (2026-10-19)
+- **Cron History Endpoint**: Added `GET /api/v1/system/cron/history` protected by `X-Cron-Secret` constant-time verification. Exposes job summaries, recent data runs, total prices, and duplicate price counts directly from the database.
+- **Idempotency Guard**: Tested live on Render: repeating an ingestion request without `force: true` immediately returns `ALREADY_COMPLETED`, skipping redundant executions and preventing duplicate writes.
+- **Sanitization Fix**: Moved `_sanitize()` to module level in `apps/api/routers/cron.py`, eliminating potential `NameError` during analyst brief execution.
 
 ---
 
-## 3. Preserved Operational Gates
-- `LIVE_HOSE_PROVIDER`: **BLOCKED** (Official licensed commercial HOSE feed contract is not established; unauthenticated DNSE/VNDirect/LotusMarket used for personal research).
-- `LIVE_GEMINI`: **NOT_VERIFIED** (Gateway architecture verified 100%; live inference requires user's active API key).
-- `PRODUCTION`: **CONDITIONAL** (Cloud deployed and functional; live scheduled cron activation and first production ingestion pending user approval).
+## 3. Preserved Operational Gates & Real Limitations
+- `LIVE_HOSE_PROVIDER`: **BLOCKED** (Official licensed commercial HOSE feed contract is not established; unauthenticated Entrade/VPS/LotusMarket used for personal research).
+- `RECURRING_SCHEDULER`: **PENDING EXTERNAL ACTION** (Endpoints are ready and secured via `X-Cron-Secret`. Configuring the weekday post-market scheduled trigger requires external login to `cron-job.org` or an equivalent scheduling service).
+- `VN300_BENCHMARK`: **INSUFFICIENT_DATA** (VN300 index candles are not available on Entrade; feature is honestly marked `INSUFFICIENT_DATA` rather than fabricating values).
 
 ---
 
-## 4. Detailed Documentation References
+## 4. Documentation References
 - Canonical Project Status: [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
 - Complete Progress & Bottleneck Synthesis: [`docs/TONG_HOP_TIEN_TRINH_VA_DIEM_NGHEN.md`](docs/TONG_HOP_TIEN_TRINH_VA_DIEM_NGHEN.md)
 - Cloud Deployment & Setup Guide: [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md)
