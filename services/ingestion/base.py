@@ -19,6 +19,8 @@ class MarketDataPoint(BaseModel):
     high: float | None = None
     low: float | None = None
     volume: float | None = None
+    adjusted_close: float | None = None
+    turnover: float | None = None
 
 class BaseProvider(ABC):
     def __init__(self, name: str):

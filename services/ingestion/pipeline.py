@@ -7,10 +7,14 @@ Never silently drops records; rejected records are inspectable in StagingRecord.
 import uuid
 import hashlib
 import math
-from datetime import datetime, date, timezone
+import logging
+import urllib.parse
+from datetime import datetime, date, timezone, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+
+logger = logging.getLogger(__name__)
 
 from database.models import (
     DataSource,
@@ -215,33 +219,104 @@ class IngestionPipeline:
             checksum = hashlib.sha256(str(raw).encode("utf-8")).hexdigest()
 
             if existing_price:
-                incoming = {
-                    "raw_open": raw.get("open"),
-                    "raw_high": raw.get("high"),
-                    "raw_low": raw.get("low"),
-                    "raw_close": float(raw["close"]),
-                    "adjusted_close": float(raw.get("adjusted_close", raw["close"])),
-                    "volume": raw.get("volume"),
-                }
-                if any(getattr(existing_price, key) != value for key, value in incoming.items()):
+                inc_raw_close = float(raw["close"])
+                inc_adj_close = float(raw.get("adjusted_close") or raw["close"])
+                inc_raw_open = float(raw["open"]) if raw.get("open") is not None else None
+                inc_raw_high = float(raw["high"]) if raw.get("high") is not None else None
+                inc_raw_low = float(raw["low"]) if raw.get("low") is not None else None
+                inc_vol = float(raw["volume"]) if raw.get("volume") is not None else None
+                inc_turnover = float(raw["turnover"]) if raw.get("turnover") is not None else None
+
+                def _close_match(a: Optional[float], b: Optional[float]) -> bool:
+                    if a is None and b is None:
+                        return True
+                    if a is None or b is None:
+                        return False
+                    return math.isclose(float(a), float(b), rel_tol=1e-3, abs_tol=10.0)
+
+                def _vol_match(a: Optional[float], b: Optional[float]) -> bool:
+                    if a is None or b is None:
+                        return True
+                    if float(a) == 0.0 or float(b) == 0.0:
+                        return True
+                    return math.isclose(float(a), float(b), rel_tol=1e-2, abs_tol=10.0)
+
+                # Case 1: Exact / close match on raw_close and volume
+                if _close_match(existing_price.raw_close, inc_raw_close) and _vol_match(existing_price.volume, inc_vol):
+                    if (existing_price.adjusted_close is None or existing_price.adjusted_close == 0) and inc_adj_close > 0:
+                        existing_price.adjusted_close = inc_adj_close
+                        existing_price.adjustment_factor = inc_adj_close / existing_price.raw_close if existing_price.raw_close > 0 else 1.0
+                    if inc_turnover is not None and (existing_price.turnover is None or existing_price.turnover == 0):
+                        existing_price.turnover = inc_turnover
+                    if (existing_price.volume is None or existing_price.volume == 0) and inc_vol is not None and inc_vol > 0:
+                        existing_price.volume = inc_vol
+                    if provider not in (existing_price.source or ""):
+                        existing_price.source = f"{existing_price.source}+{provider}"
+                    canonical_id = existing_price.id
+
+                # Case 2: Corporate action resolution
+                # Existing raw_close was previously populated with an adjusted price (e.g. from Entrade/LotusMarket)
+                # and incoming provider (e.g. VNDIRECT) provides both the true unadjusted raw close and matching adjusted close:
+                elif (
+                    not _close_match(inc_raw_close, inc_adj_close)
+                    and _close_match(existing_price.raw_close, inc_adj_close)
+                    and _vol_match(existing_price.volume, inc_vol)
+                ):
+                    existing_price.raw_open = inc_raw_open if inc_raw_open is not None else existing_price.raw_open
+                    existing_price.raw_high = inc_raw_high if inc_raw_high is not None else existing_price.raw_high
+                    existing_price.raw_low = inc_raw_low if inc_raw_low is not None else existing_price.raw_low
+                    existing_price.raw_close = inc_raw_close
+                    existing_price.adjusted_close = inc_adj_close
+                    existing_price.adjustment_factor = inc_adj_close / inc_raw_close if inc_raw_close > 0 else 1.0
+                    if inc_turnover is not None and (existing_price.turnover is None or existing_price.turnover == 0):
+                        existing_price.turnover = inc_turnover
+                    if (existing_price.volume is None or existing_price.volume == 0) and inc_vol is not None and inc_vol > 0:
+                        existing_price.volume = inc_vol
+                    if provider not in (existing_price.source or ""):
+                        existing_price.source = f"{existing_price.source}+{provider}"
+                    canonical_id = existing_price.id
+                    logger.info(
+                        "Resolved adjusted vs raw price basis for %s on %s: raw=%s, adj=%s (source=%s)",
+                        symbol, obs_d, inc_raw_close, inc_adj_close, existing_price.source
+                    )
+
+                # Case 3: Existing has true raw, incoming has adjusted close
+                elif (
+                    (_close_match(existing_price.adjusted_close, inc_raw_close) or _close_match(existing_price.adjusted_close, inc_adj_close))
+                    and _vol_match(existing_price.volume, inc_vol)
+                ):
+                    if (existing_price.volume is None or existing_price.volume == 0) and inc_vol is not None and inc_vol > 0:
+                        existing_price.volume = inc_vol
+                    if provider not in (existing_price.source or ""):
+                        existing_price.source = f"{existing_price.source}+{provider}"
+                    canonical_id = existing_price.id
+
+                # Case 4: Genuine conflicting observation
+                else:
                     staging.status = "REJECTED"
-                    staging.validation_errors = [
-                        "Conflicting observation already exists; historical canonical price was preserved"
-                    ]
+                    reason = (
+                        f"Conflicting observation on {obs_d}: existing {existing_price.source} "
+                        f"(raw={existing_price.raw_close}, adj={existing_price.adjusted_close}, vol={existing_price.volume}) "
+                        f"vs incoming {provider} (raw={inc_raw_close}, adj={inc_adj_close}, vol={inc_vol}); canonical preserved"
+                    )
+                    staging.validation_errors = [reason]
                     rejected_items.append((staging, raw, staging.validation_errors))
                     continue
-                canonical_id = existing_price.id
             else:
-                # Insert new canonical price
+                raw_close_val = float(raw["close"])
+                adj_close_val = float(raw.get("adjusted_close") or raw["close"])
+                adj_factor = adj_close_val / raw_close_val if raw_close_val > 0 else 1.0
                 new_price = Price(
                     asset_id=asset.id,
                     observation_date=obs_d,
                     raw_open=raw.get("open"),
                     raw_high=raw.get("high"),
                     raw_low=raw.get("low"),
-                    raw_close=float(raw["close"]),
-                    adjusted_close=float(raw.get("adjusted_close", raw["close"])),
+                    raw_close=raw_close_val,
+                    adjusted_close=adj_close_val,
+                    adjustment_factor=adj_factor,
                     volume=raw.get("volume"),
+                    turnover=raw.get("turnover"),
                     source=provider,
                     data_quality_score=1.0,
                     status="VALID"
@@ -490,18 +565,26 @@ class IngestionPipeline:
         articles: List[Dict[str, Any]],
         source_url: str,
         source_id: Optional[int] = None,
+        dataset: str = "news_events",
     ) -> Dict[str, Any]:
         """
         Executes Raw -> Staging -> Validation -> Canonical Promotion for News & Events.
-        Produces full provenance and data quality report.
+        Produces explicit article accounting, URL normalization, and full provenance.
         """
-        run = self.start_run(provider, "news_events")
+        run = self.start_run(provider, dataset)
         started_at = datetime.now(timezone.utc)
         now = datetime.now(timezone.utc)
 
-        # 1. Staging
+        # 1. Staging & URL Parsing
         staged_items: List[Tuple[StagingRecord, Dict[str, Any], Optional[datetime]]] = []
+        items_usable_url = 0
+        items_rejected_parsing = 0
+
         for rec in articles:
+            raw_url = str(rec.get("url") or "").strip()
+            if raw_url.startswith("http://") or raw_url.startswith("https://"):
+                items_usable_url += 1
+
             pub_at = rec.get("published_at")
             if isinstance(pub_at, str):
                 try:
@@ -525,7 +608,7 @@ class IngestionPipeline:
                 run_id=run.run_id,
                 source_id=source_id,
                 provider=provider,
-                dataset="news_events",
+                dataset=dataset,
                 raw_payload=json_payload,
                 status="PENDING",
                 retrieved_at=now,
@@ -537,11 +620,12 @@ class IngestionPipeline:
 
         self.session.flush()
 
-        # 2. Validation
+        # 2. Validation & Point-In-Time Rules
         valid_items = []
         rejected_items = []
         seen_keys = set()
         duplicates_count = 0
+        items_skipped_pit = 0
 
         for staging, raw, pub_dt in staged_items:
             rec_with_pub = dict(raw)
@@ -549,6 +633,19 @@ class IngestionPipeline:
                 rec_with_pub["published_at"] = pub_dt
 
             is_valid, errors = DataQualityChecker.validate_news_row(rec_with_pub)
+            if not is_valid:
+                items_rejected_parsing += 1
+
+            # Point-in-time check: publication date cannot be > now + 1 hour or < year 2000
+            if is_valid and pub_dt:
+                if pub_dt > now + timedelta(hours=1):
+                    is_valid = False
+                    errors.append(f"Publication date violates point-in-time: future timestamp {pub_dt.isoformat()}")
+                    items_skipped_pit += 1
+                elif pub_dt.year < 2000:
+                    is_valid = False
+                    errors.append(f"Publication date violates point-in-time: stale timestamp {pub_dt.isoformat()}")
+                    items_skipped_pit += 1
 
             dedup_key = raw.get("id") or raw.get("url") or raw.get("title")
             if dedup_key in seen_keys:
@@ -568,29 +665,47 @@ class IngestionPipeline:
 
         self.session.flush()
 
-        # 3. Canonical Promotion
+        # 3. Canonical Promotion & Stable Identity
         promoted_count = 0
         inserted_count = 0
+        deduplicated_count = 0
 
         for staging, raw, pub_dt in valid_items:
             art_id = raw.get("id")
+            raw_url = str(raw.get("url") or "").strip()
+
+            # Canonical URL normalization
+            norm_url = raw_url
+            if raw_url:
+                try:
+                    p = urllib.parse.urlparse(raw_url)
+                    clean_qs = {k: v for k, v in urllib.parse.parse_qs(p.query).items() if not (k.startswith("utm_") or k in {"ref", "fbclid", "source"})}
+                    new_q = urllib.parse.urlencode(clean_qs, doseq=True)
+                    clean_path = p.path.rstrip("/")
+                    norm_url = urllib.parse.urlunparse((p.scheme.lower(), p.netloc.lower(), clean_path, "", new_q, ""))
+                except Exception:
+                    norm_url = raw_url
+
             if art_id:
                 event_id = f"evt-{provider.lower()}-{art_id}"
+            elif norm_url:
+                url_hash = hashlib.sha256(norm_url.encode("utf-8")).hexdigest()[:16]
+                event_id = f"evt-{provider.lower()}-{url_hash}"
             else:
-                hash_key = (raw.get("url") or raw.get("title") or uuid.uuid4().hex).encode("utf-8")
-                event_id = f"evt-{provider.lower()}-{hashlib.md5(hash_key).hexdigest()[:12]}"
+                title_hash = hashlib.sha256(str(raw.get("title", "")).encode("utf-8")).hexdigest()[:16]
+                event_id = f"evt-{provider.lower()}-{title_hash}"
 
             existing_event = self.session.query(EventRecord).filter(EventRecord.id == event_id).first()
-
             checksum = hashlib.sha256(str(raw).encode("utf-8")).hexdigest()
 
             if existing_event:
                 canonical_id = existing_event.id
+                deduplicated_count += 1
             else:
                 title = str(raw.get("title", "")).strip()
                 desc = str(raw.get("snippet") or raw.get("summaryVi") or raw.get("summary") or title).strip()
                 source_name = raw.get("sourceName") or raw.get("source") or provider
-                url = raw.get("url") or source_url
+                url = norm_url or raw_url or source_url
 
                 new_event = EventRecord(
                     id=event_id,
@@ -627,7 +742,7 @@ class IngestionPipeline:
                     staging_id=staging.id,
                     source_id=source_id,
                     source_name=provider,
-                    url_or_path=raw.get("url") or source_url,
+                    url_or_path=norm_url or raw_url or source_url,
                     retrieved_at=staging.retrieved_at,
                     published_at=staging.published_at,
                     observed_period=staging.observed_period,
@@ -645,7 +760,7 @@ class IngestionPipeline:
         quality_report = DataQualityReportRecord(
             run_id=run.run_id,
             provider=provider,
-            dataset="news_events",
+            dataset=dataset,
             as_of_date=date.today(),
             completeness_score=completeness,
             freshness_score=1.0 if total_records > 0 else 0.0,
@@ -655,6 +770,8 @@ class IngestionPipeline:
             summary={
                 "total_records": total_records,
                 "promoted_records": promoted_count,
+                "inserted_new": inserted_count,
+                "deduplicated": deduplicated_count,
                 "rejected_records": len(rejected_items),
                 "rejection_reasons": [e for _, _, errs in rejected_items for e in errs]
             },
@@ -664,31 +781,51 @@ class IngestionPipeline:
 
         # 5. Finalize Run
         run.finished_at = datetime.now(timezone.utc)
-        run.status = (
-            "INSUFFICIENT_DATA" if total_records == 0 else
-            "SUCCESS" if len(rejected_items) == 0 else
-            "PARTIAL" if promoted_count > 0 else "FAILED"
-        )
+        if total_records == 0:
+            run_status = "INSUFFICIENT_DATA"
+        elif len(rejected_items) == 0:
+            run_status = "SUCCESS" if inserted_count > 0 else "IDEMPOTENT_UNCHANGED"
+        elif promoted_count > 0:
+            run_status = "PARTIAL"
+        else:
+            run_status = "FAILED"
+
+        run.status = run_status
         run.records_fetched = total_records
         run.records_inserted = inserted_count
+        run.records_updated = deduplicated_count
         run.records_rejected = len(rejected_items)
         if rejected_items:
             run.errors = f"{len(rejected_items)} articles rejected during validation"
+        if deduplicated_count > 0 and inserted_count == 0:
+            run.warnings = f"{deduplicated_count} articles already present in database (deduplicated)"
 
         self.session.commit()
+
+        accounting = {
+            "fetched": total_records,
+            "usable_url": items_usable_url,
+            "rejected_parsing": items_rejected_parsing,
+            "skipped_point_in_time": items_skipped_pit,
+            "deduplicated": deduplicated_count,
+            "promoted_new": inserted_count,
+            "rejected_other": len(rejected_items) - items_skipped_pit - items_rejected_parsing,
+        }
 
         return {
             "run_id": run.run_id,
             "provider": provider,
-            "dataset": "news_events",
+            "dataset": dataset,
             "status": run.status,
             "records_received": total_records,
             "records_valid": promoted_count,
             "records_inserted": inserted_count,
+            "records_deduplicated": deduplicated_count,
             "records_rejected": len(rejected_items),
             "started_at": started_at.isoformat(),
             "finished_at": run.finished_at.isoformat(),
             "quality_status": status_verdict,
+            "accounting": accounting,
             "rejected_samples": [
                 {"raw": raw, "errors": errs} for _, raw, errs in rejected_items[:5]
             ]

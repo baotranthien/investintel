@@ -24,6 +24,8 @@ class CronTriggerRequest(BaseModel):
     symbols: Optional[list[str]] = None
     providers: Optional[list[str]] = None
     datasets: Optional[list[str]] = None
+    batch_offset: Optional[int] = 0
+    batch_size: Optional[int] = None
 
 
 def _verify_cron_secret(x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret")):
@@ -80,7 +82,7 @@ async def get_cron_history(
         runs = db.query(DataRun).order_by(DataRun.started_at.desc()).limit(limit).all()
         
         total_jobs = db.query(AnalystAutomationJob).count()
-        success_jobs = db.query(AnalystAutomationJob).filter_by(status="SUCCESS").count()
+        success_jobs = db.query(AnalystAutomationJob).filter(AnalystAutomationJob.status.in_(["SUCCESS", "IDEMPOTENT_UNCHANGED"])).count()
         failed_jobs = db.query(AnalystAutomationJob).filter_by(status="FAILED").count()
         
         dup_query = db.query(Price.asset_id, Price.observation_date, func.count(Price.id)).group_by(Price.asset_id, Price.observation_date).having(func.count(Price.id) > 1).all()
@@ -177,13 +179,15 @@ async def run_cron_ingestion(
         sub_key += f"_{'_'.join(sorted(d.upper() for d in body.datasets))}"
     if body.symbols:
         sub_key += f"_{'_'.join(sorted(s.upper() for s in body.symbols))}"
+    if body.batch_size:
+        sub_key += f"_b{body.batch_offset}_{body.batch_size}"
     idempotency_key = f"INGEST{sub_key}_{target_date.isoformat()}" if sub_key else f"INGEST_EOD_{target_date.isoformat()}"
 
     db: Session = SessionLocal()
     try:
         # Check existing job
         job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
-        if job and job.status == "SUCCESS" and not body.force:
+        if job and job.status in ("SUCCESS", "IDEMPOTENT_UNCHANGED") and not body.force:
             logger.info(f"Cron ingestion [{idempotency_key}] already completed. Skipping.")
             return {
                 "status": "ALREADY_COMPLETED",
@@ -215,27 +219,61 @@ async def run_cron_ingestion(
             target_symbols=body.symbols,
             target_providers=body.providers,
             target_datasets=body.datasets,
+            batch_offset=body.batch_offset or 0,
+            batch_size=body.batch_size,
         )
 
-        # Update job status honestly
+        # Deterministic status aggregation & quality summary
         job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
-        is_blocked = any(r.get("status") == "BLOCKED_FLAG_DISABLED" for r in run_results)
-        has_success = any(r.get("status") == "SUCCESS" for r in run_results)
 
-        if not run_results:
+        success_count = sum(1 for r in run_results if r.get("status") in ("SUCCESS", "PASSED"))
+        idempotent_count = sum(1 for r in run_results if r.get("status") == "IDEMPOTENT_UNCHANGED")
+        partial_count = sum(1 for r in run_results if r.get("status") == "PARTIAL")
+        insufficient_count = sum(1 for r in run_results if r.get("status") == "INSUFFICIENT_DATA")
+        skipped_unsupported_count = sum(1 for r in run_results if r.get("status") == "SKIPPED_UNSUPPORTED")
+        blocked_count = sum(1 for r in run_results if str(r.get("status", "")).startswith("BLOCKED"))
+        failed_count = sum(1 for r in run_results if r.get("status") in ("FAILED", "FAILURE"))
+
+        quality_summary = {
+            "total_subresults": len(run_results),
+            "success": success_count,
+            "idempotent_unchanged": idempotent_count,
+            "partial": partial_count,
+            "insufficient_data": insufficient_count,
+            "skipped_unsupported": skipped_unsupported_count,
+            "blocked": blocked_count,
+            "failed": failed_count,
+        }
+
+        actionable_count = len(run_results) - skipped_unsupported_count
+
+        if len(run_results) == 0:
             job_status = "NO_DATA"
             job.error = "No providers or assets were matched for execution."
-        elif has_success:
-            job_status = "SUCCESS"
-        elif is_blocked:
+        elif actionable_count > 0 and failed_count == actionable_count:
+            job_status = "FAILED"
+            job.error = f"All {actionable_count} actionable sub-datasets failed."
+        elif failed_count > 0 or partial_count > 0:
+            job_status = "PARTIAL"
+            job.error = f"Completed with warnings: {failed_count} failed, {partial_count} partial out of {len(run_results)} sub-results."
+        elif (success_count + idempotent_count) > 0:
+            job_status = "SUCCESS" if success_count > 0 else "IDEMPOTENT_UNCHANGED"
+        elif insufficient_count > 0:
+            job_status = "INSUFFICIENT_DATA"
+            job.error = f"No new data returned by upstream providers ({insufficient_count} series reported INSUFFICIENT_DATA)."
+        elif blocked_count > 0:
             job_status = "BLOCKED"
             job.error = "Target provider ingestion flag is disabled in environment."
         else:
-            job_status = "PARTIAL"
+            job_status = "SKIPPED_UNSUPPORTED"
 
         job.status = job_status
         job.finished_at = datetime.datetime.now(datetime.timezone.utc)
-        job.result = _sanitize({"results": run_results, "total_providers": len(run_results)})
+        job.result = _sanitize({
+            "results": run_results,
+            "total_subresults": len(run_results),
+            "quality_summary": quality_summary,
+        })
         db.commit()
 
         return {
@@ -243,6 +281,7 @@ async def run_cron_ingestion(
             "idempotency_key": idempotency_key,
             "as_of_date": target_date.isoformat(),
             "results_count": len(run_results),
+            "quality_summary": quality_summary,
             "results": run_results,
         }
 

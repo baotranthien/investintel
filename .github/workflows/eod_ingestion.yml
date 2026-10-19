@@ -7,18 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       symbols:
-        description: 'Comma-separated ticker symbols (e.g. FPT,VCB,MBB,MWG,HPG,VN100,VN30)'
+        description: 'Target symbols (leave blank for full verified VN100 universe + index candles, or specify comma-separated symbols)'
         required: false
-        default: 'FPT,VCB,MBB,MWG,HPG,VN100,VN30'
+        default: ''
       providers:
-        description: 'Target providers (e.g. LOTUSMARKET,VNDIRECT)'
+        description: 'Target providers (comma-separated, e.g. LOTUSMARKET,VNDIRECT,FINANCIAL_NEWS)'
         required: false
-        default: 'LOTUSMARKET,VNDIRECT'
+        default: 'LOTUSMARKET,VNDIRECT,FINANCIAL_NEWS'
+      datasets:
+        description: 'Target datasets (comma-separated, e.g. PRICES,NEWS)'
+        required: false
+        default: 'PRICES,NEWS'
       force:
         description: 'Force re-run even if already completed'
         type: boolean
         required: false
         default: false
+
+concurrency:
+  group: eod-ingestion
+  cancel-in-progress: false
 
 jobs:
   run-eod-ingestion:
@@ -32,16 +40,21 @@ jobs:
         run: |
           set -e
           API_URL="https://investintel-api.onrender.com/api/v1/system/cron/run-ingestion"
-          
-          # Prepare JSON payload with bounded scope
-          SYMBOLS_JSON="[\"FPT\", \"VCB\", \"MBB\", \"MWG\", \"HPG\", \"VN100\", \"VN30\"]"
+
+          # Prepare JSON payload with validated universe & dataset scope
+          SYMBOLS_JSON="null"
           if [ -n "${{ github.event.inputs.symbols }}" ]; then
-            SYMBOLS_JSON=$(echo '${{ github.event.inputs.symbols }}' | jq -R 'split(",") | map(gsub("^ +| +$"; ""))')
+            SYMBOLS_JSON=$(echo '${{ github.event.inputs.symbols }}' | jq -R 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
           fi
 
-          PROVIDERS_JSON="[\"LOTUSMARKET\", \"VNDIRECT\"]"
+          PROVIDERS_JSON="[\"LOTUSMARKET\", \"VNDIRECT\", \"FINANCIAL_NEWS\"]"
           if [ -n "${{ github.event.inputs.providers }}" ]; then
-            PROVIDERS_JSON=$(echo '${{ github.event.inputs.providers }}' | jq -R 'split(",") | map(gsub("^ +| +$"; ""))')
+            PROVIDERS_JSON=$(echo '${{ github.event.inputs.providers }}' | jq -R 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
+          fi
+
+          DATASETS_JSON="[\"PRICES\", \"NEWS\"]"
+          if [ -n "${{ github.event.inputs.datasets }}" ]; then
+            DATASETS_JSON=$(echo '${{ github.event.inputs.datasets }}' | jq -R 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
           fi
 
           FORCE_VAL="false"
@@ -52,11 +65,13 @@ jobs:
           PAYLOAD=$(jq -n \
             --argjson sym "$SYMBOLS_JSON" \
             --argjson prov "$PROVIDERS_JSON" \
+            --argjson ds "$DATASETS_JSON" \
             --argjson force "$FORCE_VAL" \
-            '{symbols: $sym, providers: $prov, force: $force}')
+            '{symbols: $sym, providers: $prov, datasets: $ds, force: $force}')
 
-          echo "Triggering EOD Ingestion with payload: $PAYLOAD"
-          
+          echo "Triggering EOD Ingestion with parameters (secrets redacted):"
+          echo "$PAYLOAD" | jq '{symbols: .symbols, providers: .providers, datasets: .datasets, force: .force}'
+
           HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \
             -H "Content-Type: application/json" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
@@ -66,17 +81,24 @@ jobs:
           HTTP_STATUS=$(echo "$HTTP_RESPONSE" | tail -n1)
 
           echo "HTTP Status: $HTTP_STATUS"
-          echo "Response Body: $HTTP_BODY"
+          echo "Response Body:"
+          echo "$HTTP_BODY" | jq . 2>/dev/null || echo "$HTTP_BODY"
 
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "::error::Ingestion failed with HTTP $HTTP_STATUS: $HTTP_BODY"
+            echo "::error::Ingestion failed with HTTP $HTTP_STATUS"
             exit 1
           fi
 
-      - name: Verify Ingestion History & Provenance
+          JOB_STATUS=$(echo "$HTTP_BODY" | jq -r '.status // "UNKNOWN"')
+          if [ "$JOB_STATUS" = "FAILED" ]; then
+            echo "::error::Cron job status returned FAILED"
+            exit 1
+          fi
+
+      - name: Verify Ingestion History & Observability
         if: always()
         run: |
-          HISTORY_URL="https://investintel-api.onrender.com/api/v1/system/cron/history?limit=5"
+          HISTORY_URL="https://investintel-api.onrender.com/api/v1/system/cron/history?limit=3"
           echo "Fetching execution history from: $HISTORY_URL"
           curl -s -X GET "$HISTORY_URL" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" | jq .

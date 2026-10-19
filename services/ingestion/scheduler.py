@@ -6,6 +6,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
+from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
 from database.models import Asset, DataRun, DataSource, MacroSeries
@@ -51,15 +52,47 @@ def _record_failure(session_factory: Callable, provider: str, dataset: str, stat
         session.close()
 
 
+def load_required_universe(session: Session) -> tuple[list[str], list[str]]:
+    """
+    Loads verified constituent stocks (VN100/VN30) and benchmark index symbols.
+    Returns (stock_symbols, index_symbols).
+    """
+    from database.models import IndexMembership
+    # 1. Query verified active members of VN100 from database
+    vn100_members = [
+        row[0] for row in session.query(IndexMembership.symbol)
+        .filter(IndexMembership.index_symbol == "VN100", IndexMembership.is_active.is_(True))
+        .distinct()
+        .all()
+    ]
+    # 2. Fallback to data/market/vn100_constituents.json if DB has 0 members
+    if not vn100_members:
+        import json
+        vn100_path = Path(__file__).resolve().parents[2] / "data" / "market" / "vn100_constituents.json"
+        if vn100_path.is_file():
+            try:
+                items = json.loads(vn100_path.read_text(encoding="utf-8"))
+                vn100_members = [it["symbol"].strip().upper() for it in items if it.get("symbol")]
+            except Exception:
+                pass
+
+    if not vn100_members:
+        vn100_members = ["FPT", "VCB", "MBB", "MWG", "HPG"]
+
+    indices = ["VN30", "VN100"]
+    return sorted(list(set(vn100_members))), indices
+
+
 async def run_ingestion_cycle(
     session_factory: Callable = SessionLocal,
     target_symbols: Optional[list[str]] = None,
     target_providers: Optional[list[str]] = None,
     target_datasets: Optional[list[str]] = None,
+    batch_offset: int = 0,
+    batch_size: Optional[int] = None,
 ) -> list[dict[str, Any]]:
     """Fetch currently registered supported sources and persist honest run results."""
     allowed_providers = {p.upper() for p in target_providers} if target_providers else None
-    selected_symbols = {s.upper() for s in target_symbols} if target_symbols else None
     allowed_datasets = {d.upper() for d in target_datasets} if target_datasets else None
 
     session = session_factory()
@@ -105,10 +138,49 @@ async def run_ingestion_cycle(
 
         # Ensure IndexMembership is seeded for VN100
         from database.models import IndexMembership
-        vn100_members = session.query(IndexMembership).filter_by(index_symbol="VN100").count()
-        if vn100_members == 0:
+        vn100_members_count = session.query(IndexMembership).filter_by(index_symbol="VN100").count()
+        if vn100_members_count == 0:
             from services.ingestion.seed_data import seed_index_memberships
             seed_index_memberships(session, source_ids["LOTUSMARKET"])
+
+        # Determine target universe dynamically
+        is_universe_mode = False
+        if not target_symbols:
+            is_universe_mode = True
+        elif any(s.upper() in {"ALL", "UNIVERSE", "VN100", "VN100_ALL"} for s in target_symbols):
+            is_universe_mode = True
+
+        if is_universe_mode:
+            verified_stocks, verified_indices = load_required_universe(session)
+            full_symbols = verified_stocks + verified_indices
+        else:
+            full_symbols = [s.strip().upper() for s in target_symbols if s.strip()]
+
+        # Apply batch slicing if requested
+        if batch_size is not None and batch_size > 0:
+            selected_symbols = full_symbols[batch_offset:batch_offset + batch_size]
+        else:
+            selected_symbols = full_symbols
+
+        # Ensure Asset records exist for all selected symbols
+        INDEX_SYMBOLS = {"VN100", "VN30", "VNINDEX", "VNX50", "VN300"}
+        for sym in selected_symbols:
+            existing_asset = session.query(Asset).filter_by(symbol=sym).first()
+            if not existing_asset:
+                is_idx = sym in INDEX_SYMBOLS
+                session.add(Asset(
+                    symbol=sym,
+                    name=f"Chỉ số {sym}" if is_idx else f"Cổ phiếu {sym}",
+                    asset_type="INDEX" if is_idx else "STOCK",
+                    exchange="HOSE",
+                    status="ACTIVE"
+                ))
+                session.commit()
+
+        hose_assets = [
+            (sym, "HOSE", source_ids.get("HOSE_CSV") or source_ids.get("LOTUSMARKET"))
+            for sym in selected_symbols
+        ]
 
         macro_series = [
             (series.id, series.provider.upper(), series.source_id)
@@ -116,36 +188,13 @@ async def run_ingestion_cycle(
             if series.provider.upper() in {"FRED", "BLS", "WORLD_BANK", "OPEN_EXCHANGE_RATES", "NSO_VIETNAM"}
             and source_ids.get(series.provider.upper()) == series.source_id
         ]
-
-        # Query assets: filter by selected_symbols if provided
-        if selected_symbols:
-            for sym in selected_symbols:
-                existing_asset = session.query(Asset).filter_by(symbol=sym).first()
-                if not existing_asset:
-                    session.add(Asset(
-                        symbol=sym,
-                        name=f"Cổ phiếu {sym}",
-                        asset_type="STOCK",
-                        exchange="HOSE",
-                        status="ACTIVE"
-                    ))
-                    session.commit()
-            asset_query = session.query(Asset).filter(Asset.symbol.in_(list(selected_symbols)))
-        else:
-            asset_query = session.query(Asset).filter(Asset.status == "ACTIVE", Asset.exchange == "HOSE")
-
-        hose_assets = [
-            (asset.symbol, asset.exchange or "HOSE", source_ids.get("HOSE_CSV") or source_ids.get("LOTUSMARKET"))
-            for asset in asset_query.all()
-        ]
     finally:
         session.close()
 
     results: list[dict[str, Any]] = []
     lookback_days = max(1, int(os.getenv("INGESTION_LOOKBACK_DAYS", "90")))
     start_date = date.today() - timedelta(days=lookback_days)
-    batch_limit = max(1, min(20, int(os.getenv("INGESTION_BATCH_LIMIT", "5"))))
-    effective_assets = hose_assets if selected_symbols else hose_assets[:batch_limit]
+    effective_assets = hose_assets
 
     providers = {
         "FRED": FredProvider,
@@ -312,38 +361,60 @@ async def run_ingestion_cycle(
                 results.append({"provider": "DNSE", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
                 logger.warning("Ingestion failed for DNSE/%s: %s", symbol, exc)
 
-    # 6. VNDIRECT market data & fundamentals (bounded by batch_limit or selected_symbols)
+    # Define dataset execution flags
+    run_prices = allowed_datasets is None or any(d in allowed_datasets for d in ("PRICES", "MARKET_DATA"))
+    run_fundamentals = (
+        (allowed_datasets is not None and "FUNDAMENTALS" in allowed_datasets)
+        or os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes")
+    )
+    run_insider_events = (
+        (allowed_datasets is not None and any(d in allowed_datasets for d in ("EVENTS", "INSIDER_EVENTS")))
+        or (allowed_datasets is None and os.getenv("ENABLE_INSIDER_EVENTS", "false").lower() in ("true", "1", "yes"))
+    )
+    run_news = (
+        (allowed_providers is None or "FINANCIAL_NEWS" in allowed_providers or "NEWS" in allowed_providers)
+        and (allowed_datasets is None or any(d in allowed_datasets for d in ("NEWS", "RSS", "FINANCIAL_NEWS")))
+    )
+
+    # 6. VNDIRECT market data & fundamentals (bounded by scoped symbols)
     if (allowed_providers is None or "VNDIRECT" in allowed_providers) and "VNDIRECT" in source_ids:
         is_vndirect_targeted = allowed_providers is not None and "VNDIRECT" in allowed_providers
         is_vndirect_env = os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes")
         if is_vndirect_targeted or is_vndirect_env:
             vndirect_prov = VndirectProvider()
-            run_prices = allowed_datasets is None or "PRICES" in allowed_datasets or "MARKET_DATA" in allowed_datasets
-            run_fundamentals = (
-                (allowed_datasets is not None and "FUNDAMENTALS" in allowed_datasets)
-                or (allowed_datasets is None and (is_vndirect_targeted or os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes")))
-            )
 
             for symbol, exchange, _ in effective_assets:
+                is_index = symbol in INDEX_SYMBOLS
                 # Prices
                 if run_prices:
-                    try:
-                        db = session_factory()
+                    if is_index:
+                        results.append({
+                            "provider": "VNDIRECT",
+                            "symbol": symbol,
+                            "status": "SKIPPED_UNSUPPORTED",
+                            "records_received": 0,
+                            "records_inserted": 0,
+                            "records_rejected": 0,
+                            "reason": "VNDIRECT does not support benchmark index candles; LotusMarket is canonical for index series."
+                        })
+                    else:
                         try:
-                            outcome = await vndirect_prov.ingest_to_database(
-                                db, symbol, start_date=start_date, end_date=date.today(),
-                                exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
-                            )
-                            results.append(outcome)
-                        finally:
-                            db.close()
-                    except Exception as exc:
-                        _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
-                        results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
-                        logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
+                            db = session_factory()
+                            try:
+                                outcome = await vndirect_prov.ingest_to_database(
+                                    db, symbol, start_date=start_date, end_date=date.today(),
+                                    exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
+                                )
+                                results.append(outcome)
+                            finally:
+                                db.close()
+                        except Exception as exc:
+                            _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
+                            results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                            logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
 
-                # Fundamentals & Corporate Profile
-                if run_fundamentals:
+                # Fundamentals & Corporate Profile (Equities only)
+                if run_fundamentals and not is_index:
                     try:
                         db = session_factory()
                         try:
@@ -364,9 +435,9 @@ async def run_ingestion_cycle(
                         _record_failure(session_factory, "VNDIRECT", f"fundamentals_{symbol}", "FAILURE", str(exc))
                         results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
                         logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.05)
 
-    # 7. LotusMarket market data & insider events (bounded by batch_limit or selected_symbols)
+    # 7. LotusMarket market data & insider events
     if (allowed_providers is None or "LOTUSMARKET" in allowed_providers) and "LOTUSMARKET" in source_ids:
         is_explicitly_targeted = allowed_providers is not None and "LOTUSMARKET" in allowed_providers
         is_env_enabled = os.getenv("ENABLE_LOTUSMARKET_INGESTION", "false").lower() in ("true", "1", "yes")
@@ -381,25 +452,26 @@ async def run_ingestion_cycle(
         else:
             lotus_prov = LotusMarketProvider()
             for symbol, exchange, _ in effective_assets:
-                # Market prices (VPS + Entrade fallback)
-                try:
-                    db = session_factory()
+                is_index = symbol in INDEX_SYMBOLS
+                # Market prices (VPS + Entrade fallback - supports both stocks and indices)
+                if run_prices:
                     try:
-                        outcome = lotus_prov.ingest_to_database(
-                            db, symbol, start_date=start_date, end_date=date.today(),
-                            exchange=exchange or "HOSE", source_id=source_ids.get("LOTUSMARKET")
-                        )
-                        results.append(outcome)
-                    finally:
-                        db.close()
-                except Exception as exc:
-                    _record_failure(session_factory, "LOTUSMARKET", f"market_data_{symbol}", "FAILURE", str(exc))
-                    results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
-                    logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
+                        db = session_factory()
+                        try:
+                            outcome = lotus_prov.ingest_to_database(
+                                db, symbol, start_date=start_date, end_date=date.today(),
+                                exchange=exchange or "HOSE", source_id=source_ids.get("LOTUSMARKET")
+                            )
+                            results.append(outcome)
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "LOTUSMARKET", f"market_data_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "LOTUSMARKET", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for LOTUSMARKET prices/%s: %s", symbol, exc)
 
                 # Insider transactions (CafeF via LotusMarket - for equities only)
-                is_index = symbol.upper() in {"VN100", "VN30", "VNINDEX", "VNX50"}
-                if not is_index:
+                if run_insider_events and not is_index:
                     try:
                         db = session_factory()
                         try:
@@ -413,21 +485,22 @@ async def run_ingestion_cycle(
                         _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
                         results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
                         logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
+                await asyncio.sleep(0.05)
 
-    # 8. Financial News RSS Ingestion (CafeF & VnEconomy)
-    if allowed_providers is None or "FINANCIAL_NEWS" in allowed_providers:
+    # 8. Financial News RSS Ingestion (CafeF & VnEconomy) - executed once per cycle
+    if run_news:
         try:
             from .financial_news import FinancialNewsProvider
             news_prov = FinancialNewsProvider()
             db = session_factory()
             try:
-                outcome_news = news_prov.ingest_to_database(db, max_articles=40)
+                outcome_news = news_prov.ingest_to_database(db, max_articles=50)
                 results.append(outcome_news)
             finally:
                 db.close()
         except Exception as exc:
-            _record_failure(session_factory, "FINANCIAL_NEWS", "news_events", "FAILURE", str(exc))
-            results.append({"provider": "FINANCIAL_NEWS", "dataset": "news_events", "status": "FAILURE", "reason": str(exc)})
+            _record_failure(session_factory, "FINANCIAL_NEWS", "financial_news", "FAILURE", str(exc))
+            results.append({"provider": "FINANCIAL_NEWS", "dataset": "financial_news", "status": "FAILURE", "reason": str(exc)})
             logger.warning("Ingestion failed for FINANCIAL_NEWS: %s", exc)
 
     # 9. Cross-Provider Reconciliation (if enabled)

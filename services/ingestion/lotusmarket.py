@@ -580,5 +580,6 @@ class LotusMarketProvider(BaseProvider):
             articles=events,
             source_url=source_url,
             source_id=source_id,
+            dataset=f"insider_events_{norm_sym}",
         )
         return result

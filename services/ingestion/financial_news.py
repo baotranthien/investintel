@@ -321,5 +321,6 @@ class FinancialNewsProvider(BaseProvider):
             articles=articles[:max_articles],
             source_url="https://cafef.vn/rss",
             source_id=source_id,
+            dataset="financial_news",
         )
         return result

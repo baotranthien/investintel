@@ -264,7 +264,11 @@ class VndirectProvider(BaseProvider):
             open_raw = _coerce_float(item.get("open"))
             high_raw = _coerce_float(item.get("high"))
             low_raw = _coerce_float(item.get("low"))
+            ad_close_raw = _coerce_float(item.get("adClose"))
             vol_raw = _coerce_float(item.get("nmVolume"))
+            turnover_raw = _coerce_float(item.get("nmValue"))
+
+            adj_close_vnd = (ad_close_raw * _PRICE_SCALE) if ad_close_raw is not None else (close_raw * _PRICE_SCALE)
 
             candles.append(MarketDataPoint(
                 symbol=norm_sym,
@@ -274,6 +278,8 @@ class VndirectProvider(BaseProvider):
                 high=high_raw * _PRICE_SCALE if high_raw is not None else None,
                 low=low_raw * _PRICE_SCALE if low_raw is not None else None,
                 volume=vol_raw if vol_raw is not None and vol_raw >= 0 else None,
+                adjusted_close=adj_close_vnd,
+                turnover=turnover_raw if turnover_raw is not None and turnover_raw >= 0 else None,
             ))
 
         return candles
@@ -282,16 +288,30 @@ class VndirectProvider(BaseProvider):
         self,
         session: Session,
         symbol: str,
-        start_date: date,
-        end_date: date,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
         exchange: str = "HOSE",
         source_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Runs the canonical IngestionPipeline for VNDirect market bars."""
-        points = await self.fetch_market_data(symbol, start_date, end_date)
+        norm_sym = normalize_symbol(symbol)
+        if norm_sym in {"VN30", "VN100", "VNINDEX", "VNX50"}:
+            return {
+                "provider": self.name,
+                "symbol": norm_sym,
+                "status": "SKIPPED_UNSUPPORTED",
+                "records_received": 0,
+                "records_inserted": 0,
+                "records_rejected": 0,
+                "reason": "VNDirect stock_prices API does not support benchmark index candles; use LotusMarket for index series.",
+            }
+
+        start_d = start_date or (date.today() - timedelta(days=90))
+        end_d = end_date or date.today()
+
+        points = await self.fetch_market_data(symbol, start_d, end_d)
         records = [p.model_dump() for p in points]
         pipeline = IngestionPipeline(session)
-        norm_sym = normalize_symbol(symbol)
         source_url = f"{self.endpoint_url}?q=code:{norm_sym}"
         result = pipeline.ingest_market_data(
             provider=self.name,
