@@ -23,6 +23,7 @@ class CronTriggerRequest(BaseModel):
     force: bool = False
     symbols: Optional[list[str]] = None
     providers: Optional[list[str]] = None
+    datasets: Optional[list[str]] = None
 
 
 def _verify_cron_secret(x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret")):
@@ -147,6 +148,8 @@ async def run_cron_ingestion(
     sub_key = ""
     if body.providers:
         sub_key += f"_{'_'.join(sorted(p.upper() for p in body.providers))}"
+    if body.datasets:
+        sub_key += f"_{'_'.join(sorted(d.upper() for d in body.datasets))}"
     if body.symbols:
         sub_key += f"_{'_'.join(sorted(s.upper() for s in body.symbols))}"
     idempotency_key = f"INGEST{sub_key}_{target_date.isoformat()}" if sub_key else f"INGEST_EOD_{target_date.isoformat()}"
@@ -186,6 +189,7 @@ async def run_cron_ingestion(
             session_factory=SessionLocal,
             target_symbols=body.symbols,
             target_providers=body.providers,
+            target_datasets=body.datasets,
         )
 
         # Update job status honestly

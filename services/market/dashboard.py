@@ -130,9 +130,14 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
         for symbol, name in index_names.items()
     ]
 
-    regime = MarketRegimeEngine.determine_regime(as_of, session=session)
+    regime = MarketRegimeEngine.determine_regime(as_of, session=session, benchmark="VN100")
+    if regime.regime == "INSUFFICIENT_DATA":
+        vn30_regime = MarketRegimeEngine.determine_regime(as_of, session=session, benchmark="VN30")
+        if vn30_regime.regime != "INSUFFICIENT_DATA":
+            regime = vn30_regime
+
     benchmark_date = regime.as_of
-    benchmark_metric = next((item.metric for item in indexes if item.symbol == "VN100"), None)
+    benchmark_metric = next((item.metric for item in indexes if item.symbol == regime.benchmark), None)
     inherited_status: MetricStatus = (
         benchmark_metric.status if benchmark_metric and benchmark_metric.value is not None
         else "INSUFFICIENT_DATA"

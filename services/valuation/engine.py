@@ -83,13 +83,22 @@ class DCFEngine:
             bull=values[2]
         )
         
+        assumptions_list = [
+            ValuationAssumption(name="Base Revenue", value=round(assumptions.base_revenue, 1), source="Canonical Financial Statements"),
+            ValuationAssumption(name="WACC", value=round(assumptions.wacc * 100, 1), source="Model baseline (Cost of Capital)"),
+            ValuationAssumption(name="Terminal Growth Rate", value=round(assumptions.terminal_growth_rate * 100, 1), source="Long-term GDP growth proxy"),
+            ValuationAssumption(name="EBIT Margin", value=round(assumptions.ebit_margins[0] * 100, 1), source="Baseline operating margin"),
+            ValuationAssumption(name="Tax Rate", value=round(assumptions.tax_rate * 100, 1), source="Corporate tax rate (20%)"),
+        ]
+
         return ValuationMethodOutput(
             method="DCF",
             fair_value=range_out,
             applicability="HIGH",
             confidence="MEDIUM",
             weight=0.0, # Will be set by ensemble
-            warnings=["DCF is structurally implemented but using dummy base revenue."]
+            assumptions_used=assumptions_list,
+            warnings=[f"DCF inputs: Base Revenue={assumptions.base_revenue:,.1f}B VND, WACC={assumptions.wacc:.1%}, Terminal Growth={assumptions.terminal_growth_rate:.1%}, Tax={assumptions.tax_rate:.1%}"]
         )
 
 class ResidualIncomeEngine:
@@ -105,6 +114,16 @@ class ResidualIncomeEngine:
         Residual Income Model, especially suited for banks.
         Value = BV0 + Sum( (ROE - Ke) * BV_t-1 / (1 + Ke)^t ) + TV
         """
+        if bvps is None or bvps <= 0:
+            return ValuationMethodOutput(
+                method="Residual Income",
+                fair_value=FairValueRange(bear=0.0, base=0.0, bull=0.0),
+                applicability="NOT_APPLICABLE",
+                confidence="LOW",
+                weight=0.0,
+                warnings=["INSUFFICIENT_DATA: Missing or non-positive book value per share (BVPS)"]
+            )
+
         def _calc_ri(roe_adj: float, ke_adj: float, g_adj: float) -> float:
             adj_roe = roe + roe_adj
             adj_ke = cost_of_equity + ke_adj
@@ -131,11 +150,21 @@ class ResidualIncomeEngine:
         
         values = sorted([bear_value, base_value, bull_value])
         
+        ri_assumptions = [
+            ValuationAssumption(name="BVPS", value=round(bvps, 0), source="Canonical Balance Sheet & Shares"),
+            ValuationAssumption(name="ROE", value=round(roe * 100, 1), source="Canonical Fundamentals"),
+            ValuationAssumption(name="Cost of Equity (Ke)", value=round(cost_of_equity * 100, 1), source="Model baseline (CAPM proxy)"),
+            ValuationAssumption(name="Terminal Growth", value=round(growth * 100, 1), source="Long-term economic growth proxy"),
+        ]
+
         return ValuationMethodOutput(
             method="Residual Income",
             fair_value=FairValueRange(bear=values[0], base=values[1], bull=values[2]),
             applicability="HIGH",
-            confidence="MEDIUM"
+            confidence="MEDIUM",
+            weight=0.0,
+            assumptions_used=ri_assumptions,
+            warnings=[f"Residual Income inputs: BVPS={bvps:,.0f} VND, ROE={roe:.1%}, Cost of Equity={cost_of_equity:.1%}, Growth={growth:.1%}"]
         )
 
 class RelativeValuationEngine:

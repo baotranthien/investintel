@@ -55,10 +55,12 @@ async def run_ingestion_cycle(
     session_factory: Callable = SessionLocal,
     target_symbols: Optional[list[str]] = None,
     target_providers: Optional[list[str]] = None,
+    target_datasets: Optional[list[str]] = None,
 ) -> list[dict[str, Any]]:
     """Fetch currently registered supported sources and persist honest run results."""
     allowed_providers = {p.upper() for p in target_providers} if target_providers else None
     selected_symbols = {s.upper() for s in target_symbols} if target_symbols else None
+    allowed_datasets = {d.upper() for d in target_datasets} if target_datasets else None
 
     session = session_factory()
     try:
@@ -116,11 +118,21 @@ async def run_ingestion_cycle(
         ]
 
         # Query assets: filter by selected_symbols if provided
-        asset_query = session.query(Asset)
         if selected_symbols:
-            asset_query = asset_query.filter(Asset.symbol.in_(list(selected_symbols)))
+            for sym in selected_symbols:
+                existing_asset = session.query(Asset).filter_by(symbol=sym).first()
+                if not existing_asset:
+                    session.add(Asset(
+                        symbol=sym,
+                        name=f"Cổ phiếu {sym}",
+                        asset_type="STOCK",
+                        exchange="HOSE",
+                        status="ACTIVE"
+                    ))
+                    session.commit()
+            asset_query = session.query(Asset).filter(Asset.symbol.in_(list(selected_symbols)))
         else:
-            asset_query = asset_query.filter(Asset.status == "ACTIVE", Asset.exchange == "HOSE")
+            asset_query = session.query(Asset).filter(Asset.status == "ACTIVE", Asset.exchange == "HOSE")
 
         hose_assets = [
             (asset.symbol, asset.exchange or "HOSE", source_ids.get("HOSE_CSV") or source_ids.get("LOTUSMARKET"))
@@ -306,25 +318,32 @@ async def run_ingestion_cycle(
         is_vndirect_env = os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes")
         if is_vndirect_targeted or is_vndirect_env:
             vndirect_prov = VndirectProvider()
+            run_prices = allowed_datasets is None or "PRICES" in allowed_datasets or "MARKET_DATA" in allowed_datasets
+            run_fundamentals = (
+                (allowed_datasets is not None and "FUNDAMENTALS" in allowed_datasets)
+                or (allowed_datasets is None and (is_vndirect_targeted or os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes")))
+            )
+
             for symbol, exchange, _ in effective_assets:
                 # Prices
-                try:
-                    db = session_factory()
+                if run_prices:
                     try:
-                        outcome = await vndirect_prov.ingest_to_database(
-                            db, symbol, start_date=start_date, end_date=date.today(),
-                            exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
-                        )
-                        results.append(outcome)
-                    finally:
-                        db.close()
-                except Exception as exc:
-                    _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
-                    results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
-                    logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
+                        db = session_factory()
+                        try:
+                            outcome = await vndirect_prov.ingest_to_database(
+                                db, symbol, start_date=start_date, end_date=date.today(),
+                                exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
+                            )
+                            results.append(outcome)
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
 
-                # Fundamentals & Corporate Profile (if targeted or env enabled)
-                if is_vndirect_targeted or os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes"):
+                # Fundamentals & Corporate Profile
+                if run_fundamentals:
                     try:
                         db = session_factory()
                         try:
