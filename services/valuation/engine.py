@@ -84,11 +84,41 @@ class DCFEngine:
         )
         
         assumptions_list = [
-            ValuationAssumption(name="Base Revenue", value=round(assumptions.base_revenue, 1), source="Canonical Financial Statements"),
-            ValuationAssumption(name="WACC", value=round(assumptions.wacc * 100, 1), source="Model baseline (Cost of Capital)"),
-            ValuationAssumption(name="Terminal Growth Rate", value=round(assumptions.terminal_growth_rate * 100, 1), source="Long-term GDP growth proxy"),
-            ValuationAssumption(name="EBIT Margin", value=round(assumptions.ebit_margins[0] * 100, 1), source="Baseline operating margin"),
-            ValuationAssumption(name="Tax Rate", value=round(assumptions.tax_rate * 100, 1), source="Corporate tax rate (20%)"),
+            ValuationAssumption(
+                name="Base Revenue",
+                value=round(assumptions.base_revenue, 1),
+                unit="VND Billion",
+                source="Canonical Financial Statements",
+                type="OBSERVED",
+            ),
+            ValuationAssumption(
+                name="WACC",
+                value=round(assumptions.wacc * 100, 1),
+                unit="%",
+                source="Model baseline (Cost of Capital)",
+                type="MODEL_ASSUMPTION",
+            ),
+            ValuationAssumption(
+                name="Terminal Growth Rate",
+                value=round(assumptions.terminal_growth_rate * 100, 1),
+                unit="%",
+                source="Long-term GDP growth proxy",
+                type="MODEL_ASSUMPTION",
+            ),
+            ValuationAssumption(
+                name="EBIT Margin",
+                value=round(assumptions.ebit_margins[0] * 100, 1),
+                unit="%",
+                source="Baseline operating margin",
+                type="HISTORICAL_DERIVED",
+            ),
+            ValuationAssumption(
+                name="Tax Rate",
+                value=round(assumptions.tax_rate * 100, 1),
+                unit="%",
+                source="Corporate tax rate (20%)",
+                type="OBSERVED",
+            ),
         ]
 
         return ValuationMethodOutput(
@@ -151,10 +181,34 @@ class ResidualIncomeEngine:
         values = sorted([bear_value, base_value, bull_value])
         
         ri_assumptions = [
-            ValuationAssumption(name="BVPS", value=round(bvps, 0), source="Canonical Balance Sheet & Shares"),
-            ValuationAssumption(name="ROE", value=round(roe * 100, 1), source="Canonical Fundamentals"),
-            ValuationAssumption(name="Cost of Equity (Ke)", value=round(cost_of_equity * 100, 1), source="Model baseline (CAPM proxy)"),
-            ValuationAssumption(name="Terminal Growth", value=round(growth * 100, 1), source="Long-term economic growth proxy"),
+            ValuationAssumption(
+                name="BVPS",
+                value=round(bvps, 0),
+                unit="VND/share",
+                source="Canonical Balance Sheet & Shares",
+                type="OBSERVED",
+            ),
+            ValuationAssumption(
+                name="ROE",
+                value=round(roe * 100, 1),
+                unit="%",
+                source="Canonical Fundamentals",
+                type="HISTORICAL_DERIVED",
+            ),
+            ValuationAssumption(
+                name="Cost of Equity (Ke)",
+                value=round(cost_of_equity * 100, 1),
+                unit="%",
+                source="Model baseline (CAPM proxy)",
+                type="MODEL_ASSUMPTION",
+            ),
+            ValuationAssumption(
+                name="Terminal Growth",
+                value=round(growth * 100, 1),
+                unit="%",
+                source="Long-term economic growth proxy",
+                type="MODEL_ASSUMPTION",
+            ),
         ]
 
         return ValuationMethodOutput(
