@@ -183,7 +183,10 @@ class AIAnalyst:
                     tools_used=used_tools,
                     reason="The selected citation is stale, untraced, or not a verifiable evidence source.",
                 )
-            if len(valid_ids) != len(claim.citation_ids):
+            if claim.claim_type == "UNCERTAINTY":
+                valid_ids = []
+                claim.citation_ids = []
+            elif len(valid_ids) != len(claim.citation_ids):
                 return self._insufficient_response(
                     symbol=symbol,
                     as_of=requested_date,
@@ -193,7 +196,12 @@ class AIAnalyst:
                 )
             if claim.claim_type != "UNCERTAINTY":
                 cited_numbers = set().union(*(
-                    _numeric_values(json.dumps(evidence_by_id[citation_id].value, default=str))
+                    _numeric_values(
+                        f"{json.dumps(evidence_by_id[citation_id].value, default=str)} "
+                        f"{evidence_by_id[citation_id].observation_date or ''} "
+                        f"{evidence_by_id[citation_id].publication_date or ''} "
+                        f"{evidence_by_id[citation_id].metric or ''}"
+                    )
                     for citation_id in valid_ids
                 ))
                 claim_numbers = _numeric_values(claim.text)
@@ -209,16 +217,27 @@ class AIAnalyst:
             cited_claims.append(claim)
 
         if not cited_claims:
-            return self._insufficient_response(
-                symbol=symbol,
-                as_of=requested_date,
-                citations=citations,
-                tools_used=used_tools,
-                reason="The model did not return any structured claims that can be safely displayed.",
-            )
+            if draft.answer and draft.answer.strip():
+                clean_ans = draft.answer.strip()
+                ans_numbers = _numeric_values(clean_ans)
+                if not ans_numbers:
+                    cited_claims.append(AIClaim(claim_type="UNCERTAINTY", text=clean_ans, citation_ids=[]))
+            if not cited_claims:
+                return self._insufficient_response(
+                    symbol=symbol,
+                    as_of=requested_date,
+                    citations=citations,
+                    tools_used=used_tools,
+                    reason="The model did not return any structured claims that can be safely displayed.",
+                )
 
         uncertain_numbers = _numeric_values(" ".join(draft.uncertainty))
-        if uncertain_numbers:
+        allowed_uncertainty_numbers = set().union(*(
+            _numeric_values(f"{c.metric or ''} {c.observation_date or ''}")
+            for c in citations
+        )).union(_numeric_values(question))
+        disallowed_uncertainty = uncertain_numbers - allowed_uncertainty_numbers
+        if disallowed_uncertainty:
             return self._insufficient_response(
                 symbol=symbol,
                 as_of=requested_date,

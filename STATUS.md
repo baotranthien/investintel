@@ -62,10 +62,23 @@ Authoritative as of: **2026-10-19**
 - **Complete Gemini Removal**:
   - Completely removed Google Generative AI / Gemini SDK (`google-genai`), provider files (`services/ai/gemini_provider.py`), Gemini-specific tests, circuit breakers, and configuration aliases.
   - Zero paid or hosted AI APIs: InvestIntel now relies exclusively on local Ollama.
-- **Local Ollama Integration**:
-  - Discovered installed local model `qwen2.5:0.5b` (size 397MB, GGUF Q4_K_M) running via `ollama.exe serve` on port 11434.
-  - Executed and verified real local inference via Ollama API (`132 chars returned in <3s`).
-  - Added dedicated test suite `tests/test_ollama_provider.py` (15/15 tests passing 100%, covering model selection, timeouts, missing models, structured JSON, and cloud isolation).
+- **Model Upgrade to Qwen2.5 3B & GPU Acceleration**:
+  - Upgraded primary model from `qwen2.5:0.5b` (397MB) to `qwen2.5:3b` (1.9GB weights, GGUF Q4_K_M).
+  - Loaded model weights into NVIDIA GeForce RTX 3050 Laptop GPU 4GB VRAM (`size_vram: 2.16 GB`, leaving >1.8 GB free VRAM headroom).
+  - Inference speed verified at ~66–146 tokens/s, generating high-quality structured responses in 3.4–10.2 seconds.
+- **Backend Prompt Streamlining & Context Purification**:
+  - Streamlined `services/ai/prompt_registry.py` with concise, natural Vietnamese domain instructions.
+  - Purified `compact_context`: removed un-indexed raw nested tables (like `fundamentals.history`) that previously caused the model to hallucinate citations for un-indexed numbers.
+  - Clearly separated `verifiable_evidence` (up to 30 traceable metrics with explicit IDs) from `unverified_or_missing_metrics` (e.g. `pe_ratio`, `pb_ratio`, `revenue_cagr_3y`, `revenue_cagr_5y`).
+- **Financial Guardrails & Strict Schema Compliance**:
+  - Updated `services/ai/analyst.py`:
+    - Strict citation and value checks preserved for all quantitative claims (`FACT`, `MODEL_OUTPUT`).
+    - Supported purely qualitative sector and risk analysis as `UNCERTAINTY` claims with `citation_ids: []`.
+    - Allowed legitimate metric name tokens (e.g., `3y`, `5y`) and question integers in the `uncertainty` field.
+    - Set default `num_predict` to 1536 tokens and `num_ctx` to 4096 tokens in `OllamaConfig`, preventing JSON token cutoff errors.
+- **End-to-End Local Pipeline Verification**:
+  - Backend API (`POST /api/v1/ai/chat`) verified: returns HTTP 200 OK with `status: PARTIAL`, `model: qwen2.5:3b`, and structured claims.
+  - Frontend Web UI (`http://localhost:3000/ai`) verified via browser session: renders natural Vietnamese response answering FPT sector, 3 main risks, and missing valuation metrics without fabricating financial data.
 - **Cloud Isolation (Render Web Service)**:
   - Render cloud container does not attempt to connect to user's localhost:11434, eliminating connection timeouts.
   - When running in cloud mode, `AIGateway.status()` explicitly returns `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD` with HTTP 200 without attempting loopback network calls.

@@ -26,8 +26,8 @@ class OllamaConfig:
     timeout_seconds: float = 75.0
     connect_timeout_seconds: float = 3.0
     retries: int = 1
-    num_ctx: int = 2048
-    num_predict: int = 512
+    num_ctx: int = 4096
+    num_predict: int = 1536
     keep_alive: str = "5m"
 
     def __post_init__(self) -> None:
@@ -63,8 +63,8 @@ class OllamaConfig:
             timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "75")),
             connect_timeout_seconds=float(os.getenv("OLLAMA_CONNECT_TIMEOUT_SECONDS", "3")),
             retries=int(os.getenv("OLLAMA_RETRIES", "1")),
-            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "2048")),
-            num_predict=int(os.getenv("OLLAMA_NUM_PREDICT", "512")),
+            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
+            num_predict=int(os.getenv("OLLAMA_NUM_PREDICT", "1536")),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "5m"),
         )
 
