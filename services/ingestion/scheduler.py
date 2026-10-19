@@ -66,22 +66,33 @@ async def run_ingestion_cycle(
             source.name.upper(): source.id
             for source in session.query(DataSource).filter(DataSource.active.is_(True)).all()
         }
-        # Ensure LOTUSMARKET DataSource exists if missing
-        if "LOTUSMARKET" not in source_ids:
-            lotus_ds = session.query(DataSource).filter_by(name="LOTUSMARKET").first()
-            if not lotus_ds:
-                lotus_ds = DataSource(
-                    name="LOTUSMARKET",
-                    provider="LOTUSMARKET",
-                    country="VNM",
-                    authority_level="REPUTABLE_SECONDARY",
-                    source_type="API",
-                    base_url="https://bgapidatafeed.vps.com.vn",
-                    active=True,
-                )
-                session.add(lotus_ds)
-                session.commit()
-            source_ids["LOTUSMARKET"] = lotus_ds.id
+        # Ensure approved Vietnamese market DataSources exist and are active
+        approved_defaults = {
+            "LOTUSMARKET": ("LOTUSMARKET", "https://bgapidatafeed.vps.com.vn"),
+            "VNDIRECT": ("VNDIRECT", "https://finfo-api.vndirect.com.vn"),
+            "DNSE": ("DNSE", "https://services.entrade.com.vn"),
+            "HOSE_CSV": ("HOSE_CSV", "file:///data/market"),
+        }
+        for ds_name, (ds_prov, ds_url) in approved_defaults.items():
+            if ds_name not in source_ids:
+                ds = session.query(DataSource).filter_by(name=ds_name).first()
+                if not ds:
+                    ds = DataSource(
+                        name=ds_name,
+                        provider=ds_prov,
+                        country="VNM",
+                        authority_level="REPUTABLE_SECONDARY",
+                        source_type="API" if not ds_name.endswith("CSV") else "CSV",
+                        base_url=ds_url,
+                        active=True,
+                    )
+                    session.add(ds)
+                    session.commit()
+                else:
+                    if not ds.active:
+                        ds.active = True
+                        session.commit()
+                source_ids[ds_name] = ds.id
 
         # Ensure VN100 & VN30 Assets exist
         for idx_sym, idx_name in [("VN100", "Chỉ số VN100 Index"), ("VN30", "Chỉ số VN30 Index")]:

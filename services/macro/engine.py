@@ -145,17 +145,20 @@ class MarketRegimeEngine:
                 IndexMembership.start_date <= as_of,
                 or_(IndexMembership.end_date.is_(None), IndexMembership.end_date >= as_of),
             ).all()
-            memberships = [
-                membership for membership in memberships
-                if membership.published_at is None or membership.published_at.date() <= as_of
-            ]
+            # Deduplicate by symbol keeping the latest/active one
+            valid_members_dict = {}
+            for membership in memberships:
+                if membership.published_at is None or membership.published_at.date() <= as_of:
+                    valid_members_dict[membership.symbol] = membership
+            unique_memberships = list(valid_members_dict.values())
+
             benchmark_date = index_prices[0].observation_date
             advancing = 0
             declining = 0
             unchanged = 0
             covered_members = 0
 
-            for membership in memberships:
+            for membership in unique_memberships:
                 member_prices = session.query(Price).join(
                     Asset, Price.asset_id == Asset.id
                 ).filter(
@@ -201,7 +204,7 @@ class MarketRegimeEngine:
             # Minimum constituent threshold guard:
             # Broad-market basket requires >= 50% coverage and at least minimum members
             min_constituents = 15 if benchmark_upper == "VN30" else 10
-            total_eligible = len(memberships)
+            total_eligible = len(unique_memberships)
             coverage = covered_members / total_eligible if total_eligible > 0 else 0.0
             if covered_members < min_constituents or coverage < 0.5:
                 return MarketRegime(

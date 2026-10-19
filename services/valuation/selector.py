@@ -64,7 +64,7 @@ class ValuationMethodSelector:
         eps = fundamentals.get("eps_ttm", 0)
         ebitda = fundamentals.get("ebitda_ttm", 0)
         fcf = fundamentals.get("fcf_ttm", 0)
-        is_financial = self.sector in ["BANK", "FINANCIAL SERVICES", "INSURANCE"]
+        is_financial = self.sector in ["BANK", "BANKING", "FINANCIAL SERVICES", "INSURANCE", "FINANCIALS"]
         
         # 1. P/E Method
         if eps > 0:

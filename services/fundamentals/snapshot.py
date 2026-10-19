@@ -381,8 +381,11 @@ class FundamentalSnapshotBuilder:
             "ttm": ttm,
             "revenue_ttm": revenue if ttm_ok else None,
             "net_income_ttm": (net_income_parent or net_income) if ttm_ok else None,
+            "revenue_annual": latest_income_a.get("revenue") if latest_income_a else None,
+            "net_income_annual": (latest_income_a.get("net_income_parent") or latest_income_a.get("net_income")) if latest_income_a else None,
             "bvps": bvps_val,
             "eps_ttm": eps_ttm_val,
+            "eps_basic": latest_income_a.get("eps_basic") if latest_income_a else None,
 
             "growth": {
                 "revenue_yoy": _mr(revenue_yoy_r),

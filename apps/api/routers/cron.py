@@ -193,15 +193,24 @@ async def run_cron_ingestion(
         is_blocked = any(r.get("status") == "BLOCKED_FLAG_DISABLED" for r in run_results)
         has_success = any(r.get("status") == "SUCCESS" for r in run_results)
 
-        job.status = "SUCCESS" if has_success else ("BLOCKED" if is_blocked else ("PARTIAL" if run_results else "SUCCESS"))
+        if not run_results:
+            job_status = "NO_DATA"
+            job.error = "No providers or assets were matched for execution."
+        elif has_success:
+            job_status = "SUCCESS"
+        elif is_blocked:
+            job_status = "BLOCKED"
+            job.error = "Target provider ingestion flag is disabled in environment."
+        else:
+            job_status = "PARTIAL"
+
+        job.status = job_status
         job.finished_at = datetime.datetime.now(datetime.timezone.utc)
         job.result = _sanitize({"results": run_results, "total_providers": len(run_results)})
-        if is_blocked and not has_success:
-            job.error = "ENABLE_LOTUSMARKET_INGESTION is not enabled in environment."
         db.commit()
 
         return {
-            "status": "SUCCESS",
+            "status": job_status,
             "idempotency_key": idempotency_key,
             "as_of_date": target_date.isoformat(),
             "results_count": len(run_results),

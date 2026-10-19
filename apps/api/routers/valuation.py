@@ -75,8 +75,9 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
         "eps_ttm": snapshot.get("eps_ttm") or _val(per_share, "eps_ttm"),
         "bvps": snapshot.get("bvps") or _val(per_share, "bvps"),
         "shares_outstanding": dataset.get("shares_outstanding") or _val(per_share, "shares_basic") or 1_000_000_000,
-        "revenue_ttm": snapshot.get("revenue_ttm") or _val(ttm, "revenue"),
-        "net_income_ttm": snapshot.get("net_income_ttm") or _val(ttm, "net_income_parent") or _val(ttm, "net_income"),
+        "revenue_ttm": snapshot.get("revenue_ttm") or _val(ttm, "revenue") or snapshot.get("revenue_annual") or (dataset["income_annual"][-1].get("revenue") if dataset.get("income_annual") else None),
+        "revenue_annual": snapshot.get("revenue_annual") or (dataset["income_annual"][-1].get("revenue") if dataset.get("income_annual") else None),
+        "net_income_ttm": snapshot.get("net_income_ttm") or _val(ttm, "net_income_parent") or _val(ttm, "net_income") or snapshot.get("net_income_annual") or (dataset["income_annual"][-1].get("net_income_parent") if dataset.get("income_annual") else None),
         "net_debt": _val(balance_sheet, "net_debt"),
         "roe": _val(profitability, "roe"),
         # Peer multiples — None means not ingested, engine will return INSUFFICIENT_DATA

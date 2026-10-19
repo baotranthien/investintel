@@ -37,7 +37,7 @@ class ValuationSnapshotBuilder:
             methods.append(out)
             
         if "DCF" in selection.primary_methods or "DCF" in selection.secondary_methods:
-            base_rev = fundamentals.get("revenue_ttm")
+            base_rev = fundamentals.get("revenue_ttm") or fundamentals.get("revenue_annual") or fundamentals.get("latest_annual_revenue")
             dcf_assump = DCFAssumptions(
                 revenue_growth_rates=[0.10, 0.09, 0.08, 0.07, 0.06],
                 ebit_margins=[0.20, 0.20, 0.20, 0.20, 0.20],
@@ -50,9 +50,11 @@ class ValuationSnapshotBuilder:
             out.weight = (0.5 if "DCF" in selection.primary_methods else 0.2) if out.applicability != "NOT_APPLICABLE" else 0.0
             methods.append(out)
             
-        if "Residual Income" in selection.primary_methods:
-            out = ResidualIncomeEngine.calculate(bvps=bvps, roe=0.18, cost_of_equity=0.12, growth=0.05)
-            out.weight = 0.5
+        if "Residual Income" in selection.primary_methods or "Residual Income" in selection.secondary_methods:
+            real_roe = fundamentals.get("roe")
+            roe_val = (real_roe / 100.0) if (real_roe is not None and real_roe > 0) else 0.18
+            out = ResidualIncomeEngine.calculate(bvps=bvps, roe=roe_val, cost_of_equity=0.12, growth=0.05)
+            out.weight = (0.5 if "Residual Income" in selection.primary_methods else 0.2) if out.applicability != "NOT_APPLICABLE" else 0.0
             methods.append(out)
             
         # Normalize weights
@@ -66,10 +68,11 @@ class ValuationSnapshotBuilder:
         comp_base = sum(m.fair_value.base * m.weight for m in methods)
         comp_bull = sum(m.fair_value.bull * m.weight for m in methods)
         
-        # Check method disagreement (e.g. if dispersion is high)
+        # Check method disagreement and valid methods
         disagreement = False
         reason = None
-        if methods:
+        has_valid_method = any(m.fair_value.base > 0 for m in methods)
+        if methods and has_valid_method:
             bases = [m.fair_value.base for m in methods if m.fair_value.base > 0]
             if bases and max(bases) > min(bases) * 1.5:
                 disagreement = True
@@ -77,9 +80,9 @@ class ValuationSnapshotBuilder:
                 
         composite = CompositeFairValue(
             range=FairValueRange(bear=comp_bear, base=comp_base, bull=comp_bull),
-            confidence="MEDIUM" if not disagreement else "LOW",
+            confidence="MEDIUM" if (has_valid_method and not disagreement) else "LOW",
             method_disagreement=disagreement,
-            disagreement_reason=reason
+            disagreement_reason=reason if has_valid_method else "INSUFFICIENT_DATA: No valuation method has sufficient data"
         )
         
         margin_of_safety = (comp_base - current_price) / comp_base if comp_base > 0 else None
