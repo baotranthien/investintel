@@ -90,6 +90,27 @@ async def get_cron_history(
         total_lineages = db.query(DataLineage).count()
         latest_price_date = db.query(func.max(Price.observation_date)).scalar()
         
+        statements_by_symbol = dict(
+            db.query(FinancialStatement.symbol, func.count(FinancialStatement.id))
+            .group_by(FinancialStatement.symbol)
+            .all()
+        )
+        statements_by_type = dict(
+            db.query(FinancialStatement.statement_type, func.count(FinancialStatement.id))
+            .group_by(FinancialStatement.statement_type)
+            .all()
+        )
+        statements_by_status = dict(
+            db.query(FinancialStatement.status, func.count(FinancialStatement.id))
+            .group_by(FinancialStatement.status)
+            .all()
+        )
+        statements_by_source = dict(
+            db.query(FinancialStatement.source_name, func.count(FinancialStatement.id))
+            .group_by(FinancialStatement.source_name)
+            .all()
+        )
+        
         return {
             "summary": {
                 "total_jobs": total_jobs,
@@ -99,6 +120,10 @@ async def get_cron_history(
                 "latest_price_date": latest_price_date.isoformat() if latest_price_date else None,
                 "duplicate_prices_count": duplicate_prices_count,
                 "total_financial_statements": total_statements,
+                "statements_by_symbol": statements_by_symbol,
+                "statements_by_type": statements_by_type,
+                "statements_by_status": statements_by_status,
+                "statements_by_source": statements_by_source,
                 "total_lineage_records": total_lineages,
             },
             "recent_jobs": [
