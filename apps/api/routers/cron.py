@@ -74,7 +74,7 @@ async def get_cron_history(
     db: Session = SessionLocal()
     try:
         from sqlalchemy import func
-        from database.models import DataRun, Price
+        from database.models import DataRun, Price, FinancialStatement, DataLineage
         jobs = db.query(AnalystAutomationJob).order_by(AnalystAutomationJob.started_at.desc()).limit(limit).all()
         runs = db.query(DataRun).order_by(DataRun.started_at.desc()).limit(limit).all()
         
@@ -85,6 +85,9 @@ async def get_cron_history(
         dup_query = db.query(Price.asset_id, Price.observation_date, func.count(Price.id)).group_by(Price.asset_id, Price.observation_date).having(func.count(Price.id) > 1).all()
         duplicate_prices_count = len(dup_query)
         total_prices = db.query(Price).count()
+        total_statements = db.query(FinancialStatement).count()
+        total_lineages = db.query(DataLineage).count()
+        latest_price_date = db.query(func.max(Price.observation_date)).scalar()
         
         return {
             "summary": {
@@ -92,7 +95,10 @@ async def get_cron_history(
                 "success_jobs": success_jobs,
                 "failed_jobs": failed_jobs,
                 "total_prices": total_prices,
+                "latest_price_date": latest_price_date.isoformat() if latest_price_date else None,
                 "duplicate_prices_count": duplicate_prices_count,
+                "total_financial_statements": total_statements,
+                "total_lineage_records": total_lineages,
             },
             "recent_jobs": [
                 {

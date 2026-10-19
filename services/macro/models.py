@@ -60,6 +60,10 @@ class MarketRegime(BaseModel):
     declining: Optional[int] = None
     unchanged: Optional[int] = None
     breadth_percent: Optional[float] = None
+    benchmark: str = "VN100"
+    total_eligible: Optional[int] = None
+    covered_members: Optional[int] = None
+    denominator_rule: Optional[str] = None
 
 class MarketBreadth(BaseModel):
     advancing: int

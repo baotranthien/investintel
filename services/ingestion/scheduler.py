@@ -290,46 +290,51 @@ async def run_ingestion_cycle(
                 logger.warning("Ingestion failed for DNSE/%s: %s", symbol, exc)
 
     # 6. VNDIRECT market data & fundamentals (bounded by batch_limit or selected_symbols)
-    if (allowed_providers is None or "VNDIRECT" in allowed_providers) and "VNDIRECT" in source_ids and os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes"):
-        vndirect_prov = VndirectProvider()
-        for symbol, exchange, _ in effective_assets:
-            # Prices
-            try:
-                db = session_factory()
-                try:
-                    outcome = await vndirect_prov.ingest_to_database(
-                        db, symbol, start_date=start_date, end_date=date.today(),
-                        exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
-                    )
-                    results.append(outcome)
-                finally:
-                    db.close()
-            except Exception as exc:
-                _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
-                results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
-                logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
-
-            # Fundamentals & Corporate Profile (if enabled)
-            if os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes"):
+    if (allowed_providers is None or "VNDIRECT" in allowed_providers) and "VNDIRECT" in source_ids:
+        is_vndirect_targeted = allowed_providers is not None and "VNDIRECT" in allowed_providers
+        is_vndirect_env = os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes")
+        if is_vndirect_targeted or is_vndirect_env:
+            vndirect_prov = VndirectProvider()
+            for symbol, exchange, _ in effective_assets:
+                # Prices
                 try:
                     db = session_factory()
                     try:
-                        await vndirect_prov.ingest_company_profile(db, symbol, source_id=source_ids.get("VNDIRECT"))
-                        res_fs = await vndirect_prov.ingest_fundamentals(db, symbol, source_id=source_ids.get("VNDIRECT"))
-                        await vndirect_prov.ingest_ratios(db, symbol, source_id=source_ids.get("VNDIRECT"))
-                        await vndirect_prov.ingest_events(db, symbol, source_id=source_ids.get("VNDIRECT"))
-                        results.append({
-                            "provider": "VNDIRECT",
-                            "symbol": symbol,
-                            "dataset": "fundamentals",
-                            "status": res_fs.get("status", "SUCCESS")
-                        })
+                        outcome = await vndirect_prov.ingest_to_database(
+                            db, symbol, start_date=start_date, end_date=date.today(),
+                            exchange=exchange or "HOSE", source_id=source_ids.get("VNDIRECT")
+                        )
+                        results.append(outcome)
                     finally:
                         db.close()
                 except Exception as exc:
-                    _record_failure(session_factory, "VNDIRECT", f"fundamentals_{symbol}", "FAILURE", str(exc))
-                    results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
-                    logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
+                    _record_failure(session_factory, "VNDIRECT", f"market_data_{symbol}", "FAILURE", str(exc))
+                    results.append({"provider": "VNDIRECT", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                    logger.warning("Ingestion failed for VNDIRECT prices/%s: %s", symbol, exc)
+
+                # Fundamentals & Corporate Profile (if targeted or env enabled)
+                if is_vndirect_targeted or os.getenv("ENABLE_VNDIRECT_FUNDAMENTALS", "false").lower() in ("true", "1", "yes"):
+                    try:
+                        db = session_factory()
+                        try:
+                            await vndirect_prov.ingest_company_profile(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                            res_fs = await vndirect_prov.ingest_fundamentals(db, symbol, report_type="QUARTER", periods_limit=8, source_id=source_ids.get("VNDIRECT"))
+                            res_annual = await vndirect_prov.ingest_fundamentals(db, symbol, report_type="ANNUAL", periods_limit=4, source_id=source_ids.get("VNDIRECT"))
+                            await vndirect_prov.ingest_ratios(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                            await vndirect_prov.ingest_events(db, symbol, source_id=source_ids.get("VNDIRECT"))
+                            results.append({
+                                "provider": "VNDIRECT",
+                                "symbol": symbol,
+                                "dataset": "fundamentals",
+                                "status": res_fs.get("status", "SUCCESS")
+                            })
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "VNDIRECT", f"fundamentals_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "VNDIRECT", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for VNDIRECT fundamentals/%s: %s", symbol, exc)
+                await asyncio.sleep(0.1)
 
     # 7. LotusMarket market data & insider events (bounded by batch_limit or selected_symbols)
     if (allowed_providers is None or "LOTUSMARKET" in allowed_providers) and "LOTUSMARKET" in source_ids:

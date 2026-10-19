@@ -101,15 +101,22 @@ class MacroEngine:
 
 class MarketRegimeEngine:
     @staticmethod
-    def determine_regime(as_of: date, session: Optional[Session] = None) -> MarketRegime:
+    def determine_regime(
+        as_of: date,
+        session: Optional[Session] = None,
+        benchmark: str = "VN100",
+    ) -> MarketRegime:
         """
         Determines market regime based on stored prices and breadth.
-        Returns honest INSUFFICIENT_DATA when market features are missing.
+        Returns honest INSUFFICIENT_DATA when market features or constituent coverage are below threshold.
         """
         close_session = False
         if session is None:
             session = SessionLocal()
             close_session = True
+
+        benchmark_upper = benchmark.upper()
+        denom_rule = "advancing / (advancing + declining + unchanged) across constituents with valid aligned session prices"
 
         try:
             from sqlalchemy import or_
@@ -117,7 +124,7 @@ class MarketRegimeEngine:
 
             as_of_dt = datetime.combine(as_of, time.max)
             index_prices = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
-                Asset.symbol == "VN100",
+                Asset.symbol == benchmark_upper,
                 Price.status == "VALID",
                 Price.observation_date <= as_of,
             ).order_by(Price.observation_date.desc()).limit(21).all()
@@ -125,14 +132,16 @@ class MarketRegimeEngine:
                 return MarketRegime(
                     regime="INSUFFICIENT_DATA",
                     confidence=0.0,
-                    drivers=["INSUFFICIENT_DATA: VN100 needs 21 valid index bars for 20-session momentum"],
+                    drivers=[f"INSUFFICIENT_DATA: {benchmark_upper} needs 21 valid index bars for 20-session momentum (found {len(index_prices)})"],
                     risks=[],
                     changes=[],
-                    as_of=as_of
+                    as_of=as_of,
+                    benchmark=benchmark_upper,
+                    denominator_rule=denom_rule,
                 )
 
             memberships = session.query(IndexMembership).filter(
-                IndexMembership.index_symbol == "VN100",
+                IndexMembership.index_symbol == benchmark_upper,
                 IndexMembership.start_date <= as_of,
                 or_(IndexMembership.end_date.is_(None), IndexMembership.end_date >= as_of),
             ).all()
@@ -168,37 +177,56 @@ class MarketRegimeEngine:
                 else:
                     unchanged += 1
 
-            coverage = covered_members / len(memberships) if memberships else 0.0
-            if covered_members < 3 or coverage < 0.5:
-                return MarketRegime(
-                    regime="INSUFFICIENT_DATA",
-                    confidence=0.0,
-                    drivers=[
-                        "INSUFFICIENT_DATA: VN100 constituent coverage is too low for market breadth",
-                        f"Coverage: {covered_members}/{len(memberships)} active constituents on {benchmark_date.isoformat()}",
-                    ],
-                    risks=[],
-                    changes=[],
-                    as_of=benchmark_date,
-                    model_version="vn100_price_breadth_v1",
-                    data_coverage=coverage,
-                )
-
             latest_close = index_prices[0].adjusted_close or index_prices[0].raw_close
             prior_close = index_prices[-1].adjusted_close or index_prices[-1].raw_close
             if not latest_close or not prior_close:
                 return MarketRegime(
                     regime="INSUFFICIENT_DATA",
                     confidence=0.0,
-                    drivers=["INSUFFICIENT_DATA: VN100 benchmark close is missing"],
+                    drivers=[f"INSUFFICIENT_DATA: {benchmark_upper} benchmark close is missing"],
                     risks=[],
                     changes=[],
                     as_of=benchmark_date,
-                    model_version="vn100_price_breadth_v1",
-                    data_coverage=coverage,
+                    model_version=f"{benchmark_upper.lower()}_price_breadth_v1",
+                    data_coverage=0.0,
+                    benchmark=benchmark_upper,
+                    total_eligible=len(memberships),
+                    covered_members=covered_members,
+                    denominator_rule=denom_rule,
                 )
 
             momentum = latest_close / prior_close - 1.0
+            momentum_signal = f"{benchmark_upper} 20-session momentum: {momentum:+.2%}"
+
+            # Minimum constituent threshold guard:
+            # Broad-market basket requires >= 50% coverage and at least minimum members
+            min_constituents = 15 if benchmark_upper == "VN30" else 10
+            total_eligible = len(memberships)
+            coverage = covered_members / total_eligible if total_eligible > 0 else 0.0
+            if covered_members < min_constituents or coverage < 0.5:
+                return MarketRegime(
+                    regime="INSUFFICIENT_DATA",
+                    confidence=0.0,
+                    drivers=[
+                        f"INSUFFICIENT_DATA: Độ phủ thành phần {benchmark_upper} chưa đủ đại diện (ngưỡng >= 50%)",
+                        f"Độ phủ: {covered_members}/{total_eligible} ({coverage:.1%}) mã thành phần có giá cùng phiên {benchmark_date} (cần tối thiểu {min_constituents} mã và >= 50%)",
+                    ],
+                    risks=[f"Market breadth cannot be reliably assessed with coverage under 50% ({covered_members}/{total_eligible})."],
+                    changes=[],
+                    as_of=benchmark_date,
+                    model_version=f"{benchmark_upper.lower()}_price_breadth_v1",
+                    data_coverage=round(coverage, 3),
+                    momentum_20d=momentum,
+                    historical_context=[momentum_signal],
+                    benchmark=benchmark_upper,
+                    total_eligible=total_eligible,
+                    covered_members=covered_members,
+                    advancing=advancing,
+                    declining=declining,
+                    unchanged=unchanged,
+                    denominator_rule=denom_rule,
+                )
+
             breadth = advancing / covered_members
             if momentum > 0.05 and breadth >= 0.60:
                 regime_name = "EXPANSION"
@@ -209,8 +237,7 @@ class MarketRegimeEngine:
             else:
                 regime_name = "NEUTRAL"
 
-            momentum_signal = f"VN100 20-session momentum: {momentum:+.2%}"
-            breadth_signal = f"VN100 breadth: {advancing} advancing, {declining} declining, {unchanged} unchanged"
+            breadth_signal = f"{benchmark_upper} breadth: {advancing} advancing, {declining} declining, {unchanged} unchanged"
             momentum_supports = momentum > 0 if regime_name in ("EXPANSION", "RECOVERY") else momentum < 0
             breadth_supports = breadth >= 0.50 if regime_name in ("EXPANSION", "RECOVERY") else breadth < 0.50
             supporting_signals = []
@@ -225,7 +252,7 @@ class MarketRegimeEngine:
                 risks=conflicting_signals,
                 changes=[],
                 as_of=benchmark_date,
-                model_version="vn100_price_breadth_v1",
+                model_version=f"{benchmark_upper.lower()}_price_breadth_v1",
                 supporting_signals=supporting_signals,
                 conflicting_signals=conflicting_signals,
                 data_coverage=round(coverage, 3),
@@ -235,6 +262,10 @@ class MarketRegimeEngine:
                 declining=declining,
                 unchanged=unchanged,
                 breadth_percent=round(breadth * 100.0, 2),
+                benchmark=benchmark_upper,
+                total_eligible=total_eligible,
+                covered_members=covered_members,
+                denominator_rule=denom_rule,
             )
         finally:
             if close_session:

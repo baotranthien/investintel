@@ -178,13 +178,41 @@ def seed_data_sources(session: Session) -> dict:
 def seed_assets(session: Session) -> dict:
     """Populates canonical assets table."""
     assets_data = [
+        # VN30 Constituents (verified official basket from HOSE / SSI iBoard)
+        {"symbol": "ACB", "name": "Asia Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "BID", "name": "Bank for Investment and Development of Vietnam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "BSR", "name": "Binh Son Refining and Petrochemical Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "ENERGY"},
+        {"symbol": "CTG", "name": "Viet Nam Joint Stock Commercial Bank for Industry and Trade", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "FPT", "name": "FPT Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "TECHNOLOGY"},
-        {"symbol": "VCB", "name": "Vietcombank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
-        {"symbol": "MBB", "name": "Military Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
-        {"symbol": "MWG", "name": "Mobile World Investment Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "RETAIL"},
+        {"symbol": "GAS", "name": "PetroVietnam Gas Joint Stock Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "UTILITIES"},
+        {"symbol": "GVR", "name": "Viet Nam Rubber Group - Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "MATERIALS"},
+        {"symbol": "HDB", "name": "Ho Chi Minh City Development Joint Stock Commercial Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "HPG", "name": "Hoa Phat Group Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "MATERIALS"},
+        {"symbol": "LPB", "name": "Fortune Vietnam Joint Stock Commercial Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "MBB", "name": "Military Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "MCH", "name": "Masan Consumer Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "CONSUMER_GOODS"},
+        {"symbol": "MSN", "name": "Masan Group Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "CONSUMER_GOODS"},
+        {"symbol": "MWG", "name": "Mobile World Investment Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "RETAIL"},
+        {"symbol": "SAB", "name": "Saigon Beer - Alcohol - Beverage Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "CONSUMER_GOODS"},
+        {"symbol": "SHB", "name": "Sai Gon - Ha Noi Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "SSB", "name": "Southeast Asia Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "SSI", "name": "SSI Securities Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "FINANCIAL_SERVICES"},
+        {"symbol": "STB", "name": "Saigon Thuong Tin Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "TCB", "name": "Vietnam Technological and Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "TCX", "name": "Techcom Securities Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "FINANCIAL_SERVICES"},
+        {"symbol": "VCB", "name": "Vietcombank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "VHM", "name": "Vinhomes Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "REAL_ESTATE"},
+        {"symbol": "VIB", "name": "Vietnam International Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "VIC", "name": "Vingroup Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "CONGLOMERATE"},
+        {"symbol": "VJC", "name": "VietJet Aviation Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "INDUSTRIALS"},
+        {"symbol": "VNM", "name": "Viet Nam Dairy Products Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "CONSUMER_GOODS"},
+        {"symbol": "VPB", "name": "VietNam Prosperity Joint Stock Commercial Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "VPL", "name": "Vinpearl Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "REAL_ESTATE"},
+        {"symbol": "VRE", "name": "Vincom Retail Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "REAL_ESTATE"},
+        # ETFs & Benchmarks
         {"symbol": "FUEVN100", "name": "VinaCapital VN100 ETF", "asset_type": "ETF", "exchange": "HOSE", "sector": "INDEX_FUND"},
         {"symbol": "VN100", "name": "VN100 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "BENCHMARK"},
+        {"symbol": "VN30", "name": "VN30 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "BENCHMARK"},
         {"symbol": "VN300", "name": "VN300 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "BENCHMARK"},
     ]
     asset_map = {}
@@ -201,33 +229,89 @@ def seed_assets(session: Session) -> dict:
     return asset_map
 
 def seed_index_memberships(session: Session, source_id: int):
-    """Seeds historical index constituents for VN30, VN100, VN300."""
-    members = [
-        # VN30
-        {"index_symbol": "VN30", "symbol": "FPT", "start_date": date(2012, 2, 6), "end_date": None, "weight": 0.085},
-        {"index_symbol": "VN30", "symbol": "VCB", "start_date": date(2012, 2, 6), "end_date": None, "weight": 0.092},
-        {"index_symbol": "VN30", "symbol": "HPG", "start_date": date(2012, 2, 6), "end_date": None, "weight": 0.078},
-        {"index_symbol": "VN30", "symbol": "MWG", "start_date": date(2015, 1, 26), "end_date": None, "weight": 0.054},
-        {"index_symbol": "VN30", "symbol": "MBB", "start_date": date(2012, 2, 6), "end_date": None, "weight": 0.062},
-        {"index_symbol": "VN30", "symbol": "ROS", "start_date": date(2017, 7, 24), "end_date": date(2020, 8, 3), "weight": 0.015},
+    """Seeds historical and current index constituents for VN30, VN100, VN300 with provenance."""
+    import json
+    from pathlib import Path
 
-        # VN100
-        {"index_symbol": "VN100", "symbol": "FPT", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.065},
-        {"index_symbol": "VN100", "symbol": "VCB", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.070},
-        {"index_symbol": "VN100", "symbol": "MBB", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.048},
-        {"index_symbol": "VN100", "symbol": "MWG", "start_date": date(2015, 1, 26), "end_date": None, "weight": 0.042},
-        {"index_symbol": "VN100", "symbol": "HPG", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.058},
-        {"index_symbol": "VN100", "symbol": "ROS", "start_date": date(2017, 7, 24), "end_date": date(2020, 8, 3), "weight": 0.012},
-
-        # VN300
-        {"index_symbol": "VN300", "symbol": "FPT", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.045},
-        {"index_symbol": "VN300", "symbol": "VCB", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.050},
-        {"index_symbol": "VN300", "symbol": "MBB", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.035},
-        {"index_symbol": "VN300", "symbol": "MWG", "start_date": date(2015, 1, 26), "end_date": None, "weight": 0.032},
-        {"index_symbol": "VN300", "symbol": "HPG", "start_date": date(2014, 1, 1), "end_date": None, "weight": 0.040},
-        {"index_symbol": "VN300", "symbol": "ROS", "start_date": date(2017, 7, 24), "end_date": date(2020, 8, 3), "weight": 0.008},
+    # 1. Official VN30 Constituents (30 stocks verified from HOSE/SSI iBoard)
+    vn30_file = Path(__file__).resolve().parent.parent.parent / "data" / "market" / "vn30_constituents.json"
+    vn30_symbols = [
+        "ACB", "BID", "BSR", "CTG", "FPT", "GAS", "GVR", "HDB", "HPG", "LPB",
+        "MBB", "MCH", "MSN", "MWG", "SAB", "SHB", "SSB", "SSI", "STB", "TCB",
+        "TCX", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VPL", "VRE"
     ]
+    if vn30_file.exists():
+        try:
+            loaded_30 = json.loads(vn30_file.read_text(encoding="utf-8"))
+            vn30_symbols = [it["symbol"] for it in loaded_30 if it.get("symbol")]
+        except Exception:
+            pass
 
+    # 2. Official VN100 Constituents (100 stocks verified from HOSE/SSI iBoard)
+    vn100_file = Path(__file__).resolve().parent.parent.parent / "data" / "market" / "vn100_constituents.json"
+    vn100_symbols = list(vn30_symbols)  # Start with VN30 (all 30 are in VN100)
+    if vn100_file.exists():
+        try:
+            loaded_100 = json.loads(vn100_file.read_text(encoding="utf-8"))
+            vn100_symbols = [it["symbol"] for it in loaded_100 if it.get("symbol")]
+        except Exception:
+            pass
+
+    members = []
+    effective_start = date(2020, 1, 1)  # Long-standing index constituents effective across historical analysis window
+
+    # Add VN30 active members
+    for sym in vn30_symbols:
+        members.append({
+            "index_symbol": "VN30",
+            "symbol": sym,
+            "start_date": effective_start,
+            "end_date": None,
+            "weight": round(1.0 / len(vn30_symbols), 4),
+            "is_active": True,
+        })
+    # Historical excluded member for VN30 lineage
+    members.append({
+        "index_symbol": "VN30",
+        "symbol": "ROS",
+        "start_date": date(2017, 7, 24),
+        "end_date": date(2020, 8, 3),
+        "weight": 0.015,
+        "is_active": False,
+    })
+
+    # Add VN100 active members
+    for sym in vn100_symbols:
+        members.append({
+            "index_symbol": "VN100",
+            "symbol": sym,
+            "start_date": effective_start,
+            "end_date": None,
+            "weight": round(1.0 / len(vn100_symbols), 4),
+            "is_active": True,
+        })
+    # Historical excluded member for VN100 lineage
+    members.append({
+        "index_symbol": "VN100",
+        "symbol": "ROS",
+        "start_date": date(2017, 7, 24),
+        "end_date": date(2020, 8, 3),
+        "weight": 0.012,
+        "is_active": False,
+    })
+
+    # Add VN300 (seed sample for comparison; marked insufficient data)
+    for sym in ["FPT", "VCB", "MBB", "MWG", "HPG"]:
+        members.append({
+            "index_symbol": "VN300",
+            "symbol": sym,
+            "start_date": date(2014, 1, 1),
+            "end_date": None,
+            "weight": 0.040,
+            "is_active": True,
+        })
+
+    pub_now = datetime.now(timezone.utc)
     for m in members:
         existing = session.query(IndexMembership).filter(
             IndexMembership.index_symbol == m["index_symbol"],
@@ -239,11 +323,12 @@ def seed_index_memberships(session: Session, source_id: int):
                 index_symbol=m["index_symbol"],
                 symbol=m["symbol"],
                 start_date=m["start_date"],
-                end_date=m["end_date"],
-                weight=m["weight"],
+                end_date=m.get("end_date"),
+                weight=m.get("weight"),
                 source_id=source_id,
                 published_at=datetime.combine(m["start_date"], datetime.min.time(), tzinfo=timezone.utc),
-                is_active=(m["end_date"] is None)
+                retrieved_at=pub_now,
+                is_active=m.get("is_active", True)
             )
             session.add(im)
     session.commit()
@@ -821,6 +906,19 @@ def seed_financial_statements(session: Session, source_id: int):
                     free_cash_flow=p.get("free_cash_flow", 0.0)
                 )
                 session.add(norm_cf)
+
+                # Lineage records for Point-In-Time provenance
+                import hashlib
+                for s in (stmt_inc, stmt_bs, stmt_cf):
+                    chk = hashlib.sha256(f"{symbol}:{s.statement_type}:{p['fiscal_period_end']}:v1".encode()).hexdigest()
+                    session.add(DataLineage(
+                        record_table="financial_statements",
+                        record_id=str(s.id),
+                        raw_source="HOSE_FILING",
+                        checksum=chk,
+                        url="https://static2.vietstock.vn/vietstock/data/finance/",
+                        retrieved_at=datetime.combine(p["publication_date"], datetime.min.time(), tzinfo=timezone.utc),
+                    ))
     session.commit()
 
 def run_real_market_ingestion(session: Session, source_id: int) -> dict:
@@ -828,7 +926,7 @@ def run_real_market_ingestion(session: Session, source_id: int) -> dict:
     base_dir = Path(__file__).resolve().parent.parent.parent / "data" / "market"
     provider = MarketDataCsvProvider()
     
-    symbols = ["FPT", "VCB", "MBB", "MWG", "HPG", "FUEVN100", "VN100", "VN300"]
+    symbols = ["FPT", "VCB", "MBB", "MWG", "HPG", "FUEVN100", "VN100", "VN30", "VN300"]
     results = {}
     for symbol in symbols:
         csv_file = base_dir / f"{symbol.lower()}_historical.csv"

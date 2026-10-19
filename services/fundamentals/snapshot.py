@@ -106,7 +106,8 @@ class FundamentalSnapshotBuilder:
 
         # ─── Primary income source: TTM > Annual ─────────────
         def get_income(field: str) -> Optional[float]:
-            return ttm.get(field) if ttm else latest_income_a.get(field)
+            val = ttm.get(field) if ttm else None
+            return val if val is not None else latest_income_a.get(field)
 
         revenue = get_income("revenue")
         gross_profit = get_income("gross_profit")
@@ -237,8 +238,15 @@ class FundamentalSnapshotBuilder:
 
         # ─── PER SHARE ─────────────────────────────────────────
         shares = latest_income_a.get("shares_basic") or shares_outstanding
-        bvps_val = (equity_parent / shares) if (equity_parent and shares and shares > 0) else None
-        eps_ttm_val = ttm.get("eps_basic") if ttm else eps_basic
+        bvps_val = None
+        if equity_parent and shares and shares > 0:
+            equity_vnd = equity_parent * 1_000_000_000 if (equity_parent < 10_000_000 and shares > 100_000) else equity_parent
+            bvps_val = equity_vnd / shares
+        eps_ttm_val = ttm.get("eps_basic")
+        if eps_ttm_val is None and ttm.get("net_income_parent") is not None and shares and shares > 0:
+            eps_ttm_val = (ttm["net_income_parent"] * 1_000_000_000) / shares
+        if eps_ttm_val is None:
+            eps_ttm_val = eps_basic
 
         # ─── TREND ANALYSIS ────────────────────────────────────
         rev_series = [(str(a.get("fiscal_period_end", "")), a.get("revenue")) for a in income_annual]
@@ -370,6 +378,11 @@ class FundamentalSnapshotBuilder:
             "period": period,
             "as_of": str(latest_period_end) if latest_period_end else None,
             "calculation_version": self.CALCULATION_VERSION,
+            "ttm": ttm,
+            "revenue_ttm": revenue if ttm_ok else None,
+            "net_income_ttm": (net_income_parent or net_income) if ttm_ok else None,
+            "bvps": bvps_val,
+            "eps_ttm": eps_ttm_val,
 
             "growth": {
                 "revenue_yoy": _mr(revenue_yoy_r),

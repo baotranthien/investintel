@@ -243,16 +243,15 @@ def build_research_workspace(
         ("cfo", "cash_flow", "cfo", "BILLION_VND"),
         ("fcf", "cash_flow", "fcf", "BILLION_VND"),
     ):
+        period = snapshot.get("period") or "ANNUAL"
         if source_group == "income":
             value = (
                 ttm_income.get(raw_key)
                 if snapshot.get("period") == "TTM"
                 else (dataset["income_annual"][-1].get(raw_key) if dataset["income_annual"] else None)
             )
-            period = snapshot.get("period") or "ANNUAL"
         else:
             value = snapshot.get(source_group, {}).get(raw_key)
-            period = snapshot.get("period")
         if metric_id == "eps_ttm" and snapshot.get("period") != "TTM":
             value = None
         fundamentals_metrics[metric_id] = _metric_from_snapshot(
@@ -475,12 +474,73 @@ def build_research_workspace(
             ),
         )
 
+    # EV/EBITDA Calculation
+    if sector.upper() in {"BANK", "BANKING", "FINANCIALS"}:
+        valuation_metrics["ev_ebitda"] = WorkspaceMetric(
+            status="NOT_MEANINGFUL",
+            unit="multiple",
+            evidence=Evidence(
+                claim_type="UNCERTAINTY",
+                note="EV/EBITDA is not applicable for banking institutions.",
+            ),
+        )
+    else:
+        cf_rows = dataset.get("cashflow_annual") or []
+        latest_cf = cf_rows[-1] if cf_rows else {}
+        depr_amort = latest_cf.get("depreciation_amortization", 0.0) or 0.0
+        op_inc = (
+            ttm_income.get("operating_income")
+            if snapshot.get("period") == "TTM"
+            else (annual_rows[-1].get("operating_income") if annual_rows else None)
+        )
+        ebitda_val = (op_inc + depr_amort) if op_inc is not None else None
+        shares_cnt = dataset.get("shares_outstanding") or snapshot.get("per_share", {}).get("shares_basic") or 1_000_000_000
+        net_debt_val = snapshot.get("balance_sheet", {}).get("net_debt") or 0.0
+
+        if current_price is not None and shares_cnt and ebitda_val is not None:
+            market_cap_bn = (current_price * shares_cnt) / 1_000_000_000
+            ev_bn = market_cap_bn + net_debt_val
+            if ebitda_val > 0:
+                ev_ebitda_multiple = round(ev_bn / ebitda_val, 2)
+                valuation_metrics["ev_ebitda"] = WorkspaceMetric(
+                    value=ev_ebitda_multiple,
+                    unit="multiple",
+                    status="AVAILABLE",
+                    calculation="EV / EBITDA",
+                    evidence=Evidence(
+                        claim_type="MODEL_OUTPUT",
+                        source=primary_source,
+                        observation_date=snapshot_source_date,
+                        publication_date=latest_publication,
+                        data_origin="CANONICAL_FINANCIAL_STATEMENTS",
+                        note=f"Market cap: {market_cap_bn:.1f}B VND, Net Debt: {net_debt_val:.1f}B VND, EBITDA: {ebitda_val:.1f}B VND",
+                    ),
+                )
+            else:
+                valuation_metrics["ev_ebitda"] = WorkspaceMetric(
+                    status="NOT_MEANINGFUL",
+                    unit="multiple",
+                    evidence=Evidence(
+                        claim_type="UNCERTAINTY",
+                        note="EBITDA is negative or zero.",
+                    ),
+                )
+        else:
+            valuation_metrics["ev_ebitda"] = WorkspaceMetric(
+                status="INSUFFICIENT_DATA",
+                unit="multiple",
+                evidence=Evidence(
+                    claim_type="UNCERTAINTY",
+                    note="Insufficient price or EBITDA facts.",
+                ),
+            )
+
     unavailable_valuation = {
         metric: WorkspaceMetric(status="INSUFFICIENT_DATA", unit=None, evidence=Evidence(
             claim_type="UNCERTAINTY",
             note="No evidence-backed input contract is available for this output.",
         ))
-        for metric in ("ev_ebitda", "peg", "dividend_yield", "fcf_yield", "dcf", "residual_income", "ddm")
+        for metric in ("peg", "dividend_yield", "fcf_yield", "dcf", "residual_income", "ddm")
     }
     valuation_metrics.update(unavailable_valuation)
 

@@ -385,10 +385,11 @@ class VndirectProvider(BaseProvider):
         if not norm_sym:
             return []
 
+        api_report_type = "ANNUAL" if report_type.upper() in ("YEAR", "ANNUAL") else "QUARTER"
         all_items: List[Dict[str, Any]] = []
         for page in range(1, max_pages + 1):
             params = {
-                "q": f"code:{norm_sym}~reportType:{report_type}",
+                "q": f"code:{norm_sym}~reportType:{api_report_type}",
                 "sort": "fiscalDate:desc",
                 "size": size,
                 "page": page
@@ -449,8 +450,9 @@ class VndirectProvider(BaseProvider):
 
             fiscal_year = fiscal_end.year
             # Determine quarter
-            quarter = (fiscal_end.month - 1) // 3 + 1 if report_type == "QUARTER" else None
-            period_type_val = "QUARTERLY" if report_type == "QUARTER" else "ANNUAL"
+            api_report_type = "ANNUAL" if report_type.upper() in ("YEAR", "ANNUAL") else "QUARTER"
+            quarter = (fiscal_end.month - 1) // 3 + 1 if api_report_type == "QUARTER" else None
+            period_type_val = "QUARTERLY" if api_report_type == "QUARTER" else "ANNUAL"
 
             # Parse earliest createdDate as real publication date
             pub_date = None

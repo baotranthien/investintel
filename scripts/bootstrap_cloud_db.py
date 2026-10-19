@@ -86,7 +86,34 @@ APPROVED_ASSETS = [
     {"symbol": "MBB", "name": "Ngân hàng TMCP Quân đội", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
     {"symbol": "MWG", "name": "Công ty Cổ phần Đầu tư Thế Giới Di Động", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Retail"},
     {"symbol": "HPG", "name": "Công ty Cổ phần Tập đoàn Hòa Phát", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Materials"},
+    {"symbol": "ACB", "name": "Ngân hàng TMCP Á Châu", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "BCM", "name": "Tổng Công ty Đầu tư và Phát triển Công nghiệp", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Real Estate"},
+    {"symbol": "BID", "name": "Ngân hàng TMCP Đầu tư và Phát triển Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "BVH", "name": "Tập đoàn Bảo Việt", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Financials"},
+    {"symbol": "CTG", "name": "Ngân hàng TMCP Công thương Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "GAS", "name": "Tổng Công ty Khí Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Energy"},
+    {"symbol": "GVR", "name": "Tập đoàn Công nghiệp Cao su Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Materials"},
+    {"symbol": "HDB", "name": "Ngân hàng TMCP Phát triển TP.HCM", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "MSN", "name": "Công ty Cổ phần Tập đoàn Masan", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Consumer Goods"},
+    {"symbol": "PLX", "name": "Tập đoàn Xăng dầu Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Energy"},
+    {"symbol": "POW", "name": "Tổng Công ty Điện lực Dầu khí Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Utilities"},
+    {"symbol": "SAB", "name": "Tổng Công ty Cổ phần Bia - Rượu - Nước giải khát Sài Gòn", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Consumer Goods"},
+    {"symbol": "SHB", "name": "Ngân hàng TMCP Sài Gòn - Hà Nội", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "SSB", "name": "Ngân hàng TMCP Đông Nam Á", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "SSI", "name": "Công ty Cổ phần Chứng khoán SSI", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Financials"},
+    {"symbol": "STB", "name": "Ngân hàng TMCP Sài Gòn Thương Tín", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "TCB", "name": "Ngân hàng TMCP Kỹ thương Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "TPB", "name": "Ngân hàng TMCP Tiên Phong", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "VHM", "name": "Công ty Cổ phần Vinhomes", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Real Estate"},
+    {"symbol": "VIB", "name": "Ngân hàng TMCP Quốc tế Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "VIC", "name": "Tập đoàn Vingroup", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Real Estate"},
+    {"symbol": "VJC", "name": "Công ty Cổ phần Hàng không VietJet", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Industrials"},
+    {"symbol": "VNM", "name": "Công ty Cổ phần Sữa Việt Nam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Consumer Goods"},
+    {"symbol": "VPB", "name": "Ngân hàng TMCP Việt Nam Thịnh Vượng", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Banking"},
+    {"symbol": "VRE", "name": "Công ty Cổ phần Vincom Retail", "asset_type": "STOCK", "exchange": "HOSE", "sector": "Real Estate"},
+    {"symbol": "VN30", "name": "Chỉ số VN30 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "Benchmark"},
     {"symbol": "VN100", "name": "Chỉ số VN100 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "Benchmark"},
+    {"symbol": "VN300", "name": "Chỉ số VN300 Index", "asset_type": "INDEX", "exchange": "HOSE", "sector": "Benchmark"},
 ]
 
 APPROVED_MACRO_SERIES = [
@@ -110,7 +137,9 @@ def run_migrations():
 
 
 def seed_reference_data(db):
-    """Seed approved reference assets and sources idempotently."""
+    """Seed approved reference assets, memberships, sources and verified statements idempotently."""
+    from database.models import IndexMembership, FinancialStatement
+
     logger.info("Checking and seeding approved reference DataSources...")
     for ds_info in APPROVED_DATA_SOURCES:
         existing = db.query(DataSource).filter_by(name=ds_info["name"]).first()
@@ -140,6 +169,35 @@ def seed_reference_data(db):
             logger.info(f"  + Added MacroSeries: {series_info['id']}")
         else:
             logger.debug(f"  = MacroSeries already exists: {series_info['id']}")
+
+    db.commit()
+
+    # Seed Index Memberships for VN30 and VN100
+    try:
+        from services.ingestion.seed_data import seed_index_memberships
+        vn30_members = db.query(IndexMembership).filter_by(index_symbol="VN30").count()
+        vn100_members = db.query(IndexMembership).filter_by(index_symbol="VN100").count()
+        if vn30_members < 30 or vn100_members < 100:
+            logger.info(f"Seeding verified index memberships (current: VN30={vn30_members}, VN100={vn100_members})...")
+            hose_ds = db.query(DataSource).filter_by(name="HOSE_CSV").first()
+            source_id = hose_ds.id if hose_ds else 1
+            seed_index_memberships(db, source_id)
+            logger.info("Index memberships seeded successfully.")
+    except Exception as e:
+        logger.warning(f"Index membership seeding notice: {e}")
+
+    # Seed Verified Financial Statements if database has no statements
+    try:
+        stmt_count = db.query(FinancialStatement).count()
+        if stmt_count == 0:
+            logger.info("Database has 0 financial statements. Seeding verified Point-In-Time statements...")
+            from services.ingestion.seed_data import seed_financial_statements
+            hose_ds = db.query(DataSource).filter_by(name="HOSE_CSV").first()
+            source_id = hose_ds.id if hose_ds else 1
+            seed_financial_statements(db, source_id)
+            logger.info("Verified financial statements seeded successfully.")
+    except Exception as e:
+        logger.warning(f"Financial statement seeding notice: {e}")
 
     db.commit()
     logger.info("Reference data seeding completed successfully.")

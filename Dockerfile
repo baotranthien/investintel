@@ -22,6 +22,7 @@ COPY database /app/database
 COPY services /app/services
 COPY apps /app/apps
 COPY scripts /app/scripts
+COPY data /app/data
 
 # Health check using Render port
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

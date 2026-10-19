@@ -61,6 +61,10 @@ class MarketRegimeSummary(BaseModel):
     declining: Optional[int] = None
     unchanged: Optional[int] = None
     breadth_percent: Optional[float] = None
+    benchmark: str = "VN100"
+    total_eligible: Optional[int] = None
+    covered_members: Optional[int] = None
+    denominator_rule: Optional[str] = None
 
 
 class MarketDashboard(BaseModel):
@@ -127,51 +131,67 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
     ]
 
     regime = MarketRegimeEngine.determine_regime(as_of, session=session)
-    benchmark_date = regime.as_of if regime.regime != "INSUFFICIENT_DATA" else None
+    benchmark_date = regime.as_of
     benchmark_metric = next((item.metric for item in indexes if item.symbol == "VN100"), None)
     inherited_status: MetricStatus = (
         benchmark_metric.status if benchmark_metric and benchmark_metric.value is not None
         else "INSUFFICIENT_DATA"
     )
 
-    if regime.breadth_percent is None:
+    breadth_details = {
+        "benchmark": regime.benchmark,
+        "session_date": str(benchmark_date) if benchmark_date else None,
+        "advancing": regime.advancing,
+        "declining": regime.declining,
+        "unchanged": regime.unchanged,
+        "covered_members": regime.covered_members,
+        "total_eligible": regime.total_eligible,
+        "coverage": regime.data_coverage,
+        "coverage_percent": round((regime.data_coverage or 0.0) * 100.0, 1),
+        "denominator_rule": regime.denominator_rule,
+        "threshold": ">= 50% constituent coverage on same session date required for AVAILABLE",
+    }
+
+    if regime.breadth_percent is None or regime.regime == "INSUFFICIENT_DATA":
         breadth = MarketMetric(
             status="INSUFFICIENT_DATA",
             as_of_date=benchmark_date,
-            source="Canonical VN100 membership and prices",
-            note="Breadth requires aligned, published VN100 constituent prices.",
+            source=f"Canonical {regime.benchmark} membership and prices",
+            note=(
+                regime.drivers[0] if regime.drivers
+                else f"INSUFFICIENT_DATA: Độ rộng thị trường {regime.benchmark} yêu cầu tối thiểu 50% mã thành phần có giá hợp lệ cùng phiên."
+            ),
+            details=breadth_details,
         )
     else:
         breadth = MarketMetric(
             value=regime.breadth_percent,
             unit="percent_advancing",
             as_of_date=benchmark_date,
-            source="Canonical VN100 membership and prices",
+            source=f"Canonical {regime.benchmark} membership and prices",
             status=inherited_status,
-            details={
-                "advancing": regime.advancing,
-                "declining": regime.declining,
-                "unchanged": regime.unchanged,
-                "coverage": regime.data_coverage,
-                "members_observed": (regime.advancing or 0) + (regime.declining or 0) + (regime.unchanged or 0),
-            },
+            details=breadth_details,
         )
 
     if regime.momentum_20d is None:
         momentum = MarketMetric(
             status="INSUFFICIENT_DATA",
             as_of_date=benchmark_date,
-            source="Canonical VN100 index prices",
-            note="20-session momentum requires 21 valid VN100 index observations.",
+            source=f"Canonical {regime.benchmark} index prices",
+            note=f"20-session momentum requires 21 valid {regime.benchmark} index observations.",
         )
     else:
         momentum = MarketMetric(
-            value=regime.momentum_20d * 100.0,
+            value=round(regime.momentum_20d * 100.0, 2),
             unit="percent_20_sessions",
             as_of_date=benchmark_date,
-            source="Canonical VN100 index prices",
+            source=f"Canonical {regime.benchmark} index prices",
             status=inherited_status,
-            details={"window_sessions": 20},
+            details={
+                "benchmark": regime.benchmark,
+                "session_date": str(benchmark_date) if benchmark_date else None,
+                "window_sessions": 20,
+            },
         )
 
     if benchmark_date is None:

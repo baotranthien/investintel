@@ -22,7 +22,11 @@ dist/
 build/
 
 # Local data and runtime state
-data/
+data/*
+!data/market/
+data/market/*
+!data/market/vn30_constituents.json
+!data/market/vn100_constituents.json
 dump.rdb
 *.rdb
 *.db

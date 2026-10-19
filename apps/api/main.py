@@ -25,6 +25,18 @@ async def lifespan(app: FastAPI):
         if os.getenv("ANALYST_AUTOMATION_ENABLED", "false").lower() in {"1", "true", "yes"}:
             from services.ai.scheduler import scheduled_analyst_automation_loop
             analyst_task = asyncio.create_task(scheduled_analyst_automation_loop(stop_event))
+    # Idempotent reference data bootstrap check on startup
+    try:
+        from scripts.bootstrap_cloud_db import seed_reference_data
+        from database.connection import SessionLocal
+        init_session = SessionLocal()
+        try:
+            seed_reference_data(init_session)
+        finally:
+            init_session.close()
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Reference data startup check: %s", exc)
+
     try:
         yield
     finally:
@@ -245,12 +257,23 @@ async def system_observability():
                     .filter(Price.source == "LOTUSMARKET")
                     .count()
                 )
-                approved_symbols = ["FPT", "VCB", "MBB", "MWG", "HPG", "VN100", "VN30"]
-                symbol_counts = {}
-                for sym in approved_symbols:
-                    cnt = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(Asset.symbol == sym).count()
-                    symbol_counts[sym] = cnt
-                freshness["price_counts_by_symbol"] = symbol_counts
+                price_counts_query = (
+                    session.query(Asset.symbol, func.count(Price.id))
+                    .join(Price, Price.asset_id == Asset.id)
+                    .group_by(Asset.symbol)
+                    .all()
+                )
+                freshness["price_counts_by_symbol"] = {sym: cnt for sym, cnt in price_counts_query}
+                freshness["assets_with_prices_count"] = len(freshness["price_counts_by_symbol"])
+
+                # Check canonical duplicates
+                dup_count = (
+                    session.query(Price.asset_id, Price.observation_date)
+                    .group_by(Price.asset_id, Price.observation_date)
+                    .having(func.count(Price.id) > 1)
+                    .count()
+                )
+                freshness["duplicate_prices_count"] = dup_count
             finally:
                 session.close()
         except Exception:

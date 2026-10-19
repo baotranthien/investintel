@@ -57,12 +57,14 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
 
     per_share = snapshot.get("per_share", {})
     profitability = snapshot.get("profitability", {})
-    debt = snapshot.get("debt_structure", {})
+    balance_sheet = snapshot.get("balance_sheet", {})
     ttm = snapshot.get("ttm", {})
 
     def _val(d, key):
-        """Extract numeric value from MetricResult dict."""
-        v = d.get(key, {})
+        """Extract numeric value from MetricResult dict or primitive."""
+        if not isinstance(d, dict):
+            return None
+        v = d.get(key)
         if isinstance(v, dict):
             return v.get("value")
         return v
@@ -70,12 +72,12 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
     return {
         "symbol": sym,
         "sector": dataset["sector"],
-        "eps_ttm": _val(per_share, "eps_ttm"),
-        "bvps": _val(per_share, "bvps"),
-        "shares_outstanding": dataset.get("shares_outstanding", 1_000_000_000),
-        "revenue_ttm": _val(ttm, "revenue") if ttm else None,
-        "net_income_ttm": _val(ttm, "net_income") if ttm else None,
-        "net_debt": _val(debt, "net_debt"),
+        "eps_ttm": snapshot.get("eps_ttm") or _val(per_share, "eps_ttm"),
+        "bvps": snapshot.get("bvps") or _val(per_share, "bvps"),
+        "shares_outstanding": dataset.get("shares_outstanding") or _val(per_share, "shares_basic") or 1_000_000_000,
+        "revenue_ttm": snapshot.get("revenue_ttm") or _val(ttm, "revenue"),
+        "net_income_ttm": snapshot.get("net_income_ttm") or _val(ttm, "net_income_parent") or _val(ttm, "net_income"),
+        "net_debt": _val(balance_sheet, "net_debt"),
         "roe": _val(profitability, "roe"),
         # Peer multiples — None means not ingested, engine will return INSUFFICIENT_DATA
         "peer_pe": None,
@@ -91,12 +93,16 @@ def _get_latest_price(symbol: str, as_of_date: Optional[date] = None) -> Optiona
     sym = symbol.upper()
     session = SessionLocal()
     try:
-        query = session.query(Price).filter(Price.symbol == sym)
+        query = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
+            Asset.symbol == sym,
+            Price.status == "VALID",
+        )
         if as_of_date:
             query = query.filter(Price.observation_date <= as_of_date)
         price_row = query.order_by(Price.observation_date.desc()).first()
         if price_row:
-            return float(price_row.close_price)
+            val = price_row.adjusted_close if price_row.adjusted_close is not None else price_row.raw_close
+            return float(val) if val is not None else None
         return None
     finally:
         session.close()
@@ -176,7 +182,10 @@ def get_historical_valuation(symbol: str):
     # Count available price history
     session = SessionLocal()
     try:
-        price_count = session.query(Price).filter(Price.symbol == sym).count()
+        price_count = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
+            Asset.symbol == sym,
+            Price.status == "VALID",
+        ).count()
         years_available = round(price_count / 252, 1)  # approx trading days/year
     finally:
         session.close()
