@@ -38,6 +38,15 @@ function usageValue(value: unknown, divisor = 1) {
   return typeof value === "number" ? (value / divisor).toFixed(divisor === 1 ? 0 : 2) : "N/A";
 }
 
+const samplePrompts = [
+  { label: "📈 Toàn cảnh thị trường", query: "Thị trường hôm nay thế nào?" },
+  { label: "🏦 Đánh giá VCB", query: "Đánh giá tài chính và định giá VCB" },
+  { label: "💻 Triển vọng FPT", query: "Triển vọng và tăng trưởng của FPT" },
+  { label: "🏗️ Rủi ro HPG", query: "Phân tích điểm rủi ro và cơ hội HPG" },
+  { label: "🛒 Tài chính MWG", query: "Tình hình tài chính MWG" },
+  { label: "👋 Hướng dẫn sử dụng", query: "Chào bạn, trợ lý có thể giúp gì?" },
+];
+
 export default function AIPage() {
   const [health, setHealth] = useState<StatusResource>({ state: "loading" });
   const [question, setQuestion] = useState("");
@@ -101,10 +110,25 @@ export default function AIPage() {
     <div className={styles.workspace}>
       <form className={styles.composer} onSubmit={ask}>
         <div className={styles.fieldRow}>
-          <label>Mã cổ phiếu / Symbol<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} maxLength={20} placeholder="Không bắt buộc" /></label>
+          <label>Mã cổ phiếu / Symbol<input value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase())} maxLength={20} placeholder="Tự động nhận diện (VD: VCB, FPT...)" /></label>
           <label>Ngày dữ liệu / As of<input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
         </div>
         <label>Câu hỏi / Question<textarea required minLength={2} maxLength={4000} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Hỏi về bằng chứng, thay đổi, định giá, rủi ro hoặc luận điểm..." /></label>
+        <div className={styles.quickQueryContainer}>
+          <span className={styles.quickQueryLabel}>Gợi ý câu hỏi nhanh:</span>
+          <div className={styles.quickQueryChips}>
+            {samplePrompts.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={styles.quickChip}
+                onClick={() => setQuestion(item.query)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <fieldset className={styles.toolScope}>
           <legend>Phạm vi công cụ / Data tools</legend>
           <div>{toolOptions.map((tool) => <label key={tool.name}>
@@ -119,7 +143,13 @@ export default function AIPage() {
       </form>
 
       <section className={styles.response} aria-live="polite">
-        <header><h2>Phân tích / Analysis</h2>{answer && <Status value={answer.status} />}</header>
+        <header>
+          <div className={styles.responseTitleGroup}>
+            <h2>Phân tích / Analysis</h2>
+            {answer?.symbol && <span className={styles.symbolBadge}>{answer.symbol}</span>}
+          </div>
+          {answer && <Status value={answer.status} />}
+        </header>
         {!answer && !error && <p className={styles.empty} role="status">Câu trả lời chỉ xuất hiện khi API cung cấp bằng chứng và mô hình khả dụng.</p>}
         {error && <div className={styles.error} role="alert"><strong>AI API unavailable</strong><span>{error}</span></div>}
         {answer && <>

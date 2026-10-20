@@ -145,6 +145,56 @@ class AIAnalyst:
                 return True
         return False
 
+    @staticmethod
+    def _is_conversational_or_help(text: str) -> bool:
+        cleaned = text.strip().lower()
+        greetings = {
+            "chào", "chao", "xin chào", "xin chao", "hi", "hello", "hey",
+            "chào bạn", "chao ban", "chào bot", "chao bot", "alo", "alo bot",
+            "hello bot", "hi bot",
+        }
+        if cleaned in greetings:
+            return True
+        help_patterns = [
+            r"^(?:xin\s+)?chào(?:\s+bạn|\s+bot)?[\s!.,?]*$",
+            r"^(?:hi|hello|hey)(?:\s+bot)?[\s!.,?]*$",
+            r"^(?:bạn|bot)\s+(?:là\s+ai|tên\s+gì)[\s?]*$",
+            r"^(?:who\s+are\s+you|what\s+can\s+you\s+do)[\s?]*$",
+            r"^(?:hướng\s+dẫn|huong\s+dan|help|trợ\s+giúp|tro\s+giup)[\s?]*$",
+            r"^(?:bạn|bot)\s+(?:có\s+thể\s+làm\s+gì|giúp\s+gì|làm\s+được\s+gì)[\s?]*$",
+            r"^(?:tính\s+năng|chức\s+năng|gioi\s+thieu|giới\s+thiệu)[\s?]*$",
+        ]
+        return any(re.search(pat, cleaned, re.IGNORECASE) for pat in help_patterns)
+
+    def _conversational_response(self, as_of: date) -> dict[str, Any]:
+        return AIChatResponse(
+            status="AVAILABLE",
+            symbol=None,
+            resolved_symbol=None,
+            as_of_date=as_of,
+            prompt_version=PROMPT_VERSION,
+            model="investintel-assistant",
+            answer=(
+                "Xin chào! Tôi là Trợ lý Phân tích Định lượng & Nghiên cứu Doanh nghiệp của InvestIntel.\n\n"
+                "Tôi có thể hỗ trợ bạn tra cứu và phân tích dữ liệu kiểm chứng cho toàn bộ 100 cổ phiếu VN100:\n"
+                "1. **Định giá & Sức khỏe tài chính:** Hỏi về doanh thu, biên lợi nhuận, P/E, P/B, nợ vay (ví dụ: *'giá VCB'*, *'định giá FPT'*, *'doanh thu MWG'*).\n"
+                "2. **Toàn cảnh thị trường:** Hỏi về chỉ số và chế độ thị trường (ví dụ: *'thị trường hôm nay'*, *'tổng quan VN-Index'*).\n"
+                "3. **Luận điểm & Rủi ro:** Kiểm tra tín hiệu cơ hội, điểm rủi ro tổng hợp (ví dụ: *'rủi ro HPG'*, *'đánh giá SHB'*).\n\n"
+                "Mẹo: Bạn có thể nhập trực tiếp tên mã cổ phiếu vào câu hỏi hoặc điền mã vào ô 'Mã cổ phiếu' phía trên."
+            ),
+            claims=[
+                AIClaim(
+                    claim_type="FACT",
+                    text="InvestIntel hỗ trợ phân tích toàn bộ 100 cổ phiếu trong rổ chỉ số VN100 với dữ liệu tài chính, định giá và rủi ro được kiểm chứng.",
+                    citation_ids=[],
+                )
+            ],
+            citations=[],
+            uncertainty=[],
+            tools_used=[],
+            usage={"eval_count": 50},
+        ).model_dump(mode="json")
+
     def _insufficient_response(
         self,
         *,
@@ -153,6 +203,7 @@ class AIAnalyst:
         citations: list[AICitation],
         tools_used: list[str],
         reason: str,
+        answer: str = "Chưa đủ bằng chứng có nguồn kiểm chứng để trả lời câu hỏi này.",
     ) -> dict[str, Any]:
         return AIChatResponse(
             status="INSUFFICIENT_DATA",
@@ -161,7 +212,7 @@ class AIAnalyst:
             as_of_date=as_of,
             prompt_version=PROMPT_VERSION,
             model=None,
-            answer="Chưa đủ bằng chứng có nguồn kiểm chứng để trả lời câu hỏi này.",
+            answer=answer,
             claims=[AIClaim(claim_type="UNCERTAINTY", text=reason)],
             citations=citations,
             uncertainty=[reason],
@@ -179,13 +230,23 @@ class AIAnalyst:
         tool_names: list[str] | None = None,
         task_type: TaskType = "USER_CHAT",
     ) -> dict[str, Any]:
-        canonical_symbol = None
-        if symbol:
-            from services.universe.registry import UniverseRegistry
-            resolved = UniverseRegistry.resolve_instrument(session, symbol)
-            canonical_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
+        from services.universe.registry import UniverseRegistry
 
         requested_date = as_of or date.today()
+
+        # Handle conversational greetings and guidance if no specific symbol is supplied
+        if self._is_conversational_or_help(question) and not symbol:
+            return self._conversational_response(requested_date)
+
+        canonical_symbol = None
+        if symbol:
+            resolved = UniverseRegistry.resolve_instrument(session, symbol)
+            canonical_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
+        else:
+            extracted = UniverseRegistry.extract_symbol_from_text(question, session)
+            if extracted:
+                canonical_symbol = extracted
+
         context = AITools.get_context(canonical_symbol, requested_date, tool_names, session)
         citations = self._citations(context)
         used_tools = [item["name"] for item in context.get("tools", [])]
@@ -201,13 +262,23 @@ class AIAnalyst:
                 reason="No sourced investment horizon is recorded for this query.",
             )
         if not self._has_verifiable_evidence(citations):
-            detail_reason = f"Available records for {canonical_symbol or symbol} are missing, stale, seeded/untraced, or lack a source citation (as of {requested_date})."
+            effective_symbol = canonical_symbol or symbol
+            if effective_symbol:
+                detail_reason = f"Available records for {effective_symbol} are missing, stale, seeded/untraced, or lack a source citation (as of {requested_date})."
+                ans_text = f"Chưa đủ bằng chứng có nguồn kiểm chứng về mã {effective_symbol} để trả lời câu hỏi này."
+            else:
+                detail_reason = "Không tìm thấy mã cổ phiếu hợp lệ trong câu hỏi hoặc mã chưa nằm trong danh mục VN100."
+                ans_text = (
+                    "Chưa xác định được mã cổ phiếu hoặc chủ đề cần phân tích. "
+                    "Bạn vui lòng nhập rõ mã cổ phiếu (ví dụ: VCB, FPT, HPG) hoặc đặt câu hỏi về thị trường chung (ví dụ: 'thị trường hôm nay')."
+                )
             return self._insufficient_response(
-                symbol=canonical_symbol or symbol,
+                symbol=effective_symbol,
                 as_of=requested_date,
                 citations=citations,
                 tools_used=used_tools,
                 reason=detail_reason,
+                answer=ans_text,
             )
 
         evidence_by_id = {item.id: item for item in citations}

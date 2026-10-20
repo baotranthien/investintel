@@ -40,6 +40,103 @@ BENCHMARK_INDICES: Dict[str, Dict[str, Any]] = {
     }
 }
 
+COMPANY_NAME_ALIASES: Dict[str, str] = {
+    # Banks
+    "vietcombank": "VCB",
+    "techcombank": "TCB",
+    "bidv": "BID",
+    "vietinbank": "CTG",
+    "mbbank": "MBB",
+    "mb bank": "MBB",
+    "vpbank": "VPB",
+    "vp bank": "VPB",
+    "hdbank": "HDB",
+    "hd bank": "HDB",
+    "tienphongbank": "TPB",
+    "tp bank": "TPB",
+    "sacombank": "STB",
+    "eximbank": "EIB",
+    "seabank": "SSB",
+    # Tech & Retail
+    "thế giới di động": "MWG",
+    "the gioi di dong": "MWG",
+    "tgdd": "MWG",
+    "fpt telecom": "FPT",
+    "tập đoàn fpt": "FPT",
+    "fpt retail": "FRT",
+    "digiworld": "DGW",
+    # Steel & Materials
+    "hòa phát": "HPG",
+    "hoa phat": "HPG",
+    "hoa sen": "HSG",
+    "nam kim": "NKG",
+    # Real estate
+    "vinhomes": "VHM",
+    "vingroup": "VIC",
+    "vincom retail": "VRE",
+    "đất xanh": "DXG",
+    "dat xanh": "DXG",
+    "phát đạt": "PDR",
+    "phat dat": "PDR",
+    "novaland": "NVL",
+    "khang điền": "KDH",
+    "khang dien": "KDH",
+    "nam long": "NLG",
+    "kinh bắc": "KBC",
+    "kinh bac": "KBC",
+    "hà đô": "HDG",
+    "ha do": "HDG",
+    "dic corp": "DIG",
+    # Consumer & Food
+    "vinamilk": "VNM",
+    "masan": "MSN",
+    "sabeco": "SAB",
+    "masan consumer": "MCH",
+    "kido": "KDC",
+    "pnj": "PNJ",
+    "phú nhuận": "PNJ",
+    "dabaco": "DBC",
+    # Securities
+    "chứng khoán ssi": "SSI",
+    "vndirect": "VND",
+    "vietcap": "VCI",
+    # Energy & Utilities
+    "pv gas": "GAS",
+    "petrovietnam gas": "GAS",
+    "petrolimex": "PLX",
+    "bình sơn": "BSR",
+    "binh son": "BSR",
+    "pv power": "POW",
+    "nhơn trạch 2": "NT2",
+    "cơ điện lạnh": "REE",
+    # Aviation & Transport
+    "vietjet": "VJC",
+    "vietjet air": "VJC",
+    "viettel post": "VTP",
+    "viettel construction": "CTR",
+    "công trình viettel": "CTR",
+    "gemadept": "GMD",
+    "coteccons": "CTD",
+    "vinaconex": "VCG",
+    "bảo việt": "BVH",
+    "bao viet": "BVH",
+    "cao su việt nam": "GVR",
+}
+
+MARKET_TERMS_PATTERN = re.compile(
+    r"\b(?:thị\s*trường|thi\s*truong|vn-?index|vni\b|toàn\s*cảnh|toan\s*canh|vĩ\s*mô|vi\s*mo|macro|benchmark|market|chỉ\s*số)\b",
+    re.IGNORECASE,
+)
+
+NON_SYMBOL_WORDS: Set[str] = {
+    "CHO", "CON", "BAN", "MUA", "GIA", "NEN", "LAM", "DOI", "QUA", "CAC",
+    "DAN", "THE", "NAO", "BAI", "LUC", "NAM", "HAI", "MOT", "BAO", "TIN",
+    "TON", "NGU", "VAY", "COI", "XEM", "HOI", "DAY", "CAN", "NEW", "NOW",
+    "ALL", "ANY", "FOR", "AND", "ARE", "BUT", "NOT", "YOU", "HER", "HIS",
+    "HIM", "HOW", "WHO", "WHY", "TOP", "LOW", "NET", "OUT", "OFF", "PUT",
+    "GET", "HAS", "HAD", "ONE", "TWO", "SEE", "SAY", "WAY", "DID", "LET",
+}
+
 _PREFIX_RE = re.compile(r"^(?:HOSE|HNX|UPCOM|INDEX|STOCK)[:/_-]", re.IGNORECASE)
 _SUFFIX_RE = re.compile(r"(?:[:/_-](?:HOSE|HNX|UPCOM|VN)|\.VN|\.HO|\.HN)$", re.IGNORECASE)
 
@@ -109,6 +206,51 @@ class UniverseRegistry:
                 return meta.get("canonical_target", idx_sym)
 
         return cleaned if cleaned else None
+
+    @classmethod
+    def extract_symbol_from_text(cls, text: Optional[str], session: Any = None) -> Optional[str]:
+        """
+        Intelligently extracts the target financial instrument or market benchmark from user query text.
+        
+        Resolution precedence:
+        1. Explicit company/brand name aliases (e.g. 'Vietcombank' -> 'VCB', 'Thế giới di động' -> 'MWG')
+        2. Ticker tokens (e.g. 'VCB', 'FPT', 'HPG', 'SHB') resolved against canonical universe
+        3. Market/macro benchmark references (e.g. 'thị trường hôm nay', 'VN-Index', 'vĩ mô') -> 'VN100'
+        4. None if no valid instrument or market scope is identified
+        """
+        if not text or not isinstance(text, str):
+            return None
+        cleaned = text.strip()
+        if not cleaned:
+            return None
+
+        lower_text = cleaned.lower()
+
+        # 1. Check company name aliases (sorted by length descending so longer phrases match first)
+        for alias, mapped_symbol in sorted(COMPANY_NAME_ALIASES.items(), key=lambda x: len(x[0]), reverse=True):
+            pattern = rf"(?:\b|\A){re.escape(alias)}(?:\b|\Z)"
+            if re.search(pattern, lower_text):
+                return mapped_symbol
+
+        # 2. Extract potential ticker tokens (alphanumeric 3-8 chars)
+        tokens = re.findall(r"\b[A-Za-z0-9]{3,8}\b", cleaned)
+        for token in tokens:
+            u_token = token.upper()
+            if u_token in NON_SYMBOL_WORDS:
+                continue
+
+            resolved = cls.resolve_instrument(session, u_token)
+            if resolved:
+                if resolved.source in {"BENCHMARK_INDEX", "DATABASE_ASSET", "VN100_CONSTITUENTS_JSON", "VN30_CONSTITUENTS_JSON", "CANONICAL_DATABASE"}:
+                    return resolved.symbol
+                if token.isupper() and len(u_token) == 3:
+                    return resolved.symbol
+
+        # 3. Check for general market / benchmark overview intent
+        if MARKET_TERMS_PATTERN.search(cleaned):
+            return "VN100"
+
+        return None
 
     @classmethod
     def load_constituent_sources(cls) -> Dict[str, Dict[str, Any]]:
