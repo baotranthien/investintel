@@ -55,7 +55,9 @@ class AITools:
     ) -> dict[str, Any]:
         close_session = session is None
         db = session or SessionLocal()
-        normalized = symbol.upper()
+        from services.universe.registry import UniverseRegistry
+        resolved = UniverseRegistry.resolve_instrument(db, symbol) if symbol else None
+        normalized = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
         requested_date = as_of or date.today()
         try:
             asset = db.query(Asset).filter(Asset.symbol == normalized).first()
@@ -147,10 +149,13 @@ class AITools:
         if unknown:
             raise ValueError(f"Unsupported AI tools: {', '.join(unknown)}")
 
+        as_of = as_of or date.today()
         close_session = session is None
         db = session or SessionLocal()
         try:
-            normalized = symbol.upper() if symbol else None
+            from services.universe.registry import UniverseRegistry
+            resolved = UniverseRegistry.resolve_instrument(db, symbol) if symbol else None
+            normalized = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or (symbol.upper() if symbol else None))
             asset = db.query(Asset).filter(Asset.symbol == normalized).first() if normalized else None
             decision = build_decision_context(db, normalized, as_of) if normalized else None
             modules = decision.get("snapshot", {}).get("modules", {}) if decision else {}

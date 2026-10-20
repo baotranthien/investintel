@@ -95,6 +95,7 @@ class AIAnalyst:
         return AIChatResponse(
             status="INSUFFICIENT_DATA",
             symbol=symbol,
+            resolved_symbol=symbol,
             as_of_date=as_of,
             prompt_version=PROMPT_VERSION,
             model=None,
@@ -116,8 +117,14 @@ class AIAnalyst:
         tool_names: list[str] | None = None,
         task_type: TaskType = "USER_CHAT",
     ) -> dict[str, Any]:
+        canonical_symbol = None
+        if symbol:
+            from services.universe.registry import UniverseRegistry
+            resolved = UniverseRegistry.resolve_instrument(session, symbol)
+            canonical_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
+
         requested_date = as_of or date.today()
-        context = AITools.get_context(symbol, requested_date, tool_names, session)
+        context = AITools.get_context(canonical_symbol, requested_date, tool_names, session)
         citations = self._citations(context)
         used_tools = [item["name"] for item in context.get("tools", [])]
         asks_horizon = any(term in question.casefold() for term in (
@@ -125,19 +132,20 @@ class AIAnalyst:
         ))
         if asks_horizon and not self._has_supported_horizon(context):
             return self._insufficient_response(
-                symbol=symbol,
+                symbol=canonical_symbol or symbol,
                 as_of=requested_date,
                 citations=citations,
                 tools_used=used_tools,
                 reason="No sourced investment horizon is recorded for this query.",
             )
         if not self._has_verifiable_evidence(citations):
+            detail_reason = f"Available records for {canonical_symbol or symbol} are missing, stale, seeded/untraced, or lack a source citation (as of {requested_date})."
             return self._insufficient_response(
-                symbol=symbol,
+                symbol=canonical_symbol or symbol,
                 as_of=requested_date,
                 citations=citations,
                 tools_used=used_tools,
-                reason="Available records are missing, stale, seeded/untraced, or lack a source citation.",
+                reason=detail_reason,
             )
 
         evidence_by_id = {item.id: item for item in citations}
@@ -160,6 +168,15 @@ class AIAnalyst:
         cited_claims = []
         referenced_ids: set[str] = set()
         for claim in draft.claims:
+            normalized_cids = []
+            for raw_cid in claim.citation_ids:
+                cid_str = str(raw_cid).strip().strip("[]").upper()
+                m = re.match(r"^E(\d+)$", cid_str)
+                if m:
+                    cid_str = f"E{int(m.group(1)):03d}"
+                normalized_cids.append(cid_str)
+            claim.citation_ids = normalized_cids
+
             valid_ids = [citation_id for citation_id in claim.citation_ids if citation_id in evidence_by_id]
             if claim.claim_type != "UNCERTAINTY" and not valid_ids:
                 return self._insufficient_response(
@@ -200,10 +217,11 @@ class AIAnalyst:
                         f"{json.dumps(evidence_by_id[citation_id].value, default=str)} "
                         f"{evidence_by_id[citation_id].observation_date or ''} "
                         f"{evidence_by_id[citation_id].publication_date or ''} "
-                        f"{evidence_by_id[citation_id].metric or ''}"
+                        f"{evidence_by_id[citation_id].metric or ''} "
+                        f"{evidence_by_id[citation_id].note or ''}"
                     )
                     for citation_id in valid_ids
-                ))
+                )).union(_numeric_values(question))
                 claim_numbers = _numeric_values(claim.text)
                 if not claim_numbers.issubset(cited_numbers):
                     return self._insufficient_response(
@@ -246,20 +264,28 @@ class AIAnalyst:
                 reason="A numeric statement in the uncertainty field was suppressed because it has no citation IDs.",
             )
 
-        uncertain = any(item.freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"} for item in citations)
+        has_uncertainty = any(c.claim_type == "UNCERTAINTY" for c in cited_claims) or any(
+            item.freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"}
+            for item in citations if item.id in referenced_ids
+        )
         grounded_answer = " ".join(
             f"{claim.text} [Evidence: {', '.join(claim.citation_ids)}]" if claim.citation_ids else claim.text
             for claim in cited_claims
         )
+        returned_citations = [item for item in citations if item.id in referenced_ids]
+        if not returned_citations and any(self._has_verifiable_evidence([c]) for c in citations):
+            returned_citations = [c for c in citations if self._has_verifiable_evidence([c])][:15]
+
         return AIChatResponse(
-            status="PARTIAL" if uncertain else "AVAILABLE",
-            symbol=symbol,
+            status="PARTIAL" if has_uncertainty else "AVAILABLE",
+            symbol=canonical_symbol or symbol,
+            resolved_symbol=canonical_symbol or symbol,
             as_of_date=requested_date,
             prompt_version=PROMPT_VERSION,
             model=usage.get("model", model),
             answer=grounded_answer,
             claims=cited_claims,
-            citations=[item for item in citations if item.id in referenced_ids],
+            citations=returned_citations,
             uncertainty=draft.uncertainty,
             tools_used=used_tools,
             usage=usage,

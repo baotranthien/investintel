@@ -122,9 +122,12 @@ def _metric_from_snapshot(
 def build_research_workspace(
     session: Session,
     symbol: str,
-    as_of: date,
+    as_of: Optional[date] = None,
 ) -> Optional[ResearchWorkspace]:
-    normalized_symbol = symbol.upper()
+    as_of = as_of or date.today()
+    from services.universe.registry import UniverseRegistry
+    resolved = UniverseRegistry.resolve_instrument(session, symbol)
+    normalized_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
     asset = session.query(Asset).filter(Asset.symbol == normalized_symbol).first()
     if asset is None:
         return None

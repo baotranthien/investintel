@@ -174,6 +174,7 @@ class OllamaProvider:
             return {
                 "status": "HEALTHY" if loaded else "DEGRADED",
                 "available": True,
+                "model_state": "LOADED" if loaded else "STANDBY",
                 "provider": "ollama",
                 "version": version.json().get("version"),
                 "models": models,

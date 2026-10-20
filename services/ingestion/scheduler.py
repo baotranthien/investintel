@@ -57,30 +57,11 @@ def load_required_universe(session: Session) -> tuple[list[str], list[str]]:
     Loads verified constituent stocks (VN100/VN30) and benchmark index symbols.
     Returns (stock_symbols, index_symbols).
     """
-    from database.models import IndexMembership
-    # 1. Query verified active members of VN100 from database
-    vn100_members = [
-        row[0] for row in session.query(IndexMembership.symbol)
-        .filter(IndexMembership.index_symbol == "VN100", IndexMembership.is_active.is_(True))
-        .distinct()
-        .all()
-    ]
-    # 2. Fallback to data/market/vn100_constituents.json if DB has 0 members
-    if not vn100_members:
-        import json
-        vn100_path = Path(__file__).resolve().parents[2] / "data" / "market" / "vn100_constituents.json"
-        if vn100_path.is_file():
-            try:
-                items = json.loads(vn100_path.read_text(encoding="utf-8"))
-                vn100_members = [it["symbol"].strip().upper() for it in items if it.get("symbol")]
-            except Exception:
-                pass
-
-    if not vn100_members:
-        vn100_members = ["FPT", "VCB", "MBB", "MWG", "HPG"]
-
-    indices = ["VN30", "VN100"]
-    return sorted(list(set(vn100_members))), indices
+    from services.universe.registry import UniverseRegistry
+    universe = UniverseRegistry.get_canonical_universe(session)
+    stocks = sorted([u.symbol for u in universe if not u.is_index])
+    indices = sorted([u.symbol for u in universe if u.is_index])
+    return stocks, indices
 
 
 async def run_ingestion_cycle(
@@ -379,7 +360,7 @@ async def run_ingestion_cycle(
     # 6. VNDIRECT market data & fundamentals (bounded by scoped symbols)
     if (allowed_providers is None or "VNDIRECT" in allowed_providers) and "VNDIRECT" in source_ids:
         is_vndirect_targeted = allowed_providers is not None and "VNDIRECT" in allowed_providers
-        is_vndirect_env = os.getenv("ENABLE_VNDIRECT_INGESTION", "false").lower() in ("true", "1", "yes")
+        is_vndirect_env = os.getenv("ENABLE_VNDIRECT_INGESTION", "true").lower() in ("true", "1", "yes")
         if is_vndirect_targeted or is_vndirect_env:
             vndirect_prov = VndirectProvider()
 

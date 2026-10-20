@@ -17,10 +17,15 @@ from services.macro.observations import get_latest_macro_series
 from services.market.dashboard import build_market_dashboard
 from services.portfolio.engine import PORTFOLIO_ID, compare_snapshots, portfolio_dashboard, portfolio_fit
 from services.research.workspace import build_research_workspace
+from services.universe.registry import UniverseRegistry
 
 
 def _asset_lookup(session: Session, symbol: str) -> Asset | None:
-    return session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+    resolved = UniverseRegistry.resolve_instrument(session, symbol)
+    if resolved and resolved.asset_id:
+        return session.query(Asset).filter(Asset.id == resolved.asset_id).first()
+    normalized = UniverseRegistry.normalize_symbol(symbol) or symbol.upper()
+    return session.query(Asset).filter(Asset.symbol == normalized).first()
 
 
 def _snapshot_facts(session: Session, symbol: str, research: Any, as_of: date) -> dict[str, Any]:
@@ -317,7 +322,11 @@ def _decision_claims(
 
     for event in modules.get("events", []):
         evidence = event.get("evidence", {})
-        if evidence.get("claim_type") == "FACT":
+        if (
+            evidence.get("claim_type") == "FACT"
+            and evidence.get("data_origin") not in {"SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED"}
+            and has_verified_source("events")
+        ):
             why_now.append({
                 "claim_type": "FACT",
                 "text": f"Recorded event: {event.get('title', 'Untitled event')}",
@@ -400,7 +409,8 @@ def _asset_module_changes(
     return changes
 
 
-def build_decision_context(session: Session, symbol: str, as_of: date) -> dict[str, Any]:
+def build_decision_context(session: Session, symbol: str, as_of: Optional[date] = None) -> dict[str, Any]:
+    as_of = as_of or date.today()
     normalized_symbol = symbol.upper()
     research = build_research_workspace(session, normalized_symbol, as_of)
     asset = _asset_lookup(session, normalized_symbol)

@@ -204,9 +204,10 @@ async def system_observability():
     try:
         gw = AIGateway()
         gw_st = gw.status()
-        ai_status = gw_st.get("status", "UNAVAILABLE")
-        active_prov = gw_st.get("active_provider") or "none"
+        raw_status = gw_st.get("status", "UNAVAILABLE")
         ai_available = bool(gw_st.get("available", False))
+        ai_status = "HEALTHY" if ai_available and raw_status in ("HEALTHY", "DEGRADED") else raw_status
+        active_prov = gw_st.get("active_provider") or "none"
         ai_model = gw_st.get("configured_models", {}).get("primary") if ai_available else None
         ai_reason = gw_st.get("reason")
     except Exception as exc:

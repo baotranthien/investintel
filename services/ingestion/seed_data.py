@@ -313,12 +313,26 @@ def seed_index_memberships(session: Session, source_id: int):
 
     pub_now = datetime.now(timezone.utc)
     for m in members:
+        # Check if identical tranche already exists
         existing = session.query(IndexMembership).filter(
             IndexMembership.index_symbol == m["index_symbol"],
             IndexMembership.symbol == m["symbol"],
             IndexMembership.start_date == m["start_date"]
         ).first()
         if not existing:
+            # If this is an active membership, close any older active tranche for the same index and symbol
+            if m.get("is_active", True) and m.get("end_date") is None:
+                from datetime import timedelta
+                older_active = session.query(IndexMembership).filter(
+                    IndexMembership.index_symbol == m["index_symbol"],
+                    IndexMembership.symbol == m["symbol"],
+                    IndexMembership.is_active == True,
+                    IndexMembership.start_date < m["start_date"]
+                ).all()
+                for old in older_active:
+                    old.end_date = m["start_date"] - timedelta(days=1)
+                    old.is_active = False
+
             im = IndexMembership(
                 index_symbol=m["index_symbol"],
                 symbol=m["symbol"],

@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from database.connection import SessionLocal
-from database.models import Asset, DataSource, DataRun, DataLineage, FinancialStatement
+from database.models import Asset, DataSource, DataRun, DataLineage, FinancialStatement, IndexMembership
 from services.ingestion.vndirect import VndirectProvider
 from services.fundamentals.repository import FinancialRepository
 from services.fundamentals.snapshot import FundamentalSnapshotBuilder
@@ -121,6 +121,14 @@ async def ingest_symbol_financials(
         except Exception as e:
             logger.error(f"[{sym}] Error ingesting ratios: {e}")
 
+        # 4b. Corporate Events
+        try:
+            ev_res = await provider.ingest_events(session, sym, size=30, source_id=source_id)
+            result["events_created"] = ev_res.get("event_records_created", 0)
+            logger.info(f"[{sym}] Corporate Events: {ev_res.get('event_records_created', 0)} events created")
+        except Exception as e:
+            logger.error(f"[{sym}] Error ingesting events: {e}")
+
         # 5. Verification & Engine Test against live ingested DB records
         try:
             repo = FinancialRepository(session)
@@ -168,9 +176,29 @@ async def main():
     parser.add_argument("--quarters", type=int, default=24, help="Max quarterly periods to ingest (default: 24 ~ 6 years)")
     parser.add_argument("--years", type=int, default=6, help="Max annual periods to ingest (default: 6)")
     parser.add_argument("--ratios", type=int, default=100, help="Max ratio records to ingest (default: 100)")
+    parser.add_argument("--pending-only", action="store_true", help="Automatically query all active VN100 symbols pending fundamentals backfill")
+    parser.add_argument("--limit", type=int, default=None, help="Max number of pending symbols to process in this run")
     args = parser.parse_args()
 
-    symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+    if args.pending_only:
+        session = SessionLocal()
+        try:
+            vn100_symbols = [
+                r[0] for r in session.query(IndexMembership.symbol)
+                .filter(IndexMembership.index_symbol == "VN100", IndexMembership.is_active == True)
+                .order_by(IndexMembership.symbol)
+                .all()
+            ]
+            fs_symbols = set(r[0] for r in session.query(FinancialStatement.symbol).distinct().all())
+            symbols = [s for s in vn100_symbols if s not in fs_symbols]
+            if args.limit:
+                symbols = symbols[:args.limit]
+            logger.info(f"Discovered {len(symbols)} pending VN100 symbols for fundamentals backfill: {symbols}")
+        finally:
+            session.close()
+    else:
+        symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+    
     logger.info(f"Starting batch fundamentals ingestion for {len(symbols)} symbols: {symbols}")
 
     provider = VndirectProvider(timeout=25.0)

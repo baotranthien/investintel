@@ -221,3 +221,54 @@ def get_point_in_time(symbol: str, as_of: str = Query(..., description="As-of da
         return get_data_as_of(symbol, as_of_d, session=session)
     finally:
         session.close()
+
+
+@router.get("/universe/audit")
+def audit_canonical_universe():
+    """Audits the canonical universe: expected vs resolved instruments, breakdown by exchange/type."""
+    from services.universe.registry import UniverseRegistry
+    session = SessionLocal()
+    try:
+        return UniverseRegistry.audit_universe(session)
+    finally:
+        session.close()
+
+
+@router.get("/data/coverage/audit")
+def audit_universe_coverage(as_of: Optional[str] = Query(None, description="As-of date YYYY-MM-DD")):
+    """Audits data coverage (prices, fundamentals, valuation, events) across all canonical instruments."""
+    from services.quality.coverage import DataCoverageService
+    target_d = None
+    if as_of:
+        try:
+            target_d = date.fromisoformat(as_of)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+
+    session = SessionLocal()
+    try:
+        return DataCoverageService.audit_universe_coverage(session, as_of=target_d)
+    finally:
+        session.close()
+
+
+@router.get("/data/coverage/{symbol}")
+def get_symbol_coverage(symbol: str, as_of: Optional[str] = Query(None, description="As-of date YYYY-MM-DD")):
+    """Inspects detailed data quality, provenance, freshness, and analyst readiness for a single stock."""
+    from services.quality.coverage import DataCoverageService
+    target_d = None
+    if as_of:
+        try:
+            target_d = date.fromisoformat(as_of)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+
+    session = SessionLocal()
+    try:
+        rep = DataCoverageService.get_instrument_coverage(session, symbol, as_of=target_d)
+        if not rep:
+            raise HTTPException(status_code=404, detail=f"Instrument '{symbol}' could not be resolved in the canonical universe.")
+        return rep.to_dict()
+    finally:
+        session.close()
+

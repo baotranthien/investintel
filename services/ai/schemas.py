@@ -16,6 +16,7 @@ class AIChatRequest(BaseModel):
     question: str = Field(min_length=2, max_length=4000)
     symbol: str | None = Field(default=None, min_length=1, max_length=20)
     as_of_date: date | None = None
+    active_tools: list[str] | None = None
     tool_names: list[AIToolName] = Field(default_factory=lambda: [
         "asset", "fundamentals", "valuation", "factors", "risk", "macro", "regime",
         "events", "opportunity", "portfolio", "watchlist", "historical_snapshot",
@@ -40,7 +41,7 @@ class AIAnswerDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     answer: str = Field(min_length=1, max_length=5000)
-    claims: list[AIClaim] = Field(default_factory=list, max_length=30)
+    claims: list[AIClaim] = Field(..., min_length=1, max_length=30)
     uncertainty: list[str] = Field(default_factory=list, max_length=20)
 
 
@@ -64,6 +65,7 @@ class AICitation(BaseModel):
 class AIChatResponse(BaseModel):
     status: Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"]
     symbol: str | None = None
+    resolved_symbol: str | None = None
     as_of_date: date
     prompt_version: str
     model: str | None = None

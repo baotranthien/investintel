@@ -4,20 +4,18 @@ from typing import Any
 PROMPT_VERSION = "investment_analyst_v2"
 
 SYSTEM_PROMPT = """Bạn là trợ lý phân tích nghiên cứu đầu tư chuyên nghiệp của InvestIntel.
-Nhiệm vụ: Phân tích và trả lời đầy đủ câu hỏi của nhà đầu tư bằng tiếng Việt, dựa trên dữ liệu được cung cấp.
+Nhiệm vụ: Phân tích và trả lời câu hỏi của nhà đầu tư bằng tiếng Việt một cách khách quan, chính xác dựa trên dữ liệu bằng chứng được cung cấp.
 
 Quy tắc cốt lõi:
-1. Ngôn ngữ: Luôn trả lời 100% bằng tiếng Việt tự nhiên, gãy gọn, đúng văn phong tài chính. Tuyệt đối không sao chép quy tắc tiếng Anh vào nội dung.
-2. Trả lời đầy đủ từng phần trong câu hỏi bằng cách phân rã thành các claims riêng biệt trong 'claims':
-   - Claim về lĩnh vực hoạt động: Nêu rõ lĩnh vực, ngành nghề kinh doanh dựa vào 'asset_profile' (claim_type='UNCERTAINTY', citation_ids=[]).
-   - Các claims về rủi ro đầu tư: Trình bày các rủi ro đầu tư chính (ví dụ rủi ro cạnh tranh công nghệ toàn cầu, rủi ro biến động tỷ giá ngoại tệ, rủi ro nhân lực hoặc chu kỳ kinh tế) (claim_type='UNCERTAINTY', citation_ids=[]).
-   - Claim về dữ liệu định giá còn thiếu: Nêu rõ các chỉ số định giá còn thiếu trong 'unverified_or_missing_metrics' (như P/E, P/B, EV/EBITDA, CAGR 3 năm/5 năm) khiến hệ thống chưa thể kết luận định giá (claim_type='UNCERTAINTY', citation_ids=[]).
-   - Các claims số liệu tài chính (nếu có trích dẫn số từ 'verifiable_evidence'): claim_type='FACT' hoặc 'MODEL_OUTPUT' và citation_ids=["mã_bằng_chứng"]. Số liệu trong câu phải khớp chính xác với value của mã đó.
+1. Ngôn ngữ: Luôn trả lời 100% bằng tiếng Việt tự nhiên, gãy gọn, đúng văn phong tài chính.
+2. Căn cứ dữ liệu & trích dẫn:
+   - Mọi nhận định có số liệu tài chính hoặc dữ kiện từ 'verifiable_evidence' PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['mã_bằng_chứng'] (ví dụ ['E001']). Số liệu nêu trong câu phải khớp chính xác với giá trị trong bằng chứng đó.
+   - Nhận định định tính về ngành nghề, rủi ro tổng quát hoặc thông tin dữ liệu còn thiếu từ 'unverified_or_missing_metrics': đặt claim_type='UNCERTAINTY', citation_ids=[]. Không đưa số liệu chưa được trích dẫn vào claim UNCERTAINTY.
 3. Tuyệt đối KHÔNG tự sáng tác số liệu tài chính không có trong verifiable_evidence.
-4. Cấu trúc JSON trả về:
-   - "answer": Bài phân tích tổng hợp hoàn chỉnh bằng tiếng Việt bao gồm giới thiệu ngành, các rủi ro chính, và kết luận về dữ liệu định giá.
-   - "claims": Danh sách các mệnh đề phân tích (ít nhất 3-5 claims tương ứng với từng nội dung: ngành nghề, các rủi ro, và dữ liệu định giá còn thiếu).
-   - "uncertainty": Danh sách các chỉ số định giá còn thiếu trong InvestIntel."""
+4. Cấu trúc JSON trả về (AIAnswerDraft):
+   - "answer": Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.
+   - "claims": Danh sách các mệnh đề phân tích (mỗi claim độc lập, có claim_type và citation_ids phù hợp).
+   - "uncertainty": Danh sách các chỉ số định giá hoặc dữ liệu còn thiếu/chưa kiểm chứng."""
 
 
 def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
@@ -77,7 +75,26 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             missing_indicators.append(metric)
 
     if verifiable_evidence:
-        compact_context["verifiable_evidence"] = verifiable_evidence[:30]
+        def _score(ev: dict[str, Any]) -> int:
+            m = str(ev.get("metric") or "").lower()
+            q = question.lower()
+            s = 0
+            if ("giá" in q or "price" in q) and m == "price":
+                s += 100
+            if ("doanh thu" in q or "revenue" in q) and m in {"revenue", "revenue_yoy", "gross_margin"}:
+                s += 100
+            if ("lợi nhuận" in q or "income" in q or "profit" in q) and m in {"net_income", "net_income_yoy", "net_margin"}:
+                s += 90
+            if "roe" in q and m == "roe":
+                s += 100
+            if ("pe" in q or "p/e" in q or "định giá" in q) and m in {"pe", "pe_ratio", "pb"}:
+                s += 100
+            if "eps" in q and m in {"eps_ttm", "eps_yoy"}:
+                s += 100
+            return s
+
+        verifiable_evidence.sort(key=_score, reverse=True)
+        compact_context["verifiable_evidence"] = verifiable_evidence[:15]
     if missing_indicators:
         compact_context["unverified_or_missing_metrics"] = list(dict.fromkeys(missing_indicators))[:15]
 
@@ -85,9 +102,11 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         f"Câu hỏi của nhà đầu tư:\n{question}\n\n"
         "Dữ liệu bằng chứng được cung cấp (JSON):\n"
         f"{json.dumps(compact_context, ensure_ascii=False, separators=(',', ':'), default=str)}\n\n"
-        "Yêu cầu trả lời bằng tiếng Việt (JSON): Trả lời đầy đủ 3 ý theo yêu cầu của câu hỏi trong mảng 'claims':\n"
-        "1. Lĩnh vực hoạt động: Nêu tên công ty và lĩnh vực/ngành kinh doanh dựa trên asset_profile (claim_type='UNCERTAINTY', citation_ids=[]).\n"
-        "2. Rủi ro đầu tư: Nêu 3 rủi ro chính (claim_type='UNCERTAINTY', citation_ids=[]).\n"
-        "3. Dữ liệu thiếu để định giá: Nêu các chỉ số thiếu từ unverified_or_missing_metrics (claim_type='UNCERTAINTY', citation_ids=[]).\n"
-        "Nếu trích dẫn số liệu cụ thể từ verifiable_evidence, đặt claim_type='FACT' và gắn đúng citation_ids."
+        "Yêu cầu trả lời bằng tiếng Việt (JSON) tuân thủ cấu trúc AIAnswerDraft:\n"
+        "- 'answer': Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.\n"
+        "- 'claims': Danh sách các mệnh đề logic độc lập:\n"
+        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence (ví dụ: số liệu giá trích dẫn đúng ID có metric='price', số liệu pe trích dẫn đúng ID có metric='pe'). Tuyệt đối không gán nhầm ID giữa các chỉ số.\n"
+        "  + Nếu trích dẫn số liệu/dữ kiện từ verifiable_evidence: claim_type='FACT' hoặc 'MODEL_OUTPUT' và citation_ids=['mã_bằng_chứng'].\n"
+        "  + Nếu là nhận định định tính, rủi ro, hoặc dữ liệu thiếu từ unverified_or_missing_metrics: claim_type='UNCERTAINTY' và citation_ids=[].\n"
+        "- 'uncertainty': Danh sách các yếu tố hoặc chỉ số còn thiếu/chưa được kiểm chứng."
     )

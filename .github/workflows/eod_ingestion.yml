@@ -2,7 +2,7 @@ name: Automated Post-Market EOD Ingestion
 
 on:
   schedule:
-    # 15:30 Asia/Ho_Chi_Minh (UTC+7) = 08:30 UTC, Monday through Friday
+    # 15:37 Asia/Ho_Chi_Minh (UTC+7) = 08:37 UTC, Monday through Friday
     - cron: '37 8 * * 1-5'
   workflow_dispatch:
     inputs:
@@ -15,9 +15,9 @@ on:
         required: false
         default: 'LOTUSMARKET,VNDIRECT,FINANCIAL_NEWS'
       datasets:
-        description: 'Target datasets (comma-separated, e.g. PRICES,NEWS)'
+        description: 'Target datasets (comma-separated, e.g. PRICES,FUNDAMENTALS,NEWS)'
         required: false
-        default: 'PRICES,NEWS'
+        default: 'PRICES,FUNDAMENTALS,NEWS'
       force:
         description: 'Force re-run even if already completed'
         type: boolean
@@ -52,7 +52,7 @@ jobs:
             PROVIDERS_JSON=$(echo '${{ github.event.inputs.providers }}' | jq -R 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
           fi
 
-          DATASETS_JSON="[\"PRICES\", \"NEWS\"]"
+          DATASETS_JSON="[\"PRICES\", \"FUNDAMENTALS\", \"NEWS\"]"
           if [ -n "${{ github.event.inputs.datasets }}" ]; then
             DATASETS_JSON=$(echo '${{ github.event.inputs.datasets }}' | jq -R 'split(",") | map(gsub("^ +| +$"; "")) | map(select(length > 0))')
           fi
