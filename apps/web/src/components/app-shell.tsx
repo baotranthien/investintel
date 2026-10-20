@@ -126,12 +126,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 onClick={handleLogout}
                 style={{
-                  background: "transparent",
-                  border: "1px solid #475569",
-                  color: "#cbd5e1",
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                  color: "var(--ink)",
                   borderRadius: "4px",
-                  padding: "4px 8px",
+                  padding: "4px 10px",
                   fontSize: "0.75rem",
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >

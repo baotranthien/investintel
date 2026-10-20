@@ -188,30 +188,30 @@ export default function WatchlistPage() {
     {notice && <p className={styles.notice} role="status">{notice}</p>}{error && <div className={styles.error} role="alert"><strong>API operation failed</strong><span>{error}</span></div>}
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>MANUAL THESIS</p><h2>Add to watchlist</h2></div></header>
+      <header><div><p className={styles.eyebrow}>LUẬN ĐIỂM ĐẦU TƯ (THESIS TRACKING)</p><h2>Thêm vào danh sách theo dõi (Add to Watchlist)</h2></div></header>
       <form className={styles.addForm} onSubmit={addItem}>
-        <label>Symbol<input name="symbol" required maxLength={20} placeholder="Ticker" /></label>
-        <label>Horizon<select name="horizon" defaultValue=""><option value="">Not set</option><option value="MEDIUM_TERM">1 to 12 months</option><option value="LONG_TERM">3 to 10 years</option></select></label>
-        <label>Thesis<input name="thesis" maxLength={4000} placeholder="Optional current thesis" /></label>
-        <label>Invalidation<input name="invalidation" maxLength={4000} placeholder="What would change your view?" /></label>
-        <button disabled={busyId === "create"} type="submit">Add asset</button>
+        <label>Mã CK (Symbol)<input name="symbol" required maxLength={20} placeholder="VD: FPT" /></label>
+        <label>Thời hạn (Horizon)<select name="horizon" defaultValue=""><option value="">Chưa đặt (Not set)</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
+        <label>Luận điểm (Thesis)<input name="thesis" maxLength={4000} placeholder="Luận điểm đầu tư chính..." /></label>
+        <label>Điều kiện vô hiệu (Invalidation)<input name="invalidation" maxLength={4000} placeholder="Điều kiện gì khiến bạn từ bỏ luận điểm?" /></label>
+        <button disabled={busyId === "create"} type="submit">+ Thêm cổ phiếu</button>
       </form>
     </section>
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>CANONICAL ASSET DATA</p><h2>Watchlist entries</h2></div><span>{resource.state === "ready" ? `${rows.length} shown / ${resource.rows.length} total` : ""}</span></header>
+      <header><div><p className={styles.eyebrow}>DỮ LIỆU TÀI SẢN (CANONICAL ASSET DATA)</p><h2>Danh sách Theo dõi (Watchlist Entries)</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
       <div className={styles.filters}>
-        <label>Search<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Ticker or name" /></label>
-        <label>Horizon<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">All horizons</option><option value="MEDIUM_TERM">1 to 12 months</option><option value="LONG_TERM">3 to 10 years</option></select></label>
-        <label>Data state<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All states</option><option value="AVAILABLE">AVAILABLE</option><option value="PARTIAL">PARTIAL</option><option value="INSUFFICIENT_DATA">INSUFFICIENT_DATA</option></select></label>
-        <label>Sort<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="changed">Last changed</option><option value="symbol">Symbol</option><option value="opportunity">Opportunity score</option></select></label>
+        <label>Tìm kiếm (Search)<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Mã hoặc tên công ty..." /></label>
+        <label>Thời hạn (Horizon)<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">Tất cả thời hạn</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
+        <label>Trạng thái dữ liệu<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option><option value="AVAILABLE">Khả dụng (AVAILABLE)</option><option value="PARTIAL">Một phần (PARTIAL)</option><option value="INSUFFICIENT_DATA">Chưa có dữ liệu</option></select></label>
+        <label>Sắp xếp (Sort)<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="changed">Thay đổi gần nhất</option><option value="symbol">Mã cổ phiếu (A-Z)</option><option value="opportunity">Điểm cơ hội (Cao-Thấp)</option></select></label>
       </div>
-      {resource.state === "loading" && <p className={styles.empty} role="status">Loading watchlist from API...</p>}
-      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Watchlist API unavailable</strong><span>{resource.message}</span></div>}
-      {resource.state === "ready" && rows.length === 0 && <p className={styles.empty}>{resource.rows.length ? "No entries match the current filters." : "Watchlist is empty. No sample assets are inserted."}</p>}
+      {resource.state === "loading" && <p className={styles.empty} role="status">Đang tải danh sách theo dõi từ hệ thống...</p>}
+      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Không thể kết nối API Theo dõi</strong><span>{resource.message}</span></div>}
+      {resource.state === "ready" && rows.length === 0 && <p className={styles.empty}>{resource.rows.length ? "Không có mã nào phù hợp với bộ lọc." : "Danh sách theo dõi hiện đang trống. Hãy thêm mã đầu tiên ở biểu mẫu phía trên."}</p>}
       {resource.state === "ready" && rows.map((item) => <article className={styles.watchItem} key={item.id}>
-        <header className={styles.itemHeader}><div><p className={styles.symbolLine}><Link href={`/research/${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link><Status value={item.data_status} /></p><strong>{item.name}</strong><small>{item.sector ?? "Sector unavailable"} / {item.horizon ?? "Horizon not set"}</small></div><div className={styles.actions}><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => reviewWatchlistItem(item.id), "Review date updated.")}>Reviewed</button><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => captureWatchlistSnapshot(item.id), "Evidence snapshot captured.")}>Capture snapshot</button><button className={styles.remove} disabled={busyId === item.id} onClick={() => void perform(item.id, () => deleteWatchlistItem(item.id), "Removed from watchlist.")}>Remove</button></div></header>
-        <div className={styles.metrics}><div><span>Opportunity</span><b>{item.opportunity ?? "N/A"}</b></div><div><span>Confidence</span><b>{item.confidence}</b></div><div><span>Risk</span><b>{item.risk ?? "N/A"}</b></div><div><span>Valuation</span><b>{item.valuation?.pe?.value ?? "N/A"}</b></div><div><span>Price freshness</span><b><Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}</b></div></div>
+        <header className={styles.itemHeader}><div><p className={styles.symbolLine}><Link href={`/research/${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link><Status value={item.data_status} /></p><strong>{item.name}</strong><small>{item.sector ?? "Chưa phân ngành"} / {item.horizon === "MEDIUM_TERM" ? "Trung hạn" : item.horizon === "LONG_TERM" ? "Dài hạn" : "Chưa đặt thời hạn"}</small></div><div className={styles.actions}><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => reviewWatchlistItem(item.id), "Đã cập nhật ngày xem xét.")}>Đã xem xét</button><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => captureWatchlistSnapshot(item.id), "Đã lưu snapshot mốc quan sát.")}>Lưu snapshot</button><button className={styles.remove} disabled={busyId === item.id} onClick={() => void perform(item.id, () => deleteWatchlistItem(item.id), `Đã xóa ${item.symbol}.`)}>Xóa</button></div></header>
+        <div className={styles.metrics}><div><span>Điểm Cơ hội (Opportunity)</span><b>{item.opportunity ?? "—"}</b></div><div><span>Độ tin cậy (Confidence)</span><b>{item.confidence}</b></div><div><span>Rủi ro (Risk)</span><b>{item.risk ?? "—"}</b></div><div><span>Định giá P/E</span><b>{item.valuation?.pe?.value ?? "—"}</b></div><div><span>Cập nhật giá (Freshness)</span><b><Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}</b></div></div>
         <div className={styles.thesisGrid}>
           <div><h3>Luận điểm / Thesis</h3><p>{item.thesis || "Chưa có luận điểm."}</p></div>
           <div><h3>Vì sao lúc này / Why now</h3><p>{item.why_now.length ? item.why_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "INSUFFICIENT_DATA / Chưa có luận cứ tích cực được hỗ trợ."}</p></div>

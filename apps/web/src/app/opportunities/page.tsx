@@ -373,15 +373,15 @@ export default function OpportunitiesPage() {
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                <th>Mã</th>
-                <th>Doanh nghiệp</th>
-                <th>Ngành</th>
-                <th>Điểm Cơ hội</th>
-                <th>Độ tin cậy</th>
-                <th>Rủi ro</th>
-                <th>Định giá</th>
-                <th>ROE</th>
-                <th>Luận điểm chính</th>
+                <th>Mã (Symbol)</th>
+                <th>Doanh nghiệp (Company)</th>
+                <th>Ngành (Sector)</th>
+                <th>Điểm Cơ hội (Score)</th>
+                <th>Độ tin cậy (Confidence)</th>
+                <th>Rủi ro (Risk)</th>
+                <th>Định giá (Valuation)</th>
+                <th>ROE (Lợi nhuận/Vốn)</th>
+                <th>Luận điểm chính (Why now)</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -408,7 +408,13 @@ export default function OpportunitiesPage() {
                           : styles.pillNeutral
                       }`}
                     >
-                      {item.confidence}
+                      {item.confidence === "MODERATE"
+                        ? "Khá (MODERATE)"
+                        : item.confidence === "HIGH"
+                        ? "Cao (HIGH)"
+                        : item.confidence === "LOW"
+                        ? "Thấp (LOW)"
+                        : "Chưa đủ"}
                     </span>
                   </td>
                   <td>{item.risk_score !== null ? item.risk_score.toFixed(1) : "—"}</td>
@@ -418,7 +424,7 @@ export default function OpportunitiesPage() {
                         item.valuation_status === "AVAILABLE" ? styles.pillGood : styles.pillNeutral
                       }`}
                     >
-                      {item.valuation_status}
+                      {item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Chưa đủ"}
                     </span>
                   </td>
                   <td>
@@ -474,15 +480,15 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
       {/* Metrics Row */}
       <div className={styles.metricsGrid}>
         <div className={styles.metricItem}>
-          <span>ROE</span>
+          <span>ROE (Lợi nhuận/Vốn)</span>
           <strong>{roe !== undefined && roe !== null ? `${roe.toFixed(1)}%` : "—"}</strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Định giá</span>
-          <strong>{item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Thiếu"}</strong>
+          <span>Định giá (Valuation)</span>
+          <strong>{item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Chưa đủ"}</strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Rủi ro</span>
+          <span>Rủi ro (Risk)</span>
           <strong>{item.risk_score !== null ? item.risk_score.toFixed(0) : "50"}</strong>
         </div>
       </div>

@@ -11,18 +11,50 @@ import {
 import styles from "./research-workspace.module.css";
 
 const metricNames: Record<string, string> = {
-  revenue: "Revenue / Doanh thu", net_income: "Earnings / Lợi nhuận", eps_ttm: "EPS TTM",
-  revenue_yoy: "Revenue YoY", net_income_yoy: "Earnings YoY", eps_yoy: "EPS YoY",
-  revenue_cagr_3y: "Revenue CAGR 3Y", revenue_cagr_5y: "Revenue CAGR 5Y", eps_cagr_3y: "EPS CAGR 3Y",
-  gross_margin: "Gross margin", ebit_margin: "EBIT margin", ebitda_margin: "EBITDA margin", net_margin: "Net margin",
-  roe: "ROE", roa: "ROA", roic: "ROIC", cash: "Cash", total_assets: "Total assets",
-  total_liabilities: "Total liabilities", total_equity: "Total equity", de_ratio: "Debt / Equity",
-  debt_to_assets: "Debt / Assets", net_debt_ebitda: "Net debt / EBITDA", current_ratio: "Current ratio",
-  quick_ratio: "Quick ratio", interest_coverage: "Interest coverage", cfo: "Cash from operations",
-  fcf: "Free cash flow", cfo_to_ni: "CFO / Net income", fcf_to_ni: "FCF / Net income",
-  dso: "Days sales outstanding", dio: "Days inventory outstanding", dpo: "Days payable outstanding",
-  ccc: "Cash conversion cycle", bvps: "Book value / share", pe: "P/E", pb: "P/B", ev_ebitda: "EV / EBITDA",
-  peg: "PEG", dividend_yield: "Dividend yield", fcf_yield: "FCF yield", dcf: "DCF", residual_income: "Residual income", ddm: "DDM",
+  revenue: "Doanh thu (Revenue)",
+  net_income: "Lợi nhuận ròng (Net Income)",
+  eps_ttm: "EPS TTM (Thu nhập mỗi CP 12 tháng)",
+  revenue_yoy: "Tăng trưởng Doanh thu YoY (Revenue YoY)",
+  net_income_yoy: "Tăng trưởng Lợi nhuận YoY (Earnings YoY)",
+  eps_yoy: "Tăng trưởng EPS YoY",
+  revenue_cagr_3y: "Tăng trưởng DT kép 3 năm (CAGR 3Y)",
+  revenue_cagr_5y: "Tăng trưởng DT kép 5 năm (CAGR 5Y)",
+  eps_cagr_3y: "Tăng trưởng EPS kép 3 năm (CAGR 3Y)",
+  gross_margin: "Biên lợi nhuận gộp (Gross Margin)",
+  ebit_margin: "Biên EBIT (EBIT Margin)",
+  ebitda_margin: "Biên EBITDA (EBITDA Margin)",
+  net_margin: "Biên lợi nhuận ròng (Net Margin)",
+  roe: "ROE (Lợi nhuận trên vốn CSH)",
+  roa: "ROA (Lợi nhuận trên tổng tài sản)",
+  roic: "ROIC (Lợi nhuận trên vốn đầu tư)",
+  cash: "Tiền & tương đương tiền (Cash)",
+  total_assets: "Tổng tài sản (Total Assets)",
+  total_liabilities: "Nợ phải trả (Total Liabilities)",
+  total_equity: "Vốn chủ sở hữu (Total Equity)",
+  de_ratio: "Hệ số Nợ/Vốn CSH (Debt / Equity)",
+  debt_to_assets: "Nợ / Tổng tài sản (Debt / Assets)",
+  net_debt_ebitda: "Nợ ròng / EBITDA (Net Debt / EBITDA)",
+  current_ratio: "Hệ số thanh toán hiện hành (Current Ratio)",
+  quick_ratio: "Hệ số thanh toán nhanh (Quick Ratio)",
+  interest_coverage: "Hệ số chi trả lãi vay (Interest Coverage)",
+  cfo: "Dòng tiền từ hoạt động kinh doanh (CFO)",
+  fcf: "Dòng tiền tự do (FCF - Free Cash Flow)",
+  cfo_to_ni: "Tỷ lệ CFO / Lợi nhuận ròng",
+  fcf_to_ni: "Tỷ lệ FCF / Lợi nhuận ròng",
+  dso: "Số ngày thu tiền bình quân (DSO)",
+  dio: "Số ngày tồn kho bình quân (DIO)",
+  dpo: "Số ngày phải trả bình quân (DPO)",
+  ccc: "Chu kỳ chuyển đổi tiền mặt (CCC)",
+  bvps: "Giá trị sổ sách mỗi CP (BVPS)",
+  pe: "P/E (Hệ số Giá / Lợi nhuận mỗi CP)",
+  pb: "P/B (Hệ số Giá / Giá trị sổ sách)",
+  ev_ebitda: "EV / EBITDA",
+  peg: "Hệ số PEG (P/E trên Tốc độ tăng trưởng)",
+  dividend_yield: "Tỷ suất cổ tức (Dividend Yield)",
+  fcf_yield: "Tỷ suất sinh dòng tiền tự do (FCF Yield)",
+  dcf: "Định giá DCF (Chiết khấu dòng tiền)",
+  residual_income: "Định giá Thu nhập thặng dư (Residual Income)",
+  ddm: "Định giá Chiết khấu cổ tức (DDM)",
 };
 
 const evidenceNames: Record<string, string> = {
@@ -129,16 +161,24 @@ function ResearchContent({ data }: { data: ResearchWorkspace }) {
         <small>{data.price.source ?? "Không có nguồn giá"} · {data.price.data_origin}</small>
       </div>
       <div className={styles.summaryStats}>
-        <div><span>Opportunity</span><b>{data.opportunity.score === null ? "—" : formatNumber(data.opportunity.score)}</b><Status value={data.opportunity.status} /></div>
-        <div><span>Confidence</span><b>{data.opportunity.confidence}</b></div>
-        <div><span>Risk</span><b>{data.risk.overall_score === null ? "—" : formatNumber(data.risk.overall_score)}</b><Status value={data.risk.status} /></div>
-        <div><span>Horizon</span><b>{data.opportunity.horizon.replaceAll("_", " ")}</b></div>
-        <div><span>Data quality</span><b>{data.data_quality.status}</b><small>History {data.data_quality.history_depth_years}Y · as of {formatDate(data.as_of_date)}</small></div>
+        <div><span>Điểm Cơ hội (Opportunity)</span><b>{data.opportunity.score === null ? "—" : formatNumber(data.opportunity.score)}</b><Status value={data.opportunity.status} /></div>
+        <div><span>Độ tin cậy (Confidence)</span><b>{data.opportunity.confidence}</b></div>
+        <div><span>Rủi ro (Risk score)</span><b>{data.risk.overall_score === null ? "—" : formatNumber(data.risk.overall_score)}</b><Status value={data.risk.status} /></div>
+        <div><span>Thời hạn (Horizon)</span><b>{data.opportunity.horizon === "MEDIUM_TERM" ? "Trung hạn (1-12T)" : data.opportunity.horizon === "LONG_TERM" ? "Dài hạn (3-10N)" : data.opportunity.horizon.replaceAll("_", " ")}</b></div>
+        <div><span>Chất lượng dữ liệu (Data Quality)</span><b>{data.data_quality.status}</b><small>Lịch sử {data.data_quality.history_depth_years} năm · tính đến {formatDate(data.as_of_date)}</small></div>
       </div>
     </section>
 
     <nav className={styles.sectionNav} aria-label="Research sections">
-      {["fundamentals", "sector", "valuation", "factors", "risk", "events", "summary"].map((section) => <a href={`#${section}`} key={section}>{section.replaceAll("_", " ")}</a>)}
+      {[
+        { id: "fundamentals", label: "Báo cáo Tài chính (Fundamentals)" },
+        { id: "sector", label: "Phân tích Ngành (Sector)" },
+        { id: "valuation", label: "Định giá (Valuation)" },
+        { id: "factors", label: "Nhân tố (Factors)" },
+        { id: "risk", label: "Quản trị Rủi ro (Risk)" },
+        { id: "events", label: "Sự kiện (Events)" },
+        { id: "summary", label: "Tổng hợp Luận điểm (Summary)" },
+      ].map((section) => <a href={`#${section.id}`} key={section.id}>{section.label}</a>)}
     </nav>
 
     <section className={styles.section} id="fundamentals">

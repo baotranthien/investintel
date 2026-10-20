@@ -21,7 +21,7 @@
 
 .intro h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-size: 43px;
   font-weight: 500;
   line-height: 1.08;
@@ -124,7 +124,7 @@
 .universePanel h2,
 .routeHeading h2 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-size: 21px;
   font-weight: 500;
 }

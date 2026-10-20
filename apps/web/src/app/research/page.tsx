@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { runBacktest, type BacktestResult } from "@/lib/api";
+import styles from "./page.module.css";
+
+const POPULAR_TICKERS = ["FPT", "MWG", "VCB", "HPG", "MBB", "TCB", "VHM", "BSR"];
 
 export default function ResearchAnalyst() {
   const [symbol, setSymbol] = useState("FPT");
@@ -27,12 +31,12 @@ export default function ResearchAnalyst() {
       const res = await fetch("/api/v1/ai/stock-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol })
+        body: JSON.stringify({ symbol: symbol.toUpperCase() }),
       });
       const data = await res.json();
       setAnalysis(data.content || "Chưa có phản hồi từ mô hình.");
     } catch {
-      setAnalysis("Lỗi: Không thể kết nối tới Local AI.");
+      setAnalysis("Lỗi: Không thể kết nối tới Local AI Analyst.");
     } finally {
       setLoading(false);
     }
@@ -46,7 +50,7 @@ export default function ResearchAnalyst() {
       const data = await res.json();
       setDailyBrief(data.content || "Chưa có phản hồi từ mô hình.");
     } catch {
-      setDailyBrief("Lỗi: Không thể kết nối tới Local AI.");
+      setDailyBrief("Lỗi: Không thể kết nối tới Local AI Analyst.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +61,10 @@ export default function ResearchAnalyst() {
     setBacktestError("");
     setBacktestResult(null);
     try {
-      const symbols = universe.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+      const symbols = universe
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean);
       const res = await runBacktest({
         universe: symbols,
         start_date: startDate,
@@ -71,234 +78,284 @@ export default function ResearchAnalyst() {
       });
       setBacktestResult(res);
     } catch (err: unknown) {
-      setBacktestError(err instanceof Error ? err.message : "Lỗi khi chạy mô phỏng lịch sử.");
+      setBacktestError(err instanceof Error ? err.message : "Lỗi khi chạy mô phỏng kiểm thử lịch sử.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <h1 style={{ fontSize: "1.8rem", marginBottom: "8px", color: "var(--text-primary)" }}>
-        Nghiên cứu & Mô phỏng Đầu tư (Research Desk)
-      </h1>
-      <p style={{ color: "var(--text-muted, #888)", marginBottom: "20px", fontSize: "0.95rem" }}>
-        Phân tích bằng chứng điểm-thời-gian (Point-in-Time), kiểm thử lịch sử không rò rỉ dữ liệu (No Look-Ahead), và tổng hợp AI.
-      </p>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.eyebrow}>RESEARCH DESK · BÀN NGHIÊN CỨU & KIỂM THỬ</p>
+          <h1>Nghiên cứu & Mô phỏng Đầu tư (Research & PIT Backtest)</h1>
+          <p className={styles.subTitle}>
+            Không gian phân tích chứng cứ điểm-thời-gian (Point-in-Time), kiểm thử lịch sử không rò rỉ dữ liệu tương lai
+            (No Look-Ahead bias), và tổng hợp phân tích từ AI Analyst.
+          </p>
+        </div>
+      </header>
 
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-        <button 
+      {/* Tabs */}
+      <nav className={styles.tabs} aria-label="Khu vực nghiên cứu">
+        <button
+          type="button"
           onClick={() => setActiveTab("stock")}
-          style={{ padding: "8px 16px", background: activeTab === "stock" ? "var(--accent-color, #d85636)" : "var(--bg-secondary, #222)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+          className={`${styles.tabBtn} ${activeTab === "stock" ? styles.tabActive : ""}`}
         >
-          Phân tích Cổ phiếu
+          Phân tích Cổ phiếu (Stock Research)
         </button>
-        <button 
+        <button
+          type="button"
           onClick={() => setActiveTab("daily")}
-          style={{ padding: "8px 16px", background: activeTab === "daily" ? "var(--accent-color, #d85636)" : "var(--bg-secondary, #222)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+          className={`${styles.tabBtn} ${activeTab === "daily" ? styles.tabActive : ""}`}
         >
-          Daily Market Brief
+          Bản tin Thị trường Hàng ngày (Daily Brief)
         </button>
-        <button 
+        <button
+          type="button"
           onClick={() => setActiveTab("backtest")}
-          style={{ padding: "8px 16px", background: activeTab === "backtest" ? "var(--accent-color, #d85636)" : "var(--bg-secondary, #222)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+          className={`${styles.tabBtn} ${activeTab === "backtest" ? styles.tabActive : ""}`}
         >
           Kiểm thử Lịch sử (PIT Backtest)
         </button>
-      </div>
+      </nav>
 
+      {/* Tab 1: Stock Research */}
       {activeTab === "stock" && (
-        <div style={{ background: "var(--bg-secondary, #1a1a1a)", padding: "20px", borderRadius: "8px" }}>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-            <input 
-              type="text" 
+        <section className={styles.panel}>
+          <div className={styles.inputRow}>
+            <input
+              type="text"
               value={symbol}
               onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="Nhập mã chứng khoán (VD: FPT)"
-              style={{ padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "var(--text-primary, #fff)" }}
+              placeholder="Nhập mã chứng khoán (VD: FPT, MWG, VCB)"
+              className={styles.textInput}
             />
-            <button 
+            <button
+              type="button"
               onClick={generateStockAnalysis}
-              disabled={loading}
-              style={{ padding: "8px 16px", background: "var(--success-color, #10b981)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+              disabled={loading || !symbol.trim()}
+              className={styles.actionBtn}
             >
-              {loading ? "Đang phân tích..." : "Phân tích bằng AI"}
+              {loading ? "Đang phân tích..." : "✦ Phân tích bằng AI"}
             </button>
+            <Link
+              href={`/research/${symbol.trim() || "FPT"}`}
+              className={styles.actionBtn}
+              style={{ background: "var(--ink)", textDecoration: "none" }}
+            >
+              Xem Không gian Nghiên cứu Workspace →
+            </Link>
+          </div>
+
+          <div className={styles.quickTickers}>
+            <span>Mã phổ biến:</span>
+            {POPULAR_TICKERS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={styles.tickerLink}
+                onClick={() => setSymbol(t)}
+                style={{ cursor: "pointer" }}
+              >
+                {t}
+              </button>
+            ))}
           </div>
 
           {analysis && (
-            <div style={{ background: "var(--bg-primary, #111)", padding: "20px", borderRadius: "8px", whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
+            <div className={styles.resultBox}>
+              <strong style={{ display: "block", marginBottom: "8px", color: "var(--positive)" }}>
+                KẾT QUẢ PHÂN TÍCH TỔNG HỢP ({symbol}):
+              </strong>
               {analysis}
             </div>
           )}
-        </div>
+        </section>
       )}
 
+      {/* Tab 2: Daily Brief */}
       {activeTab === "daily" && (
-        <div style={{ background: "var(--bg-secondary, #1a1a1a)", padding: "20px", borderRadius: "8px" }}>
-          <div style={{ marginBottom: "20px" }}>
-            <button 
+        <section className={styles.panel}>
+          <div className={styles.inputRow}>
+            <button
+              type="button"
               onClick={generateDailyBrief}
               disabled={loading}
-              style={{ padding: "8px 16px", background: "var(--success-color, #10b981)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer" }}
+              className={styles.actionBtn}
             >
-              {loading ? "Đang tổng hợp dữ liệu..." : "Tạo báo cáo Vĩ mô & Thị trường hôm nay"}
+              {loading ? "Đang tổng hợp dữ liệu..." : "✦ Tạo Báo cáo Vĩ mô & Thị trường Hôm nay"}
             </button>
           </div>
 
           {dailyBrief && (
-            <div style={{ background: "var(--bg-primary, #111)", padding: "20px", borderRadius: "8px", whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
+            <div className={styles.resultBox}>
+              <strong style={{ display: "block", marginBottom: "8px", color: "var(--positive)" }}>
+                BẢN TIN VĨ MÔ & THỊ TRƯỜNG:
+              </strong>
               {dailyBrief}
             </div>
           )}
-        </div>
+        </section>
       )}
 
+      {/* Tab 3: Backtest */}
       {activeTab === "backtest" && (
-        <div style={{ background: "var(--bg-secondary, #1a1a1a)", padding: "20px", borderRadius: "8px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px" }}>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontSize: "0.85rem", color: "#aaa" }}>Vũ trụ đầu tư (Symbols):</label>
-              <input 
-                type="text" 
+        <section className={styles.panel}>
+          <div className={styles.backtestGrid}>
+            <div className={styles.field}>
+              <label>Vũ trụ đầu tư (Universe Symbols)</label>
+              <input
+                type="text"
                 value={universe}
                 onChange={(e) => setUniverse(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "#fff" }}
+                placeholder="FPT, HPG, MBB, MWG, VCB"
               />
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontSize: "0.85rem", color: "#aaa" }}>Từ ngày (Start date):</label>
-              <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "#fff" }}
-              />
+            <div className={styles.field}>
+              <label>Từ ngày (Start date)</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontSize: "0.85rem", color: "#aaa" }}>Đến ngày (End date):</label>
-              <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "#fff" }}
-              />
+            <div className={styles.field}>
+              <label>Đến ngày (End date)</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontSize: "0.85rem", color: "#aaa" }}>Kỳ tái cân bằng (Horizon):</label>
-              <select 
-                value={horizon}
-                onChange={(e) => setHorizon(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "#fff" }}
-              >
+            <div className={styles.field}>
+              <label>Kỳ tái cân bằng (Horizon)</label>
+              <select value={horizon} onChange={(e) => setHorizon(e.target.value)}>
                 <option value="1M">1 Tháng (1M / ~21 phiên)</option>
                 <option value="3M">3 Tháng (3M / ~63 phiên)</option>
                 <option value="6M">6 Tháng (6M / ~126 phiên)</option>
                 <option value="1Y">1 Năm (1Y / ~252 phiên)</option>
               </select>
             </div>
-            <div>
-              <label style={{ display: "block", marginBottom: "6px", fontSize: "0.85rem", color: "#aaa" }}>Vốn ban đầu (VND):</label>
-              <input 
-                type="number" 
+            <div className={styles.field}>
+              <label>Vốn ban đầu (Initial Capital - VND)</label>
+              <input
+                type="number"
                 value={initialCapital}
                 onChange={(e) => setInitialCapital(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "4px", border: "1px solid var(--border-color, #444)", background: "var(--bg-primary, #111)", color: "#fff" }}
               />
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
-            <button 
+          <div className={styles.inputRow}>
+            <button
+              type="button"
               onClick={handleRunBacktest}
               disabled={loading}
-              style={{ padding: "10px 24px", background: "var(--accent-color, #d85636)", color: "white", border: "none", borderRadius: "4px", cursor: "pointer", fontWeight: "bold" }}
+              className={styles.actionBtn}
             >
-              {loading ? "Đang chạy mô phỏng..." : "Chạy Kiểm thử PIT Replay"}
+              {loading ? "Đang chạy mô phỏng..." : "▶ Chạy Kiểm thử PIT Replay"}
             </button>
-            <span style={{ fontSize: "0.85rem", color: "#888" }}>
-              Bao gồm: 0.15% phí giao dịch, 0.10% thuế chuyển nhượng, 0.10% trượt giá.
+            <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
+              Chi phí giả định: 0.15% phí giao dịch, 0.10% thuế chuyển nhượng, 0.10% trượt giá (slippage).
             </span>
           </div>
 
-          {backtestError && (
-            <div style={{ padding: "12px", background: "#4a1515", color: "#ff8888", borderRadius: "4px", marginBottom: "16px" }}>
-              {backtestError}
-            </div>
-          )}
+          {backtestError && <div className={styles.errorBox}>{backtestError}</div>}
 
           {backtestResult && (
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px", background: "#1a2a1a", border: "1px solid #2a5a2a", borderRadius: "6px", marginBottom: "16px" }}>
-                <span>Trạng thái PIT Integrity: <strong>{String(backtestResult.look_ahead_audit.status)}</strong></span>
-                <span>Số lỗi rò rỉ tương lai (Look-ahead violations): <strong>{Number(backtestResult.look_ahead_audit.violations)}</strong></span>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className={styles.backtestStatus}>
+                <span>
+                  Trạng thái Toàn vẹn Dữ liệu (PIT Integrity):{" "}
+                  <strong>{String(backtestResult.look_ahead_audit.status)}</strong>
+                </span>
+                <span>
+                  Số lỗi rò rỉ tương lai (Look-ahead violations):{" "}
+                  <strong>{Number(backtestResult.look_ahead_audit.violations)}</strong>
+                </span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Tổng lợi nhuận ròng</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: backtestResult.total_return >= 0 ? "#10b981" : "#ef4444" }}>
+              <div className={styles.kpiGrid}>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Tổng lợi nhuận ròng (Total Return)</span>
+                  <span
+                    className={`${styles.kpiValue} ${
+                      backtestResult.total_return >= 0 ? styles.kpiGreen : styles.kpiRed
+                    }`}
+                  >
                     {(backtestResult.total_return * 100).toFixed(2)}%
-                  </div>
+                  </span>
                 </div>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Lợi nhuận Benchmark</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Lợi nhuận Benchmark (VN-Index)</span>
+                  <span className={styles.kpiValue}>
                     {(backtestResult.benchmark_return * 100).toFixed(2)}%
-                  </div>
+                  </span>
                 </div>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Alpha (vs Benchmark)</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: backtestResult.alpha >= 0 ? "#10b981" : "#ef4444" }}>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Alpha (Chênh lệch vs Benchmark)</span>
+                  <span
+                    className={`${styles.kpiValue} ${
+                      backtestResult.alpha >= 0 ? styles.kpiGreen : styles.kpiRed
+                    }`}
+                  >
                     {(backtestResult.alpha * 100).toFixed(2)}%
-                  </div>
+                  </span>
                 </div>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Max Drawdown</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#ef4444" }}>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Mức sụt giảm tối đa (Max Drawdown)</span>
+                  <span className={`${styles.kpiValue} ${styles.kpiRed}`}>
                     {(backtestResult.max_drawdown * 100).toFixed(2)}%
-                  </div>
+                  </span>
                 </div>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Sharpe Ratio</div>
-                  <div style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
-                    {backtestResult.sharpe_ratio.toFixed(2)}
-                  </div>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Hệ số Sharpe (Sharpe Ratio)</span>
+                  <span className={styles.kpiValue}>{backtestResult.sharpe_ratio.toFixed(2)}</span>
                 </div>
-                <div style={{ padding: "12px", background: "var(--bg-primary, #111)", borderRadius: "6px" }}>
-                  <div style={{ fontSize: "0.8rem", color: "#888" }}>Tổng lệnh / Phí & Thuế</div>
-                  <div style={{ fontSize: "1.1rem", fontWeight: "bold" }}>
-                    {backtestResult.total_trades} lệnh | {Math.round(backtestResult.total_fees + backtestResult.total_taxes).toLocaleString()} VND
-                  </div>
+                <div className={styles.kpiCard}>
+                  <span className={styles.kpiLabel}>Tổng lệnh & Chi phí (Trades & Fees)</span>
+                  <span className={styles.kpiValue} style={{ fontSize: "16px" }}>
+                    {backtestResult.total_trades} lệnh |{" "}
+                    {Math.round(backtestResult.total_fees + backtestResult.total_taxes).toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    VND
+                  </span>
                 </div>
               </div>
 
               {backtestResult.trades.length > 0 && (
-                <div style={{ marginTop: "16px" }}>
-                  <h3 style={{ fontSize: "1rem", marginBottom: "8px" }}>Nhật ký Giao dịch Tái cân bằng (Rebalance Log)</h3>
-                  <div style={{ maxHeight: "240px", overflowY: "auto", border: "1px solid #333", borderRadius: "6px" }}>
-                    <table style={{ width: "100%", fontSize: "0.85rem", borderCollapse: "collapse" }}>
+                <div>
+                  <h3 style={{ fontSize: "14px", marginBottom: "8px", color: "var(--ink)" }}>
+                    Nhật ký Giao dịch Tái cân bằng (Rebalance Ledger)
+                  </h3>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.dataTable}>
                       <thead>
-                        <tr style={{ background: "#222", textAlign: "left" }}>
-                          <th style={{ padding: "8px" }}>Ngày</th>
-                          <th style={{ padding: "8px" }}>Mã</th>
-                          <th style={{ padding: "8px" }}>Lệnh</th>
-                          <th style={{ padding: "8px" }}>Số lượng</th>
-                          <th style={{ padding: "8px" }}>Giá</th>
-                          <th style={{ padding: "8px" }}>Giá trị</th>
-                          <th style={{ padding: "8px" }}>Phí + Thuế</th>
+                        <tr>
+                          <th>Ngày (Date)</th>
+                          <th>Mã (Symbol)</th>
+                          <th>Lệnh (Action)</th>
+                          <th>Số lượng (Shares)</th>
+                          <th>Giá khớp (Price)</th>
+                          <th>Giá trị (Value)</th>
+                          <th>Phí + Thuế (Costs)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {backtestResult.trades.slice(0, 50).map((t, idx) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid #222" }}>
-                            <td style={{ padding: "6px 8px" }}>{t.date}</td>
-                            <td style={{ padding: "6px 8px", fontWeight: "bold" }}>{t.symbol}</td>
-                            <td style={{ padding: "6px 8px", color: t.action === "BUY" ? "#10b981" : "#ef4444" }}>{t.action}</td>
-                            <td style={{ padding: "6px 8px" }}>{t.shares.toLocaleString()}</td>
-                            <td style={{ padding: "6px 8px" }}>{t.price.toLocaleString()}</td>
-                            <td style={{ padding: "6px 8px" }}>{Math.round(t.value).toLocaleString()}</td>
-                            <td style={{ padding: "6px 8px" }}>{Math.round(t.fee + t.tax).toLocaleString()}</td>
+                          <tr key={idx}>
+                            <td>{t.date}</td>
+                            <td>
+                              <strong>{t.symbol}</strong>
+                            </td>
+                            <td
+                              style={{
+                                color: t.action === "BUY" ? "var(--positive)" : "var(--negative)",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {t.action === "BUY" ? "MUA (BUY)" : "BÁN (SELL)"}
+                            </td>
+                            <td>{t.shares.toLocaleString("vi-VN")}</td>
+                            <td>{t.price.toLocaleString("vi-VN")} VND</td>
+                            <td>{Math.round(t.value).toLocaleString("vi-VN")} VND</td>
+                            <td>{Math.round(t.fee + t.tax).toLocaleString("vi-VN")} VND</td>
                           </tr>
                         ))}
                       </tbody>
@@ -308,7 +365,7 @@ export default function ResearchAnalyst() {
               )}
             </div>
           )}
-        </div>
+        </section>
       )}
     </div>
   );

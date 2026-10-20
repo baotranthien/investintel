@@ -28,7 +28,7 @@
 
 .pageHeader h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-size: 32px;
   font-weight: 500;
   line-height: 1.2;
@@ -127,7 +127,7 @@
 
 .statValue {
   font-size: 24px;
-  font-family: Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-weight: 600;
   color: var(--ink);
 }
@@ -346,7 +346,7 @@
 }
 
 .symbol {
-  font-family: Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--ink);
@@ -383,7 +383,7 @@
 }
 
 .scoreValue {
-  font-family: Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
@@ -443,7 +443,7 @@
 .metricItem strong {
   font-size: 13px;
   color: var(--ink);
-  font-family: Georgia, serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif;
 }
 
 /* Status row */

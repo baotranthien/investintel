@@ -4,12 +4,12 @@
 .workspaceMeta button, .stateBlock button { min-height: 32px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 10px; font-weight: 700; }
 .overview { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(190px, .7fr); gap: 16px; padding: 21px; border-top: 2px solid var(--positive); background: var(--surface); }
 .assetIdentity .eyebrow, .eyebrow { margin: 0 0 7px; color: var(--positive); font-size: 9px; font-weight: 800; }
-.assetIdentity h1 { align-items: baseline; flex-wrap: wrap; margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 42px; font-weight: 500; line-height: 1.1; }
+.assetIdentity h1 { align-items: baseline; flex-wrap: wrap; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 42px; font-weight: 500; line-height: 1.1; }
 .assetIdentity h1 span { color: var(--ink-muted); font-family: "Aptos", "Segoe UI Variable", sans-serif; font-size: 14px; font-weight: 500; }
 .assetIdentity > p:last-child { margin: 8px 0 0; color: var(--ink-muted); font-size: 10px; }
 .quoteBlock { display: grid; align-content: center; justify-items: end; gap: 4px; text-align: right; }
 .quoteBlock > span { color: var(--ink-muted); font-size: 9px; }
-.quoteBlock > strong { font-family: Georgia, "Times New Roman", serif; font-size: 28px; font-weight: 500; }
+.quoteBlock > strong { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 28px; font-weight: 500; }
 .quoteBlock small { justify-content: flex-end; flex-wrap: wrap; color: var(--ink-muted); font-size: 9px; }
 .summaryStats { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .summaryStats > div { display: grid; gap: 4px; padding: 12px 10px 0 0; border-right: 1px solid var(--line); }
@@ -22,7 +22,7 @@
 .sectionNav a:hover { background: var(--accent-soft); color: var(--ink); }
 .section { scroll-margin-top: 115px; padding: 19px 20px; border-top: 1px solid var(--line); background: var(--surface); }
 .sectionHeader { align-items: start; justify-content: space-between; margin-bottom: 12px; }
-.sectionHeader h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 500; }
+.sectionHeader h2 { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 22px; font-weight: 500; }
 .sectionNote { margin: 7px 0; color: var(--ink-muted); font-size: 9px; line-height: 1.5; overflow-wrap: anywhere; }
 .status { display: inline-flex; max-width: 100%; align-items: center; padding: 3px 6px; background: #eef1ee; color: #4e5c51; font-size: 8px; font-weight: 750; line-height: 1.4; overflow-wrap: anywhere; }
 .statusGood { background: #e7f2ed; color: #116b56; }
@@ -61,7 +61,7 @@
 .factorGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .factorGrid article, .riskGrid article { display: grid; align-content: start; gap: 7px; min-width: 0; padding: 11px; border: 1px solid var(--line); background: var(--surface); }
 .factorGrid article > span { color: var(--ink-muted); font-size: 9px; text-transform: capitalize; }
-.factorGrid article > strong { font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 400; }
+.factorGrid article > strong { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 22px; font-weight: 400; }
 .riskGrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .riskGrid article strong { font-size: 10px; }
 .riskGrid article > span { font-size: 19px; }
@@ -81,7 +81,7 @@
 .eventItem p { color: var(--ink-muted); }
 .summaryGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 24px; }
 .summaryGrid > div { min-width: 0; }
-.summaryGrid h3 { margin: 0 0 7px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; font-weight: 500; }
+.summaryGrid h3 { margin: 0 0 7px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 16px; font-weight: 500; }
 .claimList { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .claimList li { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: 7px; color: var(--ink); font-size: 9px; line-height: 1.5; }
 .claimList li small { grid-column: 2; color: var(--ink-muted); font-size: 8px; }

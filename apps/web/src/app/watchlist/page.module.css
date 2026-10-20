@@ -2,13 +2,13 @@
 .header, .section > header, .itemHeader, .actions, .metrics, .filters, .editForm, .thesisGrid, .changes { display: grid; }
 .header { grid-template-columns: 1fr auto; align-items: center; }
 .eyebrow { margin: 0 0 6px; color: var(--positive); font-size: 9px; font-weight: 800; }
-.header h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 36px; }
+.header h1 { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 36px; }
 .header h1 span { color: var(--ink-muted); font-family: "Segoe UI Variable", sans-serif; font-size: 14px; }
 .header p:last-child { margin: 8px 0 0; color: var(--ink-muted); font-size: 10px; }
 .refresh { min-height: 34px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
 .section { padding: 16px; border-top: 1px solid var(--line); background: var(--surface); }
 .section > header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.section > header h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 20px; }
+.section > header h2 { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 20px; }
 .section > header span { color: var(--ink-muted); font-size: 9px; }
 .addForm, .filters, .editForm { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .addForm label, .filters label, .editForm label { display: grid; gap: 4px; color: var(--ink-muted); font-size: 8px; font-weight: 700; }
