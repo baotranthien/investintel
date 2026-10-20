@@ -156,14 +156,14 @@ class DataCoverageService:
             )
 
         # 2. Fundamentals Dataset Coverage (Equities only)
-        if instrument.is_index:
+        if instrument.is_index or getattr(instrument, "asset_type", "") == "ETF":
             datasets["fundamentals"] = DatasetQuality(
                 dataset="fundamentals",
                 exists=False,
                 record_count=0,
                 status="SKIPPED_UNSUPPORTED",
                 eligible_for_analyst=False,
-                exclusion_reason="Indices do not have standalone financial statements.",
+                exclusion_reason="Indices and ETFs do not have standalone corporate financial statements.",
             )
             datasets["valuation"] = DatasetQuality(
                 dataset="valuation",
@@ -171,7 +171,7 @@ class DataCoverageService:
                 record_count=0,
                 status="SKIPPED_UNSUPPORTED",
                 eligible_for_analyst=False,
-                exclusion_reason="Valuation multiples are not computed directly on benchmark indexes.",
+                exclusion_reason="Valuation multiples are not computed directly on benchmark indexes and ETFs.",
             )
         else:
             stmts_query = session.query(FinancialStatement).filter(
@@ -389,7 +389,7 @@ class DataCoverageService:
 
             if f_cov and f_cov.eligible_for_analyst:
                 fundamentals_available += 1
-            elif not inst.is_index:
+            elif not inst.is_index and getattr(inst, "asset_type", "") != "ETF":
                 fundamentals_missing += 1
 
             if rep.overall_status == "AVAILABLE":

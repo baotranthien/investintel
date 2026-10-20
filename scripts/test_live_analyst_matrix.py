@@ -29,6 +29,7 @@ TEST_CASES = [
             "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
         },
         "expected_symbol": "SHB",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
         "expected_min_citations": 1,
     },
     {
@@ -39,6 +40,7 @@ TEST_CASES = [
             "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
         },
         "expected_symbol": "VCB",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
         "expected_min_citations": 1,
     },
     {
@@ -49,6 +51,7 @@ TEST_CASES = [
             "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
         },
         "expected_symbol": "FPT",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
         "expected_min_citations": 1,
     },
     {
@@ -104,6 +107,8 @@ def run_test(case):
                 assert resolution == case["expected_symbol"], f"Expected {case['expected_symbol']}, got {resolution}"
             if "expected_status" in case:
                 assert status == case["expected_status"], f"Expected {case['expected_status']}, got {status}"
+            if "allowed_statuses" in case:
+                assert status in case["allowed_statuses"], f"Expected status in {case['allowed_statuses']}, got {status}"
             if case.get("expected_min_citations"):
                 assert len(citations) >= case["expected_min_citations"], f"Expected >= {case['expected_min_citations']} citations, got {len(citations)}"
             

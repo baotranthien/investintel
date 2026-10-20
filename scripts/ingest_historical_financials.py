@@ -205,14 +205,25 @@ async def main():
     summary = []
 
     for sym in symbols:
-        res = await ingest_symbol_financials(
-            provider=provider,
-            symbol=sym,
-            quarter_limit=args.quarters,
-            year_limit=args.years,
-            ratio_size=args.ratios
-        )
-        summary.append(res)
+        try:
+            res = await ingest_symbol_financials(
+                provider=provider,
+                symbol=sym,
+                quarter_limit=args.quarters,
+                year_limit=args.years,
+                ratio_size=args.ratios
+            )
+            summary.append(res)
+        except Exception as exc:
+            logger.error(f"[{sym}] Unexpected error during ingestion: {exc}")
+            summary.append({
+                "symbol": sym,
+                "error": str(exc),
+                "quarterly_statements": 0,
+                "annual_statements": 0,
+                "metrics_created": 0,
+                "ttm_verified": False
+            })
         # Gentle inter-symbol pacing to respect upstream endpoint
         await asyncio.sleep(1.0)
 

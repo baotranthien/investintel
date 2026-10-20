@@ -94,7 +94,21 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             return s
 
         verifiable_evidence.sort(key=_score, reverse=True)
-        compact_context["verifiable_evidence"] = verifiable_evidence[:15]
+        selected_evidence = []
+        for item in verifiable_evidence[:8]:
+            val = item.get("value")
+            if isinstance(val, float):
+                clean_val = round(val, 2)
+            else:
+                clean_val = val
+            selected_evidence.append({
+                "id": item.get("id"),
+                "metric": item.get("metric"),
+                "value": clean_val,
+                "unit": item.get("unit"),
+                "source": item.get("source"),
+            })
+        compact_context["verifiable_evidence"] = selected_evidence
     if missing_indicators:
         compact_context["unverified_or_missing_metrics"] = list(dict.fromkeys(missing_indicators))[:15]
 

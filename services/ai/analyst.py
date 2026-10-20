@@ -19,15 +19,77 @@ from .tools import AITools
 _NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d[\d,]*(?:\.\d+)?%?")
 
 
+def _extract_token_interpretations(token_match: str) -> set[Decimal]:
+    cleaned = token_match.rstrip("%")
+    interpretations = set()
+    # 1. As standard integer/float without commas (e.g. 84,873 -> 84873, 12.5 -> 12.5)
+    try:
+        interpretations.add(Decimal(cleaned.replace(",", "")).normalize())
+    except (InvalidOperation, ValueError):
+        pass
+    # 2. As Vietnamese decimal comma (e.g. 24,813 -> 24.813, 1,45 -> 1.45)
+    if cleaned.count(",") == 1:
+        try:
+            interpretations.add(Decimal(cleaned.replace(",", ".")).normalize())
+        except (InvalidOperation, ValueError):
+            pass
+    return interpretations
+
+
+def _extract_claim_number_tokens(text: str) -> list[set[Decimal]]:
+    # Normalize duplicate dots in decimal expressions (e.g. 84.832.6% -> 84.8326%)
+    cleaned_value = re.sub(r"(\d+\.\d+)\.(\d+)", r"\1\2", str(text))
+    tokens = []
+    for match in _NUMBER.findall(cleaned_value):
+        interps = _extract_token_interpretations(match)
+        if interps:
+            tokens.append(interps)
+    return tokens
+
+
 def _numeric_values(value: str) -> set[Decimal]:
     found = set()
-    for match in _NUMBER.findall(value):
-        try:
-            number = match.rstrip("%").replace(",", "")
-            found.add(Decimal(number).normalize())
-        except InvalidOperation:
-            continue
+    cleaned_value = re.sub(r"(\d+\.\d+)\.(\d+)", r"\1\2", str(value))
+    for match in _NUMBER.findall(cleaned_value):
+        found.update(_extract_token_interpretations(match))
     return found
+
+
+def _extract_evidence_numbers(ev: Any) -> set[Decimal]:
+    metric_clean = str(ev.metric or "").replace("_", " ")
+    raw_str = (
+        f"{json.dumps(ev.value, default=str)} "
+        f"{ev.observation_date or ''} "
+        f"{ev.publication_date or ''} "
+        f"{metric_clean} "
+        f"{ev.note or ''}"
+    )
+    nums = _numeric_values(raw_str)
+    val = ev.value
+    if isinstance(val, (int, float, Decimal)):
+        try:
+            f_val = float(val)
+            for r in (0, 1, 2, 3):
+                nums.add(Decimal(str(round(f_val, r))).normalize())
+            nums.add(Decimal(int(f_val)))
+        except (ValueError, OverflowError, InvalidOperation):
+            pass
+    return nums
+
+
+def _is_number_grounded(num: Decimal, cited_numbers: set[Decimal]) -> bool:
+    if num in cited_numbers:
+        return True
+    num_f = float(num)
+    for c in cited_numbers:
+        c_f = float(c)
+        # Check absolute tolerance for small values
+        if abs(num_f - c_f) <= 0.05:
+            return True
+        # Check relative tolerance (0.5%) for larger numbers
+        if abs(c_f) > 1e-6 and abs(num_f - c_f) / abs(c_f) <= 0.005:
+            return True
+    return False
 
 
 class AIAnalyst:
@@ -167,6 +229,7 @@ class AIAnalyst:
 
         cited_claims = []
         referenced_ids: set[str] = set()
+        suppressed_reasons: list[str] = []
         for claim in draft.claims:
             normalized_cids = []
             for raw_cid in claim.citation_ids:
@@ -179,13 +242,8 @@ class AIAnalyst:
 
             valid_ids = [citation_id for citation_id in claim.citation_ids if citation_id in evidence_by_id]
             if claim.claim_type != "UNCERTAINTY" and not valid_ids:
-                return self._insufficient_response(
-                    symbol=symbol,
-                    as_of=requested_date,
-                    citations=citations,
-                    tools_used=used_tools,
-                    reason="The model returned a factual or interpreted claim without a valid evidence citation.",
-                )
+                suppressed_reasons.append("The model returned a factual or interpreted claim without a valid evidence citation.")
+                continue
             if claim.claim_type != "UNCERTAINTY" and any(
                 evidence_by_id[citation_id].claim_type not in {"FACT", "MODEL_OUTPUT", "INTERPRETATION"}
                 or not evidence_by_id[citation_id].source
@@ -204,33 +262,23 @@ class AIAnalyst:
                 valid_ids = []
                 claim.citation_ids = []
             elif len(valid_ids) != len(claim.citation_ids):
-                return self._insufficient_response(
-                    symbol=symbol,
-                    as_of=requested_date,
-                    citations=citations,
-                    tools_used=used_tools,
-                    reason="The model referenced an evidence ID that was not supplied by a data tool.",
-                )
+                suppressed_reasons.append("The model referenced an evidence ID that was not supplied by a data tool.")
+                continue
             if claim.claim_type != "UNCERTAINTY":
                 cited_numbers = set().union(*(
-                    _numeric_values(
-                        f"{json.dumps(evidence_by_id[citation_id].value, default=str)} "
-                        f"{evidence_by_id[citation_id].observation_date or ''} "
-                        f"{evidence_by_id[citation_id].publication_date or ''} "
-                        f"{evidence_by_id[citation_id].metric or ''} "
-                        f"{evidence_by_id[citation_id].note or ''}"
-                    )
+                    _extract_evidence_numbers(evidence_by_id[citation_id])
                     for citation_id in valid_ids
+                    if citation_id in evidence_by_id
                 )).union(_numeric_values(question))
-                claim_numbers = _numeric_values(claim.text)
-                if not claim_numbers.issubset(cited_numbers):
-                    return self._insufficient_response(
-                        symbol=symbol,
-                        as_of=requested_date,
-                        citations=citations,
-                        tools_used=used_tools,
-                        reason="A numeric claim is not present in the values of its cited evidence IDs.",
-                    )
+                claim_tokens = _extract_claim_number_tokens(claim.text)
+                is_grounded = all(
+                    any(_is_number_grounded(interp, cited_numbers) for interp in token_interps)
+                    for token_interps in claim_tokens
+                )
+                if not is_grounded:
+                    suppressed_reasons.append("A numeric claim is not present in the values of its cited evidence IDs.")
+                    continue
+
             referenced_ids.update(valid_ids)
             cited_claims.append(claim)
 
@@ -241,12 +289,13 @@ class AIAnalyst:
                 if not ans_numbers:
                     cited_claims.append(AIClaim(claim_type="UNCERTAINTY", text=clean_ans, citation_ids=[]))
             if not cited_claims:
+                reason = suppressed_reasons[0] if suppressed_reasons else "The model did not return any structured claims that can be safely displayed."
                 return self._insufficient_response(
                     symbol=symbol,
                     as_of=requested_date,
                     citations=citations,
                     tools_used=used_tools,
-                    reason="The model did not return any structured claims that can be safely displayed.",
+                    reason=reason,
                 )
 
         uncertain_numbers = _numeric_values(" ".join(draft.uncertainty))

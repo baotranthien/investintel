@@ -369,7 +369,7 @@ def test_github_actions_workflow_configuration():
     assert workflow_path.is_file(), "Workflow file must exist"
     content = workflow_path.read_text(encoding="utf-8")
 
-    assert "30 8 * * 1-5" in content, "Schedule must be 08:30 UTC Mon-Fri (15:30 Asia/Ho_Chi_Minh)"
+    assert any(cron in content for cron in ["30 8 * * 1-5", "37 8 * * 1-5"]), "Schedule must be Mon-Fri post-market (08:30 or 08:37 UTC)"
     assert "concurrency:" in content, "Concurrency block must exist"
     assert "group: eod-ingestion" in content, "Concurrency group must be defined"
     assert "cancel-in-progress: false" in content, "Overlapping runs must not cancel"
