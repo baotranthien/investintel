@@ -150,10 +150,16 @@ class OpportunityEngine:
         if data_note:
             why_not_now.append(SignalEvidence(category="Data", description=data_note, direction="NEGATIVE"))
 
-        what_wrong = [
-            "Dữ liệu tài chính thực tế chưa được cấu hình — hệ thống cần kết nối nguồn dữ liệu để tính toán chính xác.",
-            "Các yếu tố vĩ mô có thể xấu đi nhanh hơn dự kiến.",
-        ]
+        what_wrong = []
+        if not data_available:
+            what_wrong.append("Dữ liệu tài chính chưa đầy đủ — điểm số dựa trên ước tính cơ sở.")
+        else:
+            if v_score < 45:
+                what_wrong.append("Mức định giá hiện tại ở vùng cao, biên an toàn hạn chế.")
+            if f_score < 45:
+                what_wrong.append("Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.")
+            what_wrong.append("Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.")
+            what_wrong.append("Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo.")
 
         # Opportunity type classification from computed scores
         types = []
