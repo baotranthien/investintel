@@ -437,7 +437,14 @@ export default function OpportunitiesPage() {
                       ? item.why_now[0].description
                       : "Dữ liệu đang được phân tích."}
                   </td>
-                  <td>
+                  <td className={styles.tableActions}>
+                    <Link
+                      href={`/ai?symbol=${encodeURIComponent(item.symbol)}&q=${encodeURIComponent(`Đánh giá cơ hội đầu tư và triển vọng của cổ phiếu ${item.symbol}?`)}`}
+                      className={styles.actionBtnAiSmall}
+                      title={`Hỏi AI Analyst về mã ${item.symbol}`}
+                    >
+                      ✦ Hỏi AI
+                    </Link>
                     <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
                       Nghiên cứu →
                     </Link>
@@ -538,8 +545,9 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
       {/* Actions */}
       <div className={styles.cardActions}>
         <Link
-          href={`/ai?q=Phân tích tiềm năng đầu tư và rủi ro cổ phiếu ${item.symbol}`}
+          href={`/ai?symbol=${encodeURIComponent(item.symbol)}&q=${encodeURIComponent(`Đánh giá cơ hội đầu tư và triển vọng của cổ phiếu ${item.symbol}?`)}`}
           className={styles.actionBtnSecondary}
+          title={`Hỏi AI Analyst về mã ${item.symbol}`}
         >
           ✦ Hỏi AI
         </Link>

@@ -545,16 +545,23 @@
 
 .actionBtnSecondary {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-muted);
+  font-weight: 700;
+  color: #116b56;
+  background: #e7f2ed;
+  border: 1px solid #c2e2d6;
+  padding: 5px 10px;
+  border-radius: 4px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: color 150ms ease;
+  text-decoration: none;
+  transition: all 150ms ease;
 }
 
 .actionBtnSecondary:hover {
-  color: var(--ink);
+  background: #116b56;
+  color: #ffffff;
+  border-color: #116b56;
 }
 
 .actionBtnPrimary {
@@ -568,6 +575,7 @@
   border-radius: 4px;
   background: #edf7f5;
   transition: all 150ms ease;
+  text-decoration: none;
 }
 
 .actionBtnPrimary:hover {
@@ -614,15 +622,43 @@
 }
 
 .tableSymbol {
-  font-family: Georgia, serif;
+  font-family: "Segoe UI Variable", "Segoe UI", Aptos, -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   font-size: 14px;
 }
 
 .tableScore {
-  font-family: Georgia, serif;
+  font-family: "Segoe UI Variable", "Segoe UI", Aptos, -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   font-size: 14px;
+}
+
+.tableActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.actionBtnAiSmall {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #116b56;
+  background: #e7f2ed;
+  border: 1px solid #c2e2d6;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+.actionBtnAiSmall:hover {
+  background: #116b56;
+  color: #ffffff;
+  border-color: #116b56;
 }
 
 /* Empty / Loading States */
@@ -643,7 +679,7 @@
 
 .emptyState h3,
 .errorState h3 {
-  font-family: Georgia, serif;
+  font-family: "Segoe UI Variable", "Segoe UI", Aptos, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 18px;
   margin: 0;
 }

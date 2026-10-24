@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   getResearchWorkspace,
   type ResearchMetric,
@@ -159,6 +160,13 @@ function ResearchContent({ data }: { data: ResearchWorkspace }) {
         <span>Price / Giá</span><strong>{data.price.value === null ? "—" : formatNumber(data.price.value, "VND")}</strong>
         <small>{formatDate(data.price.as_of_date)} · <Status value={data.price.status} /></small>
         <small>{data.price.source ?? "Không có nguồn giá"} · {data.price.data_origin}</small>
+        <Link
+          href={`/ai?symbol=${encodeURIComponent(data.asset.symbol)}&q=${encodeURIComponent(`Đánh giá cơ hội đầu tư và triển vọng của cổ phiếu ${data.asset.symbol}?`)}`}
+          className={styles.askAiLink}
+          title={`Hỏi AI Analyst về ${data.asset.symbol}`}
+        >
+          ✦ Hỏi AI về {data.asset.symbol} →
+        </Link>
       </div>
       <div className={styles.summaryStats}>
         <div><span>Điểm Cơ hội (Opportunity)</span><b>{data.opportunity.score === null ? "—" : formatNumber(data.opportunity.score)}</b><Status value={data.opportunity.status} /></div>

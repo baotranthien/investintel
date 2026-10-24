@@ -11,6 +11,26 @@
 .quoteBlock > span { color: var(--ink-muted); font-size: 9px; }
 .quoteBlock > strong { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", sans-serif; font-size: 28px; font-weight: 500; }
 .quoteBlock small { justify-content: flex-end; flex-wrap: wrap; color: var(--ink-muted); font-size: 9px; }
+.askAiLink {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #e7f2ed;
+  border: 1px solid #c2e2d6;
+  color: #116b56;
+  font-size: 10px;
+  font-weight: 750;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+.askAiLink:hover {
+  background: #116b56;
+  color: #ffffff;
+  border-color: #116b56;
+}
 .summaryStats { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .summaryStats > div { display: grid; gap: 4px; padding: 12px 10px 0 0; border-right: 1px solid var(--line); }
 .summaryStats > div:not(:first-child) { padding-left: 12px; }
