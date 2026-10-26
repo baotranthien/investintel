@@ -482,14 +482,18 @@ def build_research_workspace(
             # Enforce economic bounds: standard P/E in [0.5, 2500], P/B in [0.05, 50]
             if (metric_id == "pe" and 0.5 <= raw_ratio <= 2500) or (metric_id == "pb" and 0.05 <= raw_ratio <= 50):
                 calc_val = round(raw_ratio, 2)
+                basis_label = "adjusted close" if (price and price.adjusted_close is not None) else "raw close"
+                denom_label = "EPS TTM" if metric_id == "pe" else "BVPS"
+                calc_note = f"Mathematically calculated from canonical {basis_label} ({current_price:.1f} VND) / {denom_label} ({denominator:.1f} VND). Post-corporate-action share basis."
             elif fallback_val is not None:
                 calc_val = round(fallback_val, 2)
                 calc_note = f"Calculated ratio ({raw_ratio:.1f}) fell outside normal bounds; using verified provider ratio."
             else:
                 calc_val = round(raw_ratio, 2)
+                calc_note = f"Calculated ratio ({raw_ratio:.1f}) outside standard bounds."
         elif fallback_val is not None:
             calc_val = round(fallback_val, 2)
-            calc_note = "Verified provider ratio from canonical repository."
+            calc_note = "Independently verified provider ratio from canonical repository."
 
         meaningful = calc_val is not None
         valuation_metrics[metric_id] = WorkspaceMetric(
@@ -627,6 +631,9 @@ def build_research_workspace(
     }
     price_payload = {
         "value": current_price,
+        "raw_close": price.raw_close if price else None,
+        "adjusted_close": price.adjusted_close if price else None,
+        "adjustment_factor": price.adjustment_factor if price else 1.0,
         "as_of_date": price.observation_date if price else None,
         "source": price_source,
         "status": price_status,

@@ -336,6 +336,17 @@ class AIAnalyst:
                 suppressed_reasons.append("The model referenced an evidence ID that was not supplied by a data tool.")
                 continue
             if claim.claim_type != "UNCERTAINTY":
+                # Metric semantic validation: P/E evidence cannot be presented as P/B, and vice versa
+                claim_text_lower = claim.text.lower()
+                if any(term in claim_text_lower for term in ("p/b", "pb", "price-to-book", "price to book")):
+                    if any(evidence_by_id[cid].metric in ("pe", "pe_ratio", "price_to_earnings") for cid in valid_ids):
+                        suppressed_reasons.append("P/E evidence cannot be presented as P/B.")
+                        continue
+                if any(term in claim_text_lower for term in ("p/e", "pe", "price-to-earnings", "price to earnings")):
+                    if any(evidence_by_id[cid].metric in ("pb", "pb_ratio", "price_to_book") for cid in valid_ids):
+                        suppressed_reasons.append("P/B evidence cannot be presented as P/E.")
+                        continue
+
                 cited_numbers = set().union(*(
                     _extract_evidence_numbers(evidence_by_id[citation_id])
                     for citation_id in valid_ids

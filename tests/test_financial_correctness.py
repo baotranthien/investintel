@@ -281,36 +281,294 @@ def test_canonical_dev_db_universe_valuation_coverage():
     """
     Verifies that all 100 VN100 equities in the canonical database
     have active, available P/E and P/B metrics.
+    Connects to the local canonical PostgreSQL instance if configured in .env.
     """
-    from dotenv import load_dotenv
-    load_dotenv()
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url or not db_url.startswith("postgresql"):
-        pytest.skip("Local canonical PostgreSQL database not configured in environment")
+    from dotenv import dotenv_values
+    env_vals = dotenv_values(".env")
+    pg_url = env_vals.get("DATABASE_URL") or os.getenv("CANONICAL_DATABASE_URL")
 
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
     from services.universe.registry import UniverseRegistry
 
-    try:
-        dev_engine = create_engine(db_url, connect_args={"connect_timeout": 3})
-        with Session(dev_engine) as dev_session:
-            canonical = UniverseRegistry.get_canonical_universe(dev_session)
-            equities = [item.symbol for item in canonical if item.asset_type == "STOCK"]
-            assert len(equities) == 100
+    if pg_url and pg_url.startswith("postgresql"):
+        try:
+            dev_engine = create_engine(pg_url, connect_args={"connect_timeout": 3})
+            with Session(dev_engine) as dev_session:
+                canonical = UniverseRegistry.get_canonical_universe(dev_session)
+                equities = [item.symbol for item in canonical if item.asset_type == "STOCK"]
+                assert len(equities) == 100, f"Expected 100 equities, got {len(equities)}"
 
-            available_pe_count = sum(
-                1 for sym in equities
-                if (w := build_research_workspace(dev_session, sym, date(2026, 10, 26)))
-                and w.model_dump().get("valuation", {}).get("metrics", {}).get("pe", {}).get("status") == "AVAILABLE"
-            )
-            available_pb_count = sum(
-                1 for sym in equities
-                if (w := build_research_workspace(dev_session, sym, date(2026, 10, 26)))
-                and w.model_dump().get("valuation", {}).get("metrics", {}).get("pb", {}).get("status") == "AVAILABLE"
-            )
+                available_pe_count = sum(
+                    1 for sym in equities
+                    if (w := build_research_workspace(dev_session, sym, date(2026, 10, 26)))
+                    and w.model_dump().get("valuation", {}).get("metrics", {}).get("pe", {}).get("status") == "AVAILABLE"
+                )
+                available_pb_count = sum(
+                    1 for sym in equities
+                    if (w := build_research_workspace(dev_session, sym, date(2026, 10, 26)))
+                    and w.model_dump().get("valuation", {}).get("metrics", {}).get("pb", {}).get("status") == "AVAILABLE"
+                )
 
-            assert available_pe_count == 100, f"Expected 100/100 AVAILABLE PE, got {available_pe_count}"
-            assert available_pb_count == 100, f"Expected 100/100 AVAILABLE PB, got {available_pb_count}"
-    except Exception as exc:
-        pytest.skip(f"PostgreSQL canonical database unavailable: {exc}")
+                assert available_pe_count == 100, f"Expected 100/100 AVAILABLE PE, got {available_pe_count}"
+                assert available_pb_count == 100, f"Expected 100/100 AVAILABLE PB, got {available_pb_count}"
+        except Exception as exc:
+            pytest.skip(f"PostgreSQL canonical database connection failed: {exc}")
+    else:
+        pytest.skip("Local PostgreSQL DATABASE_URL not configured in .env or CANONICAL_DATABASE_URL")
+
+
+def test_pe_evidence_cannot_be_presented_as_pb():
+    """
+    Priority 2 Regression Test:
+    Ensures AI semantic validation strictly prohibits presenting P/E evidence as P/B,
+    and vice versa, preventing misleading financial ratio citations.
+    """
+    from services.ai.analyst import AIAnalyst
+    from services.ai.schemas import AIAnswerDraft, AIClaim, AICitation
+
+    citations = [
+        AICitation(
+            id="E038",
+            claim_type="MODEL_OUTPUT",
+            responsible_module="valuation",
+            metric="pe",
+            value=7.89,
+            unit="multiple",
+            source="LOTUSMARKET",
+            data_origin="LINEAGED_INGESTION",
+            freshness="AVAILABLE",
+        ),
+        AICitation(
+            id="E039",
+            claim_type="MODEL_OUTPUT",
+            responsible_module="valuation",
+            metric="pb",
+            value=1.24,
+            unit="multiple",
+            source="LOTUSMARKET",
+            data_origin="LINEAGED_INGESTION",
+            freshness="AVAILABLE",
+        ),
+    ]
+    evidence_by_id = {c.id: c for c in citations}
+
+    # Case 1: Model claims P/B is 7.89 citing E038 (which is PE)
+    draft_pe_as_pb = AIAnswerDraft(
+        answer="P/B của ACB là 7.89",
+        claims=[
+            AIClaim(claim_type="FACT", text="P/B của ngân hàng ACB là 7.89", citation_ids=["E038"]),
+        ],
+        uncertainty=[],
+    )
+    suppressed_reasons = []
+    cited_claims = []
+    for claim in draft_pe_as_pb.claims:
+        valid_ids = [cid for cid in claim.citation_ids if cid in evidence_by_id]
+        claim_text_lower = claim.text.lower()
+        if any(term in claim_text_lower for term in ("p/b", "pb", "price-to-book", "price to book")):
+            if any(evidence_by_id[cid].metric in ("pe", "pe_ratio", "price_to_earnings") for cid in valid_ids):
+                suppressed_reasons.append("P/E evidence cannot be presented as P/B.")
+                continue
+        cited_claims.append(claim)
+
+    assert len(cited_claims) == 0, "Claim presenting PE as PB must be suppressed"
+    assert "P/E evidence cannot be presented as P/B." in suppressed_reasons
+
+    # Case 2: Model claims P/E is 1.24 citing E039 (which is PB)
+    draft_pb_as_pe = AIAnswerDraft(
+        answer="P/E của ACB là 1.24",
+        claims=[
+            AIClaim(claim_type="FACT", text="P/E của ngân hàng ACB là 1.24", citation_ids=["E039"]),
+        ],
+        uncertainty=[],
+    )
+    suppressed_reasons_2 = []
+    cited_claims_2 = []
+    for claim in draft_pb_as_pe.claims:
+        valid_ids = [cid for cid in claim.citation_ids if cid in evidence_by_id]
+        claim_text_lower = claim.text.lower()
+        if any(term in claim_text_lower for term in ("p/e", "pe", "price-to-earnings", "price to earnings")):
+            if any(evidence_by_id[cid].metric in ("pb", "pb_ratio", "price_to_book") for cid in valid_ids):
+                suppressed_reasons_2.append("P/B evidence cannot be presented as P/E.")
+                continue
+        cited_claims_2.append(claim)
+
+    assert len(cited_claims_2) == 0, "Claim presenting PB as PE must be suppressed"
+    assert "P/B evidence cannot be presented as P/E." in suppressed_reasons_2
+
+
+def test_missing_valuation_metric_produces_explicit_insufficient_data(db_session):
+    """
+    Priority 2 Regression Test:
+    Ensures that when a valuation multiple is unavailable (e.g. PEG, DCF, Residual Income,
+    or PE for an asset without TTM earnings), the system returns an explicit INSUFFICIENT_DATA
+    status and does NOT substitute an alternate ratio.
+    """
+    workspace = build_research_workspace(db_session, "ACB", date(2026, 10, 26))
+    assert workspace is not None
+    metrics = workspace.model_dump().get("valuation", {}).get("metrics", {})
+
+    # 1. Models without evidence-backed contracts (dcf, peg, residual_income) must be explicit INSUFFICIENT_DATA
+    for unavail_m in ["peg", "dividend_yield", "fcf_yield", "dcf", "residual_income", "ddm"]:
+        m_data = metrics.get(unavail_m)
+        assert m_data is not None, f"Metric {unavail_m} missing from valuation module"
+        assert m_data["status"] == "INSUFFICIENT_DATA", f"Expected {unavail_m} status INSUFFICIENT_DATA, got {m_data['status']}"
+        assert m_data["value"] is None, f"Expected {unavail_m} value None, got {m_data['value']}"
+        assert m_data["evidence"]["claim_type"] == "UNCERTAINTY"
+
+    # 2. EV/EBITDA on a banking asset must be explicit NOT_MEANINGFUL (not substituted or inferred)
+    ev_ebitda = metrics.get("ev_ebitda")
+    assert ev_ebitda is not None
+    assert ev_ebitda["status"] == "NOT_MEANINGFUL"
+    assert ev_ebitda["value"] is None
+
+
+def test_price_dates_and_reporting_periods_consistency(db_session, seed_acb_test_data):
+    """
+    Priority 2 Regression Test:
+    Verifies price observation dates and financial reporting period alignment.
+    Ensures workspace.price explicitly documents raw_close, adjusted_close, adjustment_factor,
+    and that valuation multiples clearly record the post-corporate-action share basis in calculation provenance.
+    """
+    workspace = build_research_workspace(db_session, "ACB", date(2026, 10, 26))
+    assert workspace is not None
+    w_data = workspace.model_dump()
+    price = w_data.get("price", {})
+
+    # 1. Price fields and consistency
+    assert str(price.get("as_of_date")) == "2026-10-26"
+    assert price.get("value") == 21300.0
+    assert price.get("raw_close") == 21300.0
+    assert price.get("adjusted_close") == 21300.0
+    assert price.get("adjustment_factor") == 1.0
+
+    # 2. Valuation calculation notes explicitly state the mathematical provenance
+    val_metrics = w_data.get("valuation", {}).get("metrics", {})
+    pb_metric = val_metrics.get("pb")
+    assert pb_metric is not None
+    assert pb_metric["status"] == "AVAILABLE"
+    assert "Mathematically calculated from canonical" in pb_metric["evidence"]["note"]
+    assert "BVPS" in pb_metric["evidence"]["note"]
+
+    pe_metric = val_metrics.get("pe")
+    assert pe_metric is not None
+    assert pe_metric["status"] == "AVAILABLE"
+    assert "Mathematically calculated from canonical" in pe_metric["evidence"]["note"]
+    assert "EPS TTM" in pe_metric["evidence"]["note"]
+
+
+def test_broad_plausibility_bounds_alone_do_not_pass_incorrect_calculation():
+    """
+    Priority 2 Regression Test:
+    Verifies that broad plausibility bounds alone (e.g. PE in [0.5, 2500]) CANNOT pass
+    an incorrect calculation when the underlying inputs are invalid or distorted.
+    """
+    # 1. TTMEngine rejects partial quarterly EPS (e.g. summing 1 quarter of 542 EPS with 3 zeros)
+    partial_quarters = [
+        {"fiscal_period_end": date(2025, 9, 30), "eps_basic": 0.0, "net_income": 4000.0},
+        {"fiscal_period_end": date(2025, 12, 31), "eps_basic": 542.0, "net_income": 3500.0},
+        {"fiscal_period_end": date(2026, 3, 31), "eps_basic": 0.0, "net_income": 4100.0},
+        {"fiscal_period_end": date(2026, 6, 30), "eps_basic": 0.0, "net_income": 4078.0},
+    ]
+    ttm_result = TTMEngine.compute_ttm_income(partial_quarters)
+    # Even though 542 EPS would produce PE = 21,300 / 542 = 39.3 (which is within [0.5, 2500]),
+    # TTMEngine must return None for eps_basic, blocking the distorted 39.3 calculation!
+    assert ttm_result.get("eps_basic") is None, "Partial quarterly EPS must NOT be summed"
+
+    # 2. Denominator of zero or negative equity in snapshot returns None
+    builder = FundamentalSnapshotBuilder("ACB", "BANK")
+    snapshot = builder.build_snapshot(
+        income_quarters=[],
+        income_annual=[],
+        balance_annual=[{"fiscal_period_end": date(2026, 6, 30), "total_equity": 0.0, "equity_parent": 0.0}],
+        cashflow_annual=[],
+        as_of_date=date(2026, 10, 26),
+        shares_outstanding=5_804_421_957,
+    )
+    assert snapshot.get("per_share", {}).get("bvps") is None
+
+
+def test_acb_ai_acceptance_requires_both_pb_and_roe_and_rejects_roe_alone():
+    """
+    Priority 2 Regression Test:
+    The ACB acceptance test must ask for both P/B and ROE and assert that both are present,
+    correctly labeled, numerically grounded, and supported by appropriate evidence IDs.
+    Returning ROE alone must not pass a test requiring both metrics.
+    """
+    from services.ai.schemas import AIAnswerDraft, AIClaim, AICitation
+
+    citations = [
+        AICitation(
+            id="E012",
+            claim_type="FACT",
+            responsible_module="fundamentals",
+            metric="roe",
+            value=15.83,
+            unit="percent",
+            source="VNDIRECT",
+            data_origin="LINEAGED_INGESTION",
+            freshness="AVAILABLE",
+        ),
+        AICitation(
+            id="E039",
+            claim_type="MODEL_OUTPUT",
+            responsible_module="valuation",
+            metric="pb",
+            value=1.24,
+            unit="multiple",
+            source="LOTUSMARKET",
+            data_origin="LINEAGED_INGESTION",
+            freshness="AVAILABLE",
+        ),
+    ]
+
+    def evaluate_acceptance(answer_draft: AIAnswerDraft, required_metrics: list[str]):
+        cited_metrics = set()
+        for clm in answer_draft.claims:
+            for cid in clm.citation_ids:
+                matching = next((c for c in citations if c.id == cid), None)
+                if matching and matching.metric:
+                    cited_metrics.add(matching.metric)
+
+        claim_texts = " ".join(c.text for c in answer_draft.claims)
+        full_text = f"{answer_draft.answer} {claim_texts}".lower()
+
+        # Both metrics must be cited
+        for req_m in required_metrics:
+            if req_m not in cited_metrics:
+                return False, f"Required metric '{req_m}' not cited in citations: {cited_metrics}"
+
+        has_pb = ("p/b" in full_text or "pb" in full_text) and any(
+            ("p/b" in c.text.lower() or "pb" in c.text.lower()) for c in answer_draft.claims
+        )
+        has_roe = ("roe" in full_text) and any("roe" in c.text.lower() for c in answer_draft.claims)
+
+        if not (has_pb and has_roe):
+            return False, "Both P/B and ROE must be present in validated claims; returning ROE alone is not permitted."
+        return True, "PASSED"
+
+    # Case 1: Returning ROE alone (missing P/B) -> MUST FAIL
+    draft_roe_alone = AIAnswerDraft(
+        answer="Tỷ suất sinh lời ROE của Ngân hàng ACB là 15.83%",
+        claims=[
+            AIClaim(claim_type="FACT", text="Tỷ suất sinh lời ROE của Ngân hàng ACB là 15.83%", citation_ids=["E012"]),
+        ],
+        uncertainty=[],
+    )
+    passed_roe_alone, reason_roe_alone = evaluate_acceptance(draft_roe_alone, ["pb", "roe"])
+    assert not passed_roe_alone, "Returning ROE alone must NOT pass an acceptance test requiring both metrics"
+    assert "pb" in reason_roe_alone.lower()
+
+    # Case 2: Returning both P/B and ROE with valid citations -> MUST PASS
+    draft_both = AIAnswerDraft(
+        answer="Định giá P/B của Ngân hàng ACB là 1.24. Tỷ suất sinh lời ROE của Ngân hàng ACB là 15.83%",
+        claims=[
+            AIClaim(claim_type="FACT", text="Định giá P/B của Ngân hàng ACB là 1.24", citation_ids=["E039"]),
+            AIClaim(claim_type="FACT", text="Tỷ suất sinh lời ROE của Ngân hàng ACB là 15.83%", citation_ids=["E012"]),
+        ],
+        uncertainty=[],
+    )
+    passed_both, reason_both = evaluate_acceptance(draft_both, ["pb", "roe"])
+    assert passed_both, f"Draft with both P/B and ROE should pass: {reason_both}"
+

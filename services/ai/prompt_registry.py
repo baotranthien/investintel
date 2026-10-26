@@ -1,5 +1,6 @@
 """Prompt registry and prompt engineering for local InvestIntel AI Analyst."""
 from typing import Any
+import re
 
 PROMPT_VERSION = "investment_analyst_v2"
 
@@ -75,21 +76,36 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             missing_indicators.append(metric)
 
     if verifiable_evidence:
+        q_lower = question.lower()
+        asks_pb = bool(re.search(r"\b(p/b|pb)\b", q_lower))
+        asks_pe = bool(re.search(r"\b(p/e|pe)\b", q_lower))
+
         def _score(ev: dict[str, Any]) -> int:
             m = str(ev.get("metric") or "").lower()
-            q = question.lower()
             s = 0
-            if ("giá" in q or "price" in q) and m == "price":
+            if ("giá" in q_lower or "price" in q_lower) and m == "price":
                 s += 100
-            if ("doanh thu" in q or "revenue" in q) and m in {"revenue", "revenue_yoy", "gross_margin"}:
+            if ("doanh thu" in q_lower or "revenue" in q_lower) and m in {"revenue", "revenue_yoy", "gross_margin"}:
                 s += 100
-            if ("lợi nhuận" in q or "income" in q or "profit" in q) and m in {"net_income", "net_income_yoy", "net_margin"}:
+            if ("lợi nhuận" in q_lower or "income" in q_lower or "profit" in q_lower) and m in {"net_income", "net_income_yoy", "net_margin"}:
                 s += 90
-            if "roe" in q and m == "roe":
+            if "roe" in q_lower and m == "roe":
+                s += 120
+            if "roa" in q_lower and m == "roa":
+                s += 120
+            if asks_pb and m in {"pb", "pb_ratio", "price_to_book"}:
+                s += 150
+            if asks_pe and m in {"pe", "pe_ratio", "price_to_earnings"}:
+                s += 150
+            if asks_pb and not asks_pe and m in {"pe", "pe_ratio", "price_to_earnings"}:
+                s -= 500  # Explicitly exclude PE when PB is specifically asked
+            if asks_pe and not asks_pb and m in {"pb", "pb_ratio", "price_to_book"}:
+                s -= 500  # Explicitly exclude PB when PE is specifically asked
+            if ("định giá" in q_lower or "valuation" in q_lower) and not asks_pb and not asks_pe and m in {"pe", "pb"}:
+                s += 50
+            if "eps" in q_lower and m in {"eps_ttm", "eps_yoy"}:
                 s += 100
-            if ("pe" in q or "p/e" in q or "định giá" in q) and m in {"pe", "pe_ratio", "pb"}:
-                s += 100
-            if "eps" in q and m in {"eps_ttm", "eps_yoy"}:
+            if "bvps" in q_lower and m == "bvps":
                 s += 100
             return s
 
@@ -119,7 +135,8 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         "Yêu cầu trả lời bằng tiếng Việt (JSON) tuân thủ cấu trúc AIAnswerDraft:\n"
         "- 'answer': Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.\n"
         "- 'claims': Danh sách các mệnh đề logic độc lập:\n"
-        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence (ví dụ: số liệu giá trích dẫn đúng ID có metric='price', số liệu pe trích dẫn đúng ID có metric='pe'). Tuyệt đối không gán nhầm ID giữa các chỉ số.\n"
+        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence (ví dụ: số liệu định giá P/B trích dẫn đúng ID có metric='pb', số liệu P/E trích dẫn đúng ID có metric='pe', số liệu ROE trích dẫn đúng ID có metric='roe'). Tuyệt đối không gán ID của 'pe' cho 'pb' hay ngược lại.\n"
+        "  + Nếu câu hỏi yêu cầu cả P/B và ROE: BẮT BUỘC trả lời đầy đủ CẢ HAI chỉ số trong claims độc lập.\n"
         "  + Nếu trích dẫn số liệu/dữ kiện từ verifiable_evidence: claim_type='FACT' hoặc 'MODEL_OUTPUT' và citation_ids=['mã_bằng_chứng'].\n"
         "  + Nếu là nhận định định tính, rủi ro, hoặc dữ liệu thiếu từ unverified_or_missing_metrics: claim_type='UNCERTAINTY' và citation_ids=[].\n"
         "- 'uncertainty': Danh sách các yếu tố hoặc chỉ số còn thiếu/chưa được kiểm chứng."

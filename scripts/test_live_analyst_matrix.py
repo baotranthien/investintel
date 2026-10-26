@@ -63,7 +63,8 @@ TEST_CASES = [
         },
         "expected_symbol": "ACB",
         "allowed_statuses": ["AVAILABLE", "PARTIAL"],
-        "expected_min_citations": 1,
+        "expected_min_citations": 2,
+        "required_metrics": ["pb", "roe"],
     },
     {
         "name": "MBB Financial & Price Analysis",
@@ -209,6 +210,18 @@ def run_test(case):
                 assert status in case["allowed_statuses"], f"Expected status in {case['allowed_statuses']}, got {status}"
             if case.get("expected_min_citations"):
                 assert len(citations) >= case["expected_min_citations"], f"Expected >= {case['expected_min_citations']} citations, got {len(citations)}"
+            
+            if case.get("required_metrics"):
+                cited_metrics = {c.get("metric") for c in citations}
+                for req_m in case["required_metrics"]:
+                    assert req_m in cited_metrics, f"Required metric '{req_m}' not cited in citations: {cited_metrics}"
+                claim_texts = " ".join(c.get("text", "") for c in claims)
+                full_text = f"{answer} {claim_texts}".lower()
+                assert ("p/b" in full_text or "pb" in full_text), "P/B metric must be present in response"
+                assert "roe" in full_text, "ROE metric must be present in response"
+                has_pb_claim = any("p/b" in c.get("text", "").lower() or "pb" in c.get("text", "").lower() for c in claims)
+                has_roe_claim = any("roe" in c.get("text", "").lower() for c in claims)
+                assert has_pb_claim and has_roe_claim, "Both P/B and ROE must be present in validated claims; returning ROE alone is not permitted."
             
             print(">>> RESULT: PASSED")
             return True, elapsed
