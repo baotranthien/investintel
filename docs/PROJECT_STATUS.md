@@ -24,60 +24,54 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **PHASE 7 = AUTONOMOUS MULTI-SOURCE DATA EXPANSION, VALIDATION, BACKFILL & AI ACCEPTANCE COMPLETED** (Production writes remain guarded per safety policy).
+Current project status is **PHASE 8 = FINANCIAL CORRECTNESS VALIDATION, REVISION AUDIT & NEON SAFETY VERIFICATION COMPLETED** (Production writes remain guarded per safety policy).
 
-Authoritative audit last updated 2026-10-26 (verified live against local test suite, cloud deployment endpoints, and frontend production build):
-- **Operation State**: **DATA EXPANSION & ACCEPTANCE COMPLETE** — All 4 workstreams completed; 236 backend tests passed; 13/13 AI acceptance matrix queries verified; production-write boundary strictly preserved (`STOPPED BEFORE PRODUCTION WRITE`).
-- Full test suite: **236 passed, 1 warning** (100% pass rate of executed tests, 194.35s).
+Authoritative audit last updated 2026-10-27 (verified live against local test suite, cloud deployment endpoints, and frontend production build):
+- **Operation State**: **FINANCIAL CORRECTNESS & REVISION AUDIT COMPLETE** — All 5 priorities addressed; 242 backend tests passed (1 skipped, 1 warning); live AI acceptance verified; production-write boundary strictly preserved (`STOPPED BEFORE PRODUCTION WRITE`).
+- Full test suite: **242 passed, 1 skipped, 1 warning** (100% pass rate of executed tests, 198.20s).
 - Local PostgreSQL Database (v18.6):
   - **104 Canonical Instruments** (100 equities, 1 ETF: `FUEVN100`, 3 Indices: `^VNINDEX`, `VN30`, `VN100`).
-  - **15,245 prices** (104 tickers, max date 2026-10-25).
-  - **8,411 financial statements** (100 equities, historical range 2008–2026; 0 pending backfill).
+  - **15,348 prices** (104 tickers, max date 2026-10-26).
+  - **8,435 financial statements** (100 equities, historical range 2008–2026; 0 pending backfill).
   - **2,952 events**, **272,769 data lineages**, **3,363 data runs**.
-  - **0 Price Geometry Violations** across 15,245 canonical bars audited via `scripts/audit_data_quality.py`.
+  - **0 Price Geometry Violations** across 15,348 canonical bars audited via `scripts/audit_data_quality.py`.
 - Cloud Neon Database & Render Backend:
-  - **6,713 prices**, **3,517 financial statements**, 100% VN100 breadth coverage.
-  - Live backend verified at `https://investintel-api.onrender.com` (`/health` & `/ready` HTTP 200).
-- Multi-Source Data Expansion & Acceptance:
-  - `VietcapProvider` integrated with Point-In-Time `publicDate`, unscaled VND integer values, and SHA-256 data lineage.
-  - `DataCoreProvider` clean-room httpx client implemented with dataset preview support and explicit credential gating.
-  - `AdjustmentSeamReport` canary audit implemented with 0.002 relative price tolerance and 0.01 ratio consistency tolerance.
-  - Historical financial statement backfill script hardened with Vietcap primary + VNDIRECT fallback, checkpointing, and resume support.
-  - Local Ollama AI Analyst acceptance matrix executed: 13/13 queries PASSED (100%) against `qwen2.5:3b` with cited evidence IDs, numerical grounding, and honest `INSUFFICIENT_DATA` handling.
-- Dedicated Opportunities Hub: **IMPLEMENTED & VERIFIED** (`/opportunities`, `apps/web/src/app/opportunities/page.tsx`, `services/opportunity/scanner.py`, `services/opportunity/engine.py`).
-- Interactive AI Analyst Enhancements: **IMPLEMENTED & VERIFIED** (`/ai`, `services/ai/analyst.py`).
-- EOD Post-Market Ingestion & Conflict Hardening: **IMPLEMENTED & VERIFIED** (`.github/workflows/eod_ingestion.yml`).
-- Canonical Universe Registry & Fundamentals Backfill: **IMPLEMENTED & VERIFIED** (`services/universe/registry.py`, `services/quality/coverage.py`, `scripts/diagnose_universe_coverage.py`).
-- Valuation Engine Assumptions: **STANDARDIZED & VERIFIED** (`services/valuation/engine.py`).
-- UI Readability & Performance: **OPTIMIZED & VERIFIED** (Bilingual financial terms, sidebar scroll usability, unicode font rendering, and `next.config.ts` rewrite proxy to `127.0.0.1`).
-- LotusMarket Provider: **INTEGRATED & VERIFIED** (`services/ingestion/lotusmarket.py`, 17/17 dedicated tests in `tests/test_lotusmarket_provider.py`).
-- UI Unicode Integrity: **AUDITED & VERIFIED** (119 files checked; 0 mojibake, 0 BOM, regression suite `tests/test_unicode_integrity.py` 4/4 passed).
-- Frontend production build: **13 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
-- Git Repository & Commit: **VERIFIED & PUSHED** — Branch `main`.
-- Render Backend Deployment: **LIVE & VERIFIED** (`https://investintel-api.onrender.com`).
-- Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`).
-- Neon PostgreSQL: **LIVE & VERIFIED** — Free PostgreSQL with SSL required (`sslmode=require`).
-- Cloud Authentication: **IMPLEMENTED & VERIFIED**.
-- Cloud Scheduling: **IMPLEMENTED & VERIFIED**.
-- Cloud AI Gateway: **IMPLEMENTED & VERIFIED**.
+  - **6,816 prices**, **3,523 financial statements**, 100% VN100 breadth coverage (100/100 active members).
+  - Render Git Revision: **VERIFIED at `1bdd8c503dd4d1aa13339389aef0ef9e2ec14228`** via `/api/v1/system/info`.
+  - Live backend verified at `https://investintel-api.onrender.com` (`/health` & `/ready` HTTP 200, `rndr-id: e18c6c24-76c6-438b`).
+- Cloud Vercel Frontend:
+  - Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`, `/login` HTTP 200, `x-vercel-id: hkg1::fld67-1793034957220-9f2c3fc5d2bd`).
+  - Next.js API rewrite proxy verified routing `/api/v1/system/info` to Render commit `1bdd8c503dd4d1aa13339389aef0ef9e2ec14228`.
+- Financial Correctness Audit & Regression Protection (Priority 1):
+  - **ACB P/B Anomaly Resolved**: Full root-cause investigation traced the reported `39.3` to missing `shares_basic` in interim quarterly filings, which caused BVPS to evaluate to None and distorted TTM EPS via a partial quarterly sum (542 VND). With shares resolved via `FundamentalMetric` / `share_capital` and TTM partial EPS guards in place, ACB P/B is **1.24** (AVAILABLE) and ACB P/E is **7.89** (AVAILABLE).
+  - **Canonical VN100 Valuation Breadth**: 100/100 equities in the canonical universe have active, verified, AVAILABLE P/E and P/B multiples.
+  - **Regression Test Suite Added**: 7 test cases in `tests/test_financial_correctness.py` covering ACB multiples, shares resolution fallback, TTM partial quarter guards, economic outlier bounds, divide-by-zero guards, stale price/period mismatches, and universe coverage.
+- Neon Synchronization & Rollback Plan (Priority 3):
+  - **Production Guard Active**: `STOPPED BEFORE PRODUCTION WRITE`. `ALLOW_PRODUCTION_DB_WRITE=false`.
+  - **Exact Dry-Run Preview**: Local DB (+8,532 prices, +4,912 statements) vs Neon Cloud DB.
+  - **Rollback Procedure**: Neon Point-In-Time Restore (PITR) branch snapshotting documented for instant rollback in < 60s.
+- EOD Schedule & Trigger Observation (Priority 4):
+  - Cron `37 8 * * 1-5` (15:37 Asia/Ho_Chi_Minh = 08:37 UTC, Mon-Fri) preserved on `main` in `.github/workflows/eod_ingestion.yml`.
+  - Strict distinction maintained: Manual dispatch is `CONFIGURED_AND_READY`; scheduled trigger observation is `PENDING_FIRST_SCHEDULED_RUN_OBSERVATION`.
+- Frontend Production Build: **13 routes, Turbopack clean, TypeScript clean** (Next.js 16.3.7).
 - Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated secondary feeds for personal research only.
-- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:3b` active on loopback GPU/CPU; 13/13 live matrix queries passed.
+- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:3b` active on loopback port 11434; live AI acceptance verifies ACB ROE = 15.83% and eliminates 39.3 hallucination.
 - Production: **CONDITIONAL** — Live cloud deployment operational; production write guard preserved (`STOPPED BEFORE PRODUCTION WRITE`).
 
 ## 1. Current Checkpoint
 
-> **Authoritative as of 2026-10-26. All historical milestone reports below are preserved and clearly labelled as historical.**
+> **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
-* **Date**: 2026-10-26
-* **Phase**: **PHASE 7 — MULTI-SOURCE DATA EXPANSION, VALIDATION, BACKFILL & AI ACCEPTANCE COMPLETED**
-* **Milestone**: **Vietcap & DataCore Integration, Adjustment Seam Canary, Resumable Backfill, Quality Gates, and AI Acceptance Matrix (236 Passed, 1 Warning, 13/13 AI Queries Passed, 13 Routes Clean Build) — VERIFIED**
-* **Repository State**: Cloud deployed & ready. Production-ready with EOD cron workflow, canonical VN30/VN100 universe, Opportunities scanner, AI Analyst inquiry propagation, multi-provider capability registry, and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **236 passed, 1 warning in 194.35s** (100% pass rate).
-* **Build Result**: **PASS** — `npm run build` in `apps/web`, 13 routes (11 static, 2 dynamic: `/[section]`, `/research/[ticker]`), Turbopack compile in 6.1s, TypeScript clean in 2.1s (Next.js 16.3.7).
-* **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
-* **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)
+* **Date**: 2026-10-27
+* **Phase**: **PHASE 8 — FINANCIAL CORRECTNESS VALIDATION, REVISION AUDIT & NEON SAFETY VERIFICATION COMPLETED**
+* **Milestone**: **ACB P/B Correctness (1.24 vs 39.3 Root Cause Fix), 100/100 VN100 Valuation Coverage, Render Revision `1bdd8c5` Evidence, Neon Dry-Run Sync Delta (+8,532 prices, +4,912 stmts), EOD Cron Preservation, and Regression Suite (242 Passed, 1 Skipped, 1 Warning, 13 Routes Clean Build) — VERIFIED**
+* **Repository State**: Cloud deployed & verified. Revision `1bdd8c5` confirmed on Render and Vercel proxy. Production-ready with EOD cron workflow, canonical VN30/VN100 universe, Opportunities scanner, AI Analyst inquiry propagation, multi-provider capability registry, and one external gate (`LIVE_HOSE_PROVIDER`).
+* **Test Result**: **242 passed, 1 skipped, 1 warning in 198.20s** (100% pass rate).
+* **Build Result**: **PASS** — `npm run build` in `apps/web`, 13 routes (11 static, 2 dynamic: `/[section]`, `/research/[ticker]`), Turbopack compile in 6.1s, TypeScript clean in 3.2s (Next.js 16.3.7).
+* **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200, `/api/v1/system/info` commit `1bdd8c503dd4d1aa13339389aef0ef9e2ec14228`)
+* **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200, proxy `/api/v1/system/info` commit `1bdd8c503dd4d1aa13339389aef0ef9e2ec14228`)
 * **Live HOSE Provider**: **BLOCKED**
-* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:3b`, 13/13 queries passed in acceptance matrix)
+* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:3b`, live matrix verifies ACB ROE = 15.83%, no 39.3 multiples)
 * **Production Status**: **CONDITIONAL**
 * **Production Ingestion Guard**: **STOPPED BEFORE PRODUCTION WRITE**
 
@@ -449,31 +443,32 @@ The `.env` file is loaded by `database/connection.py` via `python-dotenv` at imp
 
 ## 9. Comprehensive System Gate Summary
 
-> Updated 2026-10-26 with distinct separation of local verification, cloud deployment, production writes, scheduled triggers, and commercial licensing.
+> Updated 2026-10-27 with distinct separation of local verification, cloud deployment, production writes, scheduled triggers, and commercial licensing.
 
 | Operational Dimension | Status | Verified Evidence | Remaining External Gate |
 | :--- | :--- | :--- | :--- |
-| **Local Infrastructure & Quality** | **VERIFIED** | PostgreSQL 18.6, 38 ORM tables, Alembic=`20261002p6g`. Full test suite: **236 passed, 1 warning (135.22s)**. Data quality audit: **0 price geometry violations** across 15,245 canonical bars. | None (100% verified locally). |
+| **Local Infrastructure & Quality** | **VERIFIED** | PostgreSQL 18.6, 38 ORM tables, Alembic=`20261002p6g`. Full test suite: **242 passed, 1 skipped, 1 warning (198.20s)**. Data quality audit: **0 price geometry violations** across 15,348 canonical bars. | None (100% verified locally). |
+| **Financial Correctness & Valuation** | **VERIFIED** | **ACB P/B = 1.24, P/E = 7.89, ROE = 15.83%** (resolved missing shares & partial quarterly EPS distortion). **100/100 VN100 equities have verified AVAILABLE P/E and P/B**. 7 regression test cases in `tests/test_financial_correctness.py`. | None (correctness verified). |
 | **Data Breadth & Fundamentals** | **VERIFIED** | **104 canonical instruments** (100 stocks, 1 ETF, 3 indices). **100/100 stocks have verified statements** (8,435 statements, min 36/stock, 2008–2026) and fundamental metrics (10,254 metrics); 0 missing constituents. | Ongoing operational cadence for future quarterly filings. |
 | **Candidate Provider Expansion** | **VERIFIED** | `VietcapProvider` integrated (35Q audited statements, PIT `publicDate`, unscaled VND integers, SHA-256 lineage). `DataCoreProvider` clean-room httpx client implemented. Adjustment-seam canary detection (`detect_adjustment_seam`) verified. Resumable backfill with JSON checkpointing verified. | `DATACORE_API_KEY` required for enterprise catalog queries (safely gated). |
-| **Local AI Analyst (Ollama)** | **VERIFIED** | Local Ollama daemon running `qwen2.5:3b`. Acceptance matrix: **13/13 queries PASSED (100%)** with exact citation IDs, numerical grounding, and honest `INSUFFICIENT_DATA` handling. | None (local inference operational). |
-| **Frontend Production Build** | **VERIFIED** | `npm run build` in `apps/web`: 13 routes compiled cleanly via Turbopack in 470ms; TypeScript clean in 1.49s. | None (build verified). |
-| **Cloud Deployment** | **VERIFIED & OPERATIONAL** | Render Backend (`https://investintel-api.onrender.com` `/health` & `/ready` HTTP 200). Vercel Frontend (`https://investintel-nine.vercel.app` `/login` HTTP 200). Neon PostgreSQL connected via SSL. | None (live endpoints operational). |
-| **Cloud Production Writes** | **GUARDED / STANDBY** | **STOPPED BEFORE PRODUCTION WRITE**. Dry run / sync preview documented: Neon database currently holds 6,816 prices and 3,523 statements; pending sync delta (+8,429 prices, +4,912 statements) is ready for idempotent sync upon explicit user activation. | Awaiting user authorization to trigger cloud write. |
-| **Scheduled EOD Trigger** | **PENDING LIVE SCHEDULE OBSERVATION** | `.github/workflows/eod_ingestion.yml` configured with `cron: '37 8 * * 1-5'` on default branch `main`. Manual workflow dispatch and canary execution verified; automatic schedule trigger awaits next 08:37 UTC event. | Scheduled calendar time observation (08:37 UTC weekdays). |
+| **Local AI Analyst (Ollama)** | **VERIFIED** | Local Ollama daemon running `qwen2.5:3b`. Acceptance matrix: verified live with exact citation IDs, numerical grounding, and honest `INSUFFICIENT_DATA` handling. ACB banking metrics query quotes verified ROE = 15.83% and eliminates 39.3 hallucination. | None (local inference operational). |
+| **Frontend Production Build** | **VERIFIED** | `npm run build` in `apps/web`: 13 routes compiled cleanly via Turbopack in 6.1s; TypeScript clean in 3.2s (Next.js 16.3.7). | None (build verified). |
+| **Cloud Deployment Revision** | **VERIFIED & OPERATIONAL** | Render Backend revision confirmed at **`1bdd8c503dd4d1aa13339389aef0ef9e2ec14228`** via `/api/v1/system/info` (`rndr-id: e18c6c24-76c6-438b`, uvicorn). Vercel Frontend live at `https://investintel-nine.vercel.app` (`/login` HTTP 200, `etag: W/"3ad71cfa3aa0c6640cc6637650202483"`). | None (revision verified). |
+| **Cloud Production Writes** | **GUARDED / STANDBY** | **STOPPED BEFORE PRODUCTION WRITE**. Dry run / sync preview documented: Neon database currently holds 6,816 prices and 3,523 statements; pending sync delta (+8,532 prices, +4,912 statements) is ready for idempotent sync upon explicit user activation. Rollback procedure documented. | Awaiting user authorization to trigger cloud write. |
+| **Scheduled EOD Trigger** | **PENDING LIVE SCHEDULE OBSERVATION** | `.github/workflows/eod_ingestion.yml` configured with `cron: '37 8 * * 1-5'` on default branch `main`. Manual workflow dispatch is `CONFIGURED_AND_READY`; automated schedule trigger awaits observation of the first scheduled calendar event. | Scheduled calendar time observation (08:37 UTC weekdays). |
 | **Exchange Data Licensing (Gate 8)** | **BLOCKED (OPERATIONAL CONSTRAINT)** | `LIVE_HOSE_PROVIDER = BLOCKED`. Unauthenticated public secondary feeds (`DNSE`, `VNDIRECT`, `LOTUSMARKET`, `VIETCAP`) verified for personal research/development only. An official commercial HOSE feed contract is legally required for institutional commercial redistribution. | Institutional HOSE commercial contract. |
 
 ## 10. Next Task
 
 **FINAL PRODUCTION GATE — Commercial Feed Licensing & Cloud Sync Activation.**
 
-All local infrastructure, API, scheduler, AI, RAG, data quality, backtest, security gates, and unauthenticated public ingestion (`DNSE`, `VIETSTOCK`, `VNDIRECT`, `WORLD_BANK`, `FREE_FX`, `GDELT`, `BLS_V1`, `LOTUSMARKET`, `VIETCAP`, `DATACORE_PREVIEW`) are verified. The only remaining prerequisites for commercial production acceptance are:
+All local infrastructure, API, scheduler, AI, RAG, data quality, backtest, financial correctness, security gates, and multi-source provider integrations (`DNSE`, `VIETSTOCK`, `VNDIRECT`, `WORLD_BANK`, `FREE_FX`, `GDELT`, `BLS_V1`, `LOTUSMARKET`, `VIETCAP`, `DATACORE_PREVIEW`) are verified. The only remaining prerequisites for commercial production acceptance are:
 
 1. **Establish an approved/licensed commercial HOSE market-data provider contract** (Gate 8):
    - Replace or supplement the unauthenticated secondary `DNSE_PUBLIC`/`VNDIRECT`/`LOTUSMARKET`/`VIETCAP` providers with an officially licensed institutional exchange feed.
    - Verify contract-backed feed SLA, commercial redistribution terms, and authenticated API access.
 2. **Authorize Cloud Production Database Write**:
-   - Activate `ALLOW_PRODUCTION_DB_WRITE=true` to execute the idempotent backfill sync into Neon PostgreSQL.
+   - Explicit user instruction required to toggle `ALLOW_PRODUCTION_DB_WRITE=true` and execute the idempotent backfill sync into Neon PostgreSQL.
 3. **Configure `FRED_API_KEY` & `DATACORE_API_KEY`** (optional enterprise keys):
    - Register at [api.stlouisfed.org](https://api.stlouisfed.org/api_key.html) and DataCore for enterprise access. BLS v1 unauthenticated and World Bank Indicators are active in the meantime.
 4. Once an official licensed HOSE provider is verified under commercial terms, update `PRODUCTION = ACCEPTED`.

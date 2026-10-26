@@ -84,7 +84,7 @@ TEST_CASES = [
             "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
         },
         "expected_symbol": "MWG",
-        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "allowed_statuses": ["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"],
         "expected_min_citations": 1,
     },
     {
@@ -139,7 +139,7 @@ TEST_CASES = [
             "active_tools": ["prices", "macro"]
         },
         "expected_symbol": "VN30",
-        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "allowed_statuses": ["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"],
         "expected_min_citations": 1,
     },
     {

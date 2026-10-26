@@ -455,15 +455,47 @@ def build_research_workspace(
     eps_metric = fundamentals_metrics.get("eps_ttm")
     bvps_metric = fundamentals_metrics.get("bvps")
     current_price = float(price.adjusted_close if price and price.adjusted_close is not None else price.raw_close) if price else None
-    for metric_id, denominator, unit in (
-        ("pe", eps_metric.value if eps_metric else None, "multiple"),
-        ("pb", bvps_metric.value if bvps_metric else None, "multiple"),
+
+    # Load stored authoritative provider metrics from FundamentalMetric for cross-check/fallback
+    from database.models import FundamentalMetric
+    db_metrics = session.query(FundamentalMetric).filter(
+        FundamentalMetric.symbol == normalized_symbol,
+        FundamentalMetric.metric_id.in_(["PRICE_TO_EARNINGS", "PRICE_TO_BOOK", "P_E", "P_B"]),
+        FundamentalMetric.value.isnot(None),
+        FundamentalMetric.value > 0
+    ).order_by(FundamentalMetric.fiscal_period_end.desc()).all()
+    db_metric_map = {m.metric_id: float(m.value) for m in db_metrics}
+    db_pe = db_metric_map.get("PRICE_TO_EARNINGS") or db_metric_map.get("P_E")
+    db_pb = db_metric_map.get("PRICE_TO_BOOK") or db_metric_map.get("P_B")
+
+    eps_val = eps_metric.value if eps_metric else None
+    bvps_val = bvps_metric.value if bvps_metric else None
+
+    for metric_id, denominator, fallback_val, unit in (
+        ("pe", eps_val, db_pe, "multiple"),
+        ("pb", bvps_val, db_pb, "multiple"),
     ):
-        meaningful = current_price is not None and denominator is not None and denominator > 0
+        calc_val = None
+        calc_note = "Observed multiple only; not a fair-value estimate."
+        if current_price is not None and denominator is not None and denominator > 0:
+            raw_ratio = current_price / denominator
+            # Enforce economic bounds: standard P/E in [0.5, 2500], P/B in [0.05, 50]
+            if (metric_id == "pe" and 0.5 <= raw_ratio <= 2500) or (metric_id == "pb" and 0.05 <= raw_ratio <= 50):
+                calc_val = round(raw_ratio, 2)
+            elif fallback_val is not None:
+                calc_val = round(fallback_val, 2)
+                calc_note = f"Calculated ratio ({raw_ratio:.1f}) fell outside normal bounds; using verified provider ratio."
+            else:
+                calc_val = round(raw_ratio, 2)
+        elif fallback_val is not None:
+            calc_val = round(fallback_val, 2)
+            calc_note = "Verified provider ratio from canonical repository."
+
+        meaningful = calc_val is not None
         valuation_metrics[metric_id] = WorkspaceMetric(
-            value=(current_price / denominator) if meaningful else None,
+            value=calc_val,
             unit=unit,
-            status="AVAILABLE" if meaningful else "NOT_MEANINGFUL" if denominator is not None and denominator <= 0 else "INSUFFICIENT_DATA",
+            status="AVAILABLE" if meaningful else ("NOT_MEANINGFUL" if denominator is not None and denominator <= 0 else "INSUFFICIENT_DATA"),
             calculation="price / canonical EPS TTM" if metric_id == "pe" else "price / canonical BVPS",
             evidence=Evidence(
                 claim_type="MODEL_OUTPUT" if meaningful else "UNCERTAINTY",
@@ -473,7 +505,7 @@ def build_research_workspace(
                 publication_date=latest_publication,
                 retrieved_at=price_lineage.retrieved_at if price_lineage else None,
                 data_origin=price_origin,
-                note="Observed multiple only; not a fair-value estimate." if meaningful else "Requires positive canonical price and per-share fundamentals.",
+                note=calc_note if meaningful else "Requires positive canonical price and per-share fundamentals.",
             ),
         )
 

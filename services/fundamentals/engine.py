@@ -135,8 +135,8 @@ class TTMEngine:
             else:
                 ttm[metric] = sum(non_null)
         # EPS TTM: use latest reported EPS × 4 only as fallback
-        # Prefer sum of quarterly EPS if available
-        eps_values = [q.get("eps_basic") for q in last_4 if q.get("eps_basic") is not None]
+        # Prefer sum of quarterly EPS only if all 4 quarters have positive reported values
+        eps_values = [q.get("eps_basic") for q in last_4 if q.get("eps_basic") is not None and q.get("eps_basic") > 0]
         ttm["eps_basic"] = sum(eps_values) if len(eps_values) == 4 else None
         ttm["eps_diluted"] = sum(
             q.get("eps_diluted") for q in last_4

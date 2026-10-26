@@ -199,6 +199,25 @@ class FinancialRepository:
                     }
                     cf_annual.append(row)
 
+        # Fallback for shares_outstanding if not set from NormalizedIncome
+        if not shares_outstanding:
+            from database.models import FundamentalMetric
+            sh_metric = self._session.query(FundamentalMetric).filter(
+                FundamentalMetric.symbol == sym,
+                FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "LISTED_SHARES", "TOTAL_SHARES"]),
+                FundamentalMetric.value.isnot(None),
+                FundamentalMetric.value > 0
+            ).order_by(FundamentalMetric.fiscal_period_end.desc()).first()
+            if sh_metric and sh_metric.value:
+                shares_outstanding = int(float(sh_metric.value))
+
+        # Secondary fallback: latest balance sheet share_capital (Vietnam legal par value = 10,000 VND / share)
+        if not shares_outstanding and bal_annual:
+            latest_b = bal_annual[-1]
+            share_cap = latest_b.get("share_capital")
+            if share_cap and share_cap > 0:
+                shares_outstanding = int(round(share_cap * 100_000))
+
         return {
             "symbol": sym,
             "profile": profile,

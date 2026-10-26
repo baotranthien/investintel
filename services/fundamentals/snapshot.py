@@ -118,7 +118,7 @@ class FundamentalSnapshotBuilder:
         if ebit is not None and latest_cf.get("depreciation_amortization"):
             ebitda_val = ebit + latest_cf["depreciation_amortization"]
         net_income = get_income("net_income")
-        net_income_parent = get_income("net_income_parent")
+        net_income_parent = get_income("net_income_parent") or net_income
         interest_income = get_income("interest_income")
         interest_expense = get_income("interest_expense")
         income_tax = get_income("income_tax")
@@ -137,7 +137,7 @@ class FundamentalSnapshotBuilder:
         long_term_debt = latest_bs.get("long_term_debt")
         total_liabilities = latest_bs.get("total_liabilities")
         total_equity = latest_bs.get("total_equity")
-        equity_parent = latest_bs.get("equity_parent")
+        equity_parent = latest_bs.get("equity_parent") or total_equity
         equity_parent_prior = prev_bs.get("equity_parent")
         total_assets_prior = prev_bs.get("total_assets")
 
@@ -242,9 +242,11 @@ class FundamentalSnapshotBuilder:
         if equity_parent and shares and shares > 0:
             equity_vnd = equity_parent * 1_000_000_000 if (equity_parent < 10_000_000 and shares > 100_000) else equity_parent
             bvps_val = equity_vnd / shares
-        eps_ttm_val = ttm.get("eps_basic")
-        if eps_ttm_val is None and ttm.get("net_income_parent") is not None and shares and shares > 0:
+        eps_ttm_val = None
+        if ttm.get("net_income_parent") is not None and shares and shares > 0:
             eps_ttm_val = (ttm["net_income_parent"] * 1_000_000_000) / shares
+        elif ttm.get("eps_basic") is not None and ttm.get("eps_basic") > 0:
+            eps_ttm_val = ttm.get("eps_basic")
         if eps_ttm_val is None:
             eps_ttm_val = eps_basic
 
