@@ -22,6 +22,8 @@ from .market_data import MarketDataCsvProvider
 from .dnse import DnseProvider
 from .vietstock import VietstockNewsProvider
 from .lotusmarket import LotusMarketProvider
+from .vietcap import VietcapProvider
+from .datacore import DataCoreProvider
 from .reconciliation import MarketDataReconciliationEngine
 from .pipeline import IngestionPipeline
 
@@ -84,9 +86,11 @@ async def run_ingestion_cycle(
         }
         # Ensure approved Vietnamese market DataSources exist and are active
         approved_defaults = {
+            "VIETCAP": ("VIETCAP", "https://trading.vietcap.com.vn"),
             "LOTUSMARKET": ("LOTUSMARKET", "https://bgapidatafeed.vps.com.vn"),
             "VNDIRECT": ("VNDIRECT", "https://finfo-api.vndirect.com.vn"),
             "DNSE": ("DNSE", "https://services.entrade.com.vn"),
+            "DATACORE": ("DATACORE", "https://gateway.datacore.vn"),
             "HOSE_CSV": ("HOSE_CSV", "file:///data/market"),
         }
         for ds_name, (ds_prov, ds_url) in approved_defaults.items():
@@ -465,8 +469,73 @@ async def run_ingestion_cycle(
                     except Exception as exc:
                         _record_failure(session_factory, "LOTUSMARKET", f"insider_events_{symbol}", "FAILURE", str(exc))
                         results.append({"provider": "LOTUSMARKET", "symbol": symbol, "dataset": "insider_events", "status": "FAILURE", "reason": str(exc)})
-                        logger.warning("Ingestion failed for LOTUSMARKET insider events/%s: %s", symbol, exc)
                 await asyncio.sleep(0.05)
+
+    # 8. Vietcap market data & fundamentals
+    if (allowed_providers is None or "VIETCAP" in allowed_providers) and "VIETCAP" in source_ids:
+        is_vietcap_targeted = allowed_providers is not None and "VIETCAP" in allowed_providers
+        is_vietcap_env = os.getenv("ENABLE_VIETCAP_INGESTION", "false").lower() in ("true", "1", "yes")
+
+        if not (is_vietcap_targeted or is_vietcap_env):
+            results.append({
+                "provider": "VIETCAP",
+                "status": "BLOCKED_FLAG_DISABLED",
+                "reason": "ENABLE_VIETCAP_INGESTION is not enabled in environment"
+            })
+            logger.info("Vietcap ingestion skipped: ENABLE_VIETCAP_INGESTION is not enabled")
+        else:
+            vietcap_prov = VietcapProvider()
+            for symbol, exchange, _ in effective_assets:
+                is_index = symbol in INDEX_SYMBOLS
+                if run_prices:
+                    try:
+                        db = session_factory()
+                        try:
+                            outcome = vietcap_prov.ingest_to_database(
+                                db, symbol, start_date=start_date, end_date=date.today(),
+                                exchange=exchange or "HOSE", source_id=source_ids.get("VIETCAP")
+                            )
+                            results.append(outcome)
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "VIETCAP", f"market_data_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "VIETCAP", "symbol": symbol, "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for VIETCAP prices/%s: %s", symbol, exc)
+
+                if run_fundamentals and not is_index:
+                    try:
+                        db = session_factory()
+                        try:
+                            outcome_f = vietcap_prov.ingest_fundamentals(
+                                db, symbol, periods_limit=24, source_id=source_ids.get("VIETCAP")
+                            )
+                            results.append({
+                                "provider": "VIETCAP",
+                                "symbol": symbol,
+                                "dataset": "fundamentals",
+                                "status": outcome_f.get("status", "SUCCESS"),
+                                "records_inserted": outcome_f.get("statements_created", 0),
+                            })
+                        finally:
+                            db.close()
+                    except Exception as exc:
+                        _record_failure(session_factory, "VIETCAP", f"fundamentals_{symbol}", "FAILURE", str(exc))
+                        results.append({"provider": "VIETCAP", "symbol": symbol, "dataset": "fundamentals", "status": "FAILURE", "reason": str(exc)})
+                        logger.warning("Ingestion failed for VIETCAP fundamentals/%s: %s", symbol, exc)
+
+                await asyncio.sleep(0.05)
+
+    # 9. DataCore (when targeted)
+    if allowed_providers is not None and "DATACORE" in allowed_providers:
+        datacore_prov = DataCoreProvider()
+        if not datacore_prov.is_authenticated:
+            results.append({
+                "provider": "DATACORE",
+                "status": "BLOCKED_MISSING_CREDENTIAL",
+                "records_received": 0,
+                "reason": "X_API_KEY is not configured in environment for DataCore full queries",
+            })
 
     # 8. Financial News RSS Ingestion (CafeF & VnEconomy) - executed once per cycle
     if run_news:

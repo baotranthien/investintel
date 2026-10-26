@@ -484,6 +484,9 @@ def test_scheduler_provider_isolation(db_session):
         "ENABLE_BLS_INGESTION": "false",
         "ENABLE_WORLDBANK_INGESTION": "true",
         "ENABLE_FX_INGESTION": "true",
+        "ENABLE_VNDIRECT_INGESTION": "false",
+        "ENABLE_LOTUSMARKET_INGESTION": "false",
+        "ENABLE_VIETCAP_INGESTION": "false",
     }):
         # Mock World Bank to raise exception
         async def mock_wb_fetch(*args, **kwargs):
@@ -554,6 +557,9 @@ def test_scheduler_fred_csv_fallback_when_enabled(db_session):
         "ENABLE_WORLDBANK_INGESTION": "false",
         "ENABLE_FX_INGESTION": "false",
         "ENABLE_NSO_INGESTION": "false",
+        "ENABLE_VNDIRECT_INGESTION": "false",
+        "ENABLE_LOTUSMARKET_INGESTION": "false",
+        "ENABLE_VIETCAP_INGESTION": "false",
     }):
         with patch("services.ingestion.scheduler.FredProvider.fetch_macro_series", new_callable=AsyncMock, return_value=[mock_point]):
             results = asyncio.run(run_ingestion_cycle(session_factory=lambda: db_session))

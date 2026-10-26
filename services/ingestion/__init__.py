@@ -9,6 +9,9 @@ from .open_fx import FreeFxProvider
 from .gdelt import GDELTNewsProvider
 from .vndirect import VndirectProvider
 from .lotusmarket import LotusMarketProvider
+from .vietcap import VietcapProvider
+from .datacore import DataCoreProvider
+from .capabilities import ProviderRegistry, PROVIDER_CAPABILITIES, DatasetType, AssetType
 from .reconciliation import MarketDataReconciliationEngine, ReconciliationReport
 
 __all__ = [
@@ -23,6 +26,12 @@ __all__ = [
     "GDELTNewsProvider",
     "VndirectProvider",
     "LotusMarketProvider",
+    "VietcapProvider",
+    "DataCoreProvider",
+    "ProviderRegistry",
+    "PROVIDER_CAPABILITIES",
+    "DatasetType",
+    "AssetType",
     "MarketDataReconciliationEngine",
     "ReconciliationReport",
 ]

@@ -55,6 +55,104 @@ TEST_CASES = [
         "expected_min_citations": 1,
     },
     {
+        "name": "ACB Fundamental Banking Metrics",
+        "payload": {
+            "question": "Cho biết định giá P/B và tỷ suất sinh lời ROE của ngân hàng ACB",
+            "symbol": "ACB",
+            "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
+        },
+        "expected_symbol": "ACB",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "MBB Financial & Price Analysis",
+        "payload": {
+            "question": "Giá cổ phiếu và kết quả kinh doanh gần nhất của MBB",
+            "symbol": "MBB",
+            "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
+        },
+        "expected_symbol": "MBB",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "MWG Retail Margin & Revenue",
+        "payload": {
+            "question": "Doanh thu và biên lợi nhuận của Thế Giới Di Động (MWG)",
+            "symbol": "MWG",
+            "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
+        },
+        "expected_symbol": "MWG",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "HPG Steel Fundamentals & Valuation",
+        "payload": {
+            "question": "Giá cổ phiếu và định giá P/E của Tập đoàn Hòa Phát (HPG)",
+            "symbol": "HPG",
+            "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
+        },
+        "expected_symbol": "HPG",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "VNM VN100 Non-Seed Constituent",
+        "payload": {
+            "question": "Giá cổ phiếu và các chỉ số tài chính gần nhất của Vinamilk (VNM)",
+            "symbol": "VNM",
+            "active_tools": ["prices", "fundamentals", "valuation", "factors", "macro", "risk", "events"]
+        },
+        "expected_symbol": "VNM",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "SSI Securities VN100 Constituent",
+        "payload": {
+            "question": "Giá đóng cửa gần nhất của cổ phiếu chứng khoán SSI",
+            "symbol": "SSI",
+            "active_tools": ["prices", "fundamentals", "valuation"]
+        },
+        "expected_symbol": "SSI",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "FUEVN100 ETF Partial Coverage Query",
+        "payload": {
+            "question": "Giá đóng cửa hiện tại của chứng chỉ quỹ ETF FUEVN100 là bao nhiêu?",
+            "symbol": "FUEVN100",
+            "active_tools": ["prices", "fundamentals"]
+        },
+        "expected_symbol": "FUEVN100",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "Benchmark Index (VN30) Query",
+        "payload": {
+            "question": "Chỉ số VN30 hiện tại có điểm số và giá đóng cửa bao nhiêu?",
+            "symbol": "VN30",
+            "active_tools": ["prices", "macro"]
+        },
+        "expected_symbol": "VN30",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL"],
+        "expected_min_citations": 1,
+    },
+    {
+        "name": "Genuinely Missing Evidence Query on Valid Stock",
+        "payload": {
+            "question": "Dự báo lợi nhuận sau thuế năm 2038 của FPT là bao nhiêu?",
+            "symbol": "FPT",
+            "active_tools": ["prices", "fundamentals"]
+        },
+        "expected_symbol": "FPT",
+        "allowed_statuses": ["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"],
+    },
+    {
         "name": "Unsupported/Invalid Ticker (Insufficient Data Check)",
         "payload": {
             "question": "Cho biết báo cáo tài chính của mã XYZUNKNOWN",

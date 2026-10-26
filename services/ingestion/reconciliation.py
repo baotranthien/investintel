@@ -263,3 +263,93 @@ class MarketDataReconciliationEngine:
         session.add(qr)
         session.commit()
         return qr
+
+
+@dataclass
+class AdjustmentSeamReport:
+    symbol: str
+    is_seam_detected: bool
+    matched_bars: int
+    differing_bars: int
+    implied_factor: float = 1.0
+    status: str = "NO_SEAM"  # NO_SEAM, ADJUSTMENT_SEAM_DETECTED, NOISY_DIVERGENCE, INSUFFICIENT_OVERLAP
+    details: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+def detect_adjustment_seam(
+    stored_closes: Dict[str, float],
+    incoming_bars: List[MarketDataPoint],
+    rel_tol: float = 0.002,
+    ratio_consistency_tol: float = 0.01,
+) -> AdjustmentSeamReport:
+    """
+    Detects whether an incoming batch of bars re-prices stored historical bars
+    due to an upstream corporate action or back-adjustment restatement.
+    Pure deterministic function adapted from vnstock-service canary pattern.
+    """
+    matched = 0
+    differing = 0
+    ratios: List[float] = []
+    sym = incoming_bars[0].symbol if incoming_bars else ""
+
+    for b in incoming_bars:
+        if b.close is None or b.close <= 0:
+            continue
+        date_str = b.observation_date.isoformat()
+        if date_str not in stored_closes:
+            continue
+        old_close = stored_closes[date_str]
+        if old_close <= 0:
+            continue
+
+        matched += 1
+        in_close = float(b.close)
+        diff_rel = abs(old_close - in_close) / old_close
+        if diff_rel > rel_tol:
+            differing += 1
+            ratios.append(old_close / in_close)
+
+    if differing < 2:
+        return AdjustmentSeamReport(
+            symbol=sym,
+            is_seam_detected=False,
+            matched_bars=matched,
+            differing_bars=differing,
+            implied_factor=1.0,
+            status="NO_SEAM" if matched >= 2 else "INSUFFICIENT_OVERLAP",
+            details={"matched": matched, "differing": differing},
+        )
+
+    ratios.sort()
+    median_ratio = ratios[len(ratios) // 2]
+
+    # Verify that all differing bars agree with the median adjustment factor
+    for r in ratios:
+        if abs(r - median_ratio) / median_ratio > ratio_consistency_tol:
+            return AdjustmentSeamReport(
+                symbol=sym,
+                is_seam_detected=False,
+                matched_bars=matched,
+                differing_bars=differing,
+                implied_factor=median_ratio,
+                status="NOISY_DIVERGENCE",
+                details={"matched": matched, "differing": differing, "median_ratio": median_ratio},
+            )
+
+    return AdjustmentSeamReport(
+        symbol=sym,
+        is_seam_detected=True,
+        matched_bars=matched,
+        differing_bars=differing,
+        implied_factor=round(median_ratio, 6),
+        status="ADJUSTMENT_SEAM_DETECTED",
+        details={
+            "matched": matched,
+            "differing": differing,
+            "implied_factor": round(median_ratio, 6),
+            "rebase_recommended": True,
+        },
+    )

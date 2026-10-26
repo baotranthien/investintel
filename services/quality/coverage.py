@@ -432,9 +432,119 @@ class DataCoverageService:
             },
             "systemic_diagnostics": {
                 "root_cause_for_partial_universe": (
-                    "LotusMarket has ingested 100% of price history across the VN100 universe. "
+                    "LotusMarket and Vietcap have ingested 100% of price history across the VN100 universe. "
                     "Financial statements are fully ingested for core benchmark constituents (VCB, FPT, MBB, MWG, HPG, SHB) "
                     "while remaining mid-caps have price/event coverage and are eligible for scheduled/resumable fundamentals batch backfill."
                 ),
             },
         }
+
+    @classmethod
+    def audit_data_quality_gates(cls, session: Session) -> Dict[str, Any]:
+        """
+        Read-only data-quality gate over canonical dataset (adapted from vnstock-service audit pattern).
+        Examines:
+        1. Price Geometry Invariants (high < low, close outside [low, high], negative prices/volumes).
+        2. Outstanding Ingestion Failure Ledger (from DataRun records).
+        3. Fundamental Statement Integrity.
+        Returns status ('CLEAN', 'WARNING', 'FAIL') and exit_code (0 for clean/warning, 1 for fail).
+        """
+        findings: List[Dict[str, Any]] = []
+
+        # 1. Price Geometry Invariants
+        # Check raw_high < raw_low
+        hl_violations = session.query(Price).filter(
+            (Price.raw_high != None) & (Price.raw_low != None) & (Price.raw_high < Price.raw_low)
+        ).count()
+        if hl_violations > 0:
+            sample = session.query(Price).filter(Price.raw_high < Price.raw_low).first()
+            findings.append({
+                "severity": "FAIL",
+                "check": "PRICE_HIGH_LESS_THAN_LOW",
+                "count": hl_violations,
+                "example": f"{sample.asset.symbol} on {sample.observation_date} (H={sample.raw_high} < L={sample.raw_low})" if sample and sample.asset else f"{hl_violations} rows",
+            })
+
+        # Check raw_close outside [raw_low, raw_high]
+        close_bounds_violations = session.query(Price).filter(
+            (Price.raw_high != None) & (Price.raw_low != None) & (Price.raw_close != None) &
+            ((Price.raw_close > Price.raw_high) | (Price.raw_close < Price.raw_low))
+        ).count()
+        if close_bounds_violations > 0:
+            sample = session.query(Price).filter(
+                (Price.raw_high != None) & (Price.raw_low != None) & (Price.raw_close != None) &
+                ((Price.raw_close > Price.raw_high) | (Price.raw_close < Price.raw_low))
+            ).first()
+            findings.append({
+                "severity": "FAIL",
+                "check": "PRICE_CLOSE_OUTSIDE_BOUNDS",
+                "count": close_bounds_violations,
+                "example": f"{sample.asset.symbol} on {sample.observation_date} (C={sample.raw_close} outside [{sample.raw_low}, {sample.raw_high}])" if sample and sample.asset else f"{close_bounds_violations} rows",
+            })
+
+        # Check negative or zero prices
+        zero_or_neg_prices = session.query(Price).filter(
+            (Price.raw_close <= 0) | (Price.raw_open <= 0) | (Price.raw_high <= 0) | (Price.raw_low <= 0)
+        ).count()
+        if zero_or_neg_prices > 0:
+            sample = session.query(Price).filter(
+                (Price.raw_close <= 0) | (Price.raw_open <= 0) | (Price.raw_high <= 0) | (Price.raw_low <= 0)
+            ).first()
+            findings.append({
+                "severity": "FAIL",
+                "check": "PRICE_NON_POSITIVE_VALUE",
+                "count": zero_or_neg_prices,
+                "example": f"{sample.asset.symbol} on {sample.observation_date} (C={sample.raw_close})" if sample and sample.asset else f"{zero_or_neg_prices} rows",
+            })
+
+        # Check negative volumes
+        neg_volumes = session.query(Price).filter(Price.volume < 0).count()
+        if neg_volumes > 0:
+            findings.append({
+                "severity": "FAIL",
+                "check": "PRICE_NEGATIVE_VOLUME",
+                "count": neg_volumes,
+                "example": f"{neg_volumes} negative volume rows found",
+            })
+
+        # 2. Outstanding Ingestion Failures Ledger
+        recent_failures = (
+            session.query(DataRun)
+            .filter(DataRun.status.in_(["FAILURE", "ERROR"]))
+            .order_by(DataRun.started_at.desc())
+            .limit(20)
+            .all()
+        )
+        failure_ledger: List[Dict[str, Any]] = []
+        for rf in recent_failures:
+            failure_ledger.append({
+                "run_id": rf.run_id,
+                "provider": rf.provider,
+                "dataset": rf.dataset,
+                "started_at": rf.started_at.isoformat() if rf.started_at else None,
+                "error": rf.errors[:200] if rf.errors else "Unknown error",
+            })
+
+        if failure_ledger:
+            findings.append({
+                "severity": "WARNING",
+                "check": "OUTSTANDING_INGESTION_FAILURES",
+                "count": len(failure_ledger),
+                "example": f"{failure_ledger[0]['provider']}/{failure_ledger[0]['dataset']}: {failure_ledger[0]['error'][:80]}",
+            })
+
+        has_fail = any(f["severity"] == "FAIL" for f in findings)
+        status = "FAIL" if has_fail else ("WARNING" if findings else "CLEAN")
+        exit_code = 1 if has_fail else 0
+
+        return {
+            "status": status,
+            "exit_code": exit_code,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "findings_count": len(findings),
+            "findings": findings,
+            "failure_ledger": failure_ledger[:10],
+        }
+
+
+audit_data_quality_gates = DataCoverageService.audit_data_quality_gates

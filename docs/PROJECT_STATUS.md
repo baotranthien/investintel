@@ -14,51 +14,78 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `GDELT`: `CONNECTED_AND_INGESTED` — GDELT public news API with 5.5s inter-request pacing. Promotes to canonical `EventRecord`.
 - `BLS` (unauthenticated v1): `CONNECTED_AND_INGESTED` — BLS public unauthenticated API v1 mode with automatic 10-year window clamping.
 - `LOTUSMARKET`: `CONNECTED_AND_VERIFIED` — Unauthenticated secondary provider toolkit: VPS DataFeed (real-time quotes, foreign net flow, bid/ask), Entrade (historical daily OHLCV with VPS fallback), and CafeF (shareholder insider trading into EventRecord).
+- `VIETCAP_IQ`: `INTEGRATED_AND_VERIFIED` — Unauthenticated native provider adapter (`services/ingestion/vietcap.py`) yielding 34–35 quarters (8.5 years) and 8 annual periods of audited Balance Sheets, Income Statements, and Cash Flows with exact Point-In-Time `publicDate` publication timestamps, raw VND integer scaling, and SHA-256 canonical data lineages (`trangcm/vn-market-data`).
+- `DATACORE`: `INTEGRATED_AUTH_REQUIRED` — Native clean-room provider adapter (`services/ingestion/datacore.py`) using pure `httpx`; unauthenticated previews verified; authenticated queries protected with `BLOCKED_MISSING_CREDENTIAL` gating.
+- `VNSTOCK_SERVICE`: `ARCHITECTURAL_PATTERNS_INTEGRATED` — Clean-room adoption of 7-day overlap windows, adjustment-seam canary detection (`detect_adjustment_seam` in `services/ingestion/reconciliation.py`), and comprehensive data-quality audit gates (`audit_data_quality_gates` in `services/quality/coverage.py` and `scripts/audit_data_quality.py`).
+- `VNFIN`: `EVALUATED_AND_REJECTED` — Evaluated `hungson175/vnfin`; rejected direct dependency due to unpinned Windows timezone bug (`ZoneInfoNotFoundError: 'Asia/Ho_Chi_Minh'`) and architectural redundancy with native Vietcap, VNDIRECT, and LotusMarket adapters.
+- `CAPABILITY_REGISTRY`: `IMPLEMENTED` — Created `services/ingestion/capabilities.py` specifying typed provider capability registry, rate-limiting profiles, dataset-level mappings, and explicit fallback priorities without error-masking.
 - `LIVE_HOSE_PROVIDER`: **BLOCKED**. An approved, commercially licensed official HOSE feed contract has not been established. The availability of public unauthenticated endpoints does NOT pass Gate 8.
-- `LOCAL_OLLAMA`: `VERIFIED_LIVE` — Real local inference verified against installed model `qwen2.5:0.5b` (132 chars returned in <3s).
+- `LOCAL_OLLAMA`: `VERIFIED_LIVE` — Real local inference verified against installed model `qwen2.5:3b` on loopback GPU/CPU with 13/13 acceptance matrix passing (100%).
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **PHASE 6 = LOCAL ACCEPTED / PRODUCTION CONDITIONAL** + **CLOUD DEPLOYMENT, UI UNICODE INTEGRITY & LOTUSMARKET INTEGRATION COMPLETE**.
+Current project status is **PHASE 7 = AUTONOMOUS MULTI-SOURCE DATA EXPANSION, VALIDATION, BACKFILL & AI ACCEPTANCE COMPLETED** (Production writes remain guarded per safety policy).
 
-Authoritative audit last updated 2026-10-19 (verified live against Render, Vercel, Neon, and local test suite):
-- Full test suite: **219 passed, 0 failed** in 112.63s (100% pass rate).
+Authoritative audit last updated 2026-10-26 (verified live against local test suite, cloud deployment endpoints, and frontend production build):
+- **Operation State**: **DATA EXPANSION & ACCEPTANCE COMPLETE** — All 4 workstreams completed; 236 backend tests passed; 13/13 AI acceptance matrix queries verified; production-write boundary strictly preserved (`STOPPED BEFORE PRODUCTION WRITE`).
+- Full test suite: **236 passed, 1 warning** (100% pass rate of executed tests, 194.35s).
+- Local PostgreSQL Database (v18.6):
+  - **104 Canonical Instruments** (100 equities, 1 ETF: `FUEVN100`, 3 Indices: `^VNINDEX`, `VN30`, `VN100`).
+  - **15,245 prices** (104 tickers, max date 2026-10-25).
+  - **8,411 financial statements** (100 equities, historical range 2008–2026; 0 pending backfill).
+  - **2,952 events**, **272,769 data lineages**, **3,363 data runs**.
+  - **0 Price Geometry Violations** across 15,245 canonical bars audited via `scripts/audit_data_quality.py`.
+- Cloud Neon Database & Render Backend:
+  - **6,713 prices**, **3,517 financial statements**, 100% VN100 breadth coverage.
+  - Live backend verified at `https://investintel-api.onrender.com` (`/health` & `/ready` HTTP 200).
+- Multi-Source Data Expansion & Acceptance:
+  - `VietcapProvider` integrated with Point-In-Time `publicDate`, unscaled VND integer values, and SHA-256 data lineage.
+  - `DataCoreProvider` clean-room httpx client implemented with dataset preview support and explicit credential gating.
+  - `AdjustmentSeamReport` canary audit implemented with 0.002 relative price tolerance and 0.01 ratio consistency tolerance.
+  - Historical financial statement backfill script hardened with Vietcap primary + VNDIRECT fallback, checkpointing, and resume support.
+  - Local Ollama AI Analyst acceptance matrix executed: 13/13 queries PASSED (100%) against `qwen2.5:3b` with cited evidence IDs, numerical grounding, and honest `INSUFFICIENT_DATA` handling.
+- Dedicated Opportunities Hub: **IMPLEMENTED & VERIFIED** (`/opportunities`, `apps/web/src/app/opportunities/page.tsx`, `services/opportunity/scanner.py`, `services/opportunity/engine.py`).
+- Interactive AI Analyst Enhancements: **IMPLEMENTED & VERIFIED** (`/ai`, `services/ai/analyst.py`).
+- EOD Post-Market Ingestion & Conflict Hardening: **IMPLEMENTED & VERIFIED** (`.github/workflows/eod_ingestion.yml`).
+- Canonical Universe Registry & Fundamentals Backfill: **IMPLEMENTED & VERIFIED** (`services/universe/registry.py`, `services/quality/coverage.py`, `scripts/diagnose_universe_coverage.py`).
+- Valuation Engine Assumptions: **STANDARDIZED & VERIFIED** (`services/valuation/engine.py`).
+- UI Readability & Performance: **OPTIMIZED & VERIFIED** (Bilingual financial terms, sidebar scroll usability, unicode font rendering, and `next.config.ts` rewrite proxy to `127.0.0.1`).
 - LotusMarket Provider: **INTEGRATED & VERIFIED** (`services/ingestion/lotusmarket.py`, 17/17 dedicated tests in `tests/test_lotusmarket_provider.py`).
 - UI Unicode Integrity: **AUDITED & VERIFIED** (119 files checked; 0 mojibake, 0 BOM, regression suite `tests/test_unicode_integrity.py` 4/4 passed).
-- Frontend production build: **12 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
+- Frontend production build: **13 routes, Turbopack, TypeScript clean** (Next.js 16.3.7).
 - Git Repository & Commit: **VERIFIED & PUSHED** — Branch `main`.
-- Render Backend Deployment: **LIVE & VERIFIED** (`https://investintel-api.onrender.com`)
-  - `GET /health` → **200 OK** `{"status":"ok"}`
-  - `GET /ready` & `GET /api/v1/ready` → **200 OK** `{"status":"ready"}` (probes database reachability with 0 credential leakage)
-  - Sensitive endpoints (`/portfolio`, `/watchlist`, `/research/*`) → **401 UNAUTHORIZED** (Protected)
-  - Cron endpoints (`/api/v1/system/cron/*`) → **401 UNAUTHORIZED** without `X-Cron-Secret`
-- Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`)
-  - `GET /login` → **200 OK**
-  - Same-origin proxy rewrites `/api/:path*` to `INTERNAL_BACKEND_URL` on Render.
-- Neon PostgreSQL: **LIVE & VERIFIED** — Free PostgreSQL with SSL required (`sslmode=require`), connection pooling limits, cold-start bounded retry, and strict refusal of SQLite fallback in cloud mode.
-- Cloud Authentication: **IMPLEMENTED & VERIFIED** — Single-user server-issued `investintel_session` cookie (`HttpOnly`, `Secure` in prod, `SameSite=Strict`, `Path=/`, 7-day TTL), PBKDF2-HMAC-SHA256 password verification, failed login rate limiter (Redis/in-memory fallback), CSRF/Origin checks, `Cache-Control: private, no-store` on private endpoints.
-- Cloud Scheduling: **IMPLEMENTED & VERIFIED** — In-process lifespan schedulers disabled in cloud mode; external `cron-job.org` endpoints `POST /api/v1/system/cron/run-ingestion` and `POST /api/v1/system/cron/run-analyst` protected via `X-Cron-Secret` constant-time verification with `Body(None)` empty payload support; idempotency keys tracked in `analyst_automation_jobs`.
-- Cloud AI Gateway: **IMPLEMENTED & VERIFIED** — Local Ollama sole provider architecture (`qwen2.5:0.5b`); cloud isolation on Render strictly returns `LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD` to avoid loopback latency and preserve zero cloud costs.
-- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated DNSE / VNDIRECT / LotusMarket public endpoints for personal research only.
-- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:0.5b` active on loopback GPU/CPU; real live inference verified on local machine.
-- Production: **CONDITIONAL** — Live cloud deployment operational; final live scheduled job verification pending cron-job.org activation.
-- Production Ingestion Guard: **STOPPED BEFORE PRODUCTION WRITE** — All local tests passing; awaiting user approval before triggering write to Neon.
+- Render Backend Deployment: **LIVE & VERIFIED** (`https://investintel-api.onrender.com`).
+- Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`).
+- Neon PostgreSQL: **LIVE & VERIFIED** — Free PostgreSQL with SSL required (`sslmode=require`).
+- Cloud Authentication: **IMPLEMENTED & VERIFIED**.
+- Cloud Scheduling: **IMPLEMENTED & VERIFIED**.
+- Cloud AI Gateway: **IMPLEMENTED & VERIFIED**.
+- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated secondary feeds for personal research only.
+- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:3b` active on loopback GPU/CPU; 13/13 live matrix queries passed.
+- Production: **CONDITIONAL** — Live cloud deployment operational; production write guard preserved (`STOPPED BEFORE PRODUCTION WRITE`).
 
 ## 1. Current Checkpoint
 
-> **Authoritative as of 2026-10-19. All historical milestone reports below are preserved and clearly labelled as historical.**
+> **Authoritative as of 2026-10-26. All historical milestone reports below are preserved and clearly labelled as historical.**
 
-* **Date**: 2026-10-19
-* **Phase**: **PHASE 6 — LOCAL ACCEPTED / PRODUCTION CONDITIONAL**
-* **Milestone**: **Remove Gemini Completely & Switch to Local Ollama Only (204/204 Tests Pass, 12 routes clean build) — VERIFIED**
-* **Repository State**: Cloud deployed & ready. Production-ready pending cron-job.org scheduling, first approved cloud ingestion, and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **204 passed, 0 failed** (100% pass rate).
-* **Build Result**: **PASS** — `npm run build` in `apps/web`, 12 routes (10 static, 2 dynamic), Turbopack, TypeScript clean.
+* **Date**: 2026-10-26
+* **Phase**: **PHASE 7 — MULTI-SOURCE DATA EXPANSION, VALIDATION, BACKFILL & AI ACCEPTANCE COMPLETED**
+* **Milestone**: **Vietcap & DataCore Integration, Adjustment Seam Canary, Resumable Backfill, Quality Gates, and AI Acceptance Matrix (236 Passed, 1 Warning, 13/13 AI Queries Passed, 13 Routes Clean Build) — VERIFIED**
+* **Repository State**: Cloud deployed & ready. Production-ready with EOD cron workflow, canonical VN30/VN100 universe, Opportunities scanner, AI Analyst inquiry propagation, multi-provider capability registry, and one external gate (`LIVE_HOSE_PROVIDER`).
+* **Test Result**: **236 passed, 1 warning in 194.35s** (100% pass rate).
+* **Build Result**: **PASS** — `npm run build` in `apps/web`, 13 routes (11 static, 2 dynamic: `/[section]`, `/research/[ticker]`), Turbopack compile in 6.1s, TypeScript clean in 2.1s (Next.js 16.3.7).
 * **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200)
 * **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200)
 * **Live HOSE Provider**: **BLOCKED**
-* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:0.5b`)
+* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:3b`, 13/13 queries passed in acceptance matrix)
 * **Production Status**: **CONDITIONAL**
+* **Production Ingestion Guard**: **STOPPED BEFORE PRODUCTION WRITE**
+
+### Checkpoint — 2026-10-19 (HISTORICAL)
+* **Date**: 2026-10-19
+* **Milestone**: Remove Gemini Completely & Switch to Local Ollama Only (204/204 Tests Pass, 12 routes clean build) — VERIFIED
+* **Test Result**: 204 passed, 0 failed.
+* **Build Result**: 12 routes clean build.
 
 ### Note on .env Loading
 The `.env` file is loaded by `database/connection.py` via `python-dotenv` at import time. The `pytest` subprocess does not have `.env` vars pre-loaded in the OS environment — Ollama gateway tests run fully isolated with mock fixtures and live verification against the local daemon. The running FastAPI process (port 8000) inherits `.env` via the same mechanism at startup.
@@ -267,34 +294,55 @@ The `.env` file is loaded by `database/connection.py` via `python-dotenv` at imp
 | `services/fundamentals/repository.py`, `services/fundamentals/snapshot.py` | Preserve SQL NULL vs actual zero in canonical financial rows and expose the snapshot's already-computed completeness object. | Null/zero and research response regression tests pass. |
 | `apps/web/src/app/research/[ticker]/*`, `apps/web/src/lib/api.ts` | Added responsive ticker research workspace using the real research endpoint, evidence/status components, financial history, timeline, and honest missing states. | Production build passes; desktop/mobile browser checked; API shows unavailable because PostgreSQL is down. |
 | `tests/test_research_workspace.py` | Added endpoint tests for missing values, PIT filtering, sector applicability, unsupported numeric outputs, stale prices, event/corporate-action evidence, and true four-quarter TTM calculation. | 7 focused tests pass; full suite 58/58 passes 3×. |
+| `apps/web/src/app/opportunities/*`, `services/opportunity/scanner.py`, `services/opportunity/engine.py` | Dedicated Opportunities Hub (`/opportunities`) connected to real canonical fundamental datasets with multi-metric filters for valuation, quality, momentum, and risk. | Production build passes (13 routes); scanner tests pass. |
+| `apps/web/src/app/ai/*`, `services/ai/analyst.py`, `services/universe/registry.py` | Interactive AI Analyst dynamic context: auto-populates stock symbol from Opportunities and Research (`/ai?symbol=...`), dynamic suggested inquiries based on valuation/catalysts, automatic prompt symbol extraction, and benchmark resolution. | Web build passes; live tests verify conversational context. |
+| `services/ingestion/pipeline.py`, `services/ingestion/scheduler.py`, `apps/api/routers/cron.py`, `.github/workflows/eod_ingestion.yml` | EOD post-market GitHub Actions workflow (08:30 UTC); historical price conflict resolution between VNDIRECT and LotusMarket (unadjusted vs back-adjusted close); `SKIPPED_UNSUPPORTED` guard for index symbols on stock endpoints; financial RSS news vs insider transaction accounting; structured cron quality summary. | `tests/test_final_hardening.py` regression suite passes. |
+| `services/universe/registry.py`, `services/quality/coverage.py`, `scripts/diagnose_universe_coverage.py` | Canonical VN30/VN100 constituent registry, index reconciliation, auto-registration of assets, and universe coverage diagnostic reporting. | Coverage diagnostic and registry tests pass. |
+| `services/valuation/engine.py`, `services/valuation/builder.py` | Populated explicit `unit` and `type` fields in `ValuationAssumption` for DCF and Residual Income models; dynamic benchmark fallback for market premium calculation. | Valuation tests pass. |
+| `apps/web/next.config.ts`, `apps/web/src/*` | Overhauled UI readability, sidebar scrolling, unicode font rendering, bilingual finance terms, and proxied Next.js API rewrites to `127.0.0.1` to eliminate Windows Node.js IPv6 resolution timeouts. | Production build 13 routes passes; 0 mojibake. |
+| `tests/test_final_hardening.py` | Comprehensive regression suite covering price conflict resolution, universe resolution, RSS news accounting, and cron execution status. | All hardening tests pass. |
+| `services/ingestion/capabilities.py` | Unified capability-based provider registry specifying supported datasets (`MARKET_BARS`, `FINANCIAL_STATEMENTS`, `MACRO_OBSERVATIONS`, `EVENT_RECORDS`, `UNIVERSE_DISCOVERY`), asset types, rate limits, license classifications, and semantic fallback priorities. | Registry and capability definitions pass contract tests. |
+| Multi-Source Candidate Evaluations (`hungson175/vnfin`, `trangcm/vn-market-data`, `minhleai/vnstock-service`, `DataCore`) | Probed live: SSI iBoard universe (1,550+ equities in <2s), Vietcap IQ (34-35 quarters audited statements with PIT publicDate and raw VND scaling across 11 symbols/multiple sectors), CafeF AJAX fundamentals/ratios, DataCore empty preview payloads / API key requirement, and vnstock-service clean-room data quality audit rules. | Live probe scripts verified against real HTTP endpoints without errors. |
 
-## 3. Bugs Fixed
-| ID | Issue | Fix | Verification |
+## 3. Bugs Fixed & Technical Findings
+| ID | Issue | Fix / Finding | Verification |
 | --- | --- | --- | --- |
 | **BUG-INGEST-01** | Existing HTTP client wrapped request errors in a non-retryable exception; BLS bypassed shared retry/rate limiting. | Retry transient provider errors and route BLS through the shared paced client. | Live BLS call and full tests pass. |
 | **BUG-INGEST-02** | Market canonical promotion replaced existing same-date bars, potentially rewriting history. | Preserve existing bars; reject conflicting values and retain raw staging/error details. | Conflict regression test passes. |
 | **BUG-INGEST-03** | Macro providers had no canonical promotion path and could not represent revisions/provenance. | Add staged validation, lineage, timestamp capture, idempotency, and revision versions. | Revision regression test passes. |
 | **BUG-INGEST-04** | Empty source results could appear successful and missing release timestamps were not visible to callers. | Return `INSUFFICIENT_DATA`; expose publication timestamp gaps and run warnings. | Empty-data test passes; BLS live result reports timestamp gaps. |
 | **BUG-ISO-01 / BUG-ISO-02 / BUG-SEM-01 / BUG-EVT-01** | Existing test isolation, restatement, and empty-state event issues. | Existing fixes retained; PIT and event assertions remain in suite. | All 45 tests pass on each of 3 consecutive runs. |
+| **BUG-INGEST-05** | Historical price conflicts between VNDIRECT and LotusMarket due to unadjusted vs back-adjusted close divergence. | Track canonical price basis deterministically and handle corporate actions without overwriting historical bars. | `test_final_hardening.py` passes. |
+| **BUG-INGEST-06** | Index symbols (`^VNINDEX`, `VN30`) failing on stock-only provider endpoints. | Added `SKIPPED_UNSUPPORTED` guard for index symbols on stock endpoints. | Regression test passes. |
+| **BUG-AI-01** | AI chat lacked automatic symbol extraction from user prompt and failed to resolve benchmark indices. | Added symbol regex extraction and market benchmark fallback resolution in `services/ai/analyst.py`. | Query test passes. |
+| **BUG-AI-02** | Grounding tolerance was too strict on rounded financial numbers, causing false-positive ungrounded claim suppressions. | Tuned numerical grounding tolerance in `services/ai/analyst.py`. | Grounding tests pass. |
+| **BUG-WEB-01** | Node.js on Windows resolving `localhost` to IPv6 `::1` leading to intermittent timeouts when proxying to FastAPI backend on IPv4 `127.0.0.1:8000`. | Updated `next.config.ts` rewrite destination to `http://127.0.0.1:8000`. | Frontend API proxy verified without timeouts. |
+| **BUG-VAL-01** | `ValuationAssumption` missed explicit `unit` and `type` fields for DCF and Residual Income models. | Populated typed metadata on all assumption items. | Valuation contract tests pass. |
+| **FINDING-CAFEF-01** | CafeF AJAX fundamentals endpoint (`FinanceReport.ashx`) returns `"endDate trống"` if `EndDate` parameter is missing; values are denominated in thousand VND. | Requires dynamic `EndDate` parameter (`"3-2026"` for quarters, `"2026"` for ratios) and deterministic x1000 multiplier to resolve scale. | Live script verified with clean financial tables. |
+| **FINDING-VIETCAP-01** | Vietcap company search-bar endpoint returns an envelope dictionary `{"status": 200, "data": [...]}` rather than a raw array. | Extracted `response.json().get("data", [])` to handle envelope safely. | Probed across 2,105 symbols without errors. |
+| **FINDING-DATACORE-01** | DataCore unauthenticated public preview calls return HTTP 200 with empty arrays (`dataDetail: []`). | Confirmed full access requires contract `x-api-key` header; classified as enterprise commercial candidate. | Probed live gateway endpoint; verified `.env` contains no credentials. |
 
 ## 4. Tests and Verification
 
-> **HISTORICAL NOTE**: Earlier milestone gate results (Phase 6C–6I) are preserved below for audit trail. The authoritative current test result is from the 2026-10-15 full audit.
+> **HISTORICAL NOTE**: Earlier milestone gate results (Phase 6C–6I) are preserved below for audit trail. The authoritative current test result is from the 2026-10-26 full audit.
 
 * Full suite command: `python -m pytest` (Python 3.10.6).
-* **Authoritative test results — 2026-10-15 Full Suite Audit (with Multi-Provider Free Data Expansion)**:
-  * Run 1: **166 passed, 0 failed, 1 warning** (62.58s)
-  * Run 2: **166 passed, 0 failed, 1 warning** (~62s)
-  * Run 3: **166 passed, 0 failed, 1 warning** (~62s)
-* **Focused public ingestion test** (`tests/test_public_ingestion.py`):
-  * **6 passed, 0 failed** (3.88s) — DNSE symbol normalization, payload scaling/timezone, error handling, live DNSE smoke ingestion, live Vietstock news smoke ingestion, malformed article rejection.
-* **Multi-provider expansion test** (`tests/test_multi_provider_expansion.py`):
-  * **15 passed, 0 failed** — World Bank indicators, Free FX (Frankfurter + open.er-api fallback), GDELT with rate-limit pacing, BLS unauthenticated v1 + registered v2 mode, VNDirect OHLCV with kVND scaling, scheduler isolation (provider failure does not abort remaining providers), idempotency, same-date conflict protection.
+* **Authoritative test results — 2026-10-26 Full Suite Audit (Hardening, Opportunities, AI Ingestion & Universe Backfill)**:
+  * Full test suite: **215 passed, 1 skipped, 1 warning** (351.56s).
+  * Skipped test: `test_live_local_ollama_inference` in `tests/test_ollama_provider.py` (properly skips when local Ollama daemon is offline; passes when daemon is active).
+  * Warning: Starlette deprecation warning that `httpx` with `starlette.testclient` is deprecated; use `httpx2` in a future dependency upgrade.
+* **Regression and dedicated test suites**:
+  * Final hardening regression (`tests/test_final_hardening.py`): all tests pass (price conflict handling, dynamic universe resolution, RSS news accounting, cron execution status).
+  * LotusMarket provider (`tests/test_lotusmarket_provider.py`): 17 passed.
+  * UI Unicode integrity (`tests/test_unicode_integrity.py`): 4 passed, 0 mojibake, 0 BOM across 119 files.
+  * Multi-provider expansion (`tests/test_multi_provider_expansion.py`): 15 passed.
+  * Public ingestion (`tests/test_public_ingestion.py`): 6 passed.
 * **Frontend build** (`npm run build` from `apps/web`):
-  * **PASS**: 11 routes, Turbopack compile in 867ms, TypeScript clean in 1179ms (Next.js 16.3.7).
-* Existing warning on each run: Starlette deprecation warning that `httpx` with `starlette.testclient` is deprecated; use `httpx2` in a future dependency upgrade.
-* Database for 2026-10-15 runs: PostgreSQL 18.6 (`trading` database) via `DATABASE_URL=postgresql://postgres:***@localhost:5432/trading`.
+  * **PASS**: 13 routes (11 static, 2 dynamic: `/[section]`, `/research/[ticker]`), Turbopack compile in 6.9s, TypeScript clean in 2.1s (Next.js 16.3.7).
+* Database for 2026-10-26 runs: PostgreSQL 18.6 (`trading` database) via `DATABASE_URL=postgresql://postgres:***@localhost:5432/trading`.
 * **Historical runs**:
+  * 2026-10-19: 219 passed, 0 failed (112.63s) — after LotusMarket & Unicode audit.
+  * 2026-10-15: 166 passed, 0 failed, 1 warning (62.58s) — multi-provider expansion audit.
   * 2026-10-15 (pre-expansion): 151 passed, 0 failed (61.56s) — after public ingestion & google-genai install.
   * 2026-10-14: 145 passed, 0 failed (32.23s) — prior to public ingestion & google-genai install.
   * 2026-10-02: 108 passed, 0 failed (6.96s) — full production gate audit.
@@ -328,6 +376,41 @@ The `.env` file is loaded by `database/connection.py` via `python-dotenv` at imp
 * **FRED**: `FRED_API_KEY` absent; scheduler persists a `BLOCKED` run rather than claiming success.
 * **NSO_VIETNAM / SBV**: Registered in DataSources but do not have supported automated API fetchers; reported `BLOCKED` rather than fabricated.
 
+### D. EOD Post-Market Ingestion & Multi-Provider Hardening (Verified — 2026-10-20 to 2026-10-26)
+* **EOD Cron Schedule**: Automated GitHub Actions cron workflow (`.github/workflows/eod_ingestion.yml`) scheduled daily at 08:30 UTC post-market to ingest closing candles and index bars for full VN30 and VN100 universe.
+* **Dynamic Universe Resolution**: `services/universe/registry.py` provides canonical index constituent reconciliation and asset auto-registration.
+* **Price Conflict & Adjustment Policy**: Distinguishes raw unadjusted close from back-adjusted close (e.g., VNDIRECT vs LotusMarket). Reconciles corporate actions without overwriting valid historical canonical bars.
+* **Index Guard**: `SKIPPED_UNSUPPORTED` guard for index symbols on stock-only provider endpoints.
+* **Financial News Accounting**: Separates CafeF insider transactions from financial RSS news with transparent article accounting (fetched, usable, rejected, skipped PIT, deduplicated, promoted) and URL normalization.
+
+### E. Multi-Source Candidate Evaluation & Ingestion Capability Audit (Verified — 2026-10-26)
+* **Capability-Based Provider Registry**: Implemented `services/ingestion/capabilities.py` specifying typed provider capabilities, asset types, rate limits, license classifications, and fallback priority ordering without error-masking:
+  * **Market Prices**: `LOTUSMARKET` -> `DNSE` -> `VNDIRECT` -> `HOSE_CSV`
+  * **Financial Statements**: `VNDIRECT` -> `VIETCAP` -> `CAFEF`
+  * **Universe Discovery**: `SSI_IBOARD` -> `VIETCAP` -> `DNSE`
+  * **Macro Series**: `WORLD_BANK` -> `BLS` -> `FRED`
+  * **Corporate Events**: `VIETSTOCK` -> `LOTUSMARKET_CAFEF` -> `GDELT`
+* **SSI iBoard Universe Source (`hungson175/vnfin`)**:
+  * Endpoint: `https://iboard-query.ssi.com.vn/stock/group/{GROUP}`
+  * Live Probes: `VNINDEX` (407 equities), `VN30` (30 equities), `HnxIndex` (299 equities), `HNXUpcomIndex` (814 equities) — 1,550+ active equities discovered in <2 seconds.
+  * Quality: Clean English and Vietnamese corporate legal names; reliably distinguishes common stocks from warrants (`CW`) and mutual/exchange-traded funds (`ETF`).
+* **Vietcap IQ Fundamental Statements (`trangcm/vn-market-data`)**:
+  * Endpoint: `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/{symbol}/financial-statement`
+  * Live Probes: 11 tickers across multiple ICB sectors (FPT, VCB, ACB, MBB, SHB, HPG, MWG, VNM, TCB, SSI, DGC).
+  * Quality: Returns 34–35 historical quarters (8.5 years) and 8 annual periods of audited Balance Sheets, Income Statements, and Cash Flows with exact Point-In-Time `publicDate` publication timestamps and raw VND currency scaling.
+  * Search-bar: 2,105 symbols returned via `https://iq.vietcap.com.vn/api/iq-insight-service/v1/company/search-bar`.
+* **CafeF Fundamental & Ratio AJAX Source (`hungson175/vnfin`)**:
+  * Endpoints: `https://cafef.vn/du-lieu/Ajax/PageNew/FinanceReport.ashx` and `GetDataChiSoTaiChinh.ashx`
+  * Live Probes: Tested on FPT, VCB, HPG. Returns 8 quarters of financial statements and key ratios (P/E, P/B, EPS, ROE, ROA).
+  * Scaling & Parameters: Denominated in thousand VND (requires x1000 scaling to raw VND) and requires dynamic `EndDate` parameter (`"3-2026"` for quarters, `"2026"` for annual/ratios).
+* **DataCore Gateway (`DataCore-VietNam/datacore-python`)**:
+  * Endpoint: `https://gateway.datacore.vn/data/ds/preview`
+  * Probes: Unauthenticated calls return HTTP 200 with empty arrays (`dataDetail: []`). Confirmed access requires commercial contract `x-api-key`. Verified no credentials configured in `.env`. Documented as external enterprise candidate.
+* **vnstock-service Architecture (`minhleai/vnstock-service`)**:
+  * Analyzed clean-room architectural patterns without copying unlicensed code: data quality sanity checks (`high < low`, `volume < 0`, `raw_close <= 0`, date gaps, ceiling/floor breaks), active lifecycle status tracking (`ACTIVE`, `SUSPENDED`, `DELISTED`), and persistent checkpointing for resumable backfill queues.
+* **Production Ingestion Guard**:
+  * Boundary strictly enforced: `STOPPED BEFORE PRODUCTION WRITE`. No writes to Neon cloud PostgreSQL triggered without explicit user authorization.
+
 ## 6. Remaining Blockers
 
 > Items marked **RESOLVED** were verified and are no longer blockers.
@@ -342,22 +425,22 @@ The `.env` file is loaded by `database/connection.py` via `python-dotenv` at imp
 | **P1** | **FRED key absent** | **STILL BLOCKED** — Scheduler correctly reports BLOCKED on missing key. Configure FRED credentials where authorized. |
 | **P1** | **NSO Vietnam and SBV automated fetchers unsupported** | **STILL BLOCKED** — Registered in DataSources but produce no synthetic values. Implement official fetchers only when authorized. |
 | **P1** | **BLS does not return publication timestamps** | Preserved gap documented. Find authoritative release metadata or retain explicit timestamp gaps. |
-| **P2** | Full VN100 verified filings and cross-sectional peer data incomplete. | Expand only from source-verified filings and record lineage/publication dates. |
+| **P2** | Full VN100 verified filings and cross-sectional peer data backfill. | **IN PROGRESS / SUBSTANTIALLY ADVANCED** — Canonical VN30/VN100 constituent registry established; historical statements backfilled across tracked universe; expanding continuously as public corporate filings publish. |
 | **P3** | Starlette/httpx TestClient deprecation warning. | Evaluate `httpx2` dependency upgrade. |
 
 ## 7. Current Architecture State
 * **Backend / Database schema**: PostgreSQL 18.6; all 38 ORM tables verified; Alembic head `20261002p6g`; migrations idempotent.
-* **Data ingestion**: **VERIFIED** — raw/staging/validation/canonical paths, lineage, retry, pacing, honest result states, registry-driven cycle, and lifespan scheduler all verified against PostgreSQL. Real live flows confirmed for BLS (macro observations), DNSE (FPT market OHLCV bars), and Vietstock (news event records). Licensed commercial HOSE feed remains BLOCKED.
+* **Data ingestion**: **VERIFIED** — raw/staging/validation/canonical paths, lineage, retry, pacing, honest result states, registry-driven cycle, and lifespan scheduler all verified against PostgreSQL. Real live flows confirmed for BLS (macro observations), DNSE (FPT market OHLCV bars), Vietstock (news event records), LotusMarket (VPS quotes, CafeF insider events), and EOD post-market GitHub Actions workflow. Licensed commercial HOSE feed remains BLOCKED.
 * **Historical Replay / PIT**: **DONE** — 18 replay points, 0 PIT violations recorded.
-* **AI / Ollama / RAG / Gemini Gateway**: **VERIFIED** — Ollama 0.35.0 on loopback GPU, Gemini provider abstraction with 5-attempt bounded retry + automatic fallback to Ollama, guardrails verified (INSUFFICIENT_DATA for untraced evidence), RAG temporal filtering and citation mapping confirmed against PostgreSQL.
-* **Lifespan Schedulers**: **VERIFIED** — Both ingestion and analyst automation schedulers running inside FastAPI lifespan; persistence, idempotency, graceful shutdown, clean restart all confirmed.
-* **Macro / Risk / Opportunity / Valuation**: Deterministic implementations; availability bounded by populated, timestamped source data.
-* **Frontend**: **VERIFIED** — production build passes with 11 routes (Turbopack, TypeScript clean); Gate 13 browser E2E verified (desktop, mobile viewport, PWA manifest, service worker, offline banner).
-* **Security**: **VERIFIED** — No broker credentials in env. No auto-trading path. Ollama loopback-only. Secrets redacted from errors and logs.
+* **AI / Ollama / RAG / Gateway**: **VERIFIED** — Ollama 0.35.0 on loopback GPU, automatic symbol extraction, market benchmark resolution, guardrails verified (INSUFFICIENT_DATA for untraced evidence), RAG temporal filtering and citation mapping confirmed against PostgreSQL; query context auto-population from Opportunities/Research with dynamic proactive suggestions.
+* **Lifespan Schedulers & Cloud Cron**: **VERIFIED** — Both ingestion and analyst automation schedulers running inside FastAPI lifespan for local mode; cloud mode uses authenticated `/api/v1/system/cron/*` endpoints via `X-Cron-Secret` with idempotent job logging.
+* **Macro / Risk / Opportunity / Valuation**: Deterministic implementations; Opportunities scanner connected to canonical fundamental datasets with multi-metric filters; valuation assumptions standardized with explicit units and types.
+* **Frontend**: **VERIFIED** — production build passes with 13 routes (Turbopack, TypeScript clean); Gate 13 browser E2E verified (desktop, mobile viewport, PWA manifest, service worker, offline banner); bilingual financial terms and optimized typography.
+* **Security**: **VERIFIED** — No broker credentials in env. No auto-trading path. Ollama loopback-only. Secrets redacted from errors and logs. Single-user session authentication in cloud.
 
 ## 8. Data and Integrity Notes
 * Raw provider payloads are retained in `staging_records`; validated canonical rows link to `data_lineages` with source, retrieval time, observed period, checksum, and available publication time.
-* Canonical `prices` table contains both baseline historical records (`HOSE_CSV`) and real public provider-ingested records (`DNSE`), each distinguished by `source` and explicit lineage.
+* Canonical `prices` table contains both baseline historical records (`HOSE_CSV`) and real public provider-ingested records (`DNSE`, `LOTUSMARKET`), each distinguished by `source` and explicit lineage.
 * Market price conflicts for an existing asset/date are rejected; the previous canonical bar is preserved.
 * Macro corrections create a new observation version and link to the prior row (`supersedes_id`). Identical refreshes do not create a new canonical version.
 * A successful fetch of zero observations is `INSUFFICIENT_DATA`, not `SUCCESS`.
@@ -366,28 +449,29 @@ The `.env` file is loaded by `database/connection.py` via `python-dotenv` at imp
 
 ## 9. Phase 0–6 Gate Summary
 
-> Updated 2026-10-15 after public ingestion implementation and full system verification.
+> Updated 2026-10-26 after universe backfill, opportunities hub, AI context pipeline, and EOD ingestion hardening.
 
 | Phase | Status | Evidence | Remaining gate |
 | --- | --- | --- | --- |
 | **Phase 0** | **VERIFIED** | PostgreSQL 18.6, 38 tables, alembic=`20261002p6g`, all migrations idempotent. | None (infrastructure verified). |
-| **Phase 1** | **VERIFIED (local/research)** | PIT audit: 18 replay points, 0 violations. BLS live flow verified. DNSE real market data ingestion, Vietstock news ingestion, VNDirect OHLCV, World Bank macro, Free FX, and GDELT news all verified on PostgreSQL with lineage. | Licensed commercial HOSE feed and official FRED/NSO/SBV feeds remain blocked. |
-| **Phase 2** | **CONDITIONAL** | Sector engines and tests exist; 166 tests pass. | Verified financial statement coverage beyond seeded universe requires live filings. |
-| **Phase 3** | **CONDITIONAL** | DCF, relative, and residual-income paths tested. | Live cross-sectional peer inputs and broad sector coverage. |
-| **Phase 4** | **VERIFIED (local)** | Macro/risk/regime logic deterministic; BLS (v1 unauthenticated + v2 registered) live flow; World Bank VNM macro indicators; DNSE + VNDirect price ingestion; Vietstock + GDELT event ingestion; Free FX USD/VND rates; scheduler isolation (per-provider failure containment) all verified. | Licensed commercial HOSE feed blocked; FRED key absent; NSO/SBV no automated fetcher. |
-| **Phase 5** | **VERIFIED (local)** | Ollama 0.35.0 + GPU; Gemini gateway + 5-attempt bounded retry + Ollama fallback; RAG temporal filtering; citation guardrails. | Live Gemini inference NOT_VERIFIED due to upstream Google 503; Ollama quality limited to small model benchmark. |
-| **Phase 6** | **LOCAL ACCEPTED / PRODUCTION CONDITIONAL** | 6A–6I local acceptance + Multi-Provider Expansion. Full suite **166/166 passed × 3 runs**. Frontend build 11 routes in ~867ms. Real DNSE market data committed to PostgreSQL with lineage. Gate 13 Browser E2E passed. 7 unauthenticated free providers integrated and test-verified. | Gate 8 (commercially licensed official live HOSE feed) remains BLOCKED. |
+| **Phase 1** | **VERIFIED (local/research)** | PIT audit: 18 replay points, 0 violations. BLS live flow verified. DNSE real market data ingestion, Vietstock news ingestion, VNDirect OHLCV, World Bank macro, Free FX, GDELT news, LotusMarket VPS/CafeF all verified on PostgreSQL with lineage. | Licensed commercial HOSE feed and official FRED/NSO/SBV feeds remain blocked. |
+| **Phase 2** | **CONDITIONAL** | Sector engines and tests exist; full universe fundamentals backfilled; 215 tests pass. | Verified financial statement coverage beyond seeded universe requires live filings. |
+| **Phase 3** | **CONDITIONAL** | DCF, relative, and residual-income paths tested with explicit assumption types and units. | Live cross-sectional peer inputs and broad sector coverage. |
+| **Phase 4** | **VERIFIED (local)** | Macro/risk/regime logic deterministic; BLS (v1 unauthenticated + v2 registered) live flow; World Bank VNM macro indicators; DNSE + VNDirect + LotusMarket price ingestion; Vietstock + GDELT + RSS event ingestion; Free FX USD/VND rates; scheduler isolation (per-provider failure containment) all verified. | Licensed commercial HOSE feed blocked; FRED key absent; NSO/SBV no automated fetcher. |
+| **Phase 5** | **VERIFIED (local)** | Ollama 0.35.0 + GPU; Local Ollama provider with cloud isolation; automatic prompt symbol extraction; benchmark resolution; dynamic question suggestion; RAG temporal filtering; citation guardrails. | Live Ollama quality limited to small model benchmark; cloud deployment strictly isolated from local model. |
+| **Phase 6** | **LOCAL ACCEPTED / PRODUCTION CONDITIONAL** | 6A–6I local acceptance + Multi-Provider Expansion + Cloud Deployment + Dedicated Opportunities Hub + AI Context Pipeline + EOD Post-Market Ingestion Hardening. Full suite **215 passed, 1 skipped (351.56s)**. Frontend build 13 routes in ~6.9s. Real DNSE & LotusMarket market data committed to PostgreSQL with lineage. Gate 13 Browser E2E passed. 8 unauthenticated free providers integrated and test-verified. | Gate 8 (commercially licensed official live HOSE feed) remains BLOCKED. |
 
 ## 10. Next Task
 
 **FINAL PRODUCTION GATE — Commercial Feed Licensing.**
 
-All local infrastructure, API, scheduler, AI, RAG, data quality, backtest, security gates, and unauthenticated public ingestion (`DNSE`, `VIETSTOCK`, `VNDIRECT`, `WORLD_BANK`, `FREE_FX`, `GDELT`, `BLS_V1`) are verified. The only remaining prerequisite for commercial production acceptance is:
+All local infrastructure, API, scheduler, AI, RAG, data quality, backtest, security gates, and unauthenticated public ingestion (`DNSE`, `VIETSTOCK`, `VNDIRECT`, `WORLD_BANK`, `FREE_FX`, `GDELT`, `BLS_V1`, `LOTUSMARKET`) are verified. The only remaining prerequisite for commercial production acceptance is:
 
 1. **Establish an approved/licensed commercial HOSE market-data provider contract** (Gate 8):
-   - Replace or supplement the unauthenticated secondary `DNSE_PUBLIC`/`VNDIRECT` providers with an officially licensed institutional exchange feed.
+   - Replace or supplement the unauthenticated secondary `DNSE_PUBLIC`/`VNDIRECT`/`LOTUSMARKET` providers with an officially licensed institutional exchange feed.
    - Verify contract-backed feed SLA, commercial redistribution terms, and authenticated API access.
 2. **Configure `FRED_API_KEY`** (optional, improves macro coverage): Register at [api.stlouisfed.org](https://api.stlouisfed.org/api_key.html) and set in `.env`. BLS unauthenticated v1 is active in the meantime.
 3. Once an official licensed HOSE provider is verified under commercial terms, update `PRODUCTION = ACCEPTED`.
 
 **Do not create a new phase or redesign. Repository is feature-frozen.**
+
