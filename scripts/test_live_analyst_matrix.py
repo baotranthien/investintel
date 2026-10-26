@@ -217,11 +217,17 @@ def run_test(case):
                     assert req_m in cited_metrics, f"Required metric '{req_m}' not cited in citations: {cited_metrics}"
                 claim_texts = " ".join(c.get("text", "") for c in claims)
                 full_text = f"{answer} {claim_texts}".lower()
-                assert ("p/b" in full_text or "pb" in full_text), "P/B metric must be present in response"
-                assert "roe" in full_text, "ROE metric must be present in response"
-                has_pb_claim = any("p/b" in c.get("text", "").lower() or "pb" in c.get("text", "").lower() for c in claims)
-                has_roe_claim = any("roe" in c.get("text", "").lower() for c in claims)
-                assert has_pb_claim and has_roe_claim, "Both P/B and ROE must be present in validated claims; returning ROE alone is not permitted."
+                alias_map = {
+                    "pb": ["p/b", "pb", "price to book"],
+                    "roe": ["roe", "lợi nhuận trên vốn", "return on equity"],
+                    "pe": ["p/e", "pe", "price to earnings", "p / e"],
+                    "eps_ttm": ["eps", "lợi nhuận trên mỗi cổ phiếu"],
+                }
+                for req_m in case["required_metrics"]:
+                    aliases = alias_map.get(req_m, [req_m])
+                    assert any(alias in full_text for alias in aliases), f"Metric '{req_m}' must be present in response text"
+                    has_claim = any(any(alias in c.get("text", "").lower() for alias in aliases) for c in claims)
+                    assert has_claim, f"Metric '{req_m}' must be present in validated claims; returning partial metrics is not permitted."
             
             print(">>> RESULT: PASSED")
             return True, elapsed

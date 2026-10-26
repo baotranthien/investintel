@@ -105,7 +105,7 @@ class FinancialRepository:
         inc_quarters = []
         bal_annual = []
         cf_annual = []
-        shares_outstanding = None
+        latest_shares_basic = None
         sources = set()
         latest_pub_date = None
 
@@ -143,7 +143,7 @@ class FinancialRepository:
                         "shares_basic": int(norm_inc.shares_basic) if norm_inc.shares_basic else None,
                     }
                     if norm_inc.shares_basic:
-                        shares_outstanding = int(norm_inc.shares_basic)
+                        latest_shares_basic = int(norm_inc.shares_basic)
 
                     if stmt.period_type == "ANNUAL":
                         inc_annual.append(row)
@@ -199,19 +199,49 @@ class FinancialRepository:
                     }
                     cf_annual.append(row)
 
-        # Fallback for shares_outstanding if not set from NormalizedIncome
-        if not shares_outstanding:
-            from database.models import FundamentalMetric
+        # Resolve authoritative shares_outstanding with semantic priority.
+        # CRITICAL: Authoritative FundamentalMetric (OUTSTANDING_SHARES > TOTAL_SHARES > LISTED_SHARES)
+        # must take precedence over historical NormalizedIncome.shares_basic, which is merely
+        # a period-specific weighted-average share count from an older statement (e.g. 2023 pre-split).
+        # Resolution order: OUTSTANDING_SHARES (1) > TOTAL_SHARES (2) > LISTED_SHARES (3).
+        shares_outstanding = None
+        from database.models import FundamentalMetric
+        from sqlalchemy import case
+        metric_priority = case(
+            (FundamentalMetric.metric_id == "OUTSTANDING_SHARES", 1),
+            (FundamentalMetric.metric_id == "TOTAL_SHARES", 2),
+            (FundamentalMetric.metric_id == "LISTED_SHARES", 3),
+            else_=4,
+        )
+        sh_query = self._session.query(FundamentalMetric).filter(
+            FundamentalMetric.symbol == sym,
+            FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "TOTAL_SHARES", "LISTED_SHARES"]),
+            FundamentalMetric.value.isnot(None),
+            FundamentalMetric.value > 0,
+        )
+        if as_of_date:
+            sh_query = sh_query.filter(FundamentalMetric.fiscal_period_end <= as_of_date)
+        # metric_priority FIRST: OUTSTANDING(1) always beats LISTED(3)
+        # fiscal_period_end DESC is secondary: within same type, prefer newest
+        sh_metric = sh_query.order_by(metric_priority, FundamentalMetric.fiscal_period_end.desc()).first()
+        if not sh_metric:
+            # Fallback: ignore date filter (e.g. future-dated records)
             sh_metric = self._session.query(FundamentalMetric).filter(
                 FundamentalMetric.symbol == sym,
-                FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "LISTED_SHARES", "TOTAL_SHARES"]),
+                FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "TOTAL_SHARES", "LISTED_SHARES"]),
                 FundamentalMetric.value.isnot(None),
-                FundamentalMetric.value > 0
-            ).order_by(FundamentalMetric.fiscal_period_end.desc()).first()
-            if sh_metric and sh_metric.value:
-                shares_outstanding = int(float(sh_metric.value))
+                FundamentalMetric.value > 0,
+            ).order_by(metric_priority, FundamentalMetric.fiscal_period_end.desc()).first()
+        if sh_metric and sh_metric.value:
+            shares_outstanding = int(float(sh_metric.value))
 
-        # Secondary fallback: latest balance sheet share_capital (Vietnam legal par value = 10,000 VND / share)
+        # Secondary fallback: latest statement shares_basic if FundamentalMetric not available
+        if not shares_outstanding and latest_shares_basic:
+            shares_outstanding = latest_shares_basic
+
+        # Tertiary fallback: share_capital (Vietnam par value 10,000 VND/share).
+        # LABELED as capital-derived estimate — NOT verified outstanding shares.
+        # Only used when no OUTSTANDING_SHARES/TOTAL_SHARES/LISTED_SHARES metric exists.
         if not shares_outstanding and bal_annual:
             latest_b = bal_annual[-1]
             share_cap = latest_b.get("share_capital")

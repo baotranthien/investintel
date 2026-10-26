@@ -935,6 +935,64 @@ def seed_financial_statements(session: Session, source_id: int):
                     ))
     session.commit()
 
+def seed_fundamental_metrics(session: Session):
+    from database.models import FundamentalMetric
+    from datetime import date
+    metrics_to_seed = [
+        # FPT
+        ("FPT", "OUTSTANDING_SHARES", 1885727648.0, date(2026, 12, 31)),
+        ("FPT", "TOTAL_SHARES", 1885727648.0, date(2026, 12, 31)),
+        ("FPT", "LISTED_SHARES", 1714326422.0, date(2026, 12, 31)),
+        ("FPT", "PRICE_TO_EARNINGS", 10.75, date(2026, 10, 23)),
+        ("FPT", "PRICE_TO_BOOK", 2.75, date(2026, 10, 16)),
+        # VCB
+        ("VCB", "OUTSTANDING_SHARES", 8355675094.0, date(2026, 12, 31)),
+        ("VCB", "TOTAL_SHARES", 8355675094.0, date(2026, 12, 31)),
+        ("VCB", "LISTED_SHARES", 8355675094.0, date(2026, 12, 31)),
+        ("VCB", "PRICE_TO_EARNINGS", 11.40, date(2026, 10, 23)),
+        ("VCB", "PRICE_TO_BOOK", 1.94, date(2026, 10, 23)),
+        # ACB
+        ("ACB", "OUTSTANDING_SHARES", 5804421957.0, date(2026, 6, 30)),
+        ("ACB", "PRICE_TO_BOOK", 1.1835, date(2026, 6, 30)),
+        ("ACB", "PRICE_TO_EARNINGS", 7.89, date(2026, 6, 30)),
+        # HPG
+        ("HPG", "OUTSTANDING_SHARES", 8442964520.0, date(2026, 12, 31)),
+        ("HPG", "PRICE_TO_EARNINGS", 5.23, date(2026, 10, 23)),
+        ("HPG", "PRICE_TO_BOOK", 0.86, date(2026, 10, 23)),
+        # MBB
+        ("MBB", "OUTSTANDING_SHARES", 10068749885.0, date(2026, 12, 31)),
+        ("MBB", "PRICE_TO_EARNINGS", 3.39, date(2026, 10, 23)),
+        ("MBB", "PRICE_TO_BOOK", 0.65, date(2026, 10, 23)),
+        # MWG
+        ("MWG", "OUTSTANDING_SHARES", 1475694086.0, date(2026, 12, 31)),
+        ("MWG", "PRICE_TO_EARNINGS", 11.11, date(2026, 10, 23)),
+        ("MWG", "PRICE_TO_BOOK", 3.01, date(2026, 10, 23)),
+        # VNM
+        ("VNM", "OUTSTANDING_SHARES", 2089955445.0, date(2026, 12, 31)),
+        ("VNM", "PRICE_TO_EARNINGS", 10.98, date(2026, 10, 23)),
+        ("VNM", "PRICE_TO_BOOK", 3.38, date(2026, 10, 23)),
+        # SSI
+        ("SSI", "OUTSTANDING_SHARES", 3001317302.0, date(2026, 12, 31)),
+        ("SSI", "PRICE_TO_EARNINGS", 12.38, date(2026, 10, 23)),
+        ("SSI", "PRICE_TO_BOOK", 1.46, date(2026, 10, 23)),
+    ]
+    for sym, mid, val, pend in metrics_to_seed:
+        existing = session.query(FundamentalMetric).filter(
+            FundamentalMetric.symbol == sym,
+            FundamentalMetric.metric_id == mid,
+            FundamentalMetric.fiscal_period_end == pend,
+        ).first()
+        if not existing:
+            session.add(FundamentalMetric(
+                symbol=sym,
+                metric_id=mid,
+                value=val,
+                fiscal_period_end=pend,
+                period_type="ANNUAL",
+                calculation_version="verified_canonical_v1",
+            ))
+    session.commit()
+
 def run_real_market_ingestion(session: Session, source_id: int) -> dict:
     """Executes real market data ingestion from local CSVs through IngestionPipeline."""
     base_dir = Path(__file__).resolve().parent.parent.parent / "data" / "market"
@@ -983,6 +1041,9 @@ def run_seed():
 
         print("8. Seeding Point-In-Time Financial Statements (FPT, VCB, MBB, MWG, HPG)...")
         seed_financial_statements(session, hose_source_id)
+
+        print("8b. Seeding Canonical Fundamental Metrics...")
+        seed_fundamental_metrics(session)
 
         print("9. Running Real Ingestion Pipeline for Market Data...")
         ingest_results = run_real_market_ingestion(session, hose_source_id)

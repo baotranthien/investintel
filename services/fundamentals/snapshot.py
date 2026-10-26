@@ -237,7 +237,7 @@ class FundamentalSnapshotBuilder:
         )
 
         # ─── PER SHARE ─────────────────────────────────────────
-        shares = latest_income_a.get("shares_basic") or shares_outstanding
+        shares = shares_outstanding or latest_income_a.get("shares_basic")
         bvps_val = None
         if equity_parent and shares and shares > 0:
             equity_vnd = equity_parent * 1_000_000_000 if (equity_parent < 10_000_000 and shares > 100_000) else equity_parent

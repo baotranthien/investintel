@@ -317,6 +317,8 @@ class LotusMarketProvider(BaseProvider):
                             "low": low_vnd,
                             "close": close_vnd,
                             "adjusted_close": close_vnd,
+                            "is_adjusted_series": True,
+                            "provider_semantics": "DIVIDEND_ADJUSTED_CANDLE",
                             "volume": max(0.0, vol),
                         })
                     break

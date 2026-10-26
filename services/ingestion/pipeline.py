@@ -305,7 +305,13 @@ class IngestionPipeline:
             else:
                 raw_close_val = float(raw["close"])
                 adj_close_val = float(raw.get("adjusted_close") or raw["close"])
-                adj_factor = adj_close_val / raw_close_val if raw_close_val > 0 else 1.0
+                is_adj_series = bool(raw.get("is_adjusted_series"))
+                if is_adj_series and "raw_close" not in raw:
+                    # Provider supplies adjusted candles only; do not fabricate adjustment_factor=1.0
+                    adj_factor = None
+                else:
+                    adj_factor = adj_close_val / raw_close_val if raw_close_val > 0 else 1.0
+
                 new_price = Price(
                     asset_id=asset.id,
                     observation_date=obs_d,

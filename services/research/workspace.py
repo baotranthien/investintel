@@ -33,6 +33,7 @@ class WorkspaceMetric(BaseModel):
     status: EvidenceStatus
     period: Optional[str] = None
     calculation: Optional[str] = None
+    verification_level: Optional[str] = None
     evidence: Evidence
 
 
@@ -93,6 +94,7 @@ def _metric_from_snapshot(
     source_date: Optional[date],
     publication_date: Optional[date],
     data_origin: Optional[str],
+    verification_level: Optional[str] = None,
 ) -> WorkspaceMetric:
     metric = metric or {}
     metric_status = metric.get("data_status")
@@ -100,14 +102,22 @@ def _metric_from_snapshot(
         status: EvidenceStatus = "NOT_MEANINGFUL" if metric_status in {
             "NOT_MEANINGFUL", "NEGATIVE_DENOMINATOR", "DENOMINATOR_ZERO"
         } else "INSUFFICIENT_DATA"
+        v_level = None
     else:
         status = "AVAILABLE"
+        if verification_level:
+            v_level = verification_level
+        elif metric.get("value_status") == "DERIVED":
+            v_level = "MATHEMATICALLY_CALCULATED"
+        else:
+            v_level = "DATA_PRESENT"
     return WorkspaceMetric(
         value=value,
         unit=unit or metric.get("unit"),
         status=status,
         period=period or metric.get("period"),
         calculation=metric.get("calculation_version"),
+        verification_level=v_level,
         evidence=Evidence(
             claim_type="MODEL_OUTPUT" if metric.get("value_status") == "DERIVED" else "FACT",
             source=source,
@@ -496,11 +506,23 @@ def build_research_workspace(
             calc_note = "Independently verified provider ratio from canonical repository."
 
         meaningful = calc_val is not None
+        v_level = None
+        if meaningful:
+            if fallback_val is not None and abs(calc_val - round(fallback_val, 2)) / max(fallback_val, 0.01) < 0.15:
+                v_level = "SOURCE_RECONCILED"
+            elif fallback_val is not None and calc_val == round(fallback_val, 2):
+                v_level = "INDEPENDENTLY_VERIFIED"
+            else:
+                v_level = "MATHEMATICALLY_CALCULATED"
+        elif current_price is not None or denominator is not None:
+            v_level = "DATA_PRESENT"
+
         valuation_metrics[metric_id] = WorkspaceMetric(
             value=calc_val,
             unit=unit,
             status="AVAILABLE" if meaningful else ("NOT_MEANINGFUL" if denominator is not None and denominator <= 0 else "INSUFFICIENT_DATA"),
             calculation="price / canonical EPS TTM" if metric_id == "pe" else "price / canonical BVPS",
+            verification_level=v_level,
             evidence=Evidence(
                 claim_type="MODEL_OUTPUT" if meaningful else "UNCERTAINTY",
                 source=price_source,
@@ -633,7 +655,12 @@ def build_research_workspace(
         "value": current_price,
         "raw_close": price.raw_close if price else None,
         "adjusted_close": price.adjusted_close if price else None,
-        "adjustment_factor": price.adjustment_factor if price else 1.0,
+        "adjustment_factor": price.adjustment_factor if price else None,
+        "price_semantics": (
+            "DIVIDEND_ADJUSTED_SERIES" if (price and price.adjustment_factor is None)
+            else ("CORPORATE_ACTION_ADJUSTED" if (price and price.adjustment_factor is not None and price.adjustment_factor != 1.0)
+            else "RAW_UNADJUSTED")
+        ) if price else "NO_PRICE",
         "as_of_date": price.observation_date if price else None,
         "source": price_source,
         "status": price_status,
