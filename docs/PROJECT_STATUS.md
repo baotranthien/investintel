@@ -64,9 +64,9 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 * **Date**: 2026-10-27
 * **Phase**: **ACCEPTANCE INTEGRITY CLOSEOUT: UNBIASED RECONCILIATION & ESTIMATED EPS PROPAGATION**
 * **Milestone**: **Full Test Suite Execution (289 Passed, 1 Skipped, 0 Failed), Regression Subset (54/54 Passed), Same-Snapshot P/E Reconciliation (99/100 Matched, 99.0%), Operational Snapshot Drift (94/100 Matched, 94.0%), System-Wide Estimated EPS Propagation (96% Fallback Labeled with Diagnostics Across 6 Layers), DSE Unverified Share Residual Transparency, P/B Fresh Reconciled (74/74 Matched, 100.0%) — VERIFIED**
-* **Repository State**: Working tree clean. Render live backend verified running `d351451936ce2075bf37a407e66e1b9d599e5d23` (`d351451`). Vercel frontend reachable (HTTP 200).
-* **Tested Source Commit SHA**: `d351451936ce2075bf37a407e66e1b9d599e5d23`
-* **Tested Application Fingerprint**: `c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
+* **Repository State**: Working tree clean. Render live backend verified running `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46` (`fb38293`). Vercel frontend reachable (HTTP 200).
+* **Tested Source Commit SHA**: `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46`
+* **Tested Application Fingerprint**: `12a97dda9b5668ab851ea7d8a0bf7cd00a448438b1b4c1cb06a169f58f7e1a9a` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
 * **Full Test Suite**: **289 PASSED, 1 SKIPPED, 0 FAILED** out of 290 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
 * **Regression Subset**: **54/54 PASSED** in 62.49s (23 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 13 in `test_universe_generic.py`).
 * **Metric-Level Reconciliation**:
@@ -91,7 +91,7 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
   - Implied provider EPS ($20,550 / 36.60454642 \approx 561.405676$ VND) is strictly tagged as `DERIVED_CHECK`.
   - Internal Q2 2026 calculation with $428,249,806$ ending shares gives $558.568478$ VND (P/E 36.79 at 20,550 VND).
   - The remaining 0.1867 PE point ($0.51\%$) residual is explicitly classified as `UNVERIFIED_SHARE_BASIS_RESIDUAL` under `PARTIALLY_SUPPORTED`. No unverified provider shares are assumed.
-* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `d351451936ce2075bf37a407e66e1b9d599e5d23`, Neon latency 9.06ms).
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46`, exact match to local HEAD, Neon latency 581.65ms).
 * **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"ce44ef774e91332d358c754dfff05728"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
 * **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).

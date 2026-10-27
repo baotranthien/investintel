@@ -1,21 +1,21 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T11:58:24.671144Z",
-  "source_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
-  "source_root_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
-  "tested_source_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
-  "tested_source_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
-  "tested_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
-  "application_tree_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
+  "evaluated_at": "2026-10-27T12:02:26.897414Z",
+  "source_commit_sha": "fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46",
+  "source_root_tree_sha": "be516f09dbb32a05744b2dab20af89549a20f437",
+  "tested_source_commit_sha": "fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46",
+  "tested_source_tree_sha": "be516f09dbb32a05744b2dab20af89549a20f437",
+  "tested_application_fingerprint": "12a97dda9b5668ab851ea7d8a0bf7cd00a448438b1b4c1cb06a169f58f7e1a9a",
+  "application_tree_fingerprint": "12a97dda9b5668ab851ea7d8a0bf7cd00a448438b1b4c1cb06a169f58f7e1a9a",
   "application_tree_fingerprint_algorithm": "SHA256 of sorted non-docs git ls-tree lines (includes apps/, services/, database/, scripts/, tests/, data/, .github/, Dockerfile; excludes docs/)",
-  "report_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
-  "report_root_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
-  "deployed_backend_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
-  "deployed_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
+  "report_commit_sha": "fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46",
+  "report_root_tree_sha": "be516f09dbb32a05744b2dab20af89549a20f437",
+  "deployed_backend_commit_sha": "fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46",
+  "deployed_application_fingerprint": "12a97dda9b5668ab851ea7d8a0bf7cd00a448438b1b4c1cb06a169f58f7e1a9a",
   "revision_match_status": "EXACT_COMMIT_MATCH",
   "branch": "main",
-  "working_tree_clean": false,
-  "working_tree_diff_fingerprint": "docs/ACCEPTANCE_REPORT.json            |  95 ++++++++++++++++++++++------\n scripts/audit_universe_fundamentals.py |  44 +++++++------\n scripts/evaluate_acceptance_gates.py   |   7 ++-\n services/ai/schemas.py                 |   2 +\n services/contracts/semantic_types.py   |   2 +\n services/contracts/validators.py       |  10 +++\n services/decision/engine.py            |   4 ++\n services/fundamentals/snapshot.py      |  12 ++++\n services/quality/reconciliation.py     |  77 ++++++++++++++++++++---\n services/research/workspace.py         |  29 ++++++++-\n tests/test_data_contracts.py           |  95 ++++++++++++++++++++++++++++\n tests/test_universe_generic.py         | 111 +++++++++++++++++++++++++++++++++\n 12 files changed, 437 insertions(+), 51 deletions(-)",
+  "working_tree_clean": true,
+  "working_tree_diff_fingerprint": "CLEAN",
   "technical_readiness_verdict": "PASS",
   "overall_production_verdict": "PARTIAL",
   "gates": [
@@ -25,7 +25,7 @@
       "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "Regression subset: 54 passed in 62.49s (0:01:02). Full suite verified: 289 passed, 1 skipped.",
+      "evidence": "Regression subset: 54 passed in 71.00s (0:01:11). Full suite verified: 289 passed, 1 skipped.",
       "critical": true
     },
     {
@@ -1648,8 +1648,8 @@
       "name": "Deployed Backend Revision & Health",
       "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
       "status": "PASS",
-      "deployed_backend_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
-      "evidence": "Render commit=d351451936ce2075bf37a407e66e1b9d599e5d23, local=d351451, match=True, db_latency=54.34ms",
+      "deployed_backend_commit_sha": "fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46",
+      "evidence": "Render commit=fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46, local=fb38293, match=True, db_latency=581.65ms",
       "critical": true
     },
     {
@@ -1657,7 +1657,7 @@
       "name": "Deployed Frontend Platform Revision",
       "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
       "status": "BLOCKED_AWAITING_TOKEN",
-      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"ce44ef774e91332d358c754dfff05728\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"68a3705f88d1c04a75817b780c436d8a\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
       "critical": false
     },
     {
