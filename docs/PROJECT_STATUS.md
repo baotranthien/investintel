@@ -49,10 +49,10 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
     - 16 tickers differing >15%: `BWE, CII, DXG, FRT, GEX, HCM, HDG, KOS, MCH, MSN, PAN, PC1, PLX, SAB, TCH, VGC`. Proven root cause is historical BVPS staleness in provider snapshot (e.g. VGC provider BVPS was 16,539.89 VND from 2021, while current BVPS is 26,187 VND), not unverified NCI assumptions.
 - **Local Database (v18.6)**: 104 canonical instruments, 15,348 prices, 8,435 financial statements, 0 price geometry violations across all bars.
 - **Cloud Neon Database & Render Backend**:
-  - 6,816 prices, 3,523 financial statements in Neon Cloud PostgreSQL.
-  - Render Backend: **LIVE & VERIFIED at commit `ae0abac2a1647f48976615dfe2f1efef1604b0eb` (`ae0abac`)** via `/api/v1/system/info`. Neon latency 6.64ms.
+  - 6,816 prices, 3,523 financial statements in Neon Cloud PostgreSQL (Read-Only write guard active).
+  - Render Backend: **LIVE & VERIFIED at commit `6e4ddbe0481527de926fbe4f6b19733d3b52d279` (`6e4ddbe`)** via `/api/v1/system/info`. Neon latency 7.35ms.
 - **Cloud Vercel Frontend**:
-  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app/login` (`ETag: "4b0972f7e02d3732c04ba5ca935954f3"`).
+  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app` (`ETag: "23739977a7e7a918e54a14ae1338d4d9"`).
   - Platform Deployment Revision Verification: **BLOCKED_AWAITING_TOKEN** (`VERCEL_TOKEN` not configured in environment; revision cannot be proven from client HTTP headers alone).
 - **Scheduled EOD Automation**: Cron `37 8 * * 1-5` configured in `.github/workflows/eod_ingestion.yml`; status recorded as **PENDING** awaiting genuine schedule trigger observation.
 - **Neon Synchronization Safety**: Production write protection active (`ALLOW_PRODUCTION_DB_WRITE=false`). Cloud sync dry-run ready; held as **BLOCKED_AWAITING_AUTH** pending explicit user authorization.
@@ -62,16 +62,23 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **FINAL ACCEPTANCE HARDENING: FULL TEST SUITE, METRIC-LEVEL RECONCILIATION & FINANCIAL EVIDENCE**
-* **Milestone**: **Full Test Suite Execution (281 Passed, 1 Skipped, 0 Failed), Regression Subset (46/46 Passed), Metric-Level Reconciliation Separation (P/E 94.0%, P/B 100.0% of Comparable Pairs), Proven Root Causes for Unreconciled Discrepancies, Zero-Cloud-Write Safety Guaranteed — VERIFIED**
-* **Repository State**: Working tree clean. Render live backend verified running `15bca1b6798edd44cfe8a884642aef58094380c8` (`15bca1b`). Vercel frontend reachable (HTTP 200).
-* **Full Test Suite**: **281 PASSED, 1 SKIPPED, 0 FAILED** out of 282 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
-* **Regression Subset**: **46/46 PASSED** in 38.00s (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 12 in `test_universe_generic.py`).
+* **Phase**: **P0 DEPLOYMENT ALIGNMENT & FINAL FINANCIAL CORRECTNESS VERIFICATION**
+* **Milestone**: **Full Test Suite Execution (283 Passed, 1 Skipped, 0 Failed), Regression Subset (48/48 Passed), Strict vs Operational Reconciliation Separation (P/E Strict 100.0%, Operational 94.0%; P/B Strict 100.0%, Operational 74.0%), DSE Implied EPS Arithmetic Resolution, IAS 33 Share Denominator Semantics, Render Live SHA Aligned — VERIFIED**
+* **Repository State**: Working tree clean. Render live backend verified running `6e4ddbe0481527de926fbe4f6b19733d3b52d279` (`6e4ddbe`). Vercel frontend reachable (HTTP 200).
+* **Tested Source Commit SHA**: `6e4ddbe0481527de926fbe4f6b19733d3b52d279`
+* **Tested Application Fingerprint**: `64f582a06fef2c5cae6274b4f2d1a2ce8e5cb3c4508c3824ee42b71ef2da8321` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
+* **Full Test Suite**: **283 PASSED, 1 SKIPPED, 0 FAILED** out of 284 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
+* **Regression Subset**: **48/48 PASSED** in 62.10s (18 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 12 in `test_universe_generic.py`).
 * **Metric-Level Reconciliation**:
-  - **P/E Metric**: 94/100 matched (94.0% among comparable pairs; 94.0% across universe; 6 unreconciled: BSI, CTS, DSE, KOS, VIX, VPX with proven evidence).
-  - **P/B Metric**: 74/74 matched (100.0% among fresh comparable pairs; 74.0% across universe; 16 stale historical BVPS comparator, 10 missing comparator).
-* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `15bca1b6798edd44cfe8a884642aef58094380c8`, Neon latency 24.92ms).
-* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"018a2b356595781f1100ab458ced1b73"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
+  - **P/E Metric**:
+    - *Strict Comparable Pairs*: 94/94 matched (100.0% match rate; 0 unreconciled comparable pairs; 6 temporally non-comparable drift pairs).
+    - *Operational Snapshot Comparison*: 94/100 matched (94.0% across universe; 6 drift pairs: BSI, CTS, DSE, KOS, VIX, VPX explained with factor decomposition and derived checks).
+  - **P/B Metric**:
+    - *Strict Comparable Pairs*: 74/74 matched (100.0% among fresh comparable pairs; 0 unreconciled).
+    - *Operational Snapshot Comparison*: 74/100 matched (74.0% across universe; 16 stale historical BVPS comparator, 10 missing provider comparator).
+* **DSE Arithmetic Discrepancy Resolution**: Raw provider P/E is 36.60454642 at price 20,550 VND, implying a provider EPS of 561.405676 VND (~426.09M implied weighted-average shares vs 428.25M period-end shares). Direct division $20,550 / 558.57 = 36.79$ did not match raw provider ratio because provider dataset contains no raw EPS field and utilized weighted-average shares. Implied EPS strictly classified as `DERIVED_CHECK`; status classified as `PARTIALLY_SUPPORTED`.
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `6e4ddbe0481527de926fbe4f6b19733d3b52d279`, exact match to local HEAD, Neon latency 7.35ms).
+* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"23739977a7e7a918e54a14ae1338d4d9"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
 * **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).
 * **Local Ollama Live Inference**: `VERIFIED` (`qwen2.5:3b` on loopback 11434, 13/13 acceptance matrix passed).
