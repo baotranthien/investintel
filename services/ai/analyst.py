@@ -99,7 +99,26 @@ class AIAnalyst:
 
     def _citations(self, context: dict[str, Any]) -> list[AICitation]:
         citations = []
-        for index, item in enumerate(context.get("evidence", []), start=1):
+        raw_evidence = context.get("evidence", [])
+        if isinstance(raw_evidence, dict):
+            evidence_items = []
+            for module_name, items in raw_evidence.items():
+                if isinstance(items, list):
+                    for item in items:
+                        if isinstance(item, dict):
+                            item_copy = dict(item)
+                            item_copy.setdefault("responsible_module", module_name)
+                            evidence_items.append(item_copy)
+                elif isinstance(items, dict):
+                    item_copy = dict(items)
+                    item_copy.setdefault("responsible_module", module_name)
+                    evidence_items.append(item_copy)
+        elif isinstance(raw_evidence, list):
+            evidence_items = raw_evidence
+        else:
+            evidence_items = []
+
+        for index, item in enumerate(evidence_items, start=1):
             citations.append(AICitation(
                 id=f"E{index:03d}",
                 claim_type=item.get("claim_type", "UNCERTAINTY"),
@@ -114,6 +133,8 @@ class AIAnalyst:
                 retrieved_at=str(item["retrieved_at"]) if item.get("retrieved_at") else None,
                 data_origin=item.get("data_origin"),
                 freshness=item.get("freshness"),
+                is_estimate=item.get("is_estimate", False),
+                diagnostic_reason=item.get("diagnostic_reason"),
                 note=item.get("note"),
             ))
         return citations

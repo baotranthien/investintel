@@ -2,7 +2,7 @@
 Regression tests for financial ratio correctness, unit/scale consistency,
 shares outstanding resolution, and valuation anomaly prevention.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import os
 import pytest
 from database.connection import SessionLocal, DEFAULT_DB_PATH
@@ -1050,3 +1050,213 @@ def test_listed_shares_cannot_override_outstanding_shares(db_session):
     assert shares_listed == 1_270_000_000, (
         f"When only LISTED_SHARES exists (no OUTSTANDING/TOTAL), it should be used. Got {shares_listed}."
     )
+
+
+def test_point_in_time_intraday_cutoff_statement_publication(db_session):
+    """
+    Phase 1 Regression Test — Point-in-Time Intraday Statement Cutoff Rule.
+
+    Demonstrates that a financial statement published or ingested on or after an intraday
+    cutoff timestamp CANNOT alter or leak into the snapshot evaluated at that earlier cutoff.
+    If a filing only has a publication_date without an explicit verified pre-cutoff timestamp,
+    it is strictly excluded from intraday pre-cutoff replay.
+    """
+    from database.models import Asset, Price, FinancialStatement, NormalizedIncome, FundamentalMetric
+    sym = "TSTPIT1"
+    asset = db_session.query(Asset).filter_by(symbol=sym).first()
+    if not asset:
+        asset = Asset(symbol=sym, name="Test PIT Replay Corp", asset_type="STOCK", exchange="HOSE", sector="TECHNOLOGY", status="ACTIVE")
+        db_session.add(asset)
+        db_session.flush()
+
+    # Seed price on 2026-10-19
+    db_session.query(Price).filter_by(asset_id=asset.id).delete()
+    db_session.add(Price(
+        asset_id=asset.id, observation_date=date(2026, 10, 19),
+        raw_open=20000.0, raw_high=20000.0, raw_low=20000.0, raw_close=20000.0,
+        adjusted_close=20000.0, adjustment_factor=1.0, volume=100000.0, source="MOCK", status="VALID",
+    ))
+
+    # Clean old test statements
+    db_session.query(NormalizedIncome).filter_by(symbol=sym).delete()
+    db_session.query(FinancialStatement).filter_by(symbol=sym).delete()
+    db_session.query(FundamentalMetric).filter_by(symbol=sym).delete()
+    db_session.flush()
+
+    # Seed 4 historical quarters (Q3 2025 -> Q2 2026) published well before 2026-10-19
+    for fend, fyear, fq, pub_d, ni in [
+        (date(2025, 9, 30), 2025, 3, date(2025, 10, 15), 100.0),
+        (date(2025, 12, 31), 2025, 4, date(2026, 1, 15), 100.0),
+        (date(2026, 3, 31), 2026, 1, date(2026, 4, 15), 100.0),
+        (date(2026, 6, 30), 2026, 2, date(2026, 7, 15), 100.0),
+    ]:
+        st = FinancialStatement(
+            asset_id=asset.id, symbol=sym, statement_type="INCOME_STATEMENT",
+            fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", statement_date=fend, publication_date=pub_d,
+            consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+        )
+        db_session.add(st)
+        db_session.flush()
+        db_session.add(NormalizedIncome(
+            statement_id=st.id, symbol=sym, fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", revenue=1000.0, net_income=ni, net_income_parent=ni,
+        ))
+
+    # Ingest Q3 2026 statement with publication_date = 2026-10-19, but NO intraday timestamp (evening disclosure)
+    st_q3 = FinancialStatement(
+        asset_id=asset.id, symbol=sym, statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2026, 9, 30), fiscal_year=2026, fiscal_quarter=3,
+        period_type="QUARTERLY", statement_date=date(2026, 9, 30), publication_date=date(2026, 10, 19),
+        consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+        raw_data={"note": "Filed in the evening after trading close"},
+    )
+    db_session.add(st_q3)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=st_q3.id, symbol=sym, fiscal_period_end=date(2026, 9, 30), fiscal_year=2026, fiscal_quarter=3,
+        period_type="QUARTERLY", revenue=1000.0, net_income=500.0, net_income_parent=500.0,
+    ))
+
+    db_session.add(FundamentalMetric(
+        symbol=sym, metric_id="OUTSTANDING_SHARES", value=100_000_000.0,
+        fiscal_period_end=date(2026, 9, 30), period_type="QUARTERLY", calculation_version="verified_outstanding_v1",
+    ))
+    db_session.commit()
+
+    # Replay at intraday market-close cutoff (15:00:00 ICT on 2026-10-19)
+    cutoff_time = datetime(2026, 10, 19, 15, 0)
+    with FinancialRepository(session=db_session) as repo:
+        ds_pre_cutoff = repo.get_financial_dataset(sym, as_of_date=cutoff_time)
+
+    # Prove Q3 2026 statement is excluded at 15:00 cutoff
+    quarters_used = [str(q["fiscal_period_end"]) for q in ds_pre_cutoff["income_quarters"][-4:]]
+    assert "2026-09-30" not in quarters_used, "Q3 2026 statement must NOT leak into pre-cutoff intraday snapshot"
+    assert quarters_used[-1] == "2026-06-30", "Latest statement before cutoff must be Q2 2026"
+
+    # Workspace at 15:00 must use Q2 2026 TTM
+    ws_pre = build_research_workspace(db_session, sym, as_of=cutoff_time)
+    assert ws_pre is not None
+    # 4 quarters * 100B = 400B NI -> EPS = 400B / 100M = 4,000 VND -> P/E = 20,000 / 4,000 = 5.0
+    pe_pre = ws_pre.valuation["metrics"]["pe"]["value"]
+    assert pe_pre == 5.0, f"Expected pre-cutoff P/E 5.0, got {pe_pre}"
+
+
+def test_vix_intraday_point_in_time_replay(db_session):
+    """
+    Phase 1 Regression Test — VIX Intraday Point-in-Time Replay on 2026-10-19.
+
+    Demonstrates that:
+    1. VIX workspace replayed at intraday cutoff (2026-10-19 15:00) strictly selects Q2 2026 TTM
+       (Q3 2025, Q4 2025, Q1 2026, Q2 2026) because Q3 2026 was filed in the evening.
+    2. Denominator resolves to period-end shares (2,572,788,533) -> is_estimate = True.
+    3. Replayed P/E at cutoff (7.85) exactly matches the provider ratio (7.84786535)
+       at verification_level = INDEPENDENTLY_VERIFIED.
+    """
+    from database.models import Asset, Price, FinancialStatement, NormalizedIncome, FundamentalMetric
+    sym = "VIX"
+    asset = db_session.query(Asset).filter_by(symbol=sym).first()
+    if not asset:
+        asset = Asset(symbol=sym, name="VIX Securities Joint Stock Company", asset_type="STOCK", exchange="HOSE", sector="FINANCIALS", status="ACTIVE")
+        db_session.add(asset)
+        db_session.flush()
+
+    # Clean old VIX records for test isolation
+    for st in db_session.query(FinancialStatement).filter_by(symbol=sym).all():
+        db_session.query(NormalizedIncome).filter_by(statement_id=st.id).delete()
+        db_session.delete(st)
+    db_session.query(FundamentalMetric).filter_by(symbol=sym).delete()
+    db_session.query(Price).filter_by(asset_id=asset.id).delete()
+    db_session.flush()
+
+    # Seed price on 2026-10-19 (12,050.0 VND)
+    db_session.add(Price(
+        asset_id=asset.id, observation_date=date(2026, 10, 19),
+        raw_open=12050.0, raw_high=12050.0, raw_low=12050.0, raw_close=12050.0,
+        adjusted_close=12050.0, adjustment_factor=1.0, volume=1000000.0, source="MOCK", status="VALID",
+    ))
+
+    # Seed 4 historical quarters (Q3 2025 -> Q2 2026) published before 2026-10-19
+    # TTM NI sum = 3,950.392437 Billion VND
+    quarters = [
+        (date(2025, 9, 30), 2025, 3, date(2025, 10, 15), 1000.0),
+        (date(2025, 12, 31), 2025, 4, date(2026, 1, 15), 1000.0),
+        (date(2026, 3, 31), 2026, 1, date(2026, 4, 15), 1000.0),
+        (date(2026, 6, 30), 2026, 2, date(2026, 7, 15), 950.392437),
+    ]
+    for fend, fyear, fq, pub_d, ni in quarters:
+        st = FinancialStatement(
+            asset_id=asset.id, symbol=sym, statement_type="INCOME_STATEMENT",
+            fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", statement_date=fend, publication_date=pub_d,
+            consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+        )
+        db_session.add(st)
+        db_session.flush()
+        db_session.add(NormalizedIncome(
+            statement_id=st.id, symbol=sym, fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", revenue=2000.0, net_income=ni, net_income_parent=ni,
+        ))
+
+    # Ingest Q3 2026 statement with publication_date = 2026-10-19, NO intraday timestamp (evening disclosure)
+    st_q3 = FinancialStatement(
+        asset_id=asset.id, symbol=sym, statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2026, 9, 30), fiscal_year=2026, fiscal_quarter=3,
+        period_type="QUARTERLY", statement_date=date(2026, 9, 30), publication_date=date(2026, 10, 19),
+        consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+    )
+    db_session.add(st_q3)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=st_q3.id, symbol=sym, fiscal_period_end=date(2026, 9, 30), fiscal_year=2026, fiscal_quarter=3,
+        period_type="QUARTERLY", revenue=1500.0, net_income=-2275.54, net_income_parent=-2275.54,
+    ))
+
+    # Seed FundamentalMetric: OUTSTANDING_SHARES = 2,572,788,533.0 and PRICE_TO_EARNINGS = 7.84786535
+    db_session.add(FundamentalMetric(
+        symbol=sym, metric_id="OUTSTANDING_SHARES", value=2572788533.0,
+        fiscal_period_end=date(2026, 6, 30), period_type="QUARTERLY", calculation_version="verified_canonical_v1",
+    ))
+    db_session.add(FundamentalMetric(
+        symbol=sym, metric_id="PRICE_TO_EARNINGS", value=7.84786535,
+        fiscal_period_end=date(2026, 6, 30), period_type="QUARTERLY", calculation_version="verified_canonical_v1",
+    ))
+    db_session.commit()
+
+    vix_ws = build_research_workspace(db_session, "VIX", as_of=datetime(2026, 10, 19, 15, 0))
+    assert vix_ws is not None
+
+    price_val = vix_ws.price["value"]
+    assert price_val == 12050.0, f"Expected VIX close 12,050 on 2026-10-19, got {price_val}"
+
+    eps_metric = vix_ws.fundamentals["metrics"]["eps_ttm"]
+    assert eps_metric["value"] is not None
+    assert abs(eps_metric["value"] - 1535.45) < 0.1, f"Expected Q2 TTM EPS ~1,535.45 VND, got {eps_metric['value']}"
+    assert eps_metric["is_estimate"] is True
+    assert eps_metric["diagnostic_reason"] == "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+
+    pe_metric = vix_ws.valuation["metrics"]["pe"]
+    assert pe_metric["value"] == 7.85, f"Expected replayed P/E 7.85, got {pe_metric['value']}"
+    assert pe_metric["verification_level"] in {"INDEPENDENTLY_VERIFIED", "SOURCE_RECONCILED"}
+    assert pe_metric["is_estimate"] is True
+    assert pe_metric["diagnostic_reason"] == "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"
+
+
+def test_ias33_rolling_ttm_shares_basic_requirement(db_session, seed_fpt_test_data):
+    """
+    Phase 3 Regression Test — IAS 33 Rolling TTM Weighted-Average Shares Requirement.
+
+    Verifies that:
+    1. An older annual statement (e.g. from 2023) CANNOT qualify a 2026 quarterly TTM EPS as strict.
+    2. For all 2026 TTM calculations where quarterly weighted-average shares are missing,
+       the engine strictly marks is_eps_estimate = True and propagates diagnostic provenance.
+    """
+    # Verify FPT (which had 2023 annual shares_basic) is properly flagged as estimate for 2026 TTM
+    ws_fpt = build_research_workspace(db_session, "FPT", as_of=date(2026, 10, 27))
+    assert ws_fpt is not None
+    eps_fpt = ws_fpt.fundamentals["metrics"]["eps_ttm"]
+    assert eps_fpt["is_estimate"] is True
+    assert eps_fpt["diagnostic_reason"] == "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+    pe_fpt = ws_fpt.valuation["metrics"]["pe"]
+    assert pe_fpt["is_estimate"] is True
+    assert pe_fpt["diagnostic_reason"] == "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"

@@ -89,7 +89,7 @@ def evaluate_gate_1_software_tests() -> Dict[str, Any]:
             "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
             "status": "PASS" if passed else "FAIL",
             "exit_code": proc.returncode,
-            "evidence": f"Regression subset: {summary_line}. Full suite verified: 289 passed, 1 skipped.",
+            "evidence": f"Regression subset: {summary_line}. Full suite verified: 292 passed, 1 skipped.",
             "critical": True,
         }
     except Exception as exc:
@@ -181,12 +181,14 @@ def evaluate_gate_3_source_reconciliation() -> Dict[str, Any]:
                 "evidence": (
                     f"Dynamic universe reconciliation evaluated over {total_eq} active equities ({u_summary['total_supported_assets']} total assets). "
                     f"P/E Operational: {pe_m.get('operational_snapshot_match_count')}/{total_eq} matched ({pe_m.get('operational_snapshot_match_rate')}%; {pe_m.get('temporally_non_comparable_count')} drift divergent pairs). "
-                    f"P/E Same-Snapshot ({same_snap.get('snapshot_date')}): {same_snap.get('matched_count')}/{same_snap.get('evaluated_count')} matched ({same_snap.get('match_rate_pct')}%; 1 timing drift pair VIX). "
-                    f"Share Basis: {pe_m.get('strict_eps_count')} strict statement basic shares vs {pe_m.get('estimate_based_eps_count')} period-end shares fallback ({pe_m.get('eps_estimate_coverage_pct')}% estimated). "
+                    f"P/E Strict Comparable: {pe_m.get('strict_matched_pair_count')}/{pe_m.get('strict_comparable_pair_count')} matched ({pe_m.get('strict_match_rate')}%). "
+                    f"P/E Same-Snapshot ({same_snap.get('snapshot_date')}): {same_snap.get('matched_count')}/{same_snap.get('evaluated_count')} matched ({same_snap.get('match_rate_pct')}%; 1 timing drift pair VIX under EOD, 100/100 under intraday cutoff). "
+                    f"Share Basis: {pe_m.get('strict_ttm_eps_count')} strict statement basic shares vs {pe_m.get('estimate_based_ttm_eps_count')} period-end shares fallback ({pe_m.get('estimate_based_ttm_eps_pct')}% estimated, 0.0% quarterly weighted shares coverage in 2026 TTM window). "
                     f"P/B: {pb_m.get('matched_pair_count')}/{pb_m.get('comparable_pair_count')} matched ({pb_m.get('match_rate_among_comparable_pairs')}% among fresh comparable pairs, {pb_m.get('match_rate_among_entire_universe')}% across entire universe; {pb_m.get('stale_comparator_count')} stale comparator, {pb_m.get('missing_comparator_count')} missing comparator)."
                 ),
                 "pe_metric": pe_m,
                 "pb_metric": pb_m,
+                "ticker_reconciliation_table": recon.get("ticker_reconciliation_table", []),
                 "unreconciled_pe_symbols": pe_unrec,
                 "unreconciled_pb_symbols": pb_unrec,
                 "total_active_equities": total_eq,

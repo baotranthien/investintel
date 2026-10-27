@@ -73,6 +73,8 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
         "symbol": sym,
         "sector": dataset["sector"],
         "eps_ttm": snapshot.get("eps_ttm") or _val(per_share, "eps_ttm"),
+        "is_eps_estimate": per_share.get("is_eps_estimate", False),
+        "eps_diagnostic_reason": per_share.get("eps_diagnostic_reason"),
         "bvps": snapshot.get("bvps") or _val(per_share, "bvps"),
         "shares_outstanding": dataset.get("shares_outstanding") or _val(per_share, "shares_basic") or 1_000_000_000,
         "revenue_ttm": snapshot.get("revenue_ttm") or _val(ttm, "revenue") or snapshot.get("revenue_annual") or (dataset["income_annual"][-1].get("revenue") if dataset.get("income_annual") else None),

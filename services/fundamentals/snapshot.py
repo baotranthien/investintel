@@ -249,11 +249,17 @@ class FundamentalSnapshotBuilder:
         ni_ttm = ttm.get("net_income_parent") if ttm.get("net_income_parent") is not None else ttm.get("net_income")
         if ni_ttm is not None and shares and shares > 0:
             eps_ttm_val = (ni_ttm * 1_000_000_000) / shares
-            # If shares was not directly provided as statement shares_basic, it's a period-end fallback estimate
-            has_statement_shares_basic = bool(
-                latest_income_a.get("shares_basic") or 
-                (income_quarters and any(bool(q.get("shares_basic")) for q in income_quarters[-4:]))
-            )
+            # IAS 33 Basic EPS: Requires weighted-average ordinary shares for the specific reporting period.
+            # An older annual statement (e.g. 2023) CANNOT qualify a current quarterly TTM window (e.g. 2026 TTM).
+            # For a rolling 4-quarter TTM calculation, all 4 active quarters must have verified shares_basic.
+            active_ttm_quarters = income_quarters[-4:] if (income_quarters and len(income_quarters) >= 4) else []
+            if active_ttm_quarters:
+                has_statement_shares_basic = all(bool(q.get("shares_basic")) for q in active_ttm_quarters)
+            elif latest_income_a and not income_quarters:
+                has_statement_shares_basic = bool(latest_income_a.get("shares_basic"))
+            else:
+                has_statement_shares_basic = False
+
             if not has_statement_shares_basic:
                 is_eps_estimate = True
                 eps_diagnostic = "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"

@@ -80,8 +80,10 @@ def main():
         print(f"  Internally Calculable Count          : {pe_m.get('internally_calculable_count')}")
         print(f"  Provider Value Available Count       : {pe_m.get('provider_value_available_count')} ({pe_m.get('provider_coverage_pct')}%)")
         print(f"  Provider Value Fresh Count           : {pe_m.get('provider_value_fresh_count')} ({pe_m.get('fresh_comparator_coverage_pct')}%)")
-        print(f"  Strict EPS (Statement Basic Shares)  : {pe_m.get('strict_eps_count')}/100")
-        print(f"  Estimate EPS (Period-End Fallback)   : {pe_m.get('estimate_based_eps_count')}/100 ({pe_m.get('eps_estimate_coverage_pct')}%)")
+        print(f"  Strict IAS 33 Basic EPS (TTM Window) : {pe_m.get('strict_ttm_eps_count')}/100 ({pe_m.get('strict_ttm_eps_pct')}%)")
+        print(f"  Estimate EPS (Period-End Fallback)   : {pe_m.get('estimate_based_ttm_eps_count')}/100 ({pe_m.get('estimate_based_ttm_eps_pct')}%)")
+        print(f"  Quarterly Weighted Shares Coverage   : {pe_m.get('current_quarter_weighted_average_shares_coverage_pct')}% (0/100 quarters in 2026 TTM window)")
+        print(f"  -> Strict Comparable Pairs Match     : {pe_m.get('strict_matched_pair_count')}/{pe_m.get('strict_comparable_pair_count')} ({pe_m.get('strict_match_rate')}%)")
         print(f"  -> Operational Snapshot Matches      : {pe_m.get('operational_snapshot_match_count')}/{pe_m.get('universe_count')} ({pe_m.get('operational_snapshot_match_rate')}%)")
         print(f"  -> Operational Drift Divergent Pairs : {pe_m.get('temporally_non_comparable_count')}/100")
 

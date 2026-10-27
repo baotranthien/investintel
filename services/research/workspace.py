@@ -1,5 +1,5 @@
 from datetime import date, datetime, time
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -138,9 +138,10 @@ def _metric_from_snapshot(
 def build_research_workspace(
     session: Session,
     symbol: str,
-    as_of: Optional[date] = None,
+    as_of: Optional[Union[date, datetime]] = None,
 ) -> Optional[ResearchWorkspace]:
     as_of = as_of or date.today()
+    as_of_d = as_of.date() if isinstance(as_of, datetime) else as_of
     from services.universe.registry import UniverseRegistry
     resolved = UniverseRegistry.resolve_instrument(session, symbol)
     normalized_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
@@ -151,7 +152,7 @@ def build_research_workspace(
     price = session.query(Price).filter(
         Price.asset_id == asset.id,
         Price.status == "VALID",
-        Price.observation_date <= as_of,
+        Price.observation_date <= as_of_d,
     ).order_by(Price.observation_date.desc()).first()
     price_lineage = _lineage_for(session, "prices", price.id) if price else None
     price_source = price.source if price else None
@@ -161,7 +162,7 @@ def build_research_workspace(
         price_origin = "SEEDED_OR_UNTRACED"
         if price_lineage:
             price_origin = "STATIC_OR_SEEDED" if (price.source or "").upper() in {"HOSE_CSV", "MARKETDATACSV"} else "LINEAGED_INGESTION"
-        price_status = "STALE" if (as_of - price.observation_date).days > 7 else "AVAILABLE"
+        price_status = "STALE" if (as_of_d - price.observation_date).days > 7 else "AVAILABLE"
 
     with FinancialRepository(session=session) as repository:
         dataset = repository.get_financial_dataset(normalized_symbol, as_of_date=as_of)
@@ -198,7 +199,7 @@ def build_research_workspace(
             income_annual=dataset["income_annual"],
             balance_annual=dataset["balance_annual"],
             cashflow_annual=dataset["cashflow_annual"],
-            as_of_date=as_of,
+            as_of_date=as_of_d,
             shares_outstanding=dataset.get("shares_outstanding"),
             sources=source_names,
         )
@@ -482,12 +483,15 @@ def build_research_workspace(
 
     # Load stored authoritative provider metrics from FundamentalMetric for cross-check/fallback
     from database.models import FundamentalMetric
-    db_metrics = session.query(FundamentalMetric).filter(
+    db_metrics_q = session.query(FundamentalMetric).filter(
         FundamentalMetric.symbol == normalized_symbol,
         FundamentalMetric.metric_id.in_(["PRICE_TO_EARNINGS", "PRICE_TO_BOOK", "P_E", "P_B"]),
         FundamentalMetric.value.isnot(None),
         FundamentalMetric.value > 0
-    ).order_by(FundamentalMetric.fiscal_period_end.desc()).all()
+    )
+    if as_of_d:
+        db_metrics_q = db_metrics_q.filter(FundamentalMetric.fiscal_period_end <= as_of_d)
+    db_metrics = db_metrics_q.order_by(FundamentalMetric.fiscal_period_end.desc()).all()
     db_metric_map = {m.metric_id: float(m.value) for m in db_metrics}
     db_pe = db_metric_map.get("PRICE_TO_EARNINGS") or db_metric_map.get("P_E")
     db_pb = db_metric_map.get("PRICE_TO_BOOK") or db_metric_map.get("P_B")
@@ -738,7 +742,7 @@ def build_research_workspace(
         "AVAILABLE" if has_financials and price is not None and quality_status == "AVAILABLE" else "PARTIAL"
     )
     response = ResearchWorkspace(
-        as_of_date=as_of,
+        as_of_date=as_of_d,
         status=result_status,
         asset=overview,
         price=price_payload,
@@ -798,7 +802,7 @@ def build_research_workspace(
             "source_origin": lineage_origin,
             "history_depth_years": history_depth,
             "stale_warning": price_status == "STALE",
-            "as_of_date": as_of,
+            "as_of_date": as_of_d,
         },
     )
     from services.contracts.invalidation import invalidation_graph, DependencyNodeType, NodeState

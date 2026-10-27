@@ -6,7 +6,7 @@ Enforces:
 3. Provenance and audit trail tracing.
 """
 from datetime import date, datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -56,7 +56,7 @@ class FinancialRepository:
     def get_financial_dataset(
         self,
         symbol: str,
-        as_of_date: Optional[date] = None
+        as_of_date: Optional[Union[date, datetime]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Loads point-in-time canonical financial records from database.
@@ -78,13 +78,67 @@ class FinancialRepository:
             FinancialStatement.symbol == sym,
             FinancialStatement.status == "VALID"
         )
+        cutoff_date = None
+        cutoff_dt = None
         if as_of_date:
-            stmt_query = stmt_query.filter(FinancialStatement.publication_date <= as_of_date)
+            if isinstance(as_of_date, datetime):
+                cutoff_dt = as_of_date
+                cutoff_date = as_of_date.date()
+            else:
+                cutoff_date = as_of_date
+            stmt_query = stmt_query.filter(FinancialStatement.publication_date <= cutoff_date)
 
         statements_raw = stmt_query.order_by(
             FinancialStatement.fiscal_period_end.desc(),
             FinancialStatement.version.desc()
         ).all()
+
+        if not statements_raw:
+            return None
+
+        if cutoff_dt:
+            # Point-in-Time Intraday Availability Filtering:
+            # 1. Statements published strictly before cutoff_date are kept.
+            # 2. If publication_date == cutoff_date:
+            #    Rule: Do not assume a same-day filing existed before intraday cutoff
+            #    without verified pre-cutoff publication timestamp.
+            # 3. If created_at > cutoff_dt, the statement was ingested after cutoff and is excluded.
+            # 4. If updated_at > cutoff_dt, exclude records modified post-cutoff.
+            filtered_statements = []
+            for stmt in statements_raw:
+                if stmt.publication_date < cutoff_date:
+                    # Published on an earlier calendar day: definitely available prior to cutoff
+                    filtered_statements.append(stmt)
+                    continue
+
+                if stmt.publication_date == cutoff_date:
+                    # Same-day statement: check for explicit intraday publication timestamp
+                    pub_ts = None
+                    if stmt.raw_data and isinstance(stmt.raw_data, dict):
+                        raw_ts = stmt.raw_data.get("publication_timestamp")
+                        if raw_ts:
+                            try:
+                                pub_ts = datetime.fromisoformat(str(raw_ts))
+                            except Exception:
+                                pub_ts = None
+
+                    # If explicit publication timestamp is recorded
+                    if pub_ts is not None:
+                        if cutoff_dt.tzinfo is not None and pub_ts.tzinfo is None:
+                            from datetime import timezone
+                            pub_ts = pub_ts.replace(tzinfo=timezone.utc)
+                        elif cutoff_dt.tzinfo is None and pub_ts.tzinfo is not None:
+                            pub_ts = pub_ts.replace(tzinfo=None)
+
+                        if pub_ts <= cutoff_dt:
+                            filtered_statements.append(stmt)
+                    else:
+                        # No verified intraday publication timestamp:
+                        # Contract Rule: if filing only has publication date without time,
+                        # and snapshot cutoff is intraday same day, do NOT assume it existed before cutoff.
+                        continue
+
+            statements_raw = filtered_statements
 
         if not statements_raw:
             return None
@@ -235,8 +289,8 @@ class FinancialRepository:
             FundamentalMetric.value.isnot(None),
             FundamentalMetric.value > 0,
         )
-        if as_of_date:
-            sh_query = sh_query.filter(FundamentalMetric.fiscal_period_end <= as_of_date)
+        if cutoff_date:
+            sh_query = sh_query.filter(FundamentalMetric.fiscal_period_end <= cutoff_date)
         # metric_priority FIRST: OUTSTANDING(1) always beats LISTED(3)
         # fiscal_period_end DESC is secondary: within same type, prefer newest
         sh_metric = sh_query.order_by(metric_priority, FundamentalMetric.fiscal_period_end.desc()).first()
