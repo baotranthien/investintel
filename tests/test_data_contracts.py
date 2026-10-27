@@ -155,7 +155,59 @@ def test_share_resolution_charter_capital_fallback_labeled_as_estimate():
     assert res.verification_level == VerificationLevel.MATHEMATICALLY_CALCULATED
 
 
-# ============================================================================
+def test_share_resolution_accounting_eps_prefers_weighted_average():
+    """IAS 33: Purpose 'accounting_eps' strictly prefers WEIGHTED_AVG_BASIC over ending OUTSTANDING_SHARES."""
+    records = [
+        {
+            "symbol": "VNM",
+            "metric_id": "LISTED_SHARES",
+            "value": 2_089_955_445,
+            "fiscal_period_end": date(2026, 6, 30),
+        },
+        {
+            "symbol": "VNM",
+            "metric_id": "OUTSTANDING_SHARES",
+            "value": 2_089_955_445,
+            "fiscal_period_end": date(2026, 6, 30),
+        },
+        {
+            "symbol": "VNM",
+            "metric_id": "WEIGHTED_AVG_BASIC",
+            "value": 2_050_000_000,
+            "fiscal_period_end": date(2026, 6, 30),
+        },
+    ]
+    res = resolve_shares_by_purpose(records, purpose="accounting_eps")
+    assert res is not None
+    assert res.share_type == ShareType.WEIGHTED_AVG_BASIC
+    assert res.share_count == 2_050_000_000
+    assert res.is_estimate is False
+
+
+def test_share_resolution_accounting_eps_fallback_labeled_when_weighted_avg_missing():
+    """IAS 33: When weighted-average shares are missing, fallback to ending shares is explicitly labeled as an estimate."""
+    records = [
+        {
+            "symbol": "DSE",
+            "metric_id": "OUTSTANDING_SHARES",
+            "value": 428_249_806,
+            "fiscal_period_end": date(2026, 6, 30),
+        },
+    ]
+    # For accounting EPS, missing weighted-average shares triggers fallback estimate label
+    res_eps = resolve_shares_by_purpose(records, purpose="accounting_eps")
+    assert res_eps is not None
+    assert res_eps.share_type == ShareType.OUTSTANDING_CURRENT
+    assert res_eps.share_type != ShareType.WEIGHTED_AVG_BASIC
+    assert res_eps.is_estimate is True
+    assert "WEIGHTED_AVERAGE_UNAVAILABLE" in res_eps.diagnostic_reason
+
+    # For market valuation (P/E, Market Cap), OUTSTANDING_CURRENT is authoritative, NOT an estimate
+    res_val = resolve_shares_by_purpose(records, purpose="market_valuation")
+    assert res_val is not None
+    assert res_val.share_type == ShareType.OUTSTANDING_CURRENT
+    assert res_val.is_estimate is False
+
 # 3. TTM Continuity & Period Normalization Tests
 # ============================================================================
 

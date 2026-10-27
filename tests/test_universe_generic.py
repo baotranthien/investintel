@@ -762,7 +762,7 @@ def test_metric_level_reconciliation_contracts(db_session: Session):
     pe_m = recon["pe_metric"]
     pb_m = recon["pb_metric"]
 
-    # Required 13 fields check
+    # Required 14 fields check
     required_fields = [
         "universe_count",
         "internally_calculable_count",
@@ -773,6 +773,7 @@ def test_metric_level_reconciliation_contracts(db_session: Session):
         "unreconciled_pair_count",
         "stale_comparator_count",
         "missing_comparator_count",
+        "temporally_non_comparable_count",
         "unverified_count",
         "coverage_pct",
         "match_rate_among_comparable_pairs",
@@ -786,13 +787,15 @@ def test_metric_level_reconciliation_contracts(db_session: Session):
     # Mathematical consistency invariants
     assert pe_m["universe_count"] == pe_m["provider_value_available_count"] + pe_m["missing_comparator_count"]
     assert pe_m["provider_value_available_count"] == pe_m["provider_value_fresh_count"] + pe_m["stale_comparator_count"]
+    assert pe_m["provider_value_fresh_count"] == pe_m["comparable_pair_count"] + pe_m["temporally_non_comparable_count"]
     assert pe_m["comparable_pair_count"] == pe_m["matched_pair_count"] + pe_m["unreconciled_pair_count"]
-    assert pe_m["unverified_count"] == pe_m["unreconciled_pair_count"] + pe_m["stale_comparator_count"] + pe_m["missing_comparator_count"]
+    assert pe_m["unverified_count"] == pe_m["unreconciled_pair_count"] + pe_m["stale_comparator_count"] + pe_m["missing_comparator_count"] + pe_m["temporally_non_comparable_count"]
 
     assert pb_m["universe_count"] == pb_m["provider_value_available_count"] + pb_m["missing_comparator_count"]
     assert pb_m["provider_value_available_count"] == pb_m["provider_value_fresh_count"] + pb_m["stale_comparator_count"]
+    assert pb_m["provider_value_fresh_count"] == pb_m["comparable_pair_count"] + pb_m["temporally_non_comparable_count"]
     assert pb_m["comparable_pair_count"] == pb_m["matched_pair_count"] + pb_m["unreconciled_pair_count"]
-    assert pb_m["unverified_count"] == pb_m["unreconciled_pair_count"] + pb_m["stale_comparator_count"] + pb_m["missing_comparator_count"]
+    assert pb_m["unverified_count"] == pb_m["unreconciled_pair_count"] + pb_m["stale_comparator_count"] + pb_m["missing_comparator_count"] + pb_m["temporally_non_comparable_count"]
 
 
 

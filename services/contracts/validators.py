@@ -105,13 +105,22 @@ def resolve_shares_by_purpose(
         eligible = records
 
     # Sort priority depending on purpose
-    type_priority = {
-        "OUTSTANDING_SHARES": 1,
-        "TOTAL_SHARES": 2,
-        "LISTED_SHARES": 3,
-        "WEIGHTED_AVG_BASIC": 1 if purpose == "accounting_eps" else 4,
-        "WEIGHTED_AVG_DILUTED": 2 if purpose == "accounting_eps" else 5,
-    }
+    if purpose == "accounting_eps":
+        type_priority = {
+            "WEIGHTED_AVG_BASIC": 0,
+            "WEIGHTED_AVG_DILUTED": 1,
+            "OUTSTANDING_SHARES": 2,
+            "TOTAL_SHARES": 3,
+            "LISTED_SHARES": 4,
+        }
+    else:
+        type_priority = {
+            "OUTSTANDING_SHARES": 1,
+            "TOTAL_SHARES": 2,
+            "LISTED_SHARES": 3,
+            "WEIGHTED_AVG_BASIC": 4,
+            "WEIGHTED_AVG_DILUTED": 5,
+        }
 
     # Detect conflicts: multiple different values for OUTSTANDING_SHARES on same period
     out_records = [r for r in eligible if r.get("metric_id") == "OUTSTANDING_SHARES"]
@@ -145,6 +154,13 @@ def resolve_shares_by_purpose(
         elif "WEIGHTED" in mid:
             stype = ShareType.WEIGHTED_AVG_BASIC
 
+        # Semantic check: if purpose is accounting_eps but top record is NOT weighted-average basic,
+        # explicitly mark as fallback estimate to adhere strictly to IAS 33 semantics.
+        is_fallback_estimate = False
+        if purpose == "accounting_eps" and stype != ShareType.WEIGHTED_AVG_BASIC:
+            is_fallback_estimate = True
+            diagnostic = diagnostic or "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+
         vlevel = VerificationLevel.INDEPENDENTLY_VERIFIED if not conflict else VerificationLevel.CONFLICTING_DATA
 
         return ShareResolutionContract(
@@ -154,7 +170,7 @@ def resolve_shares_by_purpose(
             as_of_date=as_of_date,
             effective_date=top.get("fiscal_period_end"),
             purpose=purpose,
-            is_estimate=False,
+            is_estimate=is_fallback_estimate,
             source_metric_id=mid,
             source_authority=top.get("source_authority", "CANONICAL_DB"),
             verification_level=vlevel,

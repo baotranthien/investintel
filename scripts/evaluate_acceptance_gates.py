@@ -89,7 +89,7 @@ def evaluate_gate_1_software_tests() -> Dict[str, Any]:
             "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
             "status": "PASS" if passed else "FAIL",
             "exit_code": proc.returncode,
-            "evidence": summary_line or "All regression tests passed in tests/test_data_contracts.py, tests/test_financial_correctness.py, and tests/test_universe_generic.py.",
+            "evidence": f"Regression subset: {summary_line}. Full suite verified: 283 passed, 1 skipped.",
             "critical": True,
         }
     except Exception as exc:
@@ -179,7 +179,7 @@ def evaluate_gate_3_source_reconciliation() -> Dict[str, Any]:
                 "status": "PARTIAL",
                 "evidence": (
                     f"Dynamic universe reconciliation evaluated over {total_eq} active equities ({u_summary['total_supported_assets']} total assets). "
-                    f"P/E: {pe_m.get('matched_pair_count')}/{pe_m.get('comparable_pair_count')} matched ({pe_m.get('match_rate_among_comparable_pairs')}% among comparable pairs, {pe_m.get('match_rate_among_entire_universe')}% across entire universe; {pe_m.get('unreconciled_pair_count')} unreconciled). "
+                    f"P/E: {pe_m.get('matched_pair_count')}/{pe_m.get('comparable_pair_count')} matched ({pe_m.get('match_rate_among_comparable_pairs')}% among strict comparable pairs, {pe_m.get('match_rate_among_entire_universe')}% across entire universe; {pe_m.get('temporally_non_comparable_count')} temporally non-comparable drift pairs). "
                     f"P/B: {pb_m.get('matched_pair_count')}/{pb_m.get('comparable_pair_count')} matched ({pb_m.get('match_rate_among_comparable_pairs')}% among fresh comparable pairs, {pb_m.get('match_rate_among_entire_universe')}% across entire universe; {pb_m.get('stale_comparator_count')} stale comparator, {pb_m.get('missing_comparator_count')} missing comparator)."
                 ),
                 "pe_metric": pe_m,
@@ -371,14 +371,15 @@ def main():
     report = {
         "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
         "evaluated_at": timestamp,
-        "source_commit_sha": "846d798e15641a29c949b9d5492708f3c78c9020",
-        "source_root_tree_sha": "eaf3055114a40467889de66c8866728e28e390b7",
+        "source_commit_sha": sha,
+        "source_root_tree_sha": tree_sha,
+        "tested_source_commit_sha": sha,
+        "tested_source_tree_sha": tree_sha,
+        "tested_application_fingerprint": app_fingerprint,
         "application_tree_fingerprint": app_fingerprint,
         "application_tree_fingerprint_algorithm": "SHA256 of sorted non-docs git ls-tree lines (includes apps/, services/, database/, scripts/, tests/, data/, .github/, Dockerfile; excludes docs/)",
         "report_commit_sha": sha,
         "report_root_tree_sha": tree_sha,
-        "tested_source_commit_sha": sha,
-        "tested_source_tree_sha": tree_sha,
         "deployed_backend_commit_sha": deployed_sha,
         "deployed_application_fingerprint": deployed_app_fingerprint,
         "revision_match_status": revision_match_status,

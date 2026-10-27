@@ -83,6 +83,7 @@ def main():
         print(f"  Comparable Pair Count                : {pe_m.get('comparable_pair_count')}")
         print(f"  Matched Pair Count (Within 15% Tol)  : {pe_m.get('matched_pair_count')}")
         print(f"  Unreconciled Pair Count (> 15% Dev)  : {pe_m.get('unreconciled_pair_count')}")
+        print(f"  Temporally Non-Comparable Count      : {pe_m.get('temporally_non_comparable_count')}")
         print(f"  Stale Comparator Count               : {pe_m.get('stale_comparator_count')}")
         print(f"  Missing Comparator Count             : {pe_m.get('missing_comparator_count')}")
         print(f"  Unverified Count                     : {pe_m.get('unverified_count')}")
