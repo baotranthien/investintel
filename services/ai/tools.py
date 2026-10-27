@@ -183,7 +183,7 @@ class AITools:
             evidence = decision.get("evidence", []) if decision else []
             rag_service = DocumentRAGService(session=db)
             rag_docs = rag_service.retrieve_documents(
-                query=(normalized or "FPT") if normalized else "corporate update",
+                query=normalized if normalized else "corporate update",
                 ticker=normalized,
                 as_of_date=as_of,
                 limit=5,

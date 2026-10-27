@@ -238,13 +238,15 @@ class FundamentalSnapshotBuilder:
 
         # ─── PER SHARE ─────────────────────────────────────────
         shares = shares_outstanding or latest_income_a.get("shares_basic")
+        total_eq = equity_parent if equity_parent is not None else total_equity
         bvps_val = None
-        if equity_parent and shares and shares > 0:
-            equity_vnd = equity_parent * 1_000_000_000 if (equity_parent < 10_000_000 and shares > 100_000) else equity_parent
+        if total_eq and shares and shares > 0:
+            equity_vnd = total_eq * 1_000_000_000 if (total_eq < 10_000_000 and shares > 100_000) else total_eq
             bvps_val = equity_vnd / shares
         eps_ttm_val = None
-        if ttm.get("net_income_parent") is not None and shares and shares > 0:
-            eps_ttm_val = (ttm["net_income_parent"] * 1_000_000_000) / shares
+        ni_ttm = ttm.get("net_income_parent") if ttm.get("net_income_parent") is not None else ttm.get("net_income")
+        if ni_ttm is not None and shares and shares > 0:
+            eps_ttm_val = (ni_ttm * 1_000_000_000) / shares
         elif ttm.get("eps_basic") is not None and ttm.get("eps_basic") > 0:
             eps_ttm_val = ttm.get("eps_basic")
         if eps_ttm_val is None:

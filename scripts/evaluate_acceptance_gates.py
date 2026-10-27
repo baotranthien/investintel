@@ -29,13 +29,6 @@ from typing import Dict, Any, List
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-# Known unreconciled tickers from audit
-UNRECONCILED_PE_SYMBOLS = ["BSI", "CTS", "DSE", "KOS", "VIX", "VPX"]
-UNRECONCILED_PB_SYMBOLS = [
-    "BWE", "CII", "CMG", "DXG", "FRT", "GEX", "HCM", "HDG",
-    "KDC", "KOS", "LPB", "MCH", "MSN", "NLG", "OCB", "PAN",
-    "PC1", "PLX", "PVT", "SAB", "SHB", "SSB", "STB", "TCH", "VGC", "VIC"
-]
 
 
 def get_git_info() -> tuple[str, str, bool]:
@@ -52,17 +45,24 @@ def get_git_info() -> tuple[str, str, bool]:
 def evaluate_gate_1_software_tests() -> Dict[str, Any]:
     """Runs deterministic data contracts and financial correctness test suites."""
     gate_id = "GATE_1_LOCAL_SOFTWARE_TESTS"
-    cmd = [sys.executable, "-m", "pytest", "tests/test_data_contracts.py", "tests/test_financial_correctness.py", "-q"]
+    cmd = [
+        sys.executable, "-m", "pytest",
+        "tests/test_data_contracts.py",
+        "tests/test_financial_correctness.py",
+        "tests/test_universe_generic.py",
+        "-q",
+    ]
     try:
         proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
         passed = (proc.returncode == 0)
+        summary_line = proc.stdout.strip().split("\n")[-1] if proc.stdout else ""
         return {
             "gate_id": gate_id,
             "name": "Local Software & Test Readiness",
-            "required_condition": "All data contract and financial correctness regression tests pass (exit code 0)",
+            "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
             "status": "PASS" if passed else "FAIL",
             "exit_code": proc.returncode,
-            "evidence": "34/34 tests passed in tests/test_data_contracts.py and tests/test_financial_correctness.py.",
+            "evidence": summary_line or "All regression tests passed in tests/test_data_contracts.py, tests/test_financial_correctness.py, and tests/test_universe_generic.py.",
             "critical": True,
         }
     except Exception as exc:
@@ -126,27 +126,52 @@ def evaluate_gate_2_contracts() -> Dict[str, Any]:
 
 
 def evaluate_gate_3_source_reconciliation() -> Dict[str, Any]:
-    """Audits external source reconciliation coverage across 100 canonical equities."""
+    """Audits external source reconciliation coverage dynamically across all active equities."""
     gate_id = "GATE_3_SOURCE_RECONCILIATION"
-    pe_reconciled_count = 100 - len(UNRECONCILED_PE_SYMBOLS)
-    pb_reconciled_count = 100 - len(UNRECONCILED_PB_SYMBOLS)
+    try:
+        from database.connection import SessionLocal
+        from services.quality.reconciliation import audit_dynamic_universe
+        session = SessionLocal()
+        try:
+            report = audit_dynamic_universe(session)
+            u_summary = report["universe_summary"]
+            recon = report["reconciliation"]
+            eq_audit = report["equities_audit"]
+            total_eq = eq_audit["total_equities"]
+            pe_rec = recon["pe_reconciled_count"]
+            pb_rec = recon["pb_reconciled_count"]
+            pe_unrec = recon["pe_unreconciled_symbols"]
+            pb_unrec = recon["pb_unreconciled_symbols"]
 
-    return {
-        "gate_id": gate_id,
-        "name": "Independent Source Reconciliation",
-        "required_condition": "Compare canonical ratios against external sources; isolate and record exact discrepancies",
-        "status": "PARTIAL",
-        "evidence": (
-            f"Core benchmark cohort (8/8) INDEPENDENTLY_VERIFIED (ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI). "
-            f"VN100 Universe P/E reconciled: {pe_reconciled_count}/100 ({pe_reconciled_count}%). "
-            f"VN100 Universe P/B reconciled: {pb_reconciled_count}/100 ({pb_reconciled_count}%). "
-            f"Exact unreconciled P/E symbols ({len(UNRECONCILED_PE_SYMBOLS)}): {UNRECONCILED_PE_SYMBOLS}. "
-            f"Exact unreconciled P/B symbols ({len(UNRECONCILED_PB_SYMBOLS)}): {UNRECONCILED_PB_SYMBOLS}."
-        ),
-        "unreconciled_pe_symbols": UNRECONCILED_PE_SYMBOLS,
-        "unreconciled_pb_symbols": UNRECONCILED_PB_SYMBOLS,
-        "critical": False,
-    }
+            return {
+                "gate_id": gate_id,
+                "name": "Independent Source Reconciliation",
+                "required_condition": "Compare canonical ratios against external sources dynamically; isolate and record exact discrepancies",
+                "status": "PARTIAL",
+                "evidence": (
+                    f"Universe reconciliation dynamically evaluated over {total_eq} active equities ({u_summary['total_supported_assets']} total assets). "
+                    f"P/E reconciled: {pe_rec}/{total_eq} ({recon['pe_reconciled_pct']}%). "
+                    f"P/B reconciled: {pb_rec}/{total_eq} ({recon['pb_reconciled_pct']}%). "
+                    f"Exact unreconciled P/E symbols ({len(pe_unrec)}): {pe_unrec}. "
+                    f"Exact unreconciled P/B symbols ({len(pb_unrec)}): {pb_unrec}."
+                ),
+                "unreconciled_pe_symbols": pe_unrec,
+                "unreconciled_pb_symbols": pb_unrec,
+                "total_active_equities": total_eq,
+                "total_supported_assets": u_summary["total_supported_assets"],
+                "critical": False,
+            }
+        finally:
+            session.close()
+    except Exception as exc:
+        return {
+            "gate_id": gate_id,
+            "name": "Independent Source Reconciliation",
+            "required_condition": "Dynamic universe reconciliation executes cleanly",
+            "status": "FAIL",
+            "evidence": str(exc),
+            "critical": False,
+        }
 
 
 def evaluate_gate_4_ai_evidence() -> Dict[str, Any]:

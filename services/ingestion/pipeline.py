@@ -354,6 +354,14 @@ class IngestionPipeline:
                 )
             )
 
+        if promoted_count > 0:
+            from services.contracts.invalidation import invalidation_graph, DependencyNodeType
+            invalidation_graph.invalidate_dependents(
+                symbol=symbol.upper(),
+                trigger_input=DependencyNodeType.ADJUSTED_PRICE,
+                reason=f"Ingested and promoted {promoted_count} price observations",
+            )
+
         # 6. Quality Report
         total_records = len(records)
         completeness = promoted_count / total_records if total_records > 0 else 0.0

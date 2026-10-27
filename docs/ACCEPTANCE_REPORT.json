@@ -1,19 +1,19 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T05:44:08.153665Z",
-  "code_sha": "52e1e12f07a6b643b9caa722f540f5c2b64fb697",
+  "evaluated_at": "2026-10-27T06:25:00.704309Z",
+  "code_sha": "6d1312586442f536101501698fe3dcea1241bace",
   "branch": "main",
-  "working_tree_clean": true,
-  "technical_readiness_verdict": "PASS",
+  "working_tree_clean": false,
+  "technical_readiness_verdict": "FAIL",
   "overall_production_verdict": "PARTIAL",
   "gates": [
     {
       "gate_id": "GATE_1_LOCAL_SOFTWARE_TESTS",
       "name": "Local Software & Test Readiness",
-      "required_condition": "All data contract and financial correctness regression tests pass (exit code 0)",
+      "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "34/34 tests passed in tests/test_data_contracts.py and tests/test_financial_correctness.py.",
+      "evidence": "40 passed in 39.50s",
       "critical": true
     },
     {
@@ -27,9 +27,9 @@
     {
       "gate_id": "GATE_3_SOURCE_RECONCILIATION",
       "name": "Independent Source Reconciliation",
-      "required_condition": "Compare canonical ratios against external sources; isolate and record exact discrepancies",
+      "required_condition": "Compare canonical ratios against external sources dynamically; isolate and record exact discrepancies",
       "status": "PARTIAL",
-      "evidence": "Core benchmark cohort (8/8) INDEPENDENTLY_VERIFIED (ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI). VN100 Universe P/E reconciled: 94/100 (94%). VN100 Universe P/B reconciled: 74/100 (74%). Exact unreconciled P/E symbols (6): ['BSI', 'CTS', 'DSE', 'KOS', 'VIX', 'VPX']. Exact unreconciled P/B symbols (26): ['BWE', 'CII', 'CMG', 'DXG', 'FRT', 'GEX', 'HCM', 'HDG', 'KDC', 'KOS', 'LPB', 'MCH', 'MSN', 'NLG', 'OCB', 'PAN', 'PC1', 'PLX', 'PVT', 'SAB', 'SHB', 'SSB', 'STB', 'TCH', 'VGC', 'VIC'].",
+      "evidence": "Universe reconciliation dynamically evaluated over 100 active equities (104 total assets). P/E reconciled: 94/100 (94.0%). P/B reconciled: 74/100 (74.0%). Exact unreconciled P/E symbols (6): ['BSI', 'CTS', 'DSE', 'KOS', 'VIX', 'VPX']. Exact unreconciled P/B symbols (26): ['BWE', 'CII', 'CMG', 'DXG', 'FRT', 'GEX', 'HCM', 'HDG', 'KDC', 'KOS', 'LPB', 'MCH', 'MSN', 'NLG', 'OCB', 'PAN', 'PC1', 'PLX', 'PVT', 'SAB', 'SHB', 'SSB', 'STB', 'TCH', 'VGC', 'VIC'].",
       "unreconciled_pe_symbols": [
         "BSI",
         "CTS",
@@ -66,6 +66,8 @@
         "VGC",
         "VIC"
       ],
+      "total_active_equities": 100,
+      "total_supported_assets": 104,
       "critical": false
     },
     {
@@ -79,9 +81,9 @@
     {
       "gate_id": "GATE_5_DEPLOYED_BACKEND_REVISION",
       "name": "Deployed Backend Revision & Health",
-      "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
-      "status": "PASS",
-      "evidence": "Render commit=52e1e12f07a6b643b9caa722f540f5c2b64fb697, local=52e1e12, match=True, db_latency=90.52ms",
+      "required_condition": "Render endpoint reachable and verified",
+      "status": "FAIL",
+      "evidence": "Error querying Render backend: The read operation timed out",
       "critical": true
     },
     {
@@ -89,7 +91,7 @@
       "name": "Deployed Frontend Platform Revision",
       "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
       "status": "BLOCKED_AWAITING_TOKEN",
-      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"54ea2353fed19f56d60b1117ae8b800e\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"a9e57175f6cc28d143938078fd6dacdc\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
       "critical": false
     },
     {

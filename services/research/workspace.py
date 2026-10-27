@@ -494,7 +494,12 @@ def build_research_workspace(
         min_b = 0.5 if metric_id == "pe" else 0.05
         max_b = 2500.0 if metric_id == "pe" else 50.0
 
-        if current_price is not None and denominator is not None and denominator > 0:
+        if denominator is not None and denominator <= 0:
+            calc_val = None
+            status_str = "NOT_MEANINGFUL"
+            v_level = "NOT_APPLICABLE"
+            calc_note = f"Denominator ({denominator:.2f}) is non-positive; ratio is not economically meaningful."
+        elif current_price is not None and denominator is not None and denominator > 0:
             raw_ratio = current_price / denominator
             calc_val = round(raw_ratio, 2)
             basis_label = "adjusted close" if (price and price.adjusted_close is not None) else "raw close"
@@ -504,9 +509,11 @@ def build_research_workspace(
                 calc_note = f"Mathematically calculated from canonical {basis_label} ({current_price:.1f} VND) / {denom_label} ({denominator:.1f} VND). Post-corporate-action share basis."
                 status_str = "AVAILABLE"
                 if fallback_val is not None:
-                    if calc_val == round(fallback_val, 2):
+                    diff = abs(calc_val - round(fallback_val, 2))
+                    rel_diff = diff / max(fallback_val, 0.01)
+                    if diff <= 0.02:
                         v_level = "INDEPENDENTLY_VERIFIED"
-                    elif abs(calc_val - round(fallback_val, 2)) / max(fallback_val, 0.01) < 0.15:
+                    elif rel_diff < 0.15:
                         v_level = "SOURCE_RECONCILED"
                     else:
                         v_level = "MATHEMATICALLY_CALCULATED"
@@ -520,19 +527,22 @@ def build_research_workspace(
                     f"Calculated ratio ({raw_ratio:.1f}) is an extreme economic outlier (bounds: [{min_b}, {max_b}]). "
                     + (f"Conflicts with canonical provider ratio ({fallback_val:.2f})." if fallback_val is not None else "Unmasked.")
                 )
-        elif fallback_val is not None and (denominator is None or denominator <= 0):
+        elif fallback_val is not None and denominator is None:
             calc_val = round(fallback_val, 2)
             status_str = "AVAILABLE"
-            v_level = "SOURCE_RECONCILED"
-            calc_note = "Canonical provider ratio used; direct calculation unavailable or denominator non-positive."
-        elif denominator is not None and denominator <= 0:
-            status_str = "NOT_MEANINGFUL"
-            v_level = "NOT_APPLICABLE"
-            calc_note = f"Denominator ({denominator:.2f}) is non-positive; ratio is not economically meaningful."
-        elif current_price is not None or denominator is not None:
             v_level = "DATA_PRESENT"
+            calc_note = "Canonical provider ratio present; direct internal calculation unavailable due to missing denominator."
+        else:
+            calc_val = None
+            status_str = "INSUFFICIENT_DATA"
+            v_level = "INSUFFICIENT_DATA"
+            calc_note = "Canonical market price or fundamental denominator is missing."
 
         meaningful = calc_val is not None
+        if meaningful:
+            from services.contracts.invalidation import invalidation_graph, DependencyNodeType, NodeState
+            node_type = DependencyNodeType.PE_RATIO if metric_id == "pe" else DependencyNodeType.PB_RATIO
+            invalidation_graph.set_node_state(normalized_symbol, node_type, NodeState.VALID)
         valuation_metrics[metric_id] = WorkspaceMetric(
             value=calc_val,
             unit=unit,
@@ -766,4 +776,8 @@ def build_research_workspace(
             "as_of_date": as_of,
         },
     )
+    from services.contracts.invalidation import invalidation_graph, DependencyNodeType, NodeState
+    invalidation_graph.set_node_state(normalized_symbol, DependencyNodeType.DECISION_CONTEXT, NodeState.VALID)
+    invalidation_graph.set_node_state(normalized_symbol, DependencyNodeType.AI_EVIDENCE, NodeState.VALID)
+    invalidation_graph.set_node_state(normalized_symbol, DependencyNodeType.AI_ANALYSIS, NodeState.VALID)
     return ResearchWorkspace.model_validate_json(response.model_dump_json())

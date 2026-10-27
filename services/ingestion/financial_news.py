@@ -208,15 +208,12 @@ class FinancialNewsProvider(BaseProvider):
             event_type, materiality, sentiment, severity = _classify_article(title, snippet)
 
             impacts = [{"entity_name": sym, "impact_type": "NEWS"} for sym in matched_tickers]
+            from services.fundamentals.sector_models import COMPANY_SECTOR_MAP
             sectors = ["FINANCE"]
-            if any(sym in {"FPT"} for sym in matched_tickers):
-                sectors.append("TECHNOLOGY")
-            if any(sym in {"VCB", "MBB", "TCB", "ACB", "BID", "CTG"} for sym in matched_tickers):
-                sectors.append("BANK")
-            if any(sym in {"HPG"} for sym in matched_tickers):
-                sectors.append("MATERIALS")
-            if any(sym in {"MWG"} for sym in matched_tickers):
-                sectors.append("RETAIL")
+            for sym in matched_tickers:
+                sec = COMPANY_SECTOR_MAP.get(sym.upper())
+                if sec and sec not in sectors:
+                    sectors.append(sec)
 
             articles.append({
                 "title": title,

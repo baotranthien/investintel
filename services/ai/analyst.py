@@ -176,7 +176,7 @@ class AIAnalyst:
             model="investintel-assistant",
             answer=(
                 "Xin chào! Tôi là Trợ lý Phân tích Định lượng & Nghiên cứu Doanh nghiệp của InvestIntel.\n\n"
-                "Tôi có thể hỗ trợ bạn tra cứu và phân tích dữ liệu kiểm chứng cho toàn bộ 100 cổ phiếu VN100:\n"
+                "Tôi có thể hỗ trợ bạn tra cứu và phân tích dữ liệu kiểm chứng cho toàn bộ danh mục cổ phiếu và chứng khoán được hỗ trợ:\n"
                 "1. **Định giá & Sức khỏe tài chính:** Hỏi về doanh thu, biên lợi nhuận, P/E, P/B, nợ vay (ví dụ: *'giá VCB'*, *'định giá FPT'*, *'doanh thu MWG'*).\n"
                 "2. **Toàn cảnh thị trường:** Hỏi về chỉ số và chế độ thị trường (ví dụ: *'thị trường hôm nay'*, *'tổng quan VN-Index'*).\n"
                 "3. **Luận điểm & Rủi ro:** Kiểm tra tín hiệu cơ hội, điểm rủi ro tổng hợp (ví dụ: *'rủi ro HPG'*, *'đánh giá SHB'*).\n\n"
@@ -185,7 +185,7 @@ class AIAnalyst:
             claims=[
                 AIClaim(
                     claim_type="FACT",
-                    text="InvestIntel hỗ trợ phân tích toàn bộ 100 cổ phiếu trong rổ chỉ số VN100 với dữ liệu tài chính, định giá và rủi ro được kiểm chứng.",
+                    text="InvestIntel hỗ trợ phân tích toàn bộ các cổ phiếu và chứng khoán trong cơ sở dữ liệu với dữ liệu tài chính, định giá và rủi ro được kiểm chứng đa tầng.",
                     citation_ids=[],
                 )
             ],
@@ -267,7 +267,7 @@ class AIAnalyst:
                 detail_reason = f"Available records for {effective_symbol} are missing, stale, seeded/untraced, or lack a source citation (as of {requested_date})."
                 ans_text = f"Chưa đủ bằng chứng có nguồn kiểm chứng về mã {effective_symbol} để trả lời câu hỏi này."
             else:
-                detail_reason = "Không tìm thấy mã cổ phiếu hợp lệ trong câu hỏi hoặc mã chưa nằm trong danh mục VN100."
+                detail_reason = "Không tìm thấy mã cổ phiếu hợp lệ trong câu hỏi hoặc mã chưa có trong cơ sở dữ liệu."
                 ans_text = (
                     "Chưa xác định được mã cổ phiếu hoặc chủ đề cần phân tích. "
                     "Bạn vui lòng nhập rõ mã cổ phiếu (ví dụ: VCB, FPT, HPG) hoặc đặt câu hỏi về thị trường chung (ví dụ: 'thị trường hôm nay')."

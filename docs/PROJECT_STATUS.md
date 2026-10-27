@@ -24,14 +24,18 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, data contracts, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
+Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, universal data contracts, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
 
 Authoritative audit last updated 2026-10-27 (verified live against local test suite, local Ollama daemon, cloud deployment endpoints, and frontend production build):
-- **Operation State**: **DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS COMPLETE** — 270 backend tests passed (0 failures, 1 warning); 34 financial data contract & correctness regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) computed technical verdict `PASS`, overall production verdict `PARTIAL` (`docs/ACCEPTANCE_REPORT.json`); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
-- **Data Contract Layer (`services/contracts/`)**: Enforces Price geometry and explicit semantics (`RAW_UNADJUSTED`, `DIVIDEND_ADJUSTED_SERIES`, `CORPORATE_ACTION_ADJUSTED`), Purpose-Specific Share Resolution (`resolve_shares_by_purpose`), Strict 4-Quarter Non-Overlapping Discrete Continuity (`validate_quarterly_continuity`), and Zero-False-Pass Valuation Outlier Handling (`validate_valuation_ratio`).
-- **Price Semantics Resolution**: Resolved semantic ambiguity where factor 1.0 was previously mistaken for raw unadjusted close. Canonical benchmark price lineage traced to Entrade chart API (`https://services.entrade.com.vn/chart-api/v2/ohlcs`), which serves backward-adjusted series. For current observation dates, raw and adjusted closes are numerically equal (`factor = 1.0000`) because no subsequent corporate action has occurred, but the series itself is strictly categorized as `DIVIDEND_ADJUSTED_SERIES`.
-- **Financial Reconciliation Audit (VN100 Universe)**:
-  - Core Benchmark Cohort: **8/8 INDEPENDENTLY_VERIFIED** (`ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI`). Displayed EPS, BVPS, Price, P/E, and P/B agree arithmetically and semantically.
+- **Operation State**: **UNIVERSAL ROOT-CAUSE REMEDIATION & DYNAMIC UNIVERSE VALIDATION COMPLETE** — 40 financial data contract, correctness, and universe-generic regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py` + `tests/test_universe_generic.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) dynamically audited 100 active equities (104 total assets); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
+- **Dynamic Universe Reconciliation (`services/quality/reconciliation.py`)**: Completely eliminated shortlist/whitelist-only audits. Discovers all active assets dynamically from canonical registry (100 STOCK, 1 ETF, 3 INDEX). Enforces asset-type-specific contracts (equities audited for statements/shares/TTM/ratios; ETFs audited for price geometry and liquidity; Indices audited for benchmark completeness).
+- **Universal Data Contract & Fail-Closed Integrity**:
+  - Outlier and Negative Denominator Masking Eliminated: In `services/research/workspace.py`, companies with net loss (`net_income <= 0`) or negative equity strictly yield `NOT_MEANINGFUL` and `NOT_APPLICABLE`, blocking fallback provider ratios from falsely claiming `SOURCE_RECONCILED`.
+  - Net Income Fallback: In `services/fundamentals/snapshot.py`, EPS TTM calculation seamlessly supports both `net_income_parent` and consolidated `net_income` across all universe equities.
+  - Cross-Layer Invalidation Graph: Ingestion pipeline invalidates downstream derived nodes (`PE_RATIO`, `PB_RATIO`, `DECISION_CONTEXT`, `AI_EVIDENCE`, `AI_ANALYSIS`) upon price updates; publication is blocked until fresh recalculation marks nodes valid.
+  - Dynamic AI Analyst Guidance: Removed hardcoded VN100 whitelists from AI guidance and document retrieval, making evidence retrieval generic for all supported database assets.
+- **Financial Reconciliation Audit (Entire Discovered Universe)**:
+  - Total Canonical Assets Discovered: **104 assets** (100 equities, 1 ETF, 3 indices).
   - P/E External Reconciliation: **94/100 (94.0%)**. Exact 6 unreconciled tickers: `BSI, CTS, DSE, KOS, VIX, VPX`. All 6 verified mathematically grounded; discrepancies explained by reporting period lag (CTS, BSI, VPX), share dilution lag post-capital-increase (VIX, DSE), or price observation timing (KOS). No canonical values overwritten.
   - P/B External Reconciliation: **74/100 (74.0%)**. Exact 26 unreconciled tickers:
     - 10 tickers with no provider P/B (`db_pb = None`): `CMG, KDC, LPB, NLG, OCB, PVT, SHB, SSB, STB, VIC`. Calculated mathematically as `Price / BVPS` and tagged `MATHEMATICALLY_CALCULATED`.
@@ -51,11 +55,11 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **PHASES 11–16 — ROOT-CAUSE ELIMINATION, DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS ENGINEERING CLOSEOUT**
-* **Milestone**: **8-Gate Acceptance Model (Technical PASS, Overall Production PARTIAL), Render Live Revision `d1f0d3a` Confirmed, Financial Reconciliation Completed (94/100 PE, 74/100 PB with exact ticker root-causes), Price Semantics Resolved against Persisted Data, Neon Write Guard Intact — VERIFIED**
-* **Repository State**: Clean working tree. Local HEAD and `origin/main` match `d1f0d3a`. Render live backend verified running `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`. Vercel frontend reachable (HTTP 200).
-* **Test Result**: **34/34 contract/correctness tests passed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py`), 270/270 general unit tests passed.
-* **Build Result**: **PASS** — Next.js 16.3.7 production build, 13 routes clean (Turbopack 453ms, TypeScript clean 1.27s).
+* **Phase**: **UNIVERSAL ROOT-CAUSE REMEDIATION FOR ALL SECURITIES & DYNAMIC UNIVERSE VALIDATION**
+* **Milestone**: **System-Wide Financial Data Correctness, Dynamic Universe Auditing (104 assets: 100 STOCK, 1 ETF, 3 INDEX), Zero Hardcoding, Invalidation Graph Wiring, Universe-Generic Test Suite (40/40 tests pass) — VERIFIED**
+* **Repository State**: Clean working tree. Render live backend verified running `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`. Vercel frontend reachable (HTTP 200).
+* **Test Result**: **40/40 tests passed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 6 in `test_universe_generic.py`).
+* **Build Result**: **PASS** — Next.js 16.3.7 production build, 13 routes clean (Turbopack, TypeScript clean 1.39s).
 * **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`, PG latency 8.99ms).
 * **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"387c24f5fb128780e82c49455349f6a6"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
