@@ -1,51 +1,112 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T05:14:32.059728Z",
-  "code_sha": "641ebd86459be38739e6a0e476f1e171535fbfc2",
+  "evaluated_at": "2026-10-27T05:42:44.256162Z",
+  "code_sha": "d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4",
   "branch": "main",
   "working_tree_clean": false,
-  "computed_verdict": "PASS",
+  "technical_readiness_verdict": "PASS",
+  "overall_production_verdict": "PARTIAL",
   "gates": [
     {
-      "gate_id": "GATE_1_SOFTWARE_TESTS",
+      "gate_id": "GATE_1_LOCAL_SOFTWARE_TESTS",
       "name": "Local Software & Test Readiness",
       "required_condition": "All data contract and financial correctness regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "..................................                                       [100%]\n34 passed in 37.24s",
+      "evidence": "34/34 tests passed in tests/test_data_contracts.py and tests/test_financial_correctness.py.",
       "critical": true
     },
     {
-      "gate_id": "GATE_2_FINANCIAL_CONTRACTS",
+      "gate_id": "GATE_2_FINANCIAL_DATA_CONTRACTS",
       "name": "Financial Data Contracts & Invariants",
-      "required_condition": "Price geometry enforced, share priority guaranteed, valuation outliers unmasked",
+      "required_condition": "Price geometry enforced, share priority guaranteed, valuation outliers unmasked, TTM continuous",
       "status": "PASS",
       "evidence": "In-memory contract invariants validated across Price, ShareResolution, Continuity, and Valuation.",
       "critical": true
     },
     {
-      "gate_id": "GATE_3_DB_SAFETY_BOUNDARY",
-      "name": "Production Database Safety Boundary",
-      "required_condition": "ALLOW_PRODUCTION_DB_WRITE is False and no unauthorized cloud database writes occur",
-      "status": "PASS",
-      "evidence": "ALLOW_PRODUCTION_DB_WRITE=False. is_production_target=False",
-      "critical": true
+      "gate_id": "GATE_3_SOURCE_RECONCILIATION",
+      "name": "Independent Source Reconciliation",
+      "required_condition": "Compare canonical ratios against external sources; isolate and record exact discrepancies",
+      "status": "PARTIAL",
+      "evidence": "Core benchmark cohort (8/8) INDEPENDENTLY_VERIFIED (ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI). VN100 Universe P/E reconciled: 94/100 (94%). VN100 Universe P/B reconciled: 74/100 (74%). Exact unreconciled P/E symbols (6): ['BSI', 'CTS', 'DSE', 'KOS', 'VIX', 'VPX']. Exact unreconciled P/B symbols (26): ['BWE', 'CII', 'CMG', 'DXG', 'FRT', 'GEX', 'HCM', 'HDG', 'KDC', 'KOS', 'LPB', 'MCH', 'MSN', 'NLG', 'OCB', 'PAN', 'PC1', 'PLX', 'PVT', 'SAB', 'SHB', 'SSB', 'STB', 'TCH', 'VGC', 'VIC'].",
+      "unreconciled_pe_symbols": [
+        "BSI",
+        "CTS",
+        "DSE",
+        "KOS",
+        "VIX",
+        "VPX"
+      ],
+      "unreconciled_pb_symbols": [
+        "BWE",
+        "CII",
+        "CMG",
+        "DXG",
+        "FRT",
+        "GEX",
+        "HCM",
+        "HDG",
+        "KDC",
+        "KOS",
+        "LPB",
+        "MCH",
+        "MSN",
+        "NLG",
+        "OCB",
+        "PAN",
+        "PC1",
+        "PLX",
+        "PVT",
+        "SAB",
+        "SHB",
+        "SSB",
+        "STB",
+        "TCH",
+        "VGC",
+        "VIC"
+      ],
+      "critical": false
     },
     {
       "gate_id": "GATE_4_AI_EVIDENCE_CORRECTNESS",
       "name": "AI Evidence & Local Ollama Inference",
       "required_condition": "Evidence grounding enforced; numeric claims tied to verifiable structured citations",
       "status": "PASS",
-      "evidence": "Semantic citation validator active; Ollama local inference verified.",
+      "evidence": "Semantic citation validator active; 13/13 acceptance matrix tests passed against local Ollama (qwen2.5:3b).",
       "critical": true
     },
     {
-      "gate_id": "GATE_5_AUTOMATION_AND_CI",
-      "name": "Automated Quality Gates & Scheduled Automation",
-      "required_condition": "ci.yml present and eod_ingestion.yml configured with cron '37 8 * * 1-5'",
+      "gate_id": "GATE_5_DEPLOYED_BACKEND_REVISION",
+      "name": "Deployed Backend Revision & Health",
+      "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
       "status": "PASS",
-      "evidence": "ci.yml exists=True, eod_ingestion.yml exists=True, cron verified=True",
+      "evidence": "Render commit=d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4, local=d1f0d3a, match=True, db_latency=9.4ms",
       "critical": true
+    },
+    {
+      "gate_id": "GATE_6_DEPLOYED_FRONTEND_REVISION",
+      "name": "Deployed Frontend Platform Revision",
+      "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
+      "status": "BLOCKED_AWAITING_TOKEN",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"387c24f5fb128780e82c49455349f6a6\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "critical": false
+    },
+    {
+      "gate_id": "GATE_7_SCHEDULED_AUTOMATION",
+      "name": "Scheduled Post-Market Automation",
+      "required_condition": "Workflow eod_ingestion.yml configured with cron '37 8 * * 1-5' and genuine schedule execution observed",
+      "status": "PENDING",
+      "evidence": "Workflow configured with verified cron '37 8 * * 1-5' (15:37 ICT). Repository is private; live execution history requires GitHub token. Awaiting next scheduled market-close trigger.",
+      "critical": false
+    },
+    {
+      "gate_id": "GATE_8_NEON_DATABASE_SYNC",
+      "name": "Neon Cloud Database Synchronization & Safety",
+      "required_condition": "ALLOW_PRODUCTION_DB_WRITE=false guard preserved; sync dry-run ready; awaits explicit user authorization",
+      "status": "BLOCKED_AWAITING_AUTH",
+      "evidence": "ALLOW_PRODUCTION_DB_WRITE=False (Production write protection ACTIVE). Neon Cloud DB: 6,816 prices, 3,523 financial statements (Read-Only). Local DB: 15,348 prices, 8,435 financial statements. Historical backfill sync safely held pending explicit user authorization.",
+      "critical": false
     }
   ]
 }

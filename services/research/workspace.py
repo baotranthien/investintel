@@ -667,16 +667,29 @@ def build_research_workspace(
         "currency": asset.currency,
         "status": asset.status,
     }
+    # Determine genuine price semantics: an adjustment_factor of 1.0 on an adjusted charting feed (e.g. Entrade/LotusMarket)
+    # does NOT prove the series is raw unadjusted.
+    sem_str = "NO_PRICE"
+    if price:
+        if price.adjustment_factor is not None and price.adjustment_factor != 1.0:
+            sem_str = "CORPORATE_ACTION_ADJUSTED"
+        else:
+            p_src = (price.source or "").upper()
+            lin_src = (getattr(price_lineage, "raw_source", None) or "").upper()
+            lin_url = (getattr(price_lineage, "url", None) or "").lower()
+            if "ENTRADE" in lin_url or "CHART-API" in lin_url or "LOTUSMARKET" in p_src or "LOTUSMARKET" in lin_src or "DNSE" in p_src:
+                sem_str = "DIVIDEND_ADJUSTED_SERIES"
+            elif price.adjustment_factor is None:
+                sem_str = "DIVIDEND_ADJUSTED_SERIES"
+            else:
+                sem_str = "RAW_UNADJUSTED"
+
     price_payload = {
         "value": current_price,
         "raw_close": price.raw_close if price else None,
         "adjusted_close": price.adjusted_close if price else None,
         "adjustment_factor": price.adjustment_factor if price else None,
-        "price_semantics": (
-            "DIVIDEND_ADJUSTED_SERIES" if (price and price.adjustment_factor is None)
-            else ("CORPORATE_ACTION_ADJUSTED" if (price and price.adjustment_factor is not None and price.adjustment_factor != 1.0)
-            else "RAW_UNADJUSTED")
-        ) if price else "NO_PRICE",
+        "price_semantics": sem_str,
         "as_of_date": price.observation_date if price else None,
         "source": price_source,
         "status": price_status,

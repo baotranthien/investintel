@@ -24,77 +24,43 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **ROOT-CAUSE ELIMINATION, DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS ENGINEERING MISSION VERIFIED** (Production writes remain guarded per safety policy `ALLOW_PRODUCTION_DB_WRITE=false`).
+Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, data contracts, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
 
 Authoritative audit last updated 2026-10-27 (verified live against local test suite, local Ollama daemon, cloud deployment endpoints, and frontend production build):
-- **Operation State**: **DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS COMPLETE** — All Phase 1 through 16 objectives completed; 270 backend tests passed (0 failures, 1 warning in 160.66s); 16 data contract regression tests passed (`tests/test_data_contracts.py`); 18 financial correctness regression tests passed (`tests/test_financial_correctness.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); full VN100 universe audit passed 100/100 equities; automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) computed verdict `PASS` (`docs/ACCEPTANCE_REPORT.json`); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
-- **Data Contract Layer (`services/contracts/`)**: Introduced machine-enforceable contracts for Price geometry and explicit semantics (`RAW_UNADJUSTED`, `DIVIDEND_ADJUSTED`, `SPLIT_ADJUSTED`), Purpose-Specific Share Resolution (`resolve_shares_by_purpose`), Strict 4-Quarter Non-Overlapping Discrete Continuity (`validate_quarterly_continuity`), and Zero-False-Pass Valuation Outlier Handling (`validate_valuation_ratio`).
-- **TTMEngine Partial Sum Hazard Eliminated**: `TTMEngine.compute_ttm_income` in `services/fundamentals/engine.py` strictly returns `None` for flow metrics when non-null quarters < 4, preventing partial sums (e.g. 1-3 quarters) from silently masquerading as 12-month TTM performance.
-- **Valuation Outlier Masking Eliminated**: In `services/research/workspace.py`, extreme economic outliers are no longer silently masked with fallback values or falsely tagged as `INDEPENDENTLY_VERIFIED`; outliers are transparently reported with `CONFLICTING_DATA` or diagnostic reasons.
-- **Dependency & Invalidation Graph (`services/contracts/invalidation.py`)**: Formalized directed dependency tracking (`provider payload -> canonical record -> snapshot -> EPS/BVPS -> P/E/P/B -> decision context -> AI evidence`). Automatically invalidates downstream nodes upon upstream input changes and prevents unverified publication.
-- **Automated CI/CD Quality Gate Workflow (`.github/workflows/ci.yml`)**: Created GitHub Actions workflow enforcing backend unit tests, data contract suite, financial correctness suite, git diff hygiene checks, and Next.js frontend build on push/PR to `main`.
-- **Full test suite**: **270 passed, 0 failed, 1 warning** (100% pass rate of executed tests, 160.66s).
-- **Financial correctness & contract suites**: **34 passed, 0 failed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py`).
-- **Full VN100 Universe Fundamental & Valuation Audit (`scripts/audit_universe_fundamentals.py`)**:
-  - Verified Outstanding Shares (>100k shs): 100/100 (100.0%)
-  - Canonical Prices Available: 100/100 (100.0%)
-  - Period-Aligned 4-Qtr TTM Calculated: 100/100 (100.0%)
-  - P/E Mathematically Recalculated: 100/100 (100.0%)
-  - P/B Mathematically Recalculated: 100/100 (100.0%)
-  - Parent Equity Invariant Satisfied: 100/100 (100.0%)
-  - Parent Net Income Consistency: 100/100 (100.0%)
-  - Core Benchmark Cohort Independently Verified: 8/8 (ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI)
-- Local PostgreSQL Database (v18.6):
-  - **104 Canonical Instruments** (100 equities, 1 ETF: `FUEVN100`, 3 Indices: `^VNINDEX`, `VN30`, `VN100`).
-  - **15,348 prices** (104 tickers, max date 2026-10-27/2026-10-26).
-  - **8,435 financial statements** (100 equities, historical range 2008–2026; 0 pending backfill).
-  - **2,952 events**, **272,769 data lineages**, **3,363 data runs**.
-  - **0 Price Geometry Violations** across 15,348 canonical bars audited via `scripts/audit_data_quality.py`.
-- Cloud Neon Database & Render Backend:
-  - **6,816 prices**, **3,523 financial statements**, 100% VN100 breadth coverage (100/100 active members).
-  - Render Git Revision: **VERIFIED at `b47682abb360959d0d25bc8879f52332f79fdfd1` (`b47682a`)** via `/api/v1/system/info`.
-  - Live backend verified at `https://investintel-api.onrender.com` (`/health` & `/ready` HTTP 200, Neon PG latency 7.46ms).
-- Cloud Vercel Frontend:
-  - Vercel Frontend Deployment: **LIVE & VERIFIED** (`https://investintel-nine.vercel.app`, `/login` HTTP 200, `etag: W/"a244dcee5fc97da140134b44c58ea3e6"`).
-  - Direct Frontend Deployment Git SHA: **BLOCKED_PENDING_VERCEL_API_CREDENTIALS** (Vercel API token not configured in local environment; per instructions, a proxied backend version endpoint is not proof of frontend revision).
-- Price-Series Inconsistency Investigation & Resolution (Priority 1):
-  - **HPG Forensic Trace (27,200 vs 20,900 VND)**: Traced reported quote (27,200 VND) to pre-corporate-action raw HOSE quote. On 2022-06-17, HPG issued a 30% stock dividend (ratio 0.30, adjustment factor `1 / 1.30 = 0.7684`), resulting in canonical adjusted close of `27,200 / 1.3014 = 20,900 VND`. All 3 canonical providers (VNDIRECT, LOTUSMARKET/ENTRADE, VIETCAP) independently confirm 20,900 VND on 2026-10-26. Paired with post-split shares (6.43B, EPS TTM = 3,993.4 VND, BVPS = 24,340.6 VND), yielding mathematically grounded P/E = 5.23 and P/B = 0.86.
-  - **FPT Forensic Trace (113,000 vs 56,000 VND)**: Traced reported quote (113,000 VND) to pre-split raw HOSE quote. Cumulative 2:1 stock dividend/split dilution (`~2.018`) adjusts price to `113,000 / 2.018 = 56,000 VND`. All 3 canonical providers confirm 56,000 VND. Paired with post-split shares (1.46B, EPS TTM = 7,873.5 VND, BVPS = 32,280.1 VND), yielding mathematically grounded P/E = 7.11 and P/B = 1.73.
-  - **Lineage & Provenance Normalization**: In `services/research/workspace.py` and `services/decision/engine.py`, explicitly exposed `raw_close`, `adjusted_close`, and `adjustment_factor` in `workspace.price` and decision evidence. Calculation notes in `workspace.valuation` explicitly state post-corporate-action share basis and distinguish mathematically calculated ratios from independently verified provider ratios.
-  - **Canonical 100-Equity Universe Audit**: 100/100 canonical equities audited via `scripts/audit_universe_prices.py`: 0 missing prices, 0 stale observations (>7 days), 0 suspicious adjustment ratios (<0 or >2.0). Representative cross-section verified: ACB (P/B 1.24, P/E 7.89, ROE 15.83%), FPT (P/B 1.73, P/E 7.11, ROE 24.65%), HPG (P/B 0.86, P/E 5.23, ROE 16.51%), VCB (P/B 1.07, P/E 6.37, ROE 17.26%), MBB (P/B 0.65, P/E 3.39, ROE 19.63%), MWG (P/B 3.01, P/E 11.11, ROE 27.27%), VNM (P/B 3.38, P/E 10.98, ROE 30.30%), SSI (P/B 1.46, P/E 12.38, ROE 11.95%).
-- Strengthened AI Acceptance Tests (Priority 2):
-  - **ACB Multi-Metric Acceptance**: Updated prompt and assertions in `scripts/test_live_analyst_matrix.py` to require both P/B and ROE, asserting both are present, correctly labeled, numerically grounded, and supported by appropriate evidence IDs (`E039` for P/B 1.24, `E012` for ROE 15.83%). Returning ROE alone fails.
-  - **Semantic Cross-Check Guard**: Added in `services/ai/analyst.py` suppressing claims presenting P/E evidence as P/B and vice versa.
-  - **Regression Test Suite Added**: 12 test cases in `tests/test_financial_correctness.py` covering ACB multiples, shares resolution fallback, TTM partial quarter guards, economic outlier bounds, divide-by-zero guards, stale price/period mismatches, universe valuation coverage (100/100), P/E vs P/B cross-presentation prohibition, missing valuation metric explicit insufficient data, price date/period consistency, broad plausibility bounds guard, and multi-metric acceptance assertion. All 12 passed.
-  - **Live Ollama Matrix**: 13/13 queries passed against local Ollama daemon (`qwen2.5:3b`).
-- Neon Synchronization & Rollback Plan (Priority 4):
-  - **Production Guard Active**: `STOPPED BEFORE PRODUCTION WRITE`. `ALLOW_PRODUCTION_DB_WRITE=false`.
-  - **Exact Dry-Run Preview**: Local DB (+8,532 prices, +4,912 statements) vs Neon Cloud DB.
-  - **Rollback Procedure**: Neon Point-In-Time Restore (PITR) branch snapshotting documented for instant rollback in < 60s.
-- EOD Schedule & Trigger Observation (Priority 4):
-  - Cron `37 8 * * 1-5` (15:37 Asia/Ho_Chi_Minh = 08:37 UTC, Mon-Fri) preserved on `main` in `.github/workflows/eod_ingestion.yml`.
-  - Strict distinction maintained: Manual dispatch is `CONFIGURED_AND_READY`; scheduled trigger observation is `PENDING_FIRST_SCHEDULED_RUN_OBSERVATION` / `SCHEDULED_NOT_OBSERVED`.
-- Frontend Production Build: **13 routes, Turbopack clean, TypeScript clean** (Next.js 16.3.7).
-- Gate 8 (Licensed Live HOSE Provider): **BLOCKED** — Official licensed HOSE feed contract is not established; unauthenticated secondary feeds for personal research only.
-- Local Ollama Live Inference: **VERIFIED** — Model `qwen2.5:3b` active on loopback port 11434; live AI acceptance matrix verifies ACB P/B = 1.24, ROE = 15.83%, and eliminates metric confusion.
-- Production: **CONDITIONAL** — Live cloud deployment operational; production write guard preserved (`STOPPED BEFORE PRODUCTION WRITE`).
+- **Operation State**: **DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS COMPLETE** — 270 backend tests passed (0 failures, 1 warning); 34 financial data contract & correctness regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) computed technical verdict `PASS`, overall production verdict `PARTIAL` (`docs/ACCEPTANCE_REPORT.json`); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
+- **Data Contract Layer (`services/contracts/`)**: Enforces Price geometry and explicit semantics (`RAW_UNADJUSTED`, `DIVIDEND_ADJUSTED_SERIES`, `CORPORATE_ACTION_ADJUSTED`), Purpose-Specific Share Resolution (`resolve_shares_by_purpose`), Strict 4-Quarter Non-Overlapping Discrete Continuity (`validate_quarterly_continuity`), and Zero-False-Pass Valuation Outlier Handling (`validate_valuation_ratio`).
+- **Price Semantics Resolution**: Resolved semantic ambiguity where factor 1.0 was previously mistaken for raw unadjusted close. Canonical benchmark price lineage traced to Entrade chart API (`https://services.entrade.com.vn/chart-api/v2/ohlcs`), which serves backward-adjusted series. For current observation dates, raw and adjusted closes are numerically equal (`factor = 1.0000`) because no subsequent corporate action has occurred, but the series itself is strictly categorized as `DIVIDEND_ADJUSTED_SERIES`.
+- **Financial Reconciliation Audit (VN100 Universe)**:
+  - Core Benchmark Cohort: **8/8 INDEPENDENTLY_VERIFIED** (`ACB, FPT, VCB, HPG, MBB, MWG, VNM, SSI`). Displayed EPS, BVPS, Price, P/E, and P/B agree arithmetically and semantically.
+  - P/E External Reconciliation: **94/100 (94.0%)**. Exact 6 unreconciled tickers: `BSI, CTS, DSE, KOS, VIX, VPX`. All 6 verified mathematically grounded; discrepancies explained by reporting period lag (CTS, BSI, VPX), share dilution lag post-capital-increase (VIX, DSE), or price observation timing (KOS). No canonical values overwritten.
+  - P/B External Reconciliation: **74/100 (74.0%)**. Exact 26 unreconciled tickers:
+    - 10 tickers with no provider P/B (`db_pb = None`): `CMG, KDC, LPB, NLG, OCB, PVT, SHB, SSB, STB, VIC`. Calculated mathematically as `Price / BVPS` and tagged `MATHEMATICALLY_CALCULATED`.
+    - 16 tickers differing >15%: `BWE, CII, DXG, FRT, GEX, HCM, HDG, KOS, MCH, MSN, PAN, PC1, PLX, SAB, TCH, VGC`. Discrepancies arise from InvestIntel's strict parent equity basis (`equity_parent`) excluding minority interest (NCI), post-balance-sheet cash dividends (SAB, MCH), or price date volatility.
+- **Local Database (v18.6)**: 104 canonical instruments, 15,348 prices, 8,435 financial statements, 0 price geometry violations across all bars.
+- **Cloud Neon Database & Render Backend**:
+  - 6,816 prices, 3,523 financial statements in Neon Cloud PostgreSQL.
+  - Render Backend: **LIVE & VERIFIED at commit `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4` (`d1f0d3a`)** via `/api/v1/system/info`. Neon latency 8.99ms.
+- **Cloud Vercel Frontend**:
+  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app/login` (`ETag: "387c24f5fb128780e82c49455349f6a6"`).
+  - Platform Deployment Revision Verification: **BLOCKED_AWAITING_TOKEN** (`VERCEL_TOKEN` not configured in environment; revision cannot be proven from client HTTP headers alone).
+- **Scheduled EOD Automation**: Cron `37 8 * * 1-5` configured in `.github/workflows/eod_ingestion.yml`; status recorded as **PENDING** awaiting genuine schedule trigger observation.
+- **Neon Synchronization Safety**: Production write protection active (`ALLOW_PRODUCTION_DB_WRITE=false`). Cloud sync dry-run ready; held as **BLOCKED_AWAITING_AUTH** pending explicit user authorization.
 
 ## 1. Current Checkpoint
 
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **PHASE 9 — PRICE-SERIES INCONSISTENCY RESOLUTION, REVISED ACB MULTI-METRIC AI ACCEPTANCE & RENDER COMMIT VERIFICATION COMPLETED**
-* **Milestone**: **Price-Series Trace (HPG 20.9k adj vs 27.2k raw, FPT 56k adj vs 113k raw), 100/100 Universe Price Audit, Exposed Raw/Adj & Post-Split Lineage, Multi-Metric ACB AI Acceptance (P/B 1.24 + ROE 15.83%), Render Revision `b47682a` Confirmed, Neon Safety Guard Preserved, 248 Passed (0 Skipped, 1 Warning, 13 Routes Clean Build) — VERIFIED**
-* **Repository State**: Cloud deployed & verified. Render backend revision `b47682abb360959d0d25bc8879f52332f79fdfd1` (`b47682a`) verified live. Vercel frontend live (revision verification blocked pending Vercel API token). Production-ready with EOD cron workflow, canonical VN30/VN100 universe, Opportunities scanner, AI Analyst inquiry propagation, multi-provider capability registry, and one external gate (`LIVE_HOSE_PROVIDER`).
-* **Test Result**: **248 passed, 0 skipped, 1 warning in 248.30s** (100% pass rate).
-* **Build Result**: **PASS** — `npm run build` in `apps/web`, 13 routes (11 static, 2 dynamic: `/[section]`, `/research/[ticker]`), Turbopack compile in 898ms, TypeScript clean in 1.48s (Next.js 16.3.7).
-* **Live Backend**: `https://investintel-api.onrender.com` (Verified `/health` & `/ready` HTTP 200, `/api/v1/system/info` commit `b47682abb360959d0d25bc8879f52332f79fdfd1`)
-* **Live Frontend**: `https://investintel-nine.vercel.app` (Verified `/login` HTTP 200, `etag: W/"a244dcee5fc97da140134b44c58ea3e6"`, exact git commit blocked pending Vercel API credentials)
-* **Live HOSE Provider**: **BLOCKED**
-* **Local Ollama Live Inference**: **VERIFIED** (`qwen2.5:3b`, live matrix 13/13 passed, ACB P/B = 1.24 + ROE = 15.83%)
-* **Production Status**: **CONDITIONAL**
-* **Production Ingestion Guard**: **STOPPED BEFORE PRODUCTION WRITE**
+* **Phase**: **PHASES 11–16 — ROOT-CAUSE ELIMINATION, DATA INTEGRITY BY DESIGN & ZERO-FALSE-PASS ENGINEERING CLOSEOUT**
+* **Milestone**: **8-Gate Acceptance Model (Technical PASS, Overall Production PARTIAL), Render Live Revision `d1f0d3a` Confirmed, Financial Reconciliation Completed (94/100 PE, 74/100 PB with exact ticker root-causes), Price Semantics Resolved against Persisted Data, Neon Write Guard Intact — VERIFIED**
+* **Repository State**: Clean working tree. Local HEAD and `origin/main` match `d1f0d3a`. Render live backend verified running `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`. Vercel frontend reachable (HTTP 200).
+* **Test Result**: **34/34 contract/correctness tests passed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py`), 270/270 general unit tests passed.
+* **Build Result**: **PASS** — Next.js 16.3.7 production build, 13 routes clean (Turbopack 453ms, TypeScript clean 1.27s).
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`, PG latency 8.99ms).
+* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"387c24f5fb128780e82c49455349f6a6"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
+* **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
+* **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).
+* **Local Ollama Live Inference**: `VERIFIED` (`qwen2.5:3b` on loopback 11434, 13/13 acceptance matrix passed).
 
 ### Checkpoint — 2026-10-19 (HISTORICAL)
 * **Date**: 2026-10-19
