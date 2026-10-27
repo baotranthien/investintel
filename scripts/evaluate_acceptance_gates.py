@@ -31,15 +31,17 @@ sys.path.insert(0, str(REPO_ROOT))
 
 
 
-def get_git_info() -> tuple[str, str, bool]:
+def get_git_info() -> tuple[str, str, str, bool, str]:
     try:
         sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT).decode().strip()
+        tree_sha = subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=REPO_ROOT).decode().strip()
         branch = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=REPO_ROOT).decode().strip()
         status_out = subprocess.check_output(["git", "status", "--porcelain"], cwd=REPO_ROOT).decode().strip()
         is_clean = len(status_out) == 0
-        return sha, branch, is_clean
+        diff_summary = subprocess.check_output(["git", "diff", "--stat"], cwd=REPO_ROOT).decode().strip() if not is_clean else ""
+        return sha, tree_sha, branch, is_clean, diff_summary
     except Exception as e:
-        return f"UNKNOWN_{e}", "UNKNOWN", False
+        return f"UNKNOWN_{e}", "UNKNOWN", "UNKNOWN", False, ""
 
 
 def evaluate_gate_1_software_tests() -> Dict[str, Any]:
@@ -190,12 +192,12 @@ def evaluate_gate_4_ai_evidence() -> Dict[str, Any]:
 def evaluate_gate_5_backend_revision() -> Dict[str, Any]:
     """Verifies live Render production backend SHA against current commit."""
     gate_id = "GATE_5_DEPLOYED_BACKEND_REVISION"
-    local_sha, _, _ = get_git_info()
+    local_sha, local_tree, _, _, _ = get_git_info()
     backend_url = "https://investintel-api.onrender.com/api/v1/system/info"
 
     try:
         req = urllib.request.Request(backend_url, headers={"User-Agent": "InvestIntel-Evaluator"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=35) as resp:
             data = json.loads(resp.read().decode())
             remote_sha = data.get("git_commit")
             db_health = data.get("database_health", {})
@@ -208,6 +210,7 @@ def evaluate_gate_5_backend_revision() -> Dict[str, Any]:
                 "name": "Deployed Backend Revision & Health",
                 "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
                 "status": status_str,
+                "deployed_backend_commit_sha": remote_sha,
                 "evidence": f"Render commit={remote_sha}, local={local_sha[:7]}, match={matches}, db_latency={db_health.get('latency_ms')}ms",
                 "critical": True,
             }
@@ -295,7 +298,7 @@ def main():
     print("INVESTINTEL — COMPUTED ACCEPTANCE GATE EVALUATOR (PHASES 11-16)")
     print("=" * 75)
 
-    sha, branch, is_clean = get_git_info()
+    sha, tree_sha, branch, is_clean, diff_summary = get_git_info()
     timestamp = datetime.utcnow().isoformat() + "Z"
 
     gates = [
@@ -316,12 +319,33 @@ def main():
     technical_verdict = "PASS" if critical_passed else "FAIL"
     overall_production_verdict = "COMPLETE" if all_gates_pass else "PARTIAL"
 
+    gate_5 = next((g for g in gates if g["gate_id"] == "GATE_5_DEPLOYED_BACKEND_REVISION"), {})
+    deployed_sha = gate_5.get("deployed_backend_commit_sha")
+
+    revision_match_status = "UNKNOWN"
+    if deployed_sha:
+        if deployed_sha == sha:
+            revision_match_status = "EXACT_COMMIT_MATCH"
+        else:
+            try:
+                remote_tree = subprocess.check_output(["git", "rev-parse", f"{deployed_sha}^{{tree}}"], cwd=REPO_ROOT).decode().strip()
+                if remote_tree == tree_sha:
+                    revision_match_status = "SEMANTICALLY_IDENTICAL_TREE"
+                else:
+                    revision_match_status = "DIVERGENT"
+            except Exception:
+                revision_match_status = "DIVERGENT"
+
     report = {
         "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
         "evaluated_at": timestamp,
-        "code_sha": sha,
+        "tested_source_commit_sha": sha,
+        "tested_source_tree_sha": tree_sha,
+        "deployed_backend_commit_sha": deployed_sha,
+        "revision_match_status": revision_match_status,
         "branch": branch,
         "working_tree_clean": is_clean,
+        "working_tree_diff_fingerprint": diff_summary if not is_clean else "CLEAN",
         "technical_readiness_verdict": technical_verdict,
         "overall_production_verdict": overall_production_verdict,
         "gates": gates,

@@ -64,6 +64,13 @@ class InvalidationEvent(BaseModel):
 
 # Static Dependency Graph defining what each derived node depends on
 UPSTREAM_DEPENDENCIES: Dict[DependencyNodeType, Set[DependencyNodeType]] = {
+    DependencyNodeType.ADJUSTED_PRICE: {
+        DependencyNodeType.RAW_PRICE,
+        DependencyNodeType.CORPORATE_ACTION,
+    },
+    DependencyNodeType.SHARE_COUNT: {
+        DependencyNodeType.CORPORATE_ACTION,
+    },
     DependencyNodeType.FINANCIAL_SNAPSHOT: {
         DependencyNodeType.INCOME_STATEMENT,
         DependencyNodeType.BALANCE_SHEET,

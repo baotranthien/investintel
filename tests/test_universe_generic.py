@@ -436,3 +436,82 @@ def test_invalidation_graph_cross_layer_lifecycle():
 
     can_pub_restored, _ = invalidation_graph.is_publishable(sym, DependencyNodeType.PE_RATIO)
     assert can_pub_restored is True
+
+
+def test_invalidation_graph_statement_restatement_triggers_ttm_and_pe():
+    """
+    Verifies that restating an income statement triggers downstream invalidation of
+    TTM_INCOME, EPS_TTM, PE_RATIO, AI_EVIDENCE, and AI_ANALYSIS, blocking publication.
+    """
+    sym = "RESTATE777"
+    for node in [
+        DependencyNodeType.INCOME_STATEMENT,
+        DependencyNodeType.TTM_INCOME,
+        DependencyNodeType.EPS_TTM,
+        DependencyNodeType.PE_RATIO,
+        DependencyNodeType.AI_EVIDENCE,
+        DependencyNodeType.AI_ANALYSIS,
+    ]:
+        invalidation_graph.set_node_state(sym, node, NodeState.VALID)
+
+    # Statement restatement event
+    event = invalidation_graph.invalidate_dependents(
+        symbol=sym,
+        trigger_input=DependencyNodeType.INCOME_STATEMENT,
+        reason="Audited Q4 statement restates full-year revenue and net income",
+    )
+
+    assert DependencyNodeType.TTM_INCOME in event.invalidated_nodes
+    assert DependencyNodeType.EPS_TTM in event.invalidated_nodes
+    assert DependencyNodeType.PE_RATIO in event.invalidated_nodes
+    assert DependencyNodeType.AI_ANALYSIS in event.invalidated_nodes
+
+    # Publication is strictly blocked
+    can_pub, reason = invalidation_graph.is_publishable(sym, DependencyNodeType.PE_RATIO)
+    assert can_pub is False
+    assert "INVALIDATED" in reason
+
+
+def test_invalidation_corporate_action_with_recovery():
+    """
+    Verifies that a corporate action split/dividend invalidates both adjusted prices and
+    share counts, and that mid-way failure leaves nodes in non-publishable state until full retry.
+    """
+    sym = "SPLIT888"
+    for node in [
+        DependencyNodeType.CORPORATE_ACTION,
+        DependencyNodeType.ADJUSTED_PRICE,
+        DependencyNodeType.SHARE_COUNT,
+        DependencyNodeType.MARKET_CAP,
+        DependencyNodeType.PE_RATIO,
+        DependencyNodeType.PB_RATIO,
+    ]:
+        invalidation_graph.set_node_state(sym, node, NodeState.VALID)
+
+    event = invalidation_graph.invalidate_dependents(
+        symbol=sym,
+        trigger_input=DependencyNodeType.CORPORATE_ACTION,
+        reason="2:1 Stock Split",
+    )
+
+    assert DependencyNodeType.ADJUSTED_PRICE in event.invalidated_nodes
+    assert DependencyNodeType.SHARE_COUNT in event.invalidated_nodes
+    assert DependencyNodeType.MARKET_CAP in event.invalidated_nodes
+    assert DependencyNodeType.PE_RATIO in event.invalidated_nodes
+    assert DependencyNodeType.PB_RATIO in event.invalidated_nodes
+
+    # Simulate mid-way failure: ADJUSTED_PRICE is recomputed, but SHARE_COUNT computation failed
+    invalidation_graph.set_node_state(sym, DependencyNodeType.ADJUSTED_PRICE, NodeState.VALID)
+    invalidation_graph.set_node_state(sym, DependencyNodeType.SHARE_COUNT, NodeState.PENDING_RECOMPUTE)
+
+    # Market Cap must still be blocked because SHARE_COUNT is not VALID!
+    can_pub_mcap, mcap_reason = invalidation_graph.is_publishable(sym, DependencyNodeType.MARKET_CAP)
+    assert can_pub_mcap is False
+
+    # Retry succeeds: SHARE_COUNT and MARKET_CAP both recomputed
+    invalidation_graph.set_node_state(sym, DependencyNodeType.SHARE_COUNT, NodeState.VALID)
+    invalidation_graph.set_node_state(sym, DependencyNodeType.MARKET_CAP, NodeState.VALID)
+
+    can_pub_mcap_retry, _ = invalidation_graph.is_publishable(sym, DependencyNodeType.MARKET_CAP)
+    assert can_pub_mcap_retry is True
+

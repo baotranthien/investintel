@@ -24,28 +24,35 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, universal data contracts, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
+Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, universal data contracts, accounting semantics, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
 
 Authoritative audit last updated 2026-10-27 (verified live against local test suite, local Ollama daemon, cloud deployment endpoints, and frontend production build):
-- **Operation State**: **UNIVERSAL ROOT-CAUSE REMEDIATION & DYNAMIC UNIVERSE VALIDATION COMPLETE** — 40 financial data contract, correctness, and universe-generic regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py` + `tests/test_universe_generic.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) dynamically audited 100 active equities (104 total assets); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
+- **Operation State**: **FINAL FINANCIAL SEMANTICS AUDIT, REVISION CONSISTENCY & EVIDENCE-BASED ACCEPTANCE COMPLETE** — 42 financial data contract, correctness, and universe-generic regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py` + `tests/test_universe_generic.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) dynamically audited 100 active equities (104 total assets); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
 - **Dynamic Universe Reconciliation (`services/quality/reconciliation.py`)**: Completely eliminated shortlist/whitelist-only audits. Discovers all active assets dynamically from canonical registry (100 STOCK, 1 ETF, 3 INDEX). Enforces asset-type-specific contracts (equities audited for statements/shares/TTM/ratios; ETFs audited for price geometry and liquidity; Indices audited for benchmark completeness).
-- **Universal Data Contract & Fail-Closed Integrity**:
+- **Financial Semantics & Universal Data Contracts**:
+  - IAS 33 & IAS 1 Semantics: Enforced in `services/fundamentals/repository.py` and `services/fundamentals/snapshot.py`. Attributable parent net income and parent equity are resolved via explicit parent fields, standalone identity, or $Total - MinorityInterest$ when both exist. Blind fallback to total net income on consolidated statements is strictly eliminated.
   - Outlier and Negative Denominator Masking Eliminated: In `services/research/workspace.py`, companies with net loss (`net_income <= 0`) or negative equity strictly yield `NOT_MEANINGFUL` and `NOT_APPLICABLE`, blocking fallback provider ratios from falsely claiming `SOURCE_RECONCILED`.
-  - Net Income Fallback: In `services/fundamentals/snapshot.py`, EPS TTM calculation seamlessly supports both `net_income_parent` and consolidated `net_income` across all universe equities.
-  - Cross-Layer Invalidation Graph: Ingestion pipeline invalidates downstream derived nodes (`PE_RATIO`, `PB_RATIO`, `DECISION_CONTEXT`, `AI_EVIDENCE`, `AI_ANALYSIS`) upon price updates; publication is blocked until fresh recalculation marks nodes valid.
-  - Dynamic AI Analyst Guidance: Removed hardcoded VN100 whitelists from AI guidance and document retrieval, making evidence retrieval generic for all supported database assets.
+  - Invalidation Graph (`services/contracts/invalidation.py`): Primary triggers across price adjustments, corporate action splits, statement restatements, and share counts deterministically propagate downstream to invalidate derived ratios, blocking publication until full recomputation and verification.
+- **Price Validity & Freshness Classification (`scripts/audit_universe_prices.py`)**:
+  - Total Canonical Assets: **104 assets** (100 STOCK, 1 ETF, 3 INDEX).
+  - `PRICE_PRESENT`: 104/104 (100.0%)
+  - `GEOMETRY_VALID`: 104/104 (100.0%)
+  - `PRICE_FRESH` (<= 7 days): 103/104 (99.0%)
+  - `PRICE_DATE_ALIGNED` (Today/As-Of): 101/104 (97.1%)
+  - `USABLE_FOR_CURRENT_VALUATION`: 103/104 (99.0%)
+  - `STALE_EXCLUDED_FROM_VALUATION`: 1/104 (1.0%) — VN300 (Obs date 2023-10-27, 1096 days stale; legacy CSV benchmark preserved for history, excluded from live valuation).
 - **Financial Reconciliation Audit (Entire Discovered Universe)**:
-  - Total Canonical Assets Discovered: **104 assets** (100 equities, 1 ETF, 3 indices).
-  - P/E External Reconciliation: **94/100 (94.0%)**. Exact 6 unreconciled tickers: `BSI, CTS, DSE, KOS, VIX, VPX`. All 6 verified mathematically grounded; discrepancies explained by reporting period lag (CTS, BSI, VPX), share dilution lag post-capital-increase (VIX, DSE), or price observation timing (KOS). No canonical values overwritten.
+  - Total Canonical Equities Audited: **100 equities**.
+  - P/E External Reconciliation: **94/100 (94.0%)**. Exact 6 unreconciled tickers: `BSI, CTS, DSE, KOS, VIX, VPX`. All 6 mathematically verified; discrepancies explained by reporting period lag (BSI, CTS, VPX), share dilution lag post-capital-increase (VIX, DSE), or price observation timing (KOS). No canonical values overwritten.
   - P/B External Reconciliation: **74/100 (74.0%)**. Exact 26 unreconciled tickers:
     - 10 tickers with no provider P/B (`db_pb = None`): `CMG, KDC, LPB, NLG, OCB, PVT, SHB, SSB, STB, VIC`. Calculated mathematically as `Price / BVPS` and tagged `MATHEMATICALLY_CALCULATED`.
-    - 16 tickers differing >15%: `BWE, CII, DXG, FRT, GEX, HCM, HDG, KOS, MCH, MSN, PAN, PC1, PLX, SAB, TCH, VGC`. Discrepancies arise from InvestIntel's strict parent equity basis (`equity_parent`) excluding minority interest (NCI), post-balance-sheet cash dividends (SAB, MCH), or price date volatility.
+    - 16 tickers differing >15%: `BWE, CII, DXG, FRT, GEX, HCM, HDG, KOS, MCH, MSN, PAN, PC1, PLX, SAB, TCH, VGC`. Proven root cause is historical BVPS staleness in provider snapshot (e.g. VGC provider BVPS was 16,539.89 VND from 2021, while current BVPS is 26,187 VND), not unverified NCI assumptions.
 - **Local Database (v18.6)**: 104 canonical instruments, 15,348 prices, 8,435 financial statements, 0 price geometry violations across all bars.
 - **Cloud Neon Database & Render Backend**:
   - 6,816 prices, 3,523 financial statements in Neon Cloud PostgreSQL.
-  - Render Backend: **LIVE & VERIFIED at commit `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4` (`d1f0d3a`)** via `/api/v1/system/info`. Neon latency 8.99ms.
+  - Render Backend: **LIVE & VERIFIED at commit `ae0abac2a1647f48976615dfe2f1efef1604b0eb` (`ae0abac`)** via `/api/v1/system/info`. Neon latency 6.64ms.
 - **Cloud Vercel Frontend**:
-  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app/login` (`ETag: "387c24f5fb128780e82c49455349f6a6"`).
+  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app/login` (`ETag: "4b0972f7e02d3732c04ba5ca935954f3"`).
   - Platform Deployment Revision Verification: **BLOCKED_AWAITING_TOKEN** (`VERCEL_TOKEN` not configured in environment; revision cannot be proven from client HTTP headers alone).
 - **Scheduled EOD Automation**: Cron `37 8 * * 1-5` configured in `.github/workflows/eod_ingestion.yml`; status recorded as **PENDING** awaiting genuine schedule trigger observation.
 - **Neon Synchronization Safety**: Production write protection active (`ALLOW_PRODUCTION_DB_WRITE=false`). Cloud sync dry-run ready; held as **BLOCKED_AWAITING_AUTH** pending explicit user authorization.
@@ -55,12 +62,12 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **UNIVERSAL ROOT-CAUSE REMEDIATION FOR ALL SECURITIES & DYNAMIC UNIVERSE VALIDATION**
-* **Milestone**: **System-Wide Financial Data Correctness, Dynamic Universe Auditing (104 assets: 100 STOCK, 1 ETF, 3 INDEX), Zero Hardcoding, Invalidation Graph Wiring, Universe-Generic Test Suite (40/40 tests pass) — VERIFIED**
-* **Repository State**: Clean working tree. Render live backend verified running `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`. Vercel frontend reachable (HTTP 200).
-* **Test Result**: **40/40 tests passed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 6 in `test_universe_generic.py`).
+* **Phase**: **FINAL FINANCIAL SEMANTICS AUDIT, REVISION CONSISTENCY & EVIDENCE-BASED ACCEPTANCE**
+* **Milestone**: **Financial Semantics (IAS 33 EPS / IAS 1 Parent Equity), Dynamic Universe Reconciliation (104 assets: 100 STOCK, 1 ETF, 3 INDEX), Price Freshness vs Validity Separation, Invalidation Graph with Failure Recovery, Universe-Generic Test Suite (42/42 tests pass) — VERIFIED**
+* **Repository State**: Clean working tree. Render live backend verified running `ae0abac2a1647f48976615dfe2f1efef1604b0eb`. Vercel frontend reachable (HTTP 200).
+* **Test Result**: **42/42 tests passed** (16 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 8 in `test_universe_generic.py`).
 * **Build Result**: **PASS** — Next.js 16.3.7 production build, 13 routes clean (Turbopack, TypeScript clean 1.39s).
-* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `d1f0d3aaaf48456321d9cf2fb63fd0d51eaec7c4`, PG latency 8.99ms).
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `ae0abac2a1647f48976615dfe2f1efef1604b0eb`, PG latency 6.64ms).
 * **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"387c24f5fb128780e82c49455349f6a6"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
 * **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).

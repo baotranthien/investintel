@@ -146,18 +146,36 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
         db_pe = db_metric_map.get("PRICE_TO_EARNINGS") or db_metric_map.get("P_E")
         db_pb = db_metric_map.get("PRICE_TO_BOOK") or db_metric_map.get("P_B")
 
+        p_close = p_val
+        eps_m = ws.fundamentals.get("metrics", {}).get("eps_ttm") if ws.fundamentals else None
+        eps_val = eps_m.get("value") if isinstance(eps_m, dict) else (eps_m.value if eps_m else None)
+        bvps_m = ws.fundamentals.get("metrics", {}).get("bvps") if ws.fundamentals else None
+        bvps_val = bvps_m.get("value") if isinstance(bvps_m, dict) else (bvps_m.value if bvps_m else None)
+        ttm_ni = None
+        if inc_q and len(inc_q) >= 4:
+            ttm_ni = sum(q.get("net_income_parent") or q.get("net_income") or 0.0 for q in inc_q[-4:])
+        eq_total = latest_b.get("total_equity") if bal_rows else None
+        eq_parent = latest_b.get("equity_parent") if bal_rows else None
+
         # P/E reconciliation check
         if pe_tier in ("SOURCE_RECONCILED", "INDEPENDENTLY_VERIFIED"):
             eq_stats["pe_reconciled"] += 1
         elif pe_val is not None:
-            # Diagnose root cause
+            # Generic root cause diagnosis (NO hardcoded ticker names!)
             root_cause = "REPORTING_PERIOD_LAG"
             if db_pe is None:
                 root_cause = "NO_EXTERNAL_PROVIDER_VALUE"
-            elif sym in ("VIX", "DSE"):
-                root_cause = "SHARE_DILUTION_LAG"
-            elif sym == "KOS":
-                root_cause = "PRICE_DATE_LAG"
+            elif eps_val and eps_val > 0 and p_close and p_close > 0:
+                eps_implied = p_close / db_pe
+                prov_implied_price = db_pe * eps_val
+                if abs(prov_implied_price - p_close) / p_close > 0.15 and abs(eps_implied - eps_val) / eps_val < 0.20:
+                    root_cause = "PRICE_DATE_LAG"
+                elif ttm_ni and eps_implied > 0 and shares and abs((ttm_ni * 1e9 / eps_implied) - shares) / max(shares, 1) > 0.25:
+                    root_cause = "SHARE_DILUTION_LAG"
+                elif shares and ttm_ni and abs((eps_implied * shares / 1e9) - ttm_ni) / max(ttm_ni, 0.01) > 0.15:
+                    root_cause = "REPORTING_PERIOD_LAG"
+                else:
+                    root_cause = "PRICE_DATE_LAG"
 
             diff_pct = None
             if db_pe is not None and db_pe > 0:
@@ -175,13 +193,19 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
         if pb_tier in ("SOURCE_RECONCILED", "INDEPENDENTLY_VERIFIED"):
             eq_stats["pb_reconciled"] += 1
         elif pb_val is not None:
-            root_cause = "ACCOUNTING_BASIS_NCI"
+            # Generic root cause diagnosis for P/B (NO hardcoded ticker names!)
+            root_cause = "HISTORICAL_BVPS_LAG"
             if db_pb is None:
                 root_cause = "NO_EXTERNAL_PROVIDER_VALUE"
-            elif sym in ("SAB", "MCH"):
-                root_cause = "POST_BALANCE_SHEET_DIVIDEND"
-            elif sym in ("FRT", "KOS"):
-                root_cause = "PRICE_DATE_LAG"
+            elif bvps_val and bvps_val > 0 and p_close and p_close > 0:
+                bvps_implied = p_close / db_pb
+                prov_implied_price = db_pb * bvps_val
+                if abs(prov_implied_price - p_close) / p_close > 0.15 and abs(bvps_implied - bvps_val) / bvps_val < 0.10:
+                    root_cause = "PRICE_DATE_LAG"
+                elif eq_total and eq_parent and eq_total != eq_parent and shares and abs(bvps_implied - (eq_total * 1e9 / shares)) / max((eq_total * 1e9 / shares), 1) < 0.10:
+                    root_cause = "ACCOUNTING_BASIS_NCI"
+                else:
+                    root_cause = "HISTORICAL_BVPS_LAG"
 
             diff_pct = None
             if db_pb is not None and db_pb > 0:

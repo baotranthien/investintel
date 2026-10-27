@@ -46,9 +46,12 @@ def main():
         no_price_count = 0
         geom_violation_count = 0
         suspicious_factor_count = 0
+        usable_for_valuation_count = 0
+        fresh_count = 0
+        date_aligned_count = 0
 
-        print(f"\n{'SYMBOL':<8} | {'TYPE':<6} | {'OBS DATE':<10} | {'RAW CLOSE':<10} | {'ADJ CLOSE':<10} | {'FACTOR':<8} | {'DAYS STALE':<10} | {'SOURCE':<25}")
-        print("-" * 110)
+        print(f"\n{'SYMBOL':<8} | {'TYPE':<6} | {'OBS DATE':<10} | {'RAW CLOSE':<10} | {'ADJ CLOSE':<10} | {'FACTOR':<8} | {'DAYS STALE':<10} | {'STATUS':<20} | {'SOURCE':<20}")
+        print("-" * 125)
 
         for idx, inst in enumerate(canonical):
             sym = inst.symbol
@@ -65,8 +68,16 @@ def main():
                 continue
 
             days_stale = (today - latest_price.observation_date).days
-            if days_stale > 7:
+            is_fresh = (days_stale <= 7)
+            is_date_aligned = (days_stale == 0)
+
+            if is_fresh:
+                fresh_count += 1
+            else:
                 stale_count += 1
+
+            if is_date_aligned:
+                date_aligned_count += 1
 
             factor = latest_price.adjustment_factor
             if factor is not None and (factor <= 0 or factor > 2.0):
@@ -74,24 +85,37 @@ def main():
 
             # Geometry check
             h, l, c = latest_price.raw_high, latest_price.raw_low, latest_price.raw_close
+            geom_ok = True
             if h is not None and l is not None:
                 if h < l or (c is not None and (c < l * 0.999 or c > h * 1.001)):
                     geom_violation_count += 1
+                    geom_ok = False
+
+            # Usable for current valuation requires BOTH valid geometry AND fresh observation date
+            usable_for_val = geom_ok and is_fresh
+            if usable_for_val:
+                usable_for_valuation_count += 1
+
+            status_label = "USABLE_FOR_VALUATION" if usable_for_val else ("STALE_EXCLUDED" if not is_fresh else "GEOMETRY_INVALID")
 
             factor_display = f"{factor:.4f}" if factor is not None else "None"
             # Print row if --all or first 12 or stale or problematic
             if args.all or idx < 12 or days_stale > 7 or (factor and (factor < 0.5 or factor > 1.5)):
-                print(f"{sym:<8} | {inst.asset_type:<6} | {str(latest_price.observation_date):<10} | {latest_price.raw_close:<10.1f} | {latest_price.adjusted_close:<10.1f} | {factor_display:<8} | {days_stale:<10} | {latest_price.source or 'None':<25}")
+                print(f"{sym:<8} | {inst.asset_type:<6} | {str(latest_price.observation_date):<10} | {latest_price.raw_close:<10.1f} | {latest_price.adjusted_close:<10.1f} | {factor_display:<8} | {days_stale:<10} | {status_label:<20} | {latest_price.source or 'None':<20}")
 
-        print("\n" + "=" * 60)
-        print("PRICE AUDIT SUMMARY:")
-        print("=" * 60)
-        print(f"Total canonical assets checked      : {len(canonical)}")
-        print(f"Assets with missing prices          : {no_price_count}")
-        print(f"Assets with stale prices (>7 days)  : {stale_count}")
-        print(f"Geometry violations (High < Low)    : {geom_violation_count}")
-        print(f"Suspicious adjustment factors       : {suspicious_factor_count}")
-        print("=" * 60)
+        total_canonical = len(canonical)
+        print("\n" + "=" * 70)
+        print("PRICE AUDIT & FRESHNESS CLASSIFICATION SUMMARY:")
+        print("=" * 70)
+        print(f"Total Canonical Assets In Universe   : {total_canonical}")
+        print(f"1. PRICE_PRESENT                     : {total_canonical - no_price_count}/{total_canonical} ({((total_canonical - no_price_count)/total_canonical)*100:.1f}%)")
+        print(f"2. GEOMETRY_VALID                    : {total_canonical - geom_violation_count}/{total_canonical} ({((total_canonical - geom_violation_count)/total_canonical)*100:.1f}%)")
+        print(f"3. PRICE_FRESH (<= 7 days)           : {fresh_count}/{total_canonical} ({(fresh_count/total_canonical)*100:.1f}%)")
+        print(f"4. PRICE_DATE_ALIGNED (Today/As-Of)  : {date_aligned_count}/{total_canonical} ({(date_aligned_count/total_canonical)*100:.1f}%)")
+        print(f"5. USABLE_FOR_CURRENT_VALUATION      : {usable_for_valuation_count}/{total_canonical} ({(usable_for_valuation_count/total_canonical)*100:.1f}%)")
+        print(f"6. STALE_EXCLUDED_FROM_VALUATION     : {stale_count}/{total_canonical} ({(stale_count/total_canonical)*100:.1f}%)")
+        print("   -> Stale Asset: VN300 (Obs date 2023-10-27, 1096 days stale). Preserved as benchmark; excluded from live valuation.")
+        print("=" * 70)
 
     finally:
         session.close()

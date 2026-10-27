@@ -134,10 +134,18 @@ class FinancialRepository:
                         "operating_income": numeric(norm_inc.operating_income),
                         "pre_tax_income": numeric(norm_inc.pre_tax_income),
                         "net_income": numeric(norm_inc.net_income),
-                        "net_income_parent": numeric(
-                            norm_inc.net_income_parent
+                        "net_income_parent": (
+                            numeric(norm_inc.net_income_parent)
                             if norm_inc.net_income_parent is not None
-                            else norm_inc.net_income
+                            else (
+                                numeric(norm_inc.net_income)
+                                if stmt.consolidation in ("PARENT_ONLY", "SEPARATE", "STANDALONE")
+                                else (
+                                    numeric(norm_inc.net_income) - numeric(norm_inc.minority_interest)
+                                    if norm_inc.net_income is not None and norm_inc.minority_interest is not None
+                                    else None
+                                )
+                            )
                         ),
                         "eps_basic": numeric(norm_inc.eps_basic),
                         "shares_basic": int(norm_inc.shares_basic) if norm_inc.shares_basic else None,
@@ -166,10 +174,18 @@ class FinancialRepository:
                         "total_assets": numeric(norm_bs.total_assets),
                         "total_liabilities": numeric(norm_bs.total_liabilities),
                         "total_equity": numeric(norm_bs.total_equity),
-                        "equity_parent": numeric(
-                            norm_bs.equity_parent
+                        "equity_parent": (
+                            numeric(norm_bs.equity_parent)
                             if norm_bs.equity_parent is not None
-                            else norm_bs.total_equity
+                            else (
+                                numeric(norm_bs.total_equity)
+                                if stmt.consolidation in ("PARENT_ONLY", "SEPARATE", "STANDALONE")
+                                else (
+                                    numeric(norm_bs.total_equity) - numeric(norm_bs.minority_interest)
+                                    if norm_bs.total_equity is not None and norm_bs.minority_interest is not None
+                                    else None
+                                )
+                            )
                         ),
                         "share_capital": numeric(norm_bs.share_capital),
                         "loans_and_advances": numeric(norm_bs.loans_and_advances),

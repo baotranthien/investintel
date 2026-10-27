@@ -1,9 +1,13 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T06:28:37.851164Z",
-  "code_sha": "d111136bfe46ae978ee3165ca19f00b850d67a07",
+  "evaluated_at": "2026-10-27T07:00:29.756618Z",
+  "tested_source_commit_sha": "ae0abac2a1647f48976615dfe2f1efef1604b0eb",
+  "tested_source_tree_sha": "ce1f53c8da7c33835defdbf91acda373a39206eb",
+  "deployed_backend_commit_sha": "ae0abac2a1647f48976615dfe2f1efef1604b0eb",
+  "revision_match_status": "EXACT_COMMIT_MATCH",
   "branch": "main",
-  "working_tree_clean": true,
+  "working_tree_clean": false,
+  "working_tree_diff_fingerprint": "docs/ACCEPTANCE_REPORT.json          | 17 +++++---\n docs/PROJECT_STATUS.md               | 39 ++++++++++--------\n scripts/audit_universe_prices.py     | 52 +++++++++++++++++-------\n scripts/evaluate_acceptance_gates.py | 38 +++++++++++++----\n services/contracts/invalidation.py   |  7 ++++\n services/fundamentals/repository.py  | 28 ++++++++++---\n services/quality/reconciliation.py   | 44 +++++++++++++++-----\n tests/test_universe_generic.py       | 79 ++++++++++++++++++++++++++++++++++++\n 8 files changed, 245 insertions(+), 59 deletions(-)",
   "technical_readiness_verdict": "PASS",
   "overall_production_verdict": "PARTIAL",
   "gates": [
@@ -13,7 +17,7 @@
       "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "40 passed in 38.79s",
+      "evidence": "42 passed in 37.84s",
       "critical": true
     },
     {
@@ -83,7 +87,8 @@
       "name": "Deployed Backend Revision & Health",
       "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
       "status": "PASS",
-      "evidence": "Render commit=d111136bfe46ae978ee3165ca19f00b850d67a07, local=d111136, match=True, db_latency=8.49ms",
+      "deployed_backend_commit_sha": "ae0abac2a1647f48976615dfe2f1efef1604b0eb",
+      "evidence": "Render commit=ae0abac2a1647f48976615dfe2f1efef1604b0eb, local=ae0abac, match=True, db_latency=21.16ms",
       "critical": true
     },
     {
@@ -91,7 +96,7 @@
       "name": "Deployed Frontend Platform Revision",
       "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
       "status": "BLOCKED_AWAITING_TOKEN",
-      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"45a8302c99ebee256bbfed49913ffc95\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"4b0972f7e02d3732c04ba5ca935954f3\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
       "critical": false
     },
     {
