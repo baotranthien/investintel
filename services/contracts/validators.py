@@ -250,6 +250,8 @@ def validate_valuation_ratio(
     sector: str = "GENERAL",
     fallback_val: Optional[float] = None,
     formula_version: str = "price_per_share_v1",
+    is_denominator_estimate: bool = False,
+    denominator_diagnostic: Optional[str] = None,
 ) -> MetricCalculationContract:
     """
     Computes and validates a valuation multiple (P/E or P/B).
@@ -257,6 +259,8 @@ def validate_valuation_ratio(
     - If raw_ratio falls outside standard bounds, DO NOT silently replace it with fallback!
       Flag as CONFLICTING_DATA or OUTLIER with diagnostic reasoning.
     - If sector is banking/financials, blocks non-applicable metrics.
+    - If denominator is an estimate (e.g. period-end shares fallback for EPS),
+      preserves is_estimate=True and diagnostic_reason downstream.
     """
     sec = sector.upper()
     if sec in {"BANK", "BANKING", "FINANCIALS"} and metric_id == "ev_ebitda":
@@ -328,6 +332,10 @@ def validate_valuation_ratio(
     else:
         status_str = "AVAILABLE"
 
+    if is_denominator_estimate:
+        est_note = f"Denominator is estimated ({denominator_diagnostic or 'period-end shares fallback'}). Ratio is an estimate."
+        diag = f"{diag}; {est_note}" if diag else est_note
+
     return MetricCalculationContract(
         metric_id=metric_id,
         symbol="",
@@ -340,4 +348,6 @@ def validate_valuation_ratio(
         is_outlier=is_outlier,
         diagnostic_note=diag,
         formula_version=formula_version,
+        is_estimate=is_denominator_estimate,
+        diagnostic_reason=denominator_diagnostic if is_denominator_estimate else None,
     )

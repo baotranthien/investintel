@@ -797,5 +797,116 @@ def test_metric_level_reconciliation_contracts(db_session: Session):
     assert pb_m["comparable_pair_count"] == pb_m["matched_pair_count"] + pb_m["unreconciled_pair_count"]
     assert pb_m["unverified_count"] == pb_m["unreconciled_pair_count"] + pb_m["stale_comparator_count"] + pb_m["missing_comparator_count"] + pb_m["temporally_non_comparable_count"]
 
+    # Phase 5 rate and estimate contract invariants
+    assert pe_m["operational_snapshot_match_count"] == pe_m["matched_pair_count"]
+    assert pe_m["operational_snapshot_match_rate"] == pe_m["match_rate_among_entire_universe"]
+    assert pe_m["strict_eps_count"] >= 0
+    assert pe_m["estimate_based_eps_count"] >= 0
+    assert pe_m["strict_eps_count"] + pe_m["estimate_based_eps_count"] <= pe_m["universe_count"]
+    assert "same_snapshot_reconciliation" in pe_m
+    assert pe_m["same_snapshot_reconciliation"]["snapshot_date"] == "2026-10-19"
+    assert "timing_drift_symbols" in pe_m["same_snapshot_reconciliation"]
+
+
+def test_workspace_estimated_eps_propagation(db_session: Session):
+    """
+    Phase 4: Tests that estimated EPS flags propagate from snapshot to workspace metrics,
+    including downstream valuation P/E and diagnostic notes.
+    """
+    from services.research.workspace import build_research_workspace
+
+    # Case 1: Synthetic asset with period-end shares fallback (no shares_basic on statements)
+    sym_est = "TESTEST1"
+    asset = Asset(symbol=sym_est, name="Test Estimate Corp", asset_type="STOCK", exchange="HOSE", sector="TECHNOLOGY", status="ACTIVE")
+    db_session.add(asset)
+    db_session.flush()
+
+    db_session.add(Price(
+        asset_id=asset.id, observation_date=date(2026, 10, 24),
+        raw_open=30000.0, raw_high=30000.0, raw_low=30000.0, raw_close=30000.0,
+        adjusted_close=30000.0, adjustment_factor=1.0, volume=100000.0, source="MOCK", status="VALID",
+    ))
+
+    for fend, fyear, fq in [
+        (date(2025, 12, 31), 2025, 4),
+        (date(2026, 3, 31), 2026, 1),
+        (date(2026, 6, 30), 2026, 2),
+        (date(2026, 9, 30), 2026, 3),
+    ]:
+        stmt = FinancialStatement(
+            asset_id=asset.id, symbol=sym_est, statement_type="INCOME_STATEMENT",
+            fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", statement_date=fend, publication_date=fend,
+            consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+        )
+        db_session.add(stmt)
+        db_session.flush()
+        db_session.add(NormalizedIncome(
+            statement_id=stmt.id, symbol=sym_est, fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", revenue=500.0, net_income=50.0, net_income_parent=50.0,
+            shares_basic=None,  # No statement shares_basic!
+        ))
+
+    db_session.add(FundamentalMetric(
+        symbol=sym_est, metric_id="OUTSTANDING_SHARES", value=100_000_000.0,
+        fiscal_period_end=date(2026, 9, 30), period_type="QUARTERLY", calculation_version="verified_outstanding_v1",
+    ))
+    db_session.commit()
+
+    ws_est = build_research_workspace(db_session, sym_est, as_of=date(2026, 10, 24))
+    eps_est = ws_est.fundamentals.get("metrics", {}).get("eps_ttm")
+    pe_est = ws_est.valuation.get("metrics", {}).get("pe")
+    assert eps_est.get("is_estimate") is True
+    assert eps_est.get("diagnostic_reason") == "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+    assert pe_est.get("is_estimate") is True
+    assert pe_est.get("diagnostic_reason") == "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"
+    assert "multiple is an estimate" in pe_est.get("evidence", {}).get("note", "")
+
+    # Case 2: Synthetic asset with audited statement shares_basic
+    sym_basic = "TESTBSC1"
+    asset_b = Asset(symbol=sym_basic, name="Test Basic Corp", asset_type="STOCK", exchange="HOSE", sector="TECHNOLOGY", status="ACTIVE")
+    db_session.add(asset_b)
+    db_session.flush()
+
+    db_session.add(Price(
+        asset_id=asset_b.id, observation_date=date(2026, 10, 24),
+        raw_open=30000.0, raw_high=30000.0, raw_low=30000.0, raw_close=30000.0,
+        adjusted_close=30000.0, adjustment_factor=1.0, volume=100000.0, source="MOCK", status="VALID",
+    ))
+
+    for fend, fyear, fq in [
+        (date(2025, 12, 31), 2025, 4),
+        (date(2026, 3, 31), 2026, 1),
+        (date(2026, 6, 30), 2026, 2),
+        (date(2026, 9, 30), 2026, 3),
+    ]:
+        stmt = FinancialStatement(
+            asset_id=asset_b.id, symbol=sym_basic, statement_type="INCOME_STATEMENT",
+            fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", statement_date=fend, publication_date=fend,
+            consolidation="CONSOLIDATED", currency="VND", unit_scale="BILLION_VND", version=1, status="VALID",
+        )
+        db_session.add(stmt)
+        db_session.flush()
+        db_session.add(NormalizedIncome(
+            statement_id=stmt.id, symbol=sym_basic, fiscal_period_end=fend, fiscal_year=fyear, fiscal_quarter=fq,
+            period_type="QUARTERLY", revenue=500.0, net_income=50.0, net_income_parent=50.0,
+            shares_basic=100_000_000.0,  # Explicit audited statement basic shares!
+        ))
+
+    db_session.add(FundamentalMetric(
+        symbol=sym_basic, metric_id="OUTSTANDING_SHARES", value=100_000_000.0,
+        fiscal_period_end=date(2026, 9, 30), period_type="QUARTERLY", calculation_version="verified_outstanding_v1",
+    ))
+    db_session.commit()
+
+    ws_bsc = build_research_workspace(db_session, sym_basic, as_of=date(2026, 10, 24))
+    eps_bsc = ws_bsc.fundamentals.get("metrics", {}).get("eps_ttm")
+    pe_bsc = ws_bsc.valuation.get("metrics", {}).get("pe")
+    assert eps_bsc.get("is_estimate") is False
+    assert pe_bsc.get("is_estimate") is False
+
+
+
 
 

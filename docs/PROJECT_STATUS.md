@@ -62,23 +62,37 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **P0 DEPLOYMENT ALIGNMENT & FINAL FINANCIAL CORRECTNESS VERIFICATION**
-* **Milestone**: **Full Test Suite Execution (283 Passed, 1 Skipped, 0 Failed), Regression Subset (48/48 Passed), Strict vs Operational Reconciliation Separation (P/E Strict 100.0%, Operational 94.0%; P/B Strict 100.0%, Operational 74.0%), DSE Implied EPS Arithmetic Resolution, IAS 33 Share Denominator Semantics, Render Live SHA Aligned — VERIFIED**
-* **Repository State**: Working tree clean. Render live backend verified running `6e4ddbe0481527de926fbe4f6b19733d3b52d279` (`6e4ddbe`). Vercel frontend reachable (HTTP 200).
-* **Tested Source Commit SHA**: `6e4ddbe0481527de926fbe4f6b19733d3b52d279`
-* **Tested Application Fingerprint**: `64f582a06fef2c5cae6274b4f2d1a2ce8e5cb3c4508c3824ee42b71ef2da8321` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
-* **Full Test Suite**: **283 PASSED, 1 SKIPPED, 0 FAILED** out of 284 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
-* **Regression Subset**: **48/48 PASSED** in 62.10s (18 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 12 in `test_universe_generic.py`).
+* **Phase**: **ACCEPTANCE INTEGRITY CLOSEOUT: UNBIASED RECONCILIATION & ESTIMATED EPS PROPAGATION**
+* **Milestone**: **Full Test Suite Execution (289 Passed, 1 Skipped, 0 Failed), Regression Subset (54/54 Passed), Same-Snapshot P/E Reconciliation (99/100 Matched, 99.0%), Operational Snapshot Drift (94/100 Matched, 94.0%), System-Wide Estimated EPS Propagation (96% Fallback Labeled with Diagnostics Across 6 Layers), DSE Unverified Share Residual Transparency, P/B Fresh Reconciled (74/74 Matched, 100.0%) — VERIFIED**
+* **Repository State**: Working tree clean. Render live backend verified running `d351451936ce2075bf37a407e66e1b9d599e5d23` (`d351451`). Vercel frontend reachable (HTTP 200).
+* **Tested Source Commit SHA**: `d351451936ce2075bf37a407e66e1b9d599e5d23`
+* **Tested Application Fingerprint**: `c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
+* **Full Test Suite**: **289 PASSED, 1 SKIPPED, 0 FAILED** out of 290 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
+* **Regression Subset**: **54/54 PASSED** in 62.49s (23 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 13 in `test_universe_generic.py`).
 * **Metric-Level Reconciliation**:
   - **P/E Metric**:
-    - *Strict Comparable Pairs*: 94/94 matched (100.0% match rate; 0 unreconciled comparable pairs; 6 temporally non-comparable drift pairs).
-    - *Operational Snapshot Comparison*: 94/100 matched (94.0% across universe; 6 drift pairs: BSI, CTS, DSE, KOS, VIX, VPX explained with factor decomposition and derived checks).
+    - *Unbiased Same-Snapshot Reconciliation (2026-10-19)*: 99/100 matched within 15% tolerance (99.0% match rate). The single non-matching equity is `VIX` (19.20 vs 7.85), which released its Q3 2026 statement on the evening of 2026-10-19, whereas the provider snapshot captured market hours prior to filing. All other 5 drift stocks (`BSI, CTS, DSE, KOS, VPX`) match on the 2026-10-19 snapshot.
+    - *Operational Snapshot Drift (2026-10-27 vs 2026-10-19)*: 94/100 matched (94.0% across universe; exactly 6 drift divergent pairs: BSI, CTS, DSE, KOS, VIX, VPX explained with step-by-step price and reporting period factor decompositions).
+    - *IAS 33 Share Basis Demarcation*: Statement basic shares cohort (`VCB, FPT, MBB, MWG, HPG`) achieves 5/5 (100.0%) match rate with strict provenance. Period-end outstanding shares fallback cohort achieves 94/95 (98.9%) match rate.
   - **P/B Metric**:
     - *Strict Comparable Pairs*: 74/74 matched (100.0% among fresh comparable pairs; 0 unreconciled).
-    - *Operational Snapshot Comparison*: 74/100 matched (74.0% across universe; 16 stale historical BVPS comparator, 10 missing provider comparator).
-* **DSE Arithmetic Discrepancy Resolution**: Raw provider P/E is 36.60454642 at price 20,550 VND, implying a provider EPS of 561.405676 VND (~426.09M implied weighted-average shares vs 428.25M period-end shares). Direct division $20,550 / 558.57 = 36.79$ did not match raw provider ratio because provider dataset contains no raw EPS field and utilized weighted-average shares. Implied EPS strictly classified as `DERIVED_CHECK`; status classified as `PARTIALLY_SUPPORTED`.
-* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `6e4ddbe0481527de926fbe4f6b19733d3b52d279`, exact match to local HEAD, Neon latency 7.35ms).
-* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"23739977a7e7a918e54a14ae1338d4d9"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
+    - *Operational Universe Comparison*: 74/100 matched (74.0% across universe; 16 stale historical BVPS comparator, 10 missing provider comparator).
+* **System-Wide Estimated EPS Propagation (Phase 4)**:
+  - Statement basic shares (`shares_basic`) exist in only 5 of 2,237 financial statements (historical annuals for 5 blue chips). For active 2026 TTM EPS, 96% of the universe relies on period-end shares fallback.
+  - Full metadata propagation verified across 6 system tiers:
+    1. *Contracts & Validators*: `MetricCalculationContract.is_estimate` and `diagnostic_reason` propagated to downstream valuation ratio validation.
+    2. *Fundamental Snapshot Builder*: `is_eps_estimate=True` and `eps_diagnostic_reason="WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"` populated in snapshot per_share block.
+    3. *Research Workspace*: `WorkspaceMetric.is_estimate` and `diagnostic_reason` populated for `eps_ttm`; downstream `valuation_metrics["pe"]` automatically inherits `is_estimate=True` and explanatory calc note.
+    4. *Decision Engine*: Fundamental and valuation evidence items preserve `is_estimate` and `diagnostic_reason`.
+    5. *AI Schemas*: `AICitation.is_estimate` and `diagnostic_reason` preserve estimate attribution in generated analyst outputs.
+    6. *Audits & CLI*: Dynamic universe audit outputs Phase 5 metrics and estimate distribution.
+* **DSE Arithmetic Discrepancy Transparency (Phase 3)**:
+  - Raw provider EPS is strictly `NULL` (provider dataset publishes no basic EPS or share count).
+  - Implied provider EPS ($20,550 / 36.60454642 \approx 561.405676$ VND) is strictly tagged as `DERIVED_CHECK`.
+  - Internal Q2 2026 calculation with $428,249,806$ ending shares gives $558.568478$ VND (P/E 36.79 at 20,550 VND).
+  - The remaining 0.1867 PE point ($0.51\%$) residual is explicitly classified as `UNVERIFIED_SHARE_BASIS_RESIDUAL` under `PARTIALLY_SUPPORTED`. No unverified provider shares are assumed.
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `d351451936ce2075bf37a407e66e1b9d599e5d23`, Neon latency 9.06ms).
+* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"ce44ef774e91332d358c754dfff05728"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
 * **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).
 * **Local Ollama Live Inference**: `VERIFIED` (`qwen2.5:3b` on loopback 11434, 13/13 acceptance matrix passed).

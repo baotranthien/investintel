@@ -353,3 +353,98 @@ def test_dependency_invalidation_propagation():
     can_pub_pe, reason_pe = graph.is_publishable("FPT", DependencyNodeType.PE_RATIO)
     assert can_pub_pe is False
     assert "INVALIDATED" in reason_pe
+
+
+# ============================================================================
+# 6. Estimated EPS & Multi-Layer Propagation Tests (Phase 4)
+# ============================================================================
+
+def test_valuation_ratio_propagates_denominator_estimate():
+    """Contract: validate_valuation_ratio propagates estimate status to MetricCalculationContract."""
+    contract = validate_valuation_ratio(
+        price=30000.0,
+        denominator=2000.0,
+        metric_id="pe",
+        is_denominator_estimate=True,
+        denominator_diagnostic="WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING",
+    )
+    assert contract.value == 15.0
+    assert contract.is_estimate is True
+    assert contract.diagnostic_reason == "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+
+
+def test_eps_estimate_propagation_when_weighted_average_available():
+    """
+    Contract: When audited weighted-average basic shares are explicitly provided on the statement,
+    EPS and downstream P/E are NOT flagged as estimates.
+    """
+    contract = validate_valuation_ratio(
+        price=110000.0,
+        denominator=5000.0,
+        metric_id="pe",
+        is_denominator_estimate=False,
+        denominator_diagnostic=None,
+    )
+    assert contract.value == 22.0
+    assert contract.is_estimate is False
+    assert contract.diagnostic_reason is None
+
+
+def test_eps_estimate_fallback_provenance():
+    """
+    Contract: When resolve_shares_by_purpose resolves period-end shares,
+    provenance clearly documents PERIOD_END fallback.
+    """
+    candidates = [
+        {"symbol": "AAA", "metric_id": "OUTSTANDING_SHARES", "value": 100_000_000, "source": "HOSE_FILING"},
+    ]
+    res = resolve_shares_by_purpose(candidates)
+    assert res is not None
+    assert res.share_count == 100_000_000
+    assert res.share_type in (ShareType.OUTSTANDING_CURRENT, ShareType.OUTSTANDING_HISTORICAL)
+
+
+def test_eps_fails_closed_when_ttm_discontinuous_or_missing_parent_income():
+    """
+    Contract: When quarterly continuity fails or parent net income is None,
+    TTMEngine fails closed and valuation ratio rejects calculation.
+    """
+    quarters_broken = [
+        {"revenue": 100.0, "net_income_parent": None, "fiscal_period_end": date(2025, 3, 31)},
+        {"revenue": 120.0, "net_income_parent": 25.0, "fiscal_period_end": date(2025, 6, 30)},
+        {"revenue": 110.0, "net_income_parent": 22.0, "fiscal_period_end": date(2025, 9, 30)},
+        {"revenue": 130.0, "net_income_parent": 28.0, "fiscal_period_end": date(2025, 12, 31)},
+    ]
+    ttm = TTMEngine.compute_ttm_income(quarters_broken)
+    assert ttm.get("net_income_parent") is None
+
+    val_res = validate_valuation_ratio(
+        price=50000.0,
+        denominator=None,
+        metric_id="pe",
+    )
+    assert val_res.status == "INSUFFICIENT_DATA"
+    assert val_res.value is None
+
+
+def test_share_count_corporate_action_split_propagation():
+    """
+    Contract: Corporate action bonus/split expansion must be resolved accurately
+    and carry provenance through to the denominator.
+    """
+    candidates = [
+        {"symbol": "VIX", "metric_id": "LISTED_SHARES", "value": 1_070_000_000, "source": "STALE_LISTING"},
+        {"symbol": "VIX", "metric_id": "OUTSTANDING_SHARES", "value": 2_572_788_533, "source": "SPLIT_EXPANSION"},
+    ]
+    res = resolve_shares_by_purpose(candidates)
+    assert res.share_count == 2_572_788_533
+    contract = validate_valuation_ratio(
+        price=12500.0,
+        denominator=650.97,
+        metric_id="pe",
+        is_denominator_estimate=True,
+        denominator_diagnostic="WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING",
+    )
+    assert contract.is_estimate is True
+    assert round(contract.value, 2) == 19.20
+

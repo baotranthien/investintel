@@ -181,3 +181,5 @@ class MetricCalculationContract(BaseModel):
     is_outlier: bool = False
     diagnostic_note: Optional[str] = None
     lineage_ref: Optional[str] = None
+    is_estimate: bool = False
+    diagnostic_reason: Optional[str] = None

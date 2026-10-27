@@ -34,6 +34,8 @@ class WorkspaceMetric(BaseModel):
     period: Optional[str] = None
     calculation: Optional[str] = None
     verification_level: Optional[str] = None
+    is_estimate: bool = False
+    diagnostic_reason: Optional[str] = None
     evidence: Evidence
 
 
@@ -95,6 +97,8 @@ def _metric_from_snapshot(
     publication_date: Optional[date],
     data_origin: Optional[str],
     verification_level: Optional[str] = None,
+    is_estimate: bool = False,
+    diagnostic_reason: Optional[str] = None,
 ) -> WorkspaceMetric:
     metric = metric or {}
     metric_status = metric.get("data_status")
@@ -118,6 +122,8 @@ def _metric_from_snapshot(
         period=period or metric.get("period"),
         calculation=metric.get("calculation_version"),
         verification_level=v_level,
+        is_estimate=is_estimate,
+        diagnostic_reason=diagnostic_reason,
         evidence=Evidence(
             claim_type="MODEL_OUTPUT" if metric.get("value_status") == "DERIVED" else "FACT",
             source=source,
@@ -265,12 +271,20 @@ def build_research_workspace(
             )
         else:
             value = snapshot.get(source_group, {}).get(raw_key)
-        if metric_id == "eps_ttm" and snapshot.get("period") != "TTM":
-            value = None
+        is_metric_est = False
+        diag_metric_rsn = None
+        if metric_id == "eps_ttm":
+            if snapshot.get("period") != "TTM":
+                value = None
+            else:
+                is_metric_est = bool(snapshot.get("per_share", {}).get("is_eps_estimate", False))
+                diag_metric_rsn = snapshot.get("per_share", {}).get("eps_diagnostic_reason")
         fundamentals_metrics[metric_id] = _metric_from_snapshot(
             value, unit=unit, period=period, metric=None, source=primary_source,
             source_date=snapshot_source_date, publication_date=latest_publication,
             data_origin="CANONICAL_FINANCIAL_STATEMENTS",
+            is_estimate=is_metric_est,
+            diagnostic_reason=diag_metric_rsn,
         )
 
     history_rows = []
@@ -543,12 +557,23 @@ def build_research_workspace(
             from services.contracts.invalidation import invalidation_graph, DependencyNodeType, NodeState
             node_type = DependencyNodeType.PE_RATIO if metric_id == "pe" else DependencyNodeType.PB_RATIO
             invalidation_graph.set_node_state(normalized_symbol, node_type, NodeState.VALID)
+
+        is_val_est = False
+        val_diag_rsn = None
+        if metric_id == "pe" and eps_metric and getattr(eps_metric, "is_estimate", False):
+            is_val_est = True
+            val_diag_rsn = "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"
+            if meaningful and "Denominator uses period-end shares fallback" not in calc_note:
+                calc_note += " (Denominator uses period-end shares fallback; multiple is an estimate.)"
+
         valuation_metrics[metric_id] = WorkspaceMetric(
             value=calc_val,
             unit=unit,
             status=status_str,
             calculation="price / canonical EPS TTM" if metric_id == "pe" else "price / canonical BVPS",
             verification_level=v_level,
+            is_estimate=is_val_est,
+            diagnostic_reason=val_diag_rsn,
             evidence=Evidence(
                 claim_type="MODEL_OUTPUT" if meaningful else "UNCERTAINTY",
                 source=price_source,

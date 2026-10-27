@@ -59,6 +59,8 @@ class AICitation(BaseModel):
     retrieved_at: str | None = None
     data_origin: str | None = None
     freshness: str | None = None
+    is_estimate: bool | None = False
+    diagnostic_reason: str | None = None
     note: str | None = None
 
 

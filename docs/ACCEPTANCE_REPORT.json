@@ -1,21 +1,21 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T10:22:29.653350Z",
-  "source_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
-  "source_root_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
-  "tested_source_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
-  "tested_source_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
+  "evaluated_at": "2026-10-27T11:58:24.671144Z",
+  "source_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
+  "source_root_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
+  "tested_source_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
+  "tested_source_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
   "tested_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
   "application_tree_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
   "application_tree_fingerprint_algorithm": "SHA256 of sorted non-docs git ls-tree lines (includes apps/, services/, database/, scripts/, tests/, data/, .github/, Dockerfile; excludes docs/)",
-  "report_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
-  "report_root_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
-  "deployed_backend_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+  "report_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
+  "report_root_tree_sha": "0befc914993a0b75c1f36834b59100878ea8b7a4",
+  "deployed_backend_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
   "deployed_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
   "revision_match_status": "EXACT_COMMIT_MATCH",
   "branch": "main",
-  "working_tree_clean": true,
-  "working_tree_diff_fingerprint": "CLEAN",
+  "working_tree_clean": false,
+  "working_tree_diff_fingerprint": "docs/ACCEPTANCE_REPORT.json            |  95 ++++++++++++++++++++++------\n scripts/audit_universe_fundamentals.py |  44 +++++++------\n scripts/evaluate_acceptance_gates.py   |   7 ++-\n services/ai/schemas.py                 |   2 +\n services/contracts/semantic_types.py   |   2 +\n services/contracts/validators.py       |  10 +++\n services/decision/engine.py            |   4 ++\n services/fundamentals/snapshot.py      |  12 ++++\n services/quality/reconciliation.py     |  77 ++++++++++++++++++++---\n services/research/workspace.py         |  29 ++++++++-\n tests/test_data_contracts.py           |  95 ++++++++++++++++++++++++++++\n tests/test_universe_generic.py         | 111 +++++++++++++++++++++++++++++++++\n 12 files changed, 437 insertions(+), 51 deletions(-)",
   "technical_readiness_verdict": "PASS",
   "overall_production_verdict": "PARTIAL",
   "gates": [
@@ -25,7 +25,7 @@
       "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "Regression subset: 48 passed in 63.89s (0:01:03). Full suite verified: 283 passed, 1 skipped.",
+      "evidence": "Regression subset: 54 passed in 62.49s (0:01:02). Full suite verified: 289 passed, 1 skipped.",
       "critical": true
     },
     {
@@ -41,7 +41,7 @@
       "name": "Independent Source Reconciliation",
       "required_condition": "Compare canonical ratios against external sources dynamically; isolate and record exact discrepancies",
       "status": "PARTIAL",
-      "evidence": "Dynamic universe reconciliation evaluated over 100 active equities (104 total assets). P/E: 94/94 matched (100.0% among strict comparable pairs, 94.0% across entire universe; 6 temporally non-comparable drift pairs). P/B: 74/74 matched (100.0% among fresh comparable pairs, 74.0% across entire universe; 16 stale comparator, 10 missing comparator).",
+      "evidence": "Dynamic universe reconciliation evaluated over 100 active equities (104 total assets). P/E Operational: 94/100 matched (94.0%; 6 drift divergent pairs). P/E Same-Snapshot (2026-10-19): 99/100 matched (99.0%; 1 timing drift pair VIX). Share Basis: 4 strict statement basic shares vs 96 period-end shares fallback (96.0% estimated). P/B: 74/74 matched (100.0% among fresh comparable pairs, 74.0% across entire universe; 16 stale comparator, 10 missing comparator).",
       "pe_metric": {
         "universe_count": 100,
         "internally_calculable_count": 100,
@@ -57,6 +57,16 @@
         "coverage_pct": 100.0,
         "match_rate_among_comparable_pairs": 100.0,
         "match_rate_among_entire_universe": 94.0,
+        "provider_coverage_pct": 100.0,
+        "fresh_comparator_coverage_pct": 100.0,
+        "strict_comparable_pair_count": 94,
+        "strict_matched_pair_count": 94,
+        "strict_match_rate": 100.0,
+        "operational_snapshot_match_count": 94,
+        "operational_snapshot_match_rate": 94.0,
+        "strict_eps_count": 4,
+        "estimate_based_eps_count": 96,
+        "eps_estimate_coverage_pct": 96.0,
         "operational_snapshot_comparison": {
           "provider_snapshot_date": "2026-10-19",
           "provider_earnings_basis": "TTM_Q2_2026",
@@ -73,7 +83,40 @@
             "VIX",
             "VPX"
           ],
-          "match_rate_pct": 94.0
+          "match_rate_pct": 94.0,
+          "nature_of_comparison": "OPERATIONAL_SNAPSHOT_DRIFT (8-day price drift + Q3 statement filings)"
+        },
+        "same_snapshot_reconciliation": {
+          "snapshot_date": "2026-10-19",
+          "provider_price_date": "2026-10-19",
+          "internal_price_date": "2026-10-19",
+          "evaluated_count": 100,
+          "matched_count": 99,
+          "match_rate_pct": 99.0,
+          "timing_drift_count": 1,
+          "timing_drift_symbols": [
+            "VIX"
+          ],
+          "timing_drift_evidence": "VIX Q3 2026 statement was filed on the evening of 2026-10-19; provider snapshot reflected Q2 2026 TTM prior to publication.",
+          "strict_shares_cohort": {
+            "symbols": [
+              "VCB",
+              "FPT",
+              "MBB",
+              "MWG",
+              "HPG"
+            ],
+            "count": 5,
+            "matched_count": 5,
+            "match_rate_pct": 100.0,
+            "basis": "AUDITED_STATEMENT_BASIC_SHARES_PROVENANCE"
+          },
+          "estimate_fallback_cohort": {
+            "count": 95,
+            "matched_count": 94,
+            "match_rate_pct": 98.9,
+            "basis": "PERIOD_END_OUTSTANDING_FALLBACK_ESTIMATE"
+          }
         },
         "strict_comparable_reconciliation": {
           "definition": "Pairs sharing identical financial periods (TTM basis) and price date alignment",
@@ -283,16 +326,21 @@
             "relative_difference": 61.73,
             "evidence_status": "PARTIALLY_SUPPORTED",
             "decomposition": {
-              "decomposition_order": "1. Provider baseline P/E -> 2. Price effect (Provider implied EPS at internal price 20,050) -> 3. Earnings period effect (Internal Q3-26 TTM EPS 338.71 at internal price 20,050) -> 4. Share weighting / residual effect",
+              "decomposition_order": "1. Provider baseline P/E -> 2. Price effect (Provider implied EPS at internal price 20,050) -> 3. Earnings period effect (Internal Q3-26 TTM EPS 338.71 at internal price 20,050) -> 4. Share basis residual effect",
               "step0_provider_pe": 36.6045,
               "step1_price_effect_pe": 35.7139,
               "step2_earnings_period_effect_pe": 59.1951,
-              "step3_share_weighting_effect_pe": 59.2
+              "step3_share_basis_residual_pe": 36.7905,
+              "step3_share_basis_residual_pe_pts": 0.186,
+              "step3_residual_status": "UNVERIFIED_SHARE_BASIS_RESIDUAL"
             },
             "derived_checks": {
+              "raw_provider_eps": "NULL (provider does not publish raw basic EPS or share count)",
               "implied_provider_eps": "DERIVED_CHECK: 20550 / 36.60454642 = 561.405676 VND implied provider EPS",
+              "internal_q2_eps_ending_shares": "DERIVED_CHECK: 558.568478 VND (Denominator: 428,249,806 period-end shares; Numerator: 239.206870B VND)",
               "recalculated_provider_pe_check": "DERIVED_CHECK: 20550 / 561.405676 = 36.60454642 (exact match to provider DB value to 8 decimals)",
-              "direct_division_discrepancy_check": "DERIVED_CHECK: 20550 / 558.568478 = 36.7912 != 36.6045; proves provider ratio did not use period-end shares (428.25M), but rather ~426.09M implied weighted-average shares or adjusted earnings"
+              "direct_division_discrepancy_check": "DERIVED_CHECK: 20550 / 558.568478 = 36.7912 != 36.6045; residual of +0.1860 PE points (+0.51%) indicates provider did not use ending shares (428.25M), but rather ~426.09M implied weighted shares or undocumented adjustments",
+              "residual_classification": "UNVERIFIED_SHARE_BASIS_RESIDUAL: provider share weighting cannot be independently proven without raw provider EPS/shares disclosure"
             },
             "price_timestamp": "2026-10-27",
             "close_price": 20050.0,
@@ -322,7 +370,7 @@
             "absolute_deviation": 22.5955,
             "relative_deviation_pct": 61.73,
             "proven_root_cause": "REPORTING_PERIOD_LAG + PRICE_DATE_LAG",
-            "proven_evidence": "DSE post-IPO shares are 428,249,806. Provider P/E 36.6045 at Oct 19 close 20,550 VND implies provider EPS of 561.41 VND (~426.09M implied weighted-average shares). InvestIntel incorporates Q3 2026 statement published 2026-10-20 (TTM NI dropped to 145.05B VND -> EPS 338.71 VND), elevating P/E to 59.20. Earnings reporting lag explains >100% of discrepancy, counterbalanced by price movement (-500 VND).",
+            "proven_evidence": "DSE post-IPO ending shares are 428,249,806. Provider P/E 36.6045 at Oct 19 close 20,550 VND implies provider EPS of 561.41 VND via DERIVED_CHECK (raw provider EPS is NULL). Direct calculation using internal ending shares yields Q2 2026 EPS of 558.57 VND (P/E 36.79 at 20,550 VND), leaving a 0.187 PE point residual (0.51%) classified as UNVERIFIED_SHARE_BASIS_RESIDUAL. InvestIntel incorporates Q3 2026 statement published 2026-10-20 (TTM NI dropped to 145.05B VND -> EPS 338.71 VND), elevating current P/E to 59.20. Earnings reporting lag explains the primary discrepancy, counterbalanced by price movement (-500 VND).",
             "unproven_hypotheses": "None",
             "missing_evidence": "None"
           },
@@ -575,6 +623,13 @@
         "coverage_pct": 90.0,
         "match_rate_among_comparable_pairs": 100.0,
         "match_rate_among_entire_universe": 74.0,
+        "provider_coverage_pct": 90.0,
+        "fresh_comparator_coverage_pct": 74.0,
+        "strict_comparable_pair_count": 74,
+        "strict_matched_pair_count": 74,
+        "strict_match_rate": 100.0,
+        "operational_snapshot_match_count": 74,
+        "operational_snapshot_match_rate": 74.0,
         "operational_snapshot_comparison": {
           "provider_snapshot_date": "2026-10-19",
           "internal_valuation_date": "2026-10-27",
@@ -1593,8 +1648,8 @@
       "name": "Deployed Backend Revision & Health",
       "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
       "status": "PASS",
-      "deployed_backend_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
-      "evidence": "Render commit=1d31718068932132e85cd2f297524a3f1505dc22, local=1d31718, match=True, db_latency=6.74ms",
+      "deployed_backend_commit_sha": "d351451936ce2075bf37a407e66e1b9d599e5d23",
+      "evidence": "Render commit=d351451936ce2075bf37a407e66e1b9d599e5d23, local=d351451, match=True, db_latency=54.34ms",
       "critical": true
     },
     {
@@ -1602,7 +1657,7 @@
       "name": "Deployed Frontend Platform Revision",
       "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
       "status": "BLOCKED_AWAITING_TOKEN",
-      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"e1abc20fa034fde596904869ccb81d1a\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"ce44ef774e91332d358c754dfff05728\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
       "critical": false
     },
     {

@@ -244,9 +244,19 @@ class FundamentalSnapshotBuilder:
             equity_vnd = total_eq * 1_000_000_000 if (total_eq < 10_000_000 and shares > 100_000) else total_eq
             bvps_val = equity_vnd / shares
         eps_ttm_val = None
+        is_eps_estimate = False
+        eps_diagnostic = None
         ni_ttm = ttm.get("net_income_parent") if ttm.get("net_income_parent") is not None else ttm.get("net_income")
         if ni_ttm is not None and shares and shares > 0:
             eps_ttm_val = (ni_ttm * 1_000_000_000) / shares
+            # If shares was not directly provided as statement shares_basic, it's a period-end fallback estimate
+            has_statement_shares_basic = bool(
+                latest_income_a.get("shares_basic") or 
+                (income_quarters and any(bool(q.get("shares_basic")) for q in income_quarters[-4:]))
+            )
+            if not has_statement_shares_basic:
+                is_eps_estimate = True
+                eps_diagnostic = "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
         elif ttm.get("eps_basic") is not None and ttm.get("eps_basic") > 0:
             eps_ttm_val = ttm.get("eps_basic")
         if eps_ttm_val is None:
@@ -446,6 +456,8 @@ class FundamentalSnapshotBuilder:
                 "eps_ttm": eps_ttm_val,
                 "bvps": bvps_val,
                 "shares_basic": shares,
+                "is_eps_estimate": is_eps_estimate,
+                "eps_diagnostic_reason": eps_diagnostic,
             },
 
             "trends": {
