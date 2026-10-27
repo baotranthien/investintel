@@ -1,22 +1,22 @@
 {
   "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
-  "evaluated_at": "2026-10-27T10:19:20.000660Z",
-  "source_commit_sha": "eba8fd127d528e3d8c65b91d2bf6eb55f9c4b7c5",
-  "source_root_tree_sha": "18631134356dc68d63688b3ca8b646182a397898",
-  "tested_source_commit_sha": "eba8fd127d528e3d8c65b91d2bf6eb55f9c4b7c5",
-  "tested_source_tree_sha": "18631134356dc68d63688b3ca8b646182a397898",
+  "evaluated_at": "2026-10-27T10:22:29.653350Z",
+  "source_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+  "source_root_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
+  "tested_source_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+  "tested_source_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
   "tested_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
   "application_tree_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
   "application_tree_fingerprint_algorithm": "SHA256 of sorted non-docs git ls-tree lines (includes apps/, services/, database/, scripts/, tests/, data/, .github/, Dockerfile; excludes docs/)",
-  "report_commit_sha": "eba8fd127d528e3d8c65b91d2bf6eb55f9c4b7c5",
-  "report_root_tree_sha": "18631134356dc68d63688b3ca8b646182a397898",
-  "deployed_backend_commit_sha": "6e4ddbe0481527de926fbe4f6b19733d3b52d279",
-  "deployed_application_fingerprint": "64f582a06fef2c5cae6274b4f2d1a2ce8e5cb3c4508c3824ee42b71ef2da8321",
-  "revision_match_status": "DIVERGENT",
+  "report_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+  "report_root_tree_sha": "35b02d77f5a74553bd273392d781026a5fbd0927",
+  "deployed_backend_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+  "deployed_application_fingerprint": "c6c16a064e1b3efd9e7d4996f398ab08fed9a04d3397744080b09086ccc636d9",
+  "revision_match_status": "EXACT_COMMIT_MATCH",
   "branch": "main",
-  "working_tree_clean": false,
-  "working_tree_diff_fingerprint": "docs/ACCEPTANCE_REPORT.json | 195 ++++++++++++++++++++++++++++++++++----------\n docs/PROJECT_STATUS.md      |  31 ++++---\n 2 files changed, 169 insertions(+), 57 deletions(-)",
-  "technical_readiness_verdict": "FAIL",
+  "working_tree_clean": true,
+  "working_tree_diff_fingerprint": "CLEAN",
+  "technical_readiness_verdict": "PASS",
   "overall_production_verdict": "PARTIAL",
   "gates": [
     {
@@ -25,7 +25,7 @@
       "required_condition": "All data contract, financial correctness, and universe-generic regression tests pass (exit code 0)",
       "status": "PASS",
       "exit_code": 0,
-      "evidence": "Regression subset: 48 passed in 63.10s (0:01:03). Full suite verified: 283 passed, 1 skipped.",
+      "evidence": "Regression subset: 48 passed in 63.89s (0:01:03). Full suite verified: 283 passed, 1 skipped.",
       "critical": true
     },
     {
@@ -1592,9 +1592,9 @@
       "gate_id": "GATE_5_DEPLOYED_BACKEND_REVISION",
       "name": "Deployed Backend Revision & Health",
       "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
-      "status": "PARTIAL",
-      "deployed_backend_commit_sha": "6e4ddbe0481527de926fbe4f6b19733d3b52d279",
-      "evidence": "Render commit=6e4ddbe0481527de926fbe4f6b19733d3b52d279, local=eba8fd1, match=False, db_latency=6.65ms",
+      "status": "PASS",
+      "deployed_backend_commit_sha": "1d31718068932132e85cd2f297524a3f1505dc22",
+      "evidence": "Render commit=1d31718068932132e85cd2f297524a3f1505dc22, local=1d31718, match=True, db_latency=6.74ms",
       "critical": true
     },
     {
@@ -1602,7 +1602,7 @@
       "name": "Deployed Frontend Platform Revision",
       "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
       "status": "BLOCKED_AWAITING_TOKEN",
-      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"23739977a7e7a918e54a14ae1338d4d9\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+      "evidence": "Vercel frontend reachable (HTTP 200, ETag=\"e1abc20fa034fde596904869ccb81d1a\"). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
       "critical": false
     },
     {
