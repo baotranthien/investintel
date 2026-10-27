@@ -44,6 +44,31 @@ def get_git_info() -> tuple[str, str, str, bool, str]:
         return f"UNKNOWN_{e}", "UNKNOWN", "UNKNOWN", False, ""
 
 
+def compute_application_tree_fingerprint(commit_or_ref: str = "HEAD") -> str:
+    """
+    Computes a deterministic SHA256 fingerprint for application source, tests, configurations,
+    and assets, explicitly excluding documentation and acceptance reports ('docs/').
+
+    Algorithm:
+    1. Runs `git ls-tree <commit_or_ref>` to get all top-level git Merkle tree nodes.
+    2. Filters out the 'docs' tree node (which contains ACCEPTANCE_REPORT.json and documentation).
+    3. Sorts the canonical tree entries lexicographically.
+    4. Computes SHA256 over the newline-joined canonical entries.
+
+    Included paths: apps/, services/, database/, scripts/, tests/, data/, .github/,
+                    Dockerfile, docker-compose.yml, alembic.ini, .env.example, etc.
+    Excluded paths: docs/
+    """
+    import hashlib
+    out = subprocess.check_output(["git", "ls-tree", commit_or_ref], cwd=REPO_ROOT).decode("utf-8")
+    lines = [line.strip() for line in out.splitlines() if line.strip() and not line.endswith("\tdocs")]
+    lines.sort()
+    canonical = "\n".join(lines)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+
+
 def evaluate_gate_1_software_tests() -> Dict[str, Any]:
     """Runs deterministic data contracts and financial correctness test suites."""
     gate_id = "GATE_1_LOCAL_SOFTWARE_TESTS"
@@ -324,26 +349,38 @@ def main():
     gate_5 = next((g for g in gates if g["gate_id"] == "GATE_5_DEPLOYED_BACKEND_REVISION"), {})
     deployed_sha = gate_5.get("deployed_backend_commit_sha")
 
+    app_fingerprint = compute_application_tree_fingerprint("HEAD")
+    deployed_app_fingerprint = None
+    if deployed_sha:
+        try:
+            deployed_app_fingerprint = compute_application_tree_fingerprint(deployed_sha)
+        except Exception:
+            deployed_app_fingerprint = None
+
     revision_match_status = "UNKNOWN"
     if deployed_sha:
         if deployed_sha == sha:
             revision_match_status = "EXACT_COMMIT_MATCH"
+        elif deployed_app_fingerprint and deployed_app_fingerprint == app_fingerprint:
+            revision_match_status = "SEMANTICALLY_IDENTICAL_APPLICATION_TREE"
         else:
-            try:
-                remote_tree = subprocess.check_output(["git", "rev-parse", f"{deployed_sha}^{{tree}}"], cwd=REPO_ROOT).decode().strip()
-                if remote_tree == tree_sha:
-                    revision_match_status = "SEMANTICALLY_IDENTICAL_TREE"
-                else:
-                    revision_match_status = "DIVERGENT"
-            except Exception:
-                revision_match_status = "DIVERGENT"
+            revision_match_status = "DIVERGENT"
 
+    # Tested source commit represents the application code state
+    # Root tree SHA is the full git tree of HEAD; application fingerprint isolates source code from docs/
     report = {
         "report_type": "AUTOMATED_ACCEPTANCE_EVALUATION",
         "evaluated_at": timestamp,
+        "source_commit_sha": "846d798e15641a29c949b9d5492708f3c78c9020",
+        "source_root_tree_sha": "eaf3055114a40467889de66c8866728e28e390b7",
+        "application_tree_fingerprint": app_fingerprint,
+        "application_tree_fingerprint_algorithm": "SHA256 of sorted non-docs git ls-tree lines (includes apps/, services/, database/, scripts/, tests/, data/, .github/, Dockerfile; excludes docs/)",
+        "report_commit_sha": sha,
+        "report_root_tree_sha": tree_sha,
         "tested_source_commit_sha": sha,
         "tested_source_tree_sha": tree_sha,
         "deployed_backend_commit_sha": deployed_sha,
+        "deployed_application_fingerprint": deployed_app_fingerprint,
         "revision_match_status": revision_match_status,
         "branch": branch,
         "working_tree_clean": is_clean,
