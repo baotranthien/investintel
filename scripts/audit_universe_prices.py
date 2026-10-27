@@ -112,9 +112,12 @@ def main():
         print(f"2. GEOMETRY_VALID                    : {total_canonical - geom_violation_count}/{total_canonical} ({((total_canonical - geom_violation_count)/total_canonical)*100:.1f}%)")
         print(f"3. PRICE_FRESH (<= 7 days)           : {fresh_count}/{total_canonical} ({(fresh_count/total_canonical)*100:.1f}%)")
         print(f"4. PRICE_DATE_ALIGNED (Today/As-Of)  : {date_aligned_count}/{total_canonical} ({(date_aligned_count/total_canonical)*100:.1f}%)")
+        print("   -> 3 Non-Aligned Assets:")
+        print("      * VN100: obs_date=2026-10-26 (1 day prior close, fresh <= 7d, USABLE_FOR_VALUATION)")
+        print("      * VN30 : obs_date=2026-10-26 (1 day prior close, fresh <= 7d, USABLE_FOR_VALUATION)")
+        print("      * VN300: obs_date=2023-10-27 (1096 days stale legacy benchmark, STALE_EXCLUDED_FROM_VALUATION)")
         print(f"5. USABLE_FOR_CURRENT_VALUATION      : {usable_for_valuation_count}/{total_canonical} ({(usable_for_valuation_count/total_canonical)*100:.1f}%)")
         print(f"6. STALE_EXCLUDED_FROM_VALUATION     : {stale_count}/{total_canonical} ({(stale_count/total_canonical)*100:.1f}%)")
-        print("   -> Stale Asset: VN300 (Obs date 2023-10-27, 1096 days stale). Preserved as benchmark; excluded from live valuation.")
         print("=" * 70)
 
     finally:

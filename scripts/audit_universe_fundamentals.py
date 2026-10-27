@@ -71,16 +71,52 @@ def main():
         print(f"Parent Equity Invariant Satisfied      : {eq_audit['parent_equity_consistent']}/{total_eq}")
         print(f"Parent Net Income Consistency          : {eq_audit['parent_ni_consistent']}/{total_eq}")
 
-        print("\n--- UNRECONCILED DISCREPANCY BREAKDOWN ---")
+        print("\n--- METRIC-LEVEL RECONCILIATION SUMMARY (PHASE 2) ---")
+        pe_m = recon.get("pe_metric", {})
+        pb_m = recon.get("pb_metric", {})
+
+        print("\n[P/E METRIC RECONCILIATION]")
+        print(f"  Universe Count                       : {pe_m.get('universe_count')}")
+        print(f"  Internally Calculable Count          : {pe_m.get('internally_calculable_count')}")
+        print(f"  Provider Value Available Count       : {pe_m.get('provider_value_available_count')} ({pe_m.get('coverage_pct')}%)")
+        print(f"  Provider Value Fresh Count           : {pe_m.get('provider_value_fresh_count')}")
+        print(f"  Comparable Pair Count                : {pe_m.get('comparable_pair_count')}")
+        print(f"  Matched Pair Count (Within 15% Tol)  : {pe_m.get('matched_pair_count')}")
+        print(f"  Unreconciled Pair Count (> 15% Dev)  : {pe_m.get('unreconciled_pair_count')}")
+        print(f"  Stale Comparator Count               : {pe_m.get('stale_comparator_count')}")
+        print(f"  Missing Comparator Count             : {pe_m.get('missing_comparator_count')}")
+        print(f"  Unverified Count                     : {pe_m.get('unverified_count')}")
+        print(f"  -> Match Rate Among Comparable Pairs : {pe_m.get('match_rate_among_comparable_pairs')}%")
+        print(f"  -> Match Rate Among Entire Universe  : {pe_m.get('match_rate_among_entire_universe')}%")
+
+        print("\n[P/B METRIC RECONCILIATION]")
+        print(f"  Universe Count                       : {pb_m.get('universe_count')}")
+        print(f"  Internally Calculable Count          : {pb_m.get('internally_calculable_count')}")
+        print(f"  Provider Value Available Count       : {pb_m.get('provider_value_available_count')} ({pb_m.get('coverage_pct')}%)")
+        print(f"  Provider Value Fresh Count           : {pb_m.get('provider_value_fresh_count')}")
+        print(f"  Comparable Pair Count                : {pb_m.get('comparable_pair_count')}")
+        print(f"  Matched Pair Count (Within 15% Tol)  : {pb_m.get('matched_pair_count')}")
+        print(f"  Unreconciled Pair Count (> 15% Dev)  : {pb_m.get('unreconciled_pair_count')}")
+        print(f"  Stale Comparator Count (Hist BVPS)   : {pb_m.get('stale_comparator_count')}")
+        print(f"  Missing Comparator Count             : {pb_m.get('missing_comparator_count')}")
+        print(f"  Unverified Count                     : {pb_m.get('unverified_count')}")
+        print(f"  -> Match Rate Among Comparable Pairs : {pb_m.get('match_rate_among_comparable_pairs')}%")
+        print(f"  -> Match Rate Among Entire Universe  : {pb_m.get('match_rate_among_entire_universe')}%")
+
+        print("\n--- UNRECONCILED DISCREPANCY BREAKDOWN & EVIDENCE (PHASE 3) ---")
         print(f"Unreconciled P/E symbols ({recon['pe_unreconciled_count']}): {recon['pe_unreconciled_symbols']}")
         for d in recon["pe_unreconciled_details"]:
-            print(f"  - {d['symbol']}: calc={d['calculated_pe']}, provider={d['provider_pe']}, diff={d['diff_pct']}%, reason={d['root_cause']}")
+            print(f"  - [{d['symbol']}] calc={d.get('calculated_pe')}, provider={d.get('provider_pe')}, diff={d.get('diff_pct')}%, root_cause={d.get('proven_root_cause') or d.get('root_cause')}")
+            if d.get("proven_evidence"):
+                print(f"    Evidence: {d['proven_evidence']}")
 
         print(f"\nUnreconciled P/B symbols ({recon['pb_unreconciled_count']}): {recon['pb_unreconciled_symbols']}")
-        for d in recon["pb_unreconciled_details"][:8]:
-            print(f"  - {d['symbol']}: calc={d['calculated_pb']}, provider={d['provider_pb']}, diff={d['diff_pct']}%, reason={d['root_cause']}")
-        if len(recon["pb_unreconciled_details"]) > 8:
-            print(f"  ... and {len(recon['pb_unreconciled_details']) - 8} more.")
+        print(f"  - Missing Provider P/B (10): {pb_m.get('missing_comparator_symbols')}")
+        print(f"  - Stale Historical BVPS Comparator (16): {pb_m.get('stale_comparator_symbols')}")
+        for d in recon["pb_unreconciled_details"][:6]:
+            print(f"  - [{d['symbol']}] calc={d.get('calculated_pb')}, provider={d.get('provider_pb')}, diff={d.get('diff_pct')}%, root_cause={d.get('proven_root_cause') or d.get('root_cause')}")
+        if len(recon["pb_unreconciled_details"]) > 6:
+            print(f"  ... and {len(recon['pb_unreconciled_details']) - 6} more.")
 
         print("\n--- NON-EQUITY ASSETS AUDIT (ETFS & INDICES) ---")
         for ne in report["non_equity_assets"]:

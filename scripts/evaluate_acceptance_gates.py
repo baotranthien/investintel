@@ -144,6 +144,8 @@ def evaluate_gate_3_source_reconciliation() -> Dict[str, Any]:
             pb_rec = recon["pb_reconciled_count"]
             pe_unrec = recon["pe_unreconciled_symbols"]
             pb_unrec = recon["pb_unreconciled_symbols"]
+            pe_m = recon.get("pe_metric", {})
+            pb_m = recon.get("pb_metric", {})
 
             return {
                 "gate_id": gate_id,
@@ -151,12 +153,12 @@ def evaluate_gate_3_source_reconciliation() -> Dict[str, Any]:
                 "required_condition": "Compare canonical ratios against external sources dynamically; isolate and record exact discrepancies",
                 "status": "PARTIAL",
                 "evidence": (
-                    f"Universe reconciliation dynamically evaluated over {total_eq} active equities ({u_summary['total_supported_assets']} total assets). "
-                    f"P/E reconciled: {pe_rec}/{total_eq} ({recon['pe_reconciled_pct']}%). "
-                    f"P/B reconciled: {pb_rec}/{total_eq} ({recon['pb_reconciled_pct']}%). "
-                    f"Exact unreconciled P/E symbols ({len(pe_unrec)}): {pe_unrec}. "
-                    f"Exact unreconciled P/B symbols ({len(pb_unrec)}): {pb_unrec}."
+                    f"Dynamic universe reconciliation evaluated over {total_eq} active equities ({u_summary['total_supported_assets']} total assets). "
+                    f"P/E: {pe_m.get('matched_pair_count')}/{pe_m.get('comparable_pair_count')} matched ({pe_m.get('match_rate_among_comparable_pairs')}% among comparable pairs, {pe_m.get('match_rate_among_entire_universe')}% across entire universe; {pe_m.get('unreconciled_pair_count')} unreconciled). "
+                    f"P/B: {pb_m.get('matched_pair_count')}/{pb_m.get('comparable_pair_count')} matched ({pb_m.get('match_rate_among_comparable_pairs')}% among fresh comparable pairs, {pb_m.get('match_rate_among_entire_universe')}% across entire universe; {pb_m.get('stale_comparator_count')} stale comparator, {pb_m.get('missing_comparator_count')} missing comparator)."
                 ),
+                "pe_metric": pe_m,
+                "pb_metric": pb_m,
                 "unreconciled_pe_symbols": pe_unrec,
                 "unreconciled_pb_symbols": pb_unrec,
                 "total_active_equities": total_eq,

@@ -515,3 +515,284 @@ def test_invalidation_corporate_action_with_recovery():
     can_pub_mcap_retry, _ = invalidation_graph.is_publishable(sym, DependencyNodeType.MARKET_CAP)
     assert can_pub_mcap_retry is True
 
+
+def test_parent_earnings_and_nci_resolution(db_session: Session):
+    """
+    Phase 4 Financial Semantics Contract Tests:
+    1. Parent earnings present -> uses parent earnings directly.
+    2. Parent earnings missing but NCI earnings valid -> calculates (net_income - minority_interest).
+    3. Consolidated statement missing both parent and NCI -> returns None (fail-closed, never substitutes total net income).
+    4. Standalone statement -> uses standalone net income as parent net income.
+    """
+    sym = "PARENT_TEST_01"
+    asset = Asset(
+        symbol=sym,
+        name="Parent Accounting Test Corp",
+        asset_type="STOCK",
+        exchange="HOSE",
+        status="ACTIVE",
+    )
+    db_session.add(asset)
+    db_session.flush()
+
+    # Case 1: Consolidated with explicit net_income_parent
+    stmt1 = FinancialStatement(
+        asset_id=asset.id,
+        symbol=sym,
+        statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2025, 12, 31),
+        fiscal_year=2025,
+        fiscal_quarter=4,
+        period_type="QUARTERLY",
+        statement_date=date(2025, 12, 31),
+        publication_date=date(2025, 12, 31),
+        consolidation="CONSOLIDATED",
+        currency="VND",
+        unit_scale="BILLION_VND",
+        version=1,
+        status="VALID",
+    )
+    db_session.add(stmt1)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=stmt1.id,
+        symbol=sym,
+        fiscal_period_end=date(2025, 12, 31),
+        period_type="QUARTERLY",
+        net_income=120.0,
+        net_income_parent=100.0,
+        minority_interest=20.0,
+    ))
+
+    # Case 2: Consolidated with net_income_parent MISSING, but NCI valid
+    stmt2 = FinancialStatement(
+        asset_id=asset.id,
+        symbol=sym,
+        statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2026, 3, 31),
+        fiscal_year=2026,
+        fiscal_quarter=1,
+        period_type="QUARTERLY",
+        statement_date=date(2026, 3, 31),
+        publication_date=date(2026, 3, 31),
+        consolidation="CONSOLIDATED",
+        currency="VND",
+        unit_scale="BILLION_VND",
+        version=1,
+        status="VALID",
+    )
+    db_session.add(stmt2)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=stmt2.id,
+        symbol=sym,
+        fiscal_period_end=date(2026, 3, 31),
+        period_type="QUARTERLY",
+        net_income=150.0,
+        net_income_parent=None,
+        minority_interest=30.0,  # 150 - 30 = 120 parent net income
+    ))
+
+    # Case 3: Consolidated with BOTH net_income_parent AND minority_interest missing -> fail-closed (None)
+    stmt3 = FinancialStatement(
+        asset_id=asset.id,
+        symbol=sym,
+        statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2026, 6, 30),
+        fiscal_year=2026,
+        fiscal_quarter=2,
+        period_type="QUARTERLY",
+        statement_date=date(2026, 6, 30),
+        publication_date=date(2026, 6, 30),
+        consolidation="CONSOLIDATED",
+        currency="VND",
+        unit_scale="BILLION_VND",
+        version=1,
+        status="VALID",
+    )
+    db_session.add(stmt3)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=stmt3.id,
+        symbol=sym,
+        fiscal_period_end=date(2026, 6, 30),
+        period_type="QUARTERLY",
+        net_income=180.0,
+        net_income_parent=None,
+        minority_interest=None,  # Missing NCI -> must NOT fall back to 180! Must return None!
+    ))
+
+    # Case 4: Standalone statement
+    stmt4 = FinancialStatement(
+        asset_id=asset.id,
+        symbol=sym,
+        statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2026, 9, 30),
+        fiscal_year=2026,
+        fiscal_quarter=3,
+        period_type="QUARTERLY",
+        statement_date=date(2026, 9, 30),
+        publication_date=date(2026, 9, 30),
+        consolidation="STANDALONE",
+        currency="VND",
+        unit_scale="BILLION_VND",
+        version=1,
+        status="VALID",
+    )
+    db_session.add(stmt4)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=stmt4.id,
+        symbol=sym,
+        fiscal_period_end=date(2026, 9, 30),
+        period_type="QUARTERLY",
+        net_income=90.0,
+        net_income_parent=None,
+        minority_interest=None,
+    ))
+    db_session.commit()
+
+    with FinancialRepository(session=db_session) as repo:
+        ds = repo.get_financial_dataset(sym, as_of_date=date(2026, 10, 27))
+
+    quarters = ds.get("income_quarters", [])
+    assert len(quarters) == 4
+
+    # Case 1 verification
+    q1 = next(q for q in quarters if q["fiscal_period_end"] == date(2025, 12, 31))
+    assert q1["net_income_parent"] == 100.0
+
+    # Case 2 verification: net_income (150) - minority_interest (30) = 120
+    q2 = next(q for q in quarters if q["fiscal_period_end"] == date(2026, 3, 31))
+    assert q2["net_income_parent"] == 120.0
+
+    # Case 3 verification: Consolidated missing parent & NCI -> fail-closed None
+    q3 = next(q for q in quarters if q["fiscal_period_end"] == date(2026, 6, 30))
+    assert q3["net_income_parent"] is None
+
+    # Case 4 verification: Standalone statement uses net_income directly
+    q4 = next(q for q in quarters if q["fiscal_period_end"] == date(2026, 9, 30))
+    assert q4["net_income_parent"] == 90.0
+
+
+def test_quarterly_continuity_ytd_and_restatements():
+    """
+    Phase 4 TTM and Data Freshness Contracts:
+    1. Rejects cumulative YTD statements from being summed directly as quarters.
+    2. Rejects duplicate quarterly periods.
+    3. Rejects discontinuous quarters with excessive calendar gaps.
+    """
+    from services.contracts.validators import validate_quarterly_continuity
+
+    # Valid discrete quarterly sequence
+    valid_quarters = [
+        {"fiscal_period_end": date(2025, 12, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 3, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 6, 30), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 9, 30), "period_type": "QUARTERLY"},
+    ]
+    ok, msg, res = validate_quarterly_continuity(valid_quarters)
+    assert ok is True
+    assert len(res) == 4
+
+    # Case 1: Ingestion has cumulative YTD statement -> must be rejected
+    ytd_quarters = [
+        {"fiscal_period_end": date(2025, 12, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 3, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 6, 30), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 9, 30), "period_type": "CUMULATIVE_YTD"},
+    ]
+    ok_ytd, msg_ytd, _ = validate_quarterly_continuity(ytd_quarters)
+    assert ok_ytd is False
+    assert "CUMULATIVE_YTD" in msg_ytd
+
+    # Case 2: Duplicate quarter periods
+    dup_quarters = [
+        {"fiscal_period_end": date(2025, 12, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 3, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 3, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2026, 9, 30), "period_type": "QUARTERLY"},
+    ]
+    ok_dup, msg_dup, _ = validate_quarterly_continuity(dup_quarters)
+    assert ok_dup is False
+    assert "Duplicate quarterly periods" in msg_dup
+
+    # Case 3: Discontinuous gap (>125 days)
+    gap_quarters = [
+        {"fiscal_period_end": date(2024, 12, 31), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2025, 6, 30), "period_type": "QUARTERLY"},  # 181-day gap!
+        {"fiscal_period_end": date(2025, 9, 30), "period_type": "QUARTERLY"},
+        {"fiscal_period_end": date(2025, 12, 31), "period_type": "QUARTERLY"},
+    ]
+    ok_gap, msg_gap, _ = validate_quarterly_continuity(gap_quarters)
+    assert ok_gap is False
+    assert "Discontinuous" in msg_gap
+
+
+def test_share_resolution_corporate_actions():
+    """
+    Phase 4 Share Count Contracts:
+    Resolves post-split/bonus shares with priority over stale listed shares.
+    """
+    from services.contracts.validators import resolve_shares_by_purpose
+
+    # Candidate metrics representing pre-bonus listed shares vs post-bonus outstanding shares
+    candidates = [
+        {"symbol": "VIX", "metric_id": "LISTED_SHARES", "value": 1_070_000_000, "source": "HOSE_LISTING"},
+        {"symbol": "VIX", "metric_id": "OUTSTANDING_SHARES", "value": 2_572_788_533, "source": "CORPORATE_ACTION_POST_SPLIT"},
+    ]
+    res = resolve_shares_by_purpose(candidates)
+    assert res is not None
+    assert res.share_count == 2_572_788_533
+    assert res.share_type.value in ("OUTSTANDING_CURRENT", "OUTSTANDING_PERIOD_END")
+
+
+def test_metric_level_reconciliation_contracts(db_session: Session):
+    """
+    Phase 2 Metric-Level Reconciliation Schema Contracts:
+    Verifies that audit_dynamic_universe produces distinct, fully-populated
+    pe_metric and pb_metric objects with all 13 required denominator fields.
+    """
+    audit = audit_dynamic_universe(db_session, as_of=date(2026, 10, 27))
+    recon = audit["reconciliation"]
+
+    assert "pe_metric" in recon
+    assert "pb_metric" in recon
+
+    pe_m = recon["pe_metric"]
+    pb_m = recon["pb_metric"]
+
+    # Required 13 fields check
+    required_fields = [
+        "universe_count",
+        "internally_calculable_count",
+        "provider_value_available_count",
+        "provider_value_fresh_count",
+        "comparable_pair_count",
+        "matched_pair_count",
+        "unreconciled_pair_count",
+        "stale_comparator_count",
+        "missing_comparator_count",
+        "unverified_count",
+        "coverage_pct",
+        "match_rate_among_comparable_pairs",
+        "match_rate_among_entire_universe",
+    ]
+
+    for f in required_fields:
+        assert f in pe_m, f"Field {f} missing from pe_metric"
+        assert f in pb_m, f"Field {f} missing from pb_metric"
+
+    # Mathematical consistency invariants
+    assert pe_m["universe_count"] == pe_m["provider_value_available_count"] + pe_m["missing_comparator_count"]
+    assert pe_m["provider_value_available_count"] == pe_m["provider_value_fresh_count"] + pe_m["stale_comparator_count"]
+    assert pe_m["comparable_pair_count"] == pe_m["matched_pair_count"] + pe_m["unreconciled_pair_count"]
+    assert pe_m["unverified_count"] == pe_m["unreconciled_pair_count"] + pe_m["stale_comparator_count"] + pe_m["missing_comparator_count"]
+
+    assert pb_m["universe_count"] == pb_m["provider_value_available_count"] + pb_m["missing_comparator_count"]
+    assert pb_m["provider_value_available_count"] == pb_m["provider_value_fresh_count"] + pb_m["stale_comparator_count"]
+    assert pb_m["comparable_pair_count"] == pb_m["matched_pair_count"] + pb_m["unreconciled_pair_count"]
+    assert pb_m["unverified_count"] == pb_m["unreconciled_pair_count"] + pb_m["stale_comparator_count"] + pb_m["missing_comparator_count"]
+
+
+
