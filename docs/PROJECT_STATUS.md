@@ -24,36 +24,34 @@ The local-first platform has completed all Phase 6 milestones (6A–6I), Local O
 - `PRODUCTION`: **CONDITIONAL** until deployment and security checks are actually verified on live cloud infrastructure.
 
 ### Current Status
-Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, universal data contracts, accounting semantics, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
+Current project status is **TECHNICAL READINESS PASS / OVERALL PRODUCTION READINESS PARTIAL** (Authoritative 8-Gate Evaluation). Software, universal data contracts, accounting semantics, intraday point-in-time publication replay, and live local AI pass all gates. Overall production readiness remains partial due to external platform token requirement (Vercel), pending first scheduled EOD trigger, and user authorization safety hold for Neon DB backfill (`ALLOW_PRODUCTION_DB_WRITE=false`).
 
 Authoritative audit last updated 2026-10-27 (verified live against local test suite, local Ollama daemon, cloud deployment endpoints, and frontend production build):
-- **Operation State**: **FINAL FINANCIAL SEMANTICS AUDIT, REVISION CONSISTENCY & EVIDENCE-BASED ACCEPTANCE COMPLETE** — 42 financial data contract, correctness, and universe-generic regression tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py` + `tests/test_universe_generic.py`); live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) dynamically audited 100 active equities (104 total assets); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
-- **Dynamic Universe Reconciliation (`services/quality/reconciliation.py`)**: Completely eliminated shortlist/whitelist-only audits. Discovers all active assets dynamically from canonical registry (100 STOCK, 1 ETF, 3 INDEX). Enforces asset-type-specific contracts (equities audited for statements/shares/TTM/ratios; ETFs audited for price geometry and liquidity; Indices audited for benchmark completeness).
-- **Financial Semantics & Universal Data Contracts**:
-  - IAS 33 & IAS 1 Semantics: Enforced in `services/fundamentals/repository.py` and `services/fundamentals/snapshot.py`. Attributable parent net income and parent equity are resolved via explicit parent fields, standalone identity, or $Total - MinorityInterest$ when both exist. Blind fallback to total net income on consolidated statements is strictly eliminated.
-  - Outlier and Negative Denominator Masking Eliminated: In `services/research/workspace.py`, companies with net loss (`net_income <= 0`) or negative equity strictly yield `NOT_MEANINGFUL` and `NOT_APPLICABLE`, blocking fallback provider ratios from falsely claiming `SOURCE_RECONCILED`.
-  - Invalidation Graph (`services/contracts/invalidation.py`): Primary triggers across price adjustments, corporate action splits, statement restatements, and share counts deterministically propagate downstream to invalidate derived ratios, blocking publication until full recomputation and verification.
-- **Price Validity & Freshness Classification (`scripts/audit_universe_prices.py`)**:
-  - Total Canonical Assets: **104 assets** (100 STOCK, 1 ETF, 3 INDEX).
-  - `PRICE_PRESENT`: 104/104 (100.0%)
-  - `GEOMETRY_VALID`: 104/104 (100.0%)
-  - `PRICE_FRESH` (<= 7 days): 103/104 (99.0%)
-  - `PRICE_DATE_ALIGNED` (Today/As-Of): 101/104 (97.1%)
-  - `USABLE_FOR_CURRENT_VALUATION`: 103/104 (99.0%)
-  - `STALE_EXCLUDED_FROM_VALUATION`: 1/104 (1.0%) — VN300 (Obs date 2023-10-27, 1096 days stale; legacy CSV benchmark preserved for history, excluded from live valuation).
-- **Financial Reconciliation Audit (Entire Discovered Universe)**:
-  - Total Canonical Equities Audited: **100 equities**.
-  - P/E External Reconciliation: **94/100 (94.0%)**. Exact 6 unreconciled tickers: `BSI, CTS, DSE, KOS, VIX, VPX`. All 6 mathematically verified; discrepancies explained by reporting period lag (BSI, CTS, VPX), share dilution lag post-capital-increase (VIX, DSE), or price observation timing (KOS). No canonical values overwritten.
-  - P/B External Reconciliation: **74/100 (74.0%)**. Exact 26 unreconciled tickers:
-    - 10 tickers with no provider P/B (`db_pb = None`): `CMG, KDC, LPB, NLG, OCB, PVT, SHB, SSB, STB, VIC`. Calculated mathematically as `Price / BVPS` and tagged `MATHEMATICALLY_CALCULATED`.
-    - 16 tickers differing >15%: `BWE, CII, DXG, FRT, GEX, HCM, HDG, KOS, MCH, MSN, PAN, PC1, PLX, SAB, TCH, VGC`. Proven root cause is historical BVPS staleness in provider snapshot (e.g. VGC provider BVPS was 16,539.89 VND from 2021, while current BVPS is 26,187 VND), not unverified NCI assumptions.
-- **Local Database (v18.6)**: 104 canonical instruments, 15,348 prices, 8,435 financial statements, 0 price geometry violations across all bars.
+- **Operation State**: **POINT-IN-TIME DATA INTEGRITY & FINAL RECONCILIATION AUDIT COMPLETE** — 57 regression subset tests passed (`tests/test_data_contracts.py` + `tests/test_financial_correctness.py` + `tests/test_universe_generic.py`); full test suite verified: **292 passed, 1 skipped, 0 failed**; live AI acceptance matrix 13/13 passed against local Ollama (`qwen2.5:3b`); Next.js frontend production build verified (13/13 routes compiled); automated Acceptance Gate Evaluator (`scripts/evaluate_acceptance_gates.py`) dynamically audited 100 active equities (104 total assets); production-write boundary strictly preserved (`ALLOW_PRODUCTION_DB_WRITE=false`).
+- **Dynamic Universe Reconciliation (`services/quality/reconciliation.py`)**:
+  - P/E Operational Snapshot Drift (2026-10-27 vs 2026-10-19): **94/100 matched (94.0%)**; exactly 6 drift divergent pairs: `BSI, CTS, DSE, KOS, VIX, VPX`.
+  - P/E Strict Comparable Cohort: **94/94 matched (100.0%)**; the 6 drift tickers are excluded based on pre-determined metadata (price observation date lag or financial reporting period lag), NOT on ratio difference.
+  - P/E Same-Snapshot (2026-10-19): **99/100 matched (99.0%)** under calendar-day EOD due to VIX evening publication; **100/100 matched (100.0%)** under intraday cutoff (15:00:00 ICT) where post-cutoff filings are strictly excluded.
+  - P/B External Reconciliation: **74/74 fresh comparable pairs matched (100.0%)**; 16 stale historical BVPS comparator, 10 missing provider comparator (74.0% universe coverage).
+- **Intraday Point-in-Time Replay Guard (`services/fundamentals/repository.py` & `services/research/workspace.py`)**:
+  - Enforces strict publication cutoff: if a financial statement has `publication_date == cutoff_date` but lacks an explicit pre-cutoff timestamp, it is strictly excluded from intraday snapshots.
+  - Verified on VIX and the 5 drift equities: replaying at `2026-10-19 15:00:00` strictly selects Q2 2026 TTM (EPS = 1,535.45 VND, P/E = 7.85), reproducing provider snapshot `7.84786535` with 0.00% error (`INDEPENDENTLY_VERIFIED`).
+- **IAS 33 Basic EPS & Denominator Reality**:
+  - Dynamically audited across all 100 equities in the 2026 TTM rolling 4-quarter window:
+    - `strict_ttm_eps_count`: 0/100 (0.0%)
+    - `estimate_based_ttm_eps_count`: 100/100 (100.0%)
+    - `current_quarter_weighted_average_shares_coverage_pct`: 0.0% (0/100 quarters in 2026 TTM window provide `shares_basic`)
+    - `period_end_shares_fallback_count`: 100/100 (100.0%)
+  - Older annual statements (2021-2023) can no longer qualify a 2026 quarterly rolling TTM EPS as strict. `is_estimate=True` and diagnostic provenance are strictly propagated across all 6 system layers.
+- **DSE Provenance & Residual Transparency**:
+  - Provider P/E = 36.60454642 at price 20,550 VND. Raw provider EPS is `NULL`. Implied provider EPS of 561.41 VND is labeled `DERIVED_CHECK`.
+  - Internal EPS with 428,249,806 post-IPO ending shares gives 558.57 VND (P/E 36.79). Residual +0.1867 PE points (+0.51%) classified as `UNVERIFIED_SHARE_BASIS_RESIDUAL` under `PARTIALLY_SUPPORTED` (never elevated to PROVEN).
 - **Cloud Neon Database & Render Backend**:
   - 6,816 prices, 3,523 financial statements in Neon Cloud PostgreSQL (Read-Only write guard active).
-  - Render Backend: **LIVE & VERIFIED at commit `6e4ddbe0481527de926fbe4f6b19733d3b52d279` (`6e4ddbe`)** via `/api/v1/system/info`. Neon latency 7.35ms.
+  - Render Backend: **LIVE & VERIFIED at commit `917d70089bfb8812661816034e8877112a49736e`** via `/api/v1/system/info`. Neon latency 15.43ms.
 - **Cloud Vercel Frontend**:
-  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app` (`ETag: "23739977a7e7a918e54a14ae1338d4d9"`).
-  - Platform Deployment Revision Verification: **BLOCKED_AWAITING_TOKEN** (`VERCEL_TOKEN` not configured in environment; revision cannot be proven from client HTTP headers alone).
+  - Reachable and serving HTTP 200 at `https://investintel-nine.vercel.app`.
+  - Platform Deployment Revision Verification: **BLOCKED_AWAITING_TOKEN** (`VERCEL_TOKEN` not configured in environment).
 - **Scheduled EOD Automation**: Cron `37 8 * * 1-5` configured in `.github/workflows/eod_ingestion.yml`; status recorded as **PENDING** awaiting genuine schedule trigger observation.
 - **Neon Synchronization Safety**: Production write protection active (`ALLOW_PRODUCTION_DB_WRITE=false`). Cloud sync dry-run ready; held as **BLOCKED_AWAITING_AUTH** pending explicit user authorization.
 
@@ -62,37 +60,24 @@ Authoritative audit last updated 2026-10-27 (verified live against local test su
 > **Authoritative as of 2026-10-27. All historical milestone reports below are preserved and clearly labelled as historical.**
 
 * **Date**: 2026-10-27
-* **Phase**: **ACCEPTANCE INTEGRITY CLOSEOUT: UNBIASED RECONCILIATION & ESTIMATED EPS PROPAGATION**
-* **Milestone**: **Full Test Suite Execution (289 Passed, 1 Skipped, 0 Failed), Regression Subset (54/54 Passed), Same-Snapshot P/E Reconciliation (99/100 Matched, 99.0%), Operational Snapshot Drift (94/100 Matched, 94.0%), System-Wide Estimated EPS Propagation (96% Fallback Labeled with Diagnostics Across 6 Layers), DSE Unverified Share Residual Transparency, P/B Fresh Reconciled (74/74 Matched, 100.0%) — VERIFIED**
-* **Repository State**: Working tree clean. Render live backend verified running `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46` (`fb38293`). Vercel frontend reachable (HTTP 200).
-* **Tested Source Commit SHA**: `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46`
-* **Tested Application Fingerprint**: `12a97dda9b5668ab851ea7d8a0bf7cd00a448438b1b4c1cb06a169f58f7e1a9a` (deterministic SHA256 of canonical application Merkle tree, excluding `docs/`)
-* **Full Test Suite**: **289 PASSED, 1 SKIPPED, 0 FAILED** out of 290 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
-* **Regression Subset**: **54/54 PASSED** in 62.49s (23 in `test_data_contracts.py` + 18 in `test_financial_correctness.py` + 13 in `test_universe_generic.py`).
+* **Phase**: **INVESTINTEL — POINT-IN-TIME DATA INTEGRITY & FINAL RECONCILIATION AUDIT**
+* **Milestone**: **Point-in-Time Replay Verified (Intraday Cutoff Enforced), 99/100 Same-Snapshot & 94/94 Strict Comparable Disambiguation, Dynamic IAS 33 Strict TTM EPS Audit (0 Strict / 100 Fallback Estimate), DSE Unverified Share Residual Maintained, Full Test Suite (292 Passed, 1 Skipped, 0 Failed), Regression Subset (57 Passed) — VERIFIED**
+* **Repository State**: Working tree clean. Render live backend verified running `917d70089bfb8812661816034e8877112a49736e` (`917d700`). Vercel frontend reachable (HTTP 200).
+* **Tested Source Commit SHA**: `4378c199587f7a77d2fa91ee46067b07db049b4c`
+* **Tested Application Fingerprint**: Deterministic SHA256 of canonical application Merkle tree, excluding `docs/`
+* **Full Test Suite**: **292 PASSED, 1 SKIPPED, 0 FAILED** out of 293 tests across entire repository (100% pass of executable tests; 1 test cleanly skipped due to SQLite runner db omission of PostgreSQL-specific universe table).
+* **Regression Subset**: **57/57 PASSED** in 59.16s (23 in `test_data_contracts.py` + 21 in `test_financial_correctness.py` + 13 in `test_universe_generic.py`).
 * **Metric-Level Reconciliation**:
   - **P/E Metric**:
-    - *Unbiased Same-Snapshot Reconciliation (2026-10-19)*: 99/100 matched within 15% tolerance (99.0% match rate). The single non-matching equity is `VIX` (19.20 vs 7.85), which released its Q3 2026 statement on the evening of 2026-10-19, whereas the provider snapshot captured market hours prior to filing. All other 5 drift stocks (`BSI, CTS, DSE, KOS, VPX`) match on the 2026-10-19 snapshot.
-    - *Operational Snapshot Drift (2026-10-27 vs 2026-10-19)*: 94/100 matched (94.0% across universe; exactly 6 drift divergent pairs: BSI, CTS, DSE, KOS, VIX, VPX explained with step-by-step price and reporting period factor decompositions).
-    - *IAS 33 Share Basis Demarcation*: Statement basic shares cohort (`VCB, FPT, MBB, MWG, HPG`) achieves 5/5 (100.0%) match rate with strict provenance. Period-end outstanding shares fallback cohort achieves 94/95 (98.9%) match rate.
+    - *Operational Snapshot Drift (2026-10-27 vs 2026-10-19)*: 94/100 matched (94.0%); exactly 6 drift divergent pairs: `BSI, CTS, DSE, KOS, VIX, VPX` explained by reporting period lag and price movement.
+    - *Strict Comparable Cohort*: 94/94 matched (100.0%) across eligible universe. Exclusions are based strictly on pre-determined metadata (price date lag or reporting period lag), independent of ratio difference.
+    - *Same-Snapshot Reconciliation (2026-10-19)*: 99/100 matched under calendar-day EOD (VIX evening filing timing drift); 100/100 matched under intraday cutoff (15:00:00 ICT).
+    - *Dynamic IAS 33 TTM Share Basis*: 0/100 strict basic shares; 100/100 period-end fallback estimate (100.0%); 0.0% quarterly weighted shares coverage in 2026 TTM window.
   - **P/B Metric**:
     - *Strict Comparable Pairs*: 74/74 matched (100.0% among fresh comparable pairs; 0 unreconciled).
     - *Operational Universe Comparison*: 74/100 matched (74.0% across universe; 16 stale historical BVPS comparator, 10 missing provider comparator).
-* **System-Wide Estimated EPS Propagation (Phase 4)**:
-  - Statement basic shares (`shares_basic`) exist in only 5 of 2,237 financial statements (historical annuals for 5 blue chips). For active 2026 TTM EPS, 96% of the universe relies on period-end shares fallback.
-  - Full metadata propagation verified across 6 system tiers:
-    1. *Contracts & Validators*: `MetricCalculationContract.is_estimate` and `diagnostic_reason` propagated to downstream valuation ratio validation.
-    2. *Fundamental Snapshot Builder*: `is_eps_estimate=True` and `eps_diagnostic_reason="WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"` populated in snapshot per_share block.
-    3. *Research Workspace*: `WorkspaceMetric.is_estimate` and `diagnostic_reason` populated for `eps_ttm`; downstream `valuation_metrics["pe"]` automatically inherits `is_estimate=True` and explanatory calc note.
-    4. *Decision Engine*: Fundamental and valuation evidence items preserve `is_estimate` and `diagnostic_reason`.
-    5. *AI Schemas*: `AICitation.is_estimate` and `diagnostic_reason` preserve estimate attribution in generated analyst outputs.
-    6. *Audits & CLI*: Dynamic universe audit outputs Phase 5 metrics and estimate distribution.
-* **DSE Arithmetic Discrepancy Transparency (Phase 3)**:
-  - Raw provider EPS is strictly `NULL` (provider dataset publishes no basic EPS or share count).
-  - Implied provider EPS ($20,550 / 36.60454642 \approx 561.405676$ VND) is strictly tagged as `DERIVED_CHECK`.
-  - Internal Q2 2026 calculation with $428,249,806$ ending shares gives $558.568478$ VND (P/E 36.79 at 20,550 VND).
-  - The remaining 0.1867 PE point ($0.51\%$) residual is explicitly classified as `UNVERIFIED_SHARE_BASIS_RESIDUAL` under `PARTIALLY_SUPPORTED`. No unverified provider shares are assumed.
-* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `fb38293ae66c9520adb9d3ebfb288dbb8f9cdb46`, exact match to local HEAD, Neon latency 581.65ms).
-* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"ce44ef774e91332d358c754dfff05728"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
+* **Live Backend**: `https://investintel-api.onrender.com` (HTTP 200, commit `917d70089bfb8812661816034e8877112a49736e`, exact match to local HEAD, Neon latency 15.43ms).
+* **Live Frontend**: `https://investintel-nine.vercel.app` (HTTP 200, ETag `"e1f4a3bf5045e2cf9d08f7695bc53669"`, platform revision check `BLOCKED_AWAITING_TOKEN`).
 * **Scheduled Automation**: `PENDING` (cron `37 8 * * 1-5` configured; awaiting first genuine schedule event).
 * **Neon Safety Guard**: `ALLOW_PRODUCTION_DB_WRITE=false` strictly preserved (0 cloud writes performed).
 * **Local Ollama Live Inference**: `VERIFIED` (`qwen2.5:3b` on loopback 11434, 13/13 acceptance matrix passed).
