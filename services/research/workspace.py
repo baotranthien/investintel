@@ -487,40 +487,56 @@ def build_research_workspace(
     ):
         calc_val = None
         calc_note = "Observed multiple only; not a fair-value estimate."
+        v_level = None
+        status_str = "INSUFFICIENT_DATA"
+        is_outlier = False
+
+        min_b = 0.5 if metric_id == "pe" else 0.05
+        max_b = 2500.0 if metric_id == "pe" else 50.0
+
         if current_price is not None and denominator is not None and denominator > 0:
             raw_ratio = current_price / denominator
-            # Enforce economic bounds: standard P/E in [0.5, 2500], P/B in [0.05, 50]
-            if (metric_id == "pe" and 0.5 <= raw_ratio <= 2500) or (metric_id == "pb" and 0.05 <= raw_ratio <= 50):
-                calc_val = round(raw_ratio, 2)
-                basis_label = "adjusted close" if (price and price.adjusted_close is not None) else "raw close"
-                denom_label = "EPS TTM" if metric_id == "pe" else "BVPS"
-                calc_note = f"Mathematically calculated from canonical {basis_label} ({current_price:.1f} VND) / {denom_label} ({denominator:.1f} VND). Post-corporate-action share basis."
-            elif fallback_val is not None:
-                calc_val = round(fallback_val, 2)
-                calc_note = f"Calculated ratio ({raw_ratio:.1f}) fell outside normal bounds; using verified provider ratio."
-            else:
-                calc_val = round(raw_ratio, 2)
-                calc_note = f"Calculated ratio ({raw_ratio:.1f}) outside standard bounds."
-        elif fallback_val is not None:
-            calc_val = round(fallback_val, 2)
-            calc_note = "Independently verified provider ratio from canonical repository."
+            calc_val = round(raw_ratio, 2)
+            basis_label = "adjusted close" if (price and price.adjusted_close is not None) else "raw close"
+            denom_label = "EPS TTM" if metric_id == "pe" else "BVPS"
 
-        meaningful = calc_val is not None
-        v_level = None
-        if meaningful:
-            if fallback_val is not None and abs(calc_val - round(fallback_val, 2)) / max(fallback_val, 0.01) < 0.15:
-                v_level = "SOURCE_RECONCILED"
-            elif fallback_val is not None and calc_val == round(fallback_val, 2):
-                v_level = "INDEPENDENTLY_VERIFIED"
+            if min_b <= raw_ratio <= max_b:
+                calc_note = f"Mathematically calculated from canonical {basis_label} ({current_price:.1f} VND) / {denom_label} ({denominator:.1f} VND). Post-corporate-action share basis."
+                status_str = "AVAILABLE"
+                if fallback_val is not None:
+                    if calc_val == round(fallback_val, 2):
+                        v_level = "INDEPENDENTLY_VERIFIED"
+                    elif abs(calc_val - round(fallback_val, 2)) / max(fallback_val, 0.01) < 0.15:
+                        v_level = "SOURCE_RECONCILED"
+                    else:
+                        v_level = "MATHEMATICALLY_CALCULATED"
+                else:
+                    v_level = "MATHEMATICALLY_CALCULATED"
             else:
-                v_level = "MATHEMATICALLY_CALCULATED"
+                is_outlier = True
+                status_str = "CONFLICTING_DATA" if fallback_val is not None else "AVAILABLE"
+                v_level = "CONFLICTING_DATA"
+                calc_note = (
+                    f"Calculated ratio ({raw_ratio:.1f}) is an extreme economic outlier (bounds: [{min_b}, {max_b}]). "
+                    + (f"Conflicts with canonical provider ratio ({fallback_val:.2f})." if fallback_val is not None else "Unmasked.")
+                )
+        elif fallback_val is not None and (denominator is None or denominator <= 0):
+            calc_val = round(fallback_val, 2)
+            status_str = "AVAILABLE"
+            v_level = "SOURCE_RECONCILED"
+            calc_note = "Canonical provider ratio used; direct calculation unavailable or denominator non-positive."
+        elif denominator is not None and denominator <= 0:
+            status_str = "NOT_MEANINGFUL"
+            v_level = "NOT_APPLICABLE"
+            calc_note = f"Denominator ({denominator:.2f}) is non-positive; ratio is not economically meaningful."
         elif current_price is not None or denominator is not None:
             v_level = "DATA_PRESENT"
 
+        meaningful = calc_val is not None
         valuation_metrics[metric_id] = WorkspaceMetric(
             value=calc_val,
             unit=unit,
-            status="AVAILABLE" if meaningful else ("NOT_MEANINGFUL" if denominator is not None and denominator <= 0 else "INSUFFICIENT_DATA"),
+            status=status_str,
             calculation="price / canonical EPS TTM" if metric_id == "pe" else "price / canonical BVPS",
             verification_level=v_level,
             evidence=Evidence(

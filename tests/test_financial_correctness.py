@@ -81,13 +81,14 @@ def seed_acb_test_data(db_session):
         (date(2026, 6, 30), 4078.0, 0.0),
     ]
     for q_idx, (end_dt, net_inc, eps_b) in enumerate(quarters_data):
+        actual_qtr = (end_dt.month - 1) // 3 + 1
         stmt = FinancialStatement(
             asset_id=asset.id,
             symbol="ACB",
             statement_type="INCOME_STATEMENT",
             fiscal_period_end=end_dt,
             fiscal_year=end_dt.year,
-            fiscal_quarter=q_idx + 1,
+            fiscal_quarter=actual_qtr,
             period_type="QUARTERLY",
             publication_date=end_dt,
             source_name="VNDIRECT",
@@ -100,7 +101,7 @@ def seed_acb_test_data(db_session):
             symbol="ACB",
             fiscal_period_end=end_dt,
             fiscal_year=end_dt.year,
-            fiscal_quarter=q_idx + 1,
+            fiscal_quarter=actual_qtr,
             period_type="QUARTERLY",
             revenue=8000.0,
             net_income=net_inc,

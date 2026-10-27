@@ -127,15 +127,12 @@ class TTMEngine:
         for metric in cls.FLOW_METRICS:
             values = [q.get(metric) for q in last_4]
             non_null = [v for v in values if v is not None]
-            if len(non_null) == 0:
+            if len(non_null) < 4:
+                # Fail-closed: Never sum partial quarters (< 4) into a 12-month TTM flow metric!
                 ttm[metric] = None
-            elif len(non_null) < 4:
-                # Partial: sum available but mark lower quality
-                ttm[metric] = sum(non_null)
             else:
                 ttm[metric] = sum(non_null)
-        # EPS TTM: use latest reported EPS × 4 only as fallback
-        # Prefer sum of quarterly EPS only if all 4 quarters have positive reported values
+        # EPS TTM: require all 4 quarters to have positive reported basic EPS
         eps_values = [q.get("eps_basic") for q in last_4 if q.get("eps_basic") is not None and q.get("eps_basic") > 0]
         ttm["eps_basic"] = sum(eps_values) if len(eps_values) == 4 else None
         ttm["eps_diluted"] = sum(
@@ -146,10 +143,10 @@ class TTMEngine:
 
     @classmethod
     def validate_quarter_coverage(cls, quarters: list[dict]) -> tuple[bool, str]:
-        """Check that quarters cover ~12 months without duplicates."""
-        if len(quarters) < 4:
-            return False, f"Only {len(quarters)} quarters available; need 4 for TTM."
-        return True, "OK"
+        """Check that quarters cover 4 consecutive non-overlapping discrete quarters."""
+        from services.contracts.validators import validate_quarterly_continuity
+        valid, reason, _ = validate_quarterly_continuity(quarters)
+        return valid, reason
 
 
 # ─────────────────────────────────────────────────────────

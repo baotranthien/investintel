@@ -1,0 +1,77 @@
+name: Continuous Integration & Zero-False-Pass Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-verify:
+    name: Backend Correctness & Contracts Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-asyncio pydantic httpx sqlalchemy
+
+      - name: Git Diff & Hygiene Checks
+        run: |
+          git diff --check || exit 1
+
+      - name: Run Data Contracts Suite
+        run: |
+          python -m pytest tests/test_data_contracts.py -v
+
+      - name: Run Financial Correctness Suite
+        run: |
+          python -m pytest tests/test_financial_correctness.py -v
+
+      - name: Run Core Suite
+        run: |
+          python -m pytest tests/ -k "not test_canonical_dev_db_universe_valuation_coverage" -q
+
+  frontend-build:
+    name: Frontend Build & Typecheck Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build Frontend Next.js Application
+        working-directory: apps/web
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NODE_ENV: production

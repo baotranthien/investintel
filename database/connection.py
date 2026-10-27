@@ -170,3 +170,12 @@ def check_redis_health() -> dict:
             "connected": False,
             "error": str(e)
         }
+
+
+ALLOW_PRODUCTION_DB_WRITE = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in ("1", "true", "yes")
+
+
+def is_production_database_target() -> bool:
+    """Returns True if DATABASE_URL points to the Neon cloud PostgreSQL production cluster."""
+    url = os.getenv("DATABASE_URL", "").lower()
+    return "neon.tech" in url or "ep-" in url
