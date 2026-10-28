@@ -124,7 +124,7 @@ COMPANY_NAME_ALIASES: Dict[str, str] = {
 }
 
 MARKET_TERMS_PATTERN = re.compile(
-    r"\b(?:thị\s*trường|thi\s*truong|vn-?index|vni\b|toàn\s*cảnh|toan\s*canh|vĩ\s*mô|vi\s*mo|macro|benchmark|market|chỉ\s*số)\b",
+    r"\b(?:thị\s*trường|thi\s*truong|vn-?index|vni\b|toàn\s*cảnh|toan\s*canh|vĩ\s*mô|vi\s*mo|macro|benchmark|market|chỉ\s*số\s*(?:thị\s*trường|chung|chứng\s*khoán|vn-?index|vni|toàn\s*bộ))\b",
     re.IGNORECASE,
 )
 
@@ -135,6 +135,12 @@ NON_SYMBOL_WORDS: Set[str] = {
     "ALL", "ANY", "FOR", "AND", "ARE", "BUT", "NOT", "YOU", "HER", "HIS",
     "HIM", "HOW", "WHO", "WHY", "TOP", "LOW", "NET", "OUT", "OFF", "PUT",
     "GET", "HAS", "HAD", "ONE", "TWO", "SEE", "SAY", "WAY", "DID", "LET",
+    # Financial acronyms, metrics, and abbreviations to prevent false-positive ticker extraction:
+    "EPS", "PE", "PB", "ROE", "ROA", "ROIC", "VND", "USD", "TTM", "MRQ",
+    "FYI", "CAGR", "EBIT", "EBITDA", "CASA", "NIM", "DCF", "DSO", "DIO",
+    "DPO", "CCC", "BVPS", "FCF", "NAV", "WACC", "OPEX", "CAPEX", "TICKER",
+    "STOCK", "INDEX", "ASOF", "DATE", "YEAR", "QUARTER", "SAN", "HOSE",
+    "HNX", "UPCOM", "VN30", "VN100", "VNI", "CODE",
 }
 
 _PREFIX_RE = re.compile(r"^(?:HOSE|HNX|UPCOM|INDEX|STOCK)[:/_-]", re.IGNORECASE)
@@ -210,31 +216,37 @@ class UniverseRegistry:
     @classmethod
     def extract_symbol_from_text(cls, text: Optional[str], session: Any = None) -> Optional[str]:
         """
-        Intelligently extracts the target financial instrument or market benchmark from user query text.
-        
-        Resolution precedence:
-        1. Explicit company/brand name aliases (e.g. 'Vietcombank' -> 'VCB', 'Thế giới di động' -> 'MWG')
-        2. Ticker tokens (e.g. 'VCB', 'FPT', 'HPG', 'SHB') resolved against canonical universe
-        3. Market/macro benchmark references (e.g. 'thị trường hôm nay', 'VN-Index', 'vĩ mô') -> 'VN100'
-        4. None if no valid instrument or market scope is identified
+        Intelligently extracts the primary target financial instrument or market benchmark from user query text.
+        Maintains backward compatibility by returning the first extracted symbol.
+        """
+        all_symbols = cls.extract_all_symbols_from_text(text, session)
+        return all_symbols[0] if all_symbols else None
+
+    @classmethod
+    def extract_all_symbols_from_text(cls, text: Optional[str], session: Any = None) -> List[str]:
+        """
+        Intelligently extracts all target financial instruments or market benchmarks from user query text.
+        Preserves encounter order and deduplicates symbols.
+        Supports multi-stock comparisons (e.g. 'MBB và VCB') and explicitly requested unknown tickers (e.g. 'mã ZZZTEST').
         """
         if not text or not isinstance(text, str):
-            return None
+            return []
         cleaned = text.strip()
         if not cleaned:
-            return None
+            return []
 
         lower_text = cleaned.lower()
+        matched_items: List[tuple[int, str]] = []
 
-        # 1. Check company name aliases (sorted by length descending so longer phrases match first)
+        # 1. Check company name aliases
         for alias, mapped_symbol in sorted(COMPANY_NAME_ALIASES.items(), key=lambda x: len(x[0]), reverse=True):
             pattern = rf"(?:\b|\A){re.escape(alias)}(?:\b|\Z)"
-            if re.search(pattern, lower_text):
-                return mapped_symbol
+            for m in re.finditer(pattern, lower_text):
+                matched_items.append((m.start(), mapped_symbol))
 
         # 2. Extract potential ticker tokens (alphanumeric 3-8 chars)
-        tokens = re.findall(r"\b[A-Za-z0-9]{3,8}\b", cleaned)
-        for token in tokens:
+        for m in re.finditer(r"\b[A-Za-z0-9]{3,8}\b", cleaned):
+            token = m.group(0)
             u_token = token.upper()
             if u_token in NON_SYMBOL_WORDS:
                 continue
@@ -242,15 +254,30 @@ class UniverseRegistry:
             resolved = cls.resolve_instrument(session, u_token)
             if resolved:
                 if resolved.source in {"BENCHMARK_INDEX", "DATABASE_ASSET", "VN100_CONSTITUENTS_JSON", "VN30_CONSTITUENTS_JSON", "CANONICAL_DATABASE"}:
-                    return resolved.symbol
-                if token.isupper() and len(u_token) == 3:
-                    return resolved.symbol
+                    matched_items.append((m.start(), resolved.symbol))
+                elif token.isupper():
+                    # For unknown / fallback tickers: accept 3-letter tickers or explicitly introduced tokens (e.g. 'mã ZZZTEST')
+                    preceding = cleaned[:m.start()].lower()
+                    has_explicit_marker = bool(re.search(r"(?:mã|ma|cổ phiếu|co phieu|ticker|symbol)\s*:?\s*$", preceding))
+                    if len(u_token) == 3 or has_explicit_marker:
+                        matched_items.append((m.start(), resolved.symbol))
 
-        # 3. Check for general market / benchmark overview intent
-        if MARKET_TERMS_PATTERN.search(cleaned):
-            return "VN100"
+        # Sort matches by appearance position in text
+        matched_items.sort(key=lambda x: x[0])
 
-        return None
+        # Deduplicate preserving order
+        unique_symbols: List[str] = []
+        seen: Set[str] = set()
+        for _, sym in matched_items:
+            if sym not in seen:
+                seen.add(sym)
+                unique_symbols.append(sym)
+
+        # 3. Check for general market / benchmark overview intent if no stock symbols matched
+        if not unique_symbols and MARKET_TERMS_PATTERN.search(cleaned):
+            unique_symbols.append("VN100")
+
+        return unique_symbols
 
     @classmethod
     def load_constituent_sources(cls) -> Dict[str, Dict[str, Any]]:

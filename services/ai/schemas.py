@@ -62,6 +62,7 @@ class AICitation(BaseModel):
     is_estimate: bool | None = False
     diagnostic_reason: str | None = None
     note: str | None = None
+    symbol: str | None = None
 
 
 class AIChatResponse(BaseModel):

@@ -136,6 +136,7 @@ class AIAnalyst:
                 is_estimate=item.get("is_estimate", False),
                 diagnostic_reason=item.get("diagnostic_reason"),
                 note=item.get("note"),
+                symbol=item.get("symbol"),
             ))
         return citations
 
@@ -259,16 +260,28 @@ class AIAnalyst:
         if self._is_conversational_or_help(question) and not symbol:
             return self._conversational_response(requested_date)
 
+        extracted_symbols: list[str] = []
         canonical_symbol = None
         if symbol:
             resolved = UniverseRegistry.resolve_instrument(session, symbol)
             canonical_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
+            extracted_symbols = [canonical_symbol]
         else:
-            extracted = UniverseRegistry.extract_symbol_from_text(question, session)
-            if extracted:
-                canonical_symbol = extracted
+            extracted_symbols = UniverseRegistry.extract_all_symbols_from_text(question, session)
+            canonical_symbol = extracted_symbols[0] if extracted_symbols else None
 
-        context = AITools.get_context(canonical_symbol, requested_date, tool_names, session)
+        # Check for general portfolio or asset allocation query without specific single ticker (Q19)
+        portfolio_terms = (
+            "danh mục", "danh muc", "phân bổ", "phan bo", "portfolio", "allocation",
+            "tài sản", "tai san", "100 triệu", "đa dạng hóa", "da dang hoa", "chiến lược",
+        )
+        is_portfolio_query = any(term in question.casefold() for term in portfolio_terms)
+        if not extracted_symbols and is_portfolio_query:
+            extracted_symbols = ["VN100"]
+            canonical_symbol = "VN100"
+
+        query_target = extracted_symbols if len(extracted_symbols) > 1 else canonical_symbol
+        context = AITools.get_context(query_target, requested_date, tool_names, session)
         citations = self._citations(context)
         used_tools = [item["name"] for item in context.get("tools", [])]
         asks_horizon = any(term in question.casefold() for term in (
@@ -301,6 +314,9 @@ class AIAnalyst:
                 reason=detail_reason,
                 answer=ans_text,
             )
+
+        # Check for intraday historical timestamp request (Q18)
+        asks_intraday = bool(re.search(r"\b(?:1[0-9]|2[0-3]|0?[0-9]):[0-5][0-9]\b", question))
 
         evidence_by_id = {item.id: item for item in citations}
         tool_context = {
@@ -357,8 +373,25 @@ class AIAnalyst:
                 suppressed_reasons.append("The model referenced an evidence ID that was not supplied by a data tool.")
                 continue
             if claim.claim_type != "UNCERTAINTY":
-                # Metric semantic validation: P/E evidence cannot be presented as P/B, and vice versa
                 claim_text_lower = claim.text.lower()
+
+                # Entity consistency: if claim mentions stock A, citations must not belong solely to stock B
+                has_entity_mismatch = False
+                if extracted_symbols:
+                    for sym in extracted_symbols:
+                        if sym and sym != "VN100":
+                            sym_re = rf"\b{re.escape(sym.lower())}\b"
+                            if re.search(sym_re, claim_text_lower):
+                                foreign = [cid for cid in valid_ids if evidence_by_id[cid].symbol and evidence_by_id[cid].symbol != sym and evidence_by_id[cid].symbol != "VN100"]
+                                if foreign and not any(evidence_by_id[cid].symbol == sym for cid in valid_ids):
+                                    suppressed_reasons.append(f"Claim for {sym} cannot be supported solely by citations from {evidence_by_id[foreign[0]].symbol}.")
+                                    has_entity_mismatch = True
+                                    break
+                if has_entity_mismatch:
+                    continue
+
+                # Metric semantic validation:
+                # 1. P/E vs P/B
                 if any(term in claim_text_lower for term in ("p/b", "pb", "price-to-book", "price to book")):
                     if any(evidence_by_id[cid].metric in ("pe", "pe_ratio", "price_to_earnings") for cid in valid_ids):
                         suppressed_reasons.append("P/E evidence cannot be presented as P/B.")
@@ -368,6 +401,30 @@ class AIAnalyst:
                         suppressed_reasons.append("P/B evidence cannot be presented as P/E.")
                         continue
 
+                # 2. Gross margin vs Revenue growth / decline (Q06 VHM)
+                is_revenue_claim = bool(
+                    re.search(r"\bdoanh\s*thu\b.*?\b(?:tăng|giảm|tăng\s*trưởng|suy\s*giảm|growth|decline)\b", claim_text_lower)
+                    or re.search(r"\b(?:tăng\s*trưởng|suy\s*giảm)\s+doanh\s*thu\b", claim_text_lower)
+                    or any(term in claim_text_lower for term in ("revenue growth", "revenue decline"))
+                )
+                if is_revenue_claim:
+                    if any(evidence_by_id[cid].metric in ("gross_margin", "net_margin", "ebitda_margin") for cid in valid_ids) and not any(evidence_by_id[cid].metric in ("revenue", "revenue_yoy", "revenue_cagr_3y", "revenue_cagr_5y") for cid in valid_ids):
+                        suppressed_reasons.append("Margin evidence cannot be presented as revenue growth or decline.")
+                        continue
+
+                # 3. P/E multiple vs Profit / Net income (Q07 VIC)
+                if any(term in claim_text_lower for term in ("lợi nhuận hợp nhất", "lợi nhuận thuần", "net profit", "lợi nhuận sau thuế")):
+                    if any(evidence_by_id[cid].metric in ("pe", "pe_ratio", "pb", "pb_ratio") for cid in valid_ids) and not any(evidence_by_id[cid].metric in ("net_income", "net_income_yoy", "operating_income") for cid in valid_ids):
+                        suppressed_reasons.append("Valuation multiple evidence cannot be presented as profit or income.")
+                        continue
+
+                # 4. Company revenue vs Commodity/Oil price (Q10 PLX)
+                if any(term in claim_text_lower for term in ("giá dầu", "oil price", "giá hàng hóa")):
+                    if any(evidence_by_id[cid].metric in ("revenue", "revenue_yoy", "gross_margin", "net_income") for cid in valid_ids):
+                        suppressed_reasons.append("Company financial statements cannot substantiate commodity price changes without a market price series.")
+                        continue
+
+                # Numeric grounding check
                 cited_numbers = set().union(*(
                     _extract_evidence_numbers(evidence_by_id[citation_id])
                     for citation_id in valid_ids
@@ -385,40 +442,91 @@ class AIAnalyst:
             referenced_ids.update(valid_ids)
             cited_claims.append(claim)
 
-        if not cited_claims:
+        # Ensure at least one substantive claim survived validation before adding notices
+        valid_substantive_claims = [c for c in cited_claims if c.claim_type != "UNCERTAINTY"]
+        if not valid_substantive_claims:
             if draft.answer and draft.answer.strip():
                 clean_ans = draft.answer.strip()
                 ans_numbers = _numeric_values(clean_ans)
                 if not ans_numbers:
                     cited_claims.append(AIClaim(claim_type="UNCERTAINTY", text=clean_ans, citation_ids=[]))
-            if not cited_claims:
+                    valid_substantive_claims = [c for c in cited_claims if c.claim_type != "UNCERTAINTY"]
+            if not valid_substantive_claims:
                 reason = suppressed_reasons[0] if suppressed_reasons else "The model did not return any structured claims that can be safely displayed."
                 return self._insufficient_response(
-                    symbol=symbol,
+                    symbol=canonical_symbol or symbol,
                     as_of=requested_date,
                     citations=citations,
                     tools_used=used_tools,
                     reason=reason,
                 )
 
-        uncertain_numbers = _numeric_values(" ".join(draft.uncertainty))
+        # If intraday timestamp requested, inject honesty notice regarding EOD limitation (Q18)
+        if asks_intraday:
+            cited_claims.insert(0, AIClaim(
+                claim_type="UNCERTAINTY",
+                text=f"Lưu ý: Hệ thống InvestIntel hiện chỉ hỗ trợ dữ liệu chốt phiên theo ngày (EOD), không hỗ trợ replay dữ liệu tại thời điểm trong phiên giao dịch. Kết quả dưới đây được tổng hợp dựa trên dữ liệu chốt phiên ngày {requested_date.isoformat()}.",
+                citation_ids=[],
+            ))
+
+        # If multi-ticker comparison, verify if any requested stock has missing evidence
+        if len(extracted_symbols) > 1:
+            for req_sym in extracted_symbols:
+                has_sym = any(
+                    (evidence_by_id.get(cid) and evidence_by_id[cid].symbol == req_sym)
+                    for c in cited_claims for cid in c.citation_ids
+                )
+                if not has_sym and not any(req_sym.lower() in c.text.lower() for c in cited_claims):
+                    cited_claims.append(AIClaim(
+                        claim_type="UNCERTAINTY",
+                        text=f"Dữ liệu tài chính và định giá cho mã {req_sym} hiện chưa có sẵn hoặc chưa đủ điều kiện kiểm chứng trong hệ thống.",
+                        citation_ids=[],
+                    ))
+
+        # Filter contradictory uncertainty statements (e.g. claiming P/E missing when P/E was evidenced in claims)
+        available_metrics = {
+            evidence_by_id[cid].metric.lower()
+            for c in cited_claims
+            for cid in c.citation_ids
+            if cid in evidence_by_id and evidence_by_id[cid].metric
+        }
+        cleaned_uncertainty = []
+        for unc in draft.uncertainty:
+            unc_lower = unc.lower()
+            contradicts = False
+            if "p/e" in unc_lower and any(m in ("pe", "pe_ratio", "price_to_earnings") for m in available_metrics):
+                contradicts = True
+            elif "p/b" in unc_lower and any(m in ("pb", "pb_ratio", "price_to_book") for m in available_metrics):
+                contradicts = True
+            elif ("biên lợi nhuận" in unc_lower or "gross margin" in unc_lower) and "gross_margin" in available_metrics:
+                contradicts = True
+            if not contradicts:
+                cleaned_uncertainty.append(unc)
+
+        # Sanitize ungrounded numbers from uncertainty statements instead of discarding entire response
         allowed_uncertainty_numbers = set().union(*(
             _numeric_values(f"{c.metric or ''} {c.observation_date or ''}")
             for c in citations
         )).union(_numeric_values(question))
-        disallowed_uncertainty = uncertain_numbers - allowed_uncertainty_numbers
-        if disallowed_uncertainty:
-            return self._insufficient_response(
-                symbol=symbol,
-                as_of=requested_date,
-                citations=citations,
-                tools_used=used_tools,
-                reason="A numeric statement in the uncertainty field was suppressed because it has no citation IDs.",
-            )
 
-        has_uncertainty = any(c.claim_type == "UNCERTAINTY" for c in cited_claims) or any(
-            item.freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"}
-            for item in citations if item.id in referenced_ids
+        final_uncertainty = []
+        for unc in cleaned_uncertainty:
+            unc_numbers = _numeric_values(unc)
+            if not (unc_numbers - allowed_uncertainty_numbers):
+                final_uncertainty.append(unc)
+            else:
+                stripped = re.sub(r"\b\d+(?:[.,]\d+)?%?\b", "", unc).strip()
+                if stripped and len(stripped) > 5:
+                    final_uncertainty.append(stripped)
+
+        has_uncertainty = (
+            asks_intraday
+            or any(c.claim_type == "UNCERTAINTY" for c in cited_claims)
+            or any(item.freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"} for item in citations if item.id in referenced_ids)
+            or (len(extracted_symbols) > 1 and any(
+                not any(evidence_by_id.get(cid) and evidence_by_id[cid].symbol == s for c in cited_claims for cid in c.citation_ids)
+                for s in extracted_symbols
+            ))
         )
         grounded_answer = " ".join(
             f"{claim.text} [Evidence: {', '.join(claim.citation_ids)}]" if claim.citation_ids else claim.text
@@ -430,7 +538,7 @@ class AIAnalyst:
 
         return AIChatResponse(
             status="PARTIAL" if has_uncertainty else "AVAILABLE",
-            symbol=canonical_symbol or symbol,
+            symbol=", ".join(extracted_symbols) if len(extracted_symbols) > 1 else (canonical_symbol or symbol),
             resolved_symbol=canonical_symbol or symbol,
             as_of_date=requested_date,
             prompt_version=PROMPT_VERSION,
@@ -438,7 +546,7 @@ class AIAnalyst:
             answer=grounded_answer,
             claims=cited_claims,
             citations=returned_citations,
-            uncertainty=draft.uncertainty,
+            uncertainty=final_uncertainty,
             tools_used=used_tools,
             usage=usage,
         ).model_dump(mode="json")

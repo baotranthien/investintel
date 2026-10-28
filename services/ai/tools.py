@@ -139,7 +139,7 @@ class AITools:
 
     @staticmethod
     def get_context(
-        symbol: Optional[str],
+        symbol: Optional[str | list[str]],
         as_of: date,
         tool_names: Optional[list[str]] = None,
         session: Optional[Session] = None,
@@ -154,12 +154,90 @@ class AITools:
         db = session or SessionLocal()
         try:
             from services.universe.registry import UniverseRegistry
-            resolved = UniverseRegistry.resolve_instrument(db, symbol) if symbol else None
-            normalized = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or (symbol.upper() if symbol else None))
+            
+            # Normalize to list of symbols
+            raw_symbols = [symbol] if isinstance(symbol, str) else (symbol or [])
+            norm_symbols: list[str] = []
+            for s in raw_symbols:
+                if not s:
+                    continue
+                resolved = UniverseRegistry.resolve_instrument(db, s)
+                norm = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(s) or s.upper())
+                if norm and norm not in norm_symbols:
+                    norm_symbols.append(norm)
+
+            market_context = AITools.get_market_context(session=db, as_of=as_of)
+
+            # If multi-ticker comparison requested
+            if len(norm_symbols) > 1:
+                combined_evidence: list[dict[str, Any]] = []
+                assets_info = []
+                primary_decision_state = "INSUFFICIENT_DATA"
+
+                for sym in norm_symbols:
+                    asset = db.query(Asset).filter(Asset.symbol == sym).first()
+                    if asset:
+                        assets_info.append({
+                            "symbol": asset.symbol,
+                            "name": asset.name,
+                            "asset_type": asset.asset_type,
+                            "exchange": asset.exchange,
+                            "sector": asset.sector,
+                            "registry_status": asset.status,
+                        })
+                        decision = build_decision_context(db, sym, as_of)
+                        sym_evidence = decision.get("evidence", []) if decision else []
+                        for ev in sym_evidence:
+                            ev_copy = dict(ev)
+                            ev_copy["symbol"] = sym
+                            combined_evidence.append(ev_copy)
+                        if decision and decision.get("decision_state") == "AVAILABLE":
+                            primary_decision_state = "AVAILABLE"
+                    else:
+                        combined_evidence.append({
+                            "claim_type": "UNCERTAINTY",
+                            "responsible_module": "asset",
+                            "metric": "asset_registry",
+                            "symbol": sym,
+                            "source": "asset_registry",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "INSUFFICIENT_DATA",
+                            "note": f"Mã cổ phiếu {sym} không có trong cơ sở dữ liệu kiểm chứng của hệ thống.",
+                        })
+
+                # Append market context evidence
+                for ev in market_context.get("market", {}).get("evidence", []):
+                    ev_copy = dict(ev)
+                    ev_copy.setdefault("symbol", "VN100")
+                    combined_evidence.append(ev_copy)
+
+                results = []
+                for name in requested:
+                    if name == "asset":
+                        results.append({"name": name, "status": "AVAILABLE" if assets_info else "INSUFFICIENT_DATA", "data": assets_info})
+                    elif name == "macro":
+                        results.append({"name": name, "status": _status(market_context.get("macro")), "data": market_context.get("macro")})
+                    elif name == "regime":
+                        results.append({"name": name, "status": _status(market_context.get("market", {}).get("market_regime")), "data": market_context.get("market", {}).get("market_regime")})
+                    elif name == "evidence":
+                        results.append({"name": name, "status": "AVAILABLE" if combined_evidence else "INSUFFICIENT_DATA", "data": combined_evidence})
+                    else:
+                        results.append({"name": name, "status": "INSUFFICIENT_DATA", "data": None})
+
+                return {
+                    "symbol": ", ".join(norm_symbols),
+                    "symbols": norm_symbols,
+                    "as_of_date": as_of.isoformat(),
+                    "decision_state": primary_decision_state,
+                    "tools": results,
+                    "evidence": combined_evidence,
+                }
+
+            # Single symbol path (or no symbol)
+            normalized = norm_symbols[0] if norm_symbols else None
             asset = db.query(Asset).filter(Asset.symbol == normalized).first() if normalized else None
             decision = build_decision_context(db, normalized, as_of) if normalized else None
             modules = decision.get("snapshot", {}).get("modules", {}) if decision else {}
-            market_context = AITools.get_market_context(session=db, as_of=as_of)
             events = AITools.get_recent_events(symbol=normalized, session=db, as_of=as_of)
             watchlist = db.query(WatchlistItem).filter(WatchlistItem.asset_id == asset.id).first() if asset else None
             watchlist_data = ({
@@ -181,6 +259,10 @@ class AITools:
                 "portfolio_fit": portfolio_fit(db, as_of),
             }
             evidence = decision.get("evidence", []) if decision else []
+            if normalized:
+                for ev in evidence:
+                    ev.setdefault("symbol", normalized)
+
             rag_service = DocumentRAGService(session=db)
             rag_docs = rag_service.retrieve_documents(
                 query=normalized if normalized else "corporate update",
@@ -227,6 +309,7 @@ class AITools:
 
             return {
                 "symbol": normalized,
+                "symbols": norm_symbols,
                 "as_of_date": as_of.isoformat(),
                 "decision_state": decision.get("decision_state") if decision else market_context.get("status", "INSUFFICIENT_DATA"),
                 "tools": results,

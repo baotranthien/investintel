@@ -8,15 +8,22 @@ SYSTEM_PROMPT = """Bạn là trợ lý phân tích nghiên cứu đầu tư chuy
 Nhiệm vụ: Phân tích và trả lời câu hỏi của nhà đầu tư bằng tiếng Việt một cách khách quan, chính xác dựa trên dữ liệu bằng chứng được cung cấp.
 
 Quy tắc cốt lõi:
-1. Ngôn ngữ: Luôn trả lời 100% bằng tiếng Việt tự nhiên, gãy gọn, đúng văn phong tài chính.
+1. Ngôn ngữ & Thuật ngữ:
+   - Luôn trả lời 100% bằng tiếng Việt tự nhiên, gãy gọn, đúng văn phong tài chính.
+   - Đơn vị 'VND/share' dịch chuẩn là 'VND/cổ phiếu', tuyệt đối không dịch là 'VND/thành viên'.
+   - Chỉ số P/E là hệ số định giá (lần), không bao giờ được gọi là lợi nhuận hoặc doanh thu.
+   - Biên lợi nhuận (gross_margin) là tỷ suất sinh lời, không được nhầm lẫn với tăng trưởng hay suy giảm doanh thu.
 2. Căn cứ dữ liệu & trích dẫn:
-   - Mọi nhận định có số liệu tài chính hoặc dữ kiện từ 'verifiable_evidence' PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['mã_bằng_chứng'] (ví dụ ['E001']). Số liệu nêu trong câu phải khớp chính xác với giá trị trong bằng chứng đó.
-   - Nhận định định tính về ngành nghề, rủi ro tổng quát hoặc thông tin dữ liệu còn thiếu từ 'unverified_or_missing_metrics': đặt claim_type='UNCERTAINTY', citation_ids=[]. Không đưa số liệu chưa được trích dẫn vào claim UNCERTAINTY.
-3. Tuyệt đối KHÔNG tự sáng tác số liệu tài chính không có trong verifiable_evidence.
+   - Mọi nhận định có số liệu tài chính hoặc dữ kiện từ 'verifiable_evidence' PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['mã_bằng_chứng'] (ví dụ ['E001']).
+   - Phân biệt rõ từng mã cổ phiếu: Chỉ số của công ty nào (xem trường 'symbol' trong bằng chứng) PHẢI gán đúng cho công ty đó. Tuyệt đối không dùng số liệu của mã này để gán cho mã khác trong câu so sánh.
+   - Nếu bằng chứng có 'is_estimate': true hoặc có 'note' ghi nhận việc sử dụng số cổ phiếu cuối kỳ (period-end shares fallback), BẮT BUỘC phải nêu rõ đây là số liệu ước tính dựa trên số cổ phiếu cuối kỳ, không gọi là số liệu chính xác tuyệt đối.
+3. Nhất quán và Dữ liệu chưa chắc chắn:
+   - Nếu một chỉ số đã được cung cấp trong verifiable_evidence và đưa vào claims, TUYỆT ĐỐI KHÔNG ghi trong 'uncertainty' rằng chỉ số đó bị thiếu hay chưa cung cấp.
+   - Với các mã cổ phiếu hoặc chỉ tiêu không có dữ liệu, nêu rõ trong claims (claim_type='UNCERTAINTY', citation_ids=[]) hoặc trong 'uncertainty'.
 4. Cấu trúc JSON trả về (AIAnswerDraft):
    - "answer": Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.
    - "claims": Danh sách các mệnh đề phân tích (mỗi claim độc lập, có claim_type và citation_ids phù hợp).
-   - "uncertainty": Danh sách các chỉ số định giá hoặc dữ liệu còn thiếu/chưa kiểm chứng."""
+   - "uncertainty": Danh sách các chỉ số hoặc yếu tố thực sự còn thiếu/chưa kiểm chứng."""
 
 
 def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
@@ -25,20 +32,15 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
     compact_context: dict[str, Any] = {}
     if "symbol" in context:
         compact_context["symbol"] = context["symbol"]
+    if "symbols" in context:
+        compact_context["symbols"] = context["symbols"]
     if "as_of" in context or "as_of_date" in context:
         compact_context["as_of_date"] = str(context.get("as_of_date") or context.get("as_of"))
 
     # Asset profile without rogue un-indexed numeric tables
     for t in context.get("tools", []):
-        if isinstance(t, dict) and t.get("name") == "asset" and isinstance(t.get("data"), dict):
-            asset_data = t["data"]
-            compact_context["asset_profile"] = {
-                "symbol": asset_data.get("symbol"),
-                "name": asset_data.get("name"),
-                "sector": asset_data.get("sector"),
-                "exchange": asset_data.get("exchange"),
-                "asset_type": asset_data.get("asset_type"),
-            }
+        if isinstance(t, dict) and t.get("name") == "asset" and isinstance(t.get("data"), (dict, list)):
+            compact_context["asset_profile"] = t["data"]
             break
 
     # Extract ONLY verifiable evidence for citation
@@ -65,13 +67,22 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             and val is not None
         )
         if is_verifiable:
-            verifiable_evidence.append({
+            entry = {
                 "id": item_id,
                 "metric": metric,
                 "value": val,
                 "unit": item.get("unit"),
                 "source": source,
-            })
+            }
+            if item.get("symbol"):
+                entry["symbol"] = item.get("symbol")
+            if item.get("is_estimate"):
+                entry["is_estimate"] = True
+            if item.get("diagnostic_reason"):
+                entry["diagnostic_reason"] = item.get("diagnostic_reason")
+            if item.get("note"):
+                entry["note"] = item.get("note")
+            verifiable_evidence.append(entry)
         elif metric and freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"}:
             missing_indicators.append(metric)
 
@@ -79,10 +90,14 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         q_lower = question.lower()
         asks_pb = bool(re.search(r"\b(p/b|pb)\b", q_lower))
         asks_pe = bool(re.search(r"\b(p/e|pe)\b", q_lower))
+        query_symbols = [str(s).lower() for s in (context.get("symbols") or ([context.get("symbol")] if context.get("symbol") else []))]
 
         def _score(ev: dict[str, Any]) -> int:
             m = str(ev.get("metric") or "").lower()
+            sym = str(ev.get("symbol") or "").lower()
             s = 0
+            if sym and sym in query_symbols:
+                s += 200
             if ("giá" in q_lower or "price" in q_lower) and m == "price":
                 s += 100
             if ("doanh thu" in q_lower or "revenue" in q_lower) and m in {"revenue", "revenue_yoy", "gross_margin"}:
@@ -110,21 +125,32 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             return s
 
         verifiable_evidence.sort(key=_score, reverse=True)
+        max_evidence_items = 20 if len(query_symbols) > 1 else 10
         selected_evidence = []
-        for item in verifiable_evidence[:8]:
+        for item in verifiable_evidence[:max_evidence_items]:
             val = item.get("value")
             if isinstance(val, float):
                 clean_val = round(val, 2)
             else:
                 clean_val = val
-            selected_evidence.append({
+            ev_entry = {
                 "id": item.get("id"),
                 "metric": item.get("metric"),
                 "value": clean_val,
                 "unit": item.get("unit"),
                 "source": item.get("source"),
-            })
+            }
+            if item.get("symbol"):
+                ev_entry["symbol"] = item.get("symbol")
+            if item.get("is_estimate"):
+                ev_entry["is_estimate"] = True
+            if item.get("diagnostic_reason"):
+                ev_entry["diagnostic_reason"] = item.get("diagnostic_reason")
+            if item.get("note"):
+                ev_entry["note"] = item.get("note")
+            selected_evidence.append(ev_entry)
         compact_context["verifiable_evidence"] = selected_evidence
+
     if missing_indicators:
         compact_context["unverified_or_missing_metrics"] = list(dict.fromkeys(missing_indicators))[:15]
 
@@ -135,9 +161,10 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         "Yêu cầu trả lời bằng tiếng Việt (JSON) tuân thủ cấu trúc AIAnswerDraft:\n"
         "- 'answer': Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.\n"
         "- 'claims': Danh sách các mệnh đề logic độc lập:\n"
-        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence (ví dụ: số liệu định giá P/B trích dẫn đúng ID có metric='pb', số liệu P/E trích dẫn đúng ID có metric='pe', số liệu ROE trích dẫn đúng ID có metric='roe'). Tuyệt đối không gán ID của 'pe' cho 'pb' hay ngược lại.\n"
-        "  + Nếu câu hỏi yêu cầu cả P/B và ROE: BẮT BUỘC trả lời đầy đủ CẢ HAI chỉ số trong claims độc lập.\n"
+        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence.\n"
+        "  + Nếu phân tích nhiều mã cổ phiếu: ghi rõ mã cổ phiếu trong câu và chỉ trích dẫn đúng ID thuộc về mã đó.\n"
+        "  + Nếu chỉ số có 'is_estimate': true hoặc dùng số cổ phiếu cuối kỳ (fallback shares), BẮT BUỘC nêu rõ đây là ước tính.\n"
         "  + Nếu trích dẫn số liệu/dữ kiện từ verifiable_evidence: claim_type='FACT' hoặc 'MODEL_OUTPUT' và citation_ids=['mã_bằng_chứng'].\n"
         "  + Nếu là nhận định định tính, rủi ro, hoặc dữ liệu thiếu từ unverified_or_missing_metrics: claim_type='UNCERTAINTY' và citation_ids=[].\n"
-        "- 'uncertainty': Danh sách các yếu tố hoặc chỉ số còn thiếu/chưa được kiểm chứng."
+        "- 'uncertainty': Danh sách các yếu tố hoặc chỉ số còn thiếu/chưa được kiểm chứng (không lặp lại các chỉ số đã có bằng chứng)."
     )
