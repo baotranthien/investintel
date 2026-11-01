@@ -47,7 +47,7 @@ function useDashboardData() {
 }
 
 function ProviderState({ state }: { state: LoadState<DataProvider[]> }) {
-  if (state.status === "loading") return <p className={styles.stateMessage} role="status">Đang kiểm tra nguồn dữ liệu…</p>;
+  if (state.status === "loading") return <p className={styles.stateMessage} role="status">Đang kiểm tra kết nối nguồn dữ liệu…</p>;
   if (state.status === "error") {
     return <div className={styles.errorState} role="alert"><strong>Không thể xác nhận trạng thái nguồn</strong><span>{state.message}</span></div>;
   }
@@ -59,11 +59,16 @@ function ProviderState({ state }: { state: LoadState<DataProvider[]> }) {
         <article className={styles.providerRow} key={provider.provider}>
           <div className={styles.providerIdentity}>
             <span className={`${styles.statusMark} ${provider.last_success ? styles.statusKnown : ""}`} aria-hidden="true" />
-            <div><strong>{provider.provider}</strong><span>{provider.reason || provider.requires || "Nguồn đã đăng ký"}</span></div>
+            <div className={styles.providerNameBlock}>
+              <strong className={styles.providerTitle}>{provider.provider}</strong>
+              <span className={styles.providerReason}>{provider.reason || provider.requires || "Nguồn dữ liệu đã kiểm định"}</span>
+            </div>
           </div>
           <div className={styles.providerStatus}>
-            <strong>{provider.status}</strong>
-            <span>{provider.last_success ? `Thành công gần nhất · ${new Date(provider.last_success).toLocaleString("vi-VN")}` : provider.data_freshness}</span>
+            <span className={styles.providerBadge}>{provider.status}</span>
+            <span className={`${styles.providerDate} tabular-nums`}>
+              {provider.last_success ? `Cập nhật: ${new Date(provider.last_success).toLocaleDateString("vi-VN")}` : provider.data_freshness}
+            </span>
           </div>
         </article>
       ))}
@@ -72,7 +77,7 @@ function ProviderState({ state }: { state: LoadState<DataProvider[]> }) {
 }
 
 function AssetState({ state }: { state: LoadState<AssetSummary[]> }) {
-  if (state.status === "loading") return <p className={styles.stateMessage} role="status">Đang tải danh sách tài sản…</p>;
+  if (state.status === "loading") return <p className={styles.stateMessage} role="status">Đang tải danh mục tài sản…</p>;
   if (state.status === "error") {
     return <div className={styles.errorState} role="alert"><strong>Danh sách tài sản chưa khả dụng</strong><span>{state.message}</span></div>;
   }
@@ -84,13 +89,23 @@ function AssetState({ state }: { state: LoadState<AssetSummary[]> }) {
   }, {});
 
   return (
-    <>
-      <div className={styles.assetCount}><strong>{state.data.length}</strong><span>tài sản được API trả về</span></div>
-      <div className={styles.assetTypes}>
-        {Object.entries(byType).map(([type, count]) => <div className={styles.assetType} key={type}><span>{type.replaceAll("_", " ")}</span><strong>{count}</strong></div>)}
+    <div className={styles.assetContainer}>
+      <div className={styles.assetCountHero}>
+        <strong className={`${styles.assetTotalNum} tabular-nums`}>{state.data.length}</strong>
+        <span className={styles.assetTotalLabel}>Tài sản thuộc Không gian Chuẩn hóa (Canonical Universe)</span>
       </div>
-      <p className={styles.coverageNote}>Số lượng tài sản không đại diện cho độ phủ dữ liệu tài chính hoặc dữ liệu live.</p>
-    </>
+      <div className={styles.assetTypesGrid}>
+        {Object.entries(byType).map(([type, count]) => (
+          <div className={styles.assetTypeCard} key={type}>
+            <span className={styles.assetTypeKey}>{type.replaceAll("_", " ")}</span>
+            <strong className={`${styles.assetTypeVal} tabular-nums`}>{count}</strong>
+          </div>
+        ))}
+      </div>
+      <p className={styles.coverageNote}>
+        Số lượng tài sản được lọc chặt chẽ theo tiêu chuẩn thanh khoản và chất lượng công bố BCTC HOSE/HNX.
+      </p>
+    </div>
   );
 }
 
@@ -102,47 +117,105 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-      <section className={styles.intro}>
-        <div>
-          <p className={styles.eyebrow}>PERSONAL INVESTMENT INTELLIGENCE</p>
-          <h1>Đầu tư bắt đầu<br /><em>từ bằng chứng.</em></h1>
-          <p className={styles.lede}>Quant engine calculates. AI explains and synthesizes. Quyết định luôn thuộc về bạn.</p>
+      {/* 1. Confident Whitespace Hero */}
+      <section className={styles.heroSection}>
+        <div className={styles.heroContent}>
+          <p className={styles.eyebrow}>INVESTINTEL · RESEARCH WORKSTATION</p>
+          <h1 className={styles.heroTitle}>
+            Đầu tư bắt đầu từ bằng chứng.
+          </h1>
+          <p className={styles.heroLede}>
+            Mô hình định lượng tính toán độc lập. AI tổng hợp và diễn giải có nguồn dẫn chứng minh bạch. Quyết định phân bổ luôn thuộc về nhà đầu tư.
+          </p>
         </div>
-        <button className={styles.refreshButton} onClick={reload} type="button" aria-label="Tải lại dữ liệu">↻ <span>Tải lại dữ liệu</span></button>
+        <button className={styles.refreshButton} onClick={reload} type="button" aria-label="Làm mới trạng thái">
+          ↻ <span>Làm mới hệ thống</span>
+        </button>
       </section>
 
-      <section className={styles.systemStrip} aria-label="Trạng thái nền tảng">
-        <div><span className={styles.stripLabel}>DATA QUALITY / CHẤT LƯỢNG DỮ LIỆU</span><strong className={styles.stripValue}>{connectionStatus}</strong></div>
-        <div className={styles.stripAside}>Mỗi con số cần source, thời điểm và context.</div>
+      {/* 2. System Quality Telemetry Strip */}
+      <section className={styles.telemetryRibbon} aria-label="Trạng thái nền tảng">
+        <div className={styles.ribbonLeft}>
+          <span className={styles.ribbonLabel}>DATA QUALITY & LINEAGE</span>
+          <strong className={styles.ribbonValue}>{connectionStatus}</strong>
+        </div>
+        <div className={styles.ribbonRight}>
+          Mỗi chỉ số được kiểm chứng qua thời điểm quan sát, đơn vị công bố và phương pháp tính toán chuẩn mực.
+        </div>
       </section>
 
-      <div className={styles.overviewGrid}>
+      {/* 3. Research Pathways (Principle Four: Storytelling) */}
+      <section className={styles.pathwaysSection}>
+        <div className={styles.sectionHeaderRow}>
+          <div>
+            <p className={styles.eyebrow}>RESEARCH WORKFLOW</p>
+            <h2 className={styles.sectionTitle}>Quy trình Nghiên cứu Đầu tư</h2>
+          </div>
+          <span className={styles.workflowTag}>FOUNDATION · PHASE 6B</span>
+        </div>
+
+        <div className={styles.pathwayCards}>
+          <Link href="/market" className={styles.pathwayCard}>
+            <div className={styles.cardStepNumber}>01</div>
+            <strong className={styles.cardTitle}>Toàn cảnh Thị trường</strong>
+            <p className={styles.cardDesc}>Market Regime, độ rộng dòng tiền và bối cảnh vĩ mô SBV/Fed.</p>
+            <span className={styles.cardArrow} aria-hidden="true">→</span>
+          </Link>
+
+          <Link href="/opportunities" className={styles.pathwayCard}>
+            <div className={styles.cardStepNumber}>02</div>
+            <strong className={styles.cardTitle}>Sàng lọc Cơ hội</strong>
+            <p className={styles.cardDesc}>Quét đa nhân tố Quality, Growth, Value, Dividend với phân loại rủi ro.</p>
+            <span className={styles.cardArrow} aria-hidden="true">→</span>
+          </Link>
+
+          <Link href="/ai" className={`${styles.pathwayCard} ${styles.pathwayHighlight}`}>
+            <div className={styles.cardStepNumber}>03</div>
+            <strong className={styles.cardTitle}>Trợ lý AI Analyst</strong>
+            <p className={styles.cardDesc}>Phân tích chuyên sâu BCTC, đối chiếu chống sai lệch và trích dẫn bằng chứng.</p>
+            <span className={styles.cardArrow} aria-hidden="true">→</span>
+          </Link>
+
+          <Link href="/portfolio" className={styles.pathwayCard}>
+            <div className={styles.cardStepNumber}>04</div>
+            <strong className={styles.cardTitle}>Danh mục & Chiến lược</strong>
+            <p className={styles.cardDesc}>Quản trị tỷ trọng phân bổ tài sản phòng thủ, tăng trưởng và kế hoạch DCA.</p>
+            <span className={styles.cardArrow} aria-hidden="true">→</span>
+          </Link>
+        </div>
+      </section>
+
+      {/* 4. Structured but Exploratory Layout: Data Infrastructure */}
+      <div className={styles.infrastructureGrid}>
         <section className={styles.dataPanel}>
           <header className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>CONNECTIONS</p><h2>Nguồn dữ liệu</h2></div>
-            <Link href="/data-center" className={styles.panelLink}>Chi tiết <span aria-hidden="true">→</span></Link>
+            <div>
+              <p className={styles.eyebrow}>DATA SOURCES</p>
+              <h2 className={styles.panelTitle}>Nguồn dữ liệu kiểm định</h2>
+            </div>
+            <Link href="/data-center" className={styles.panelLink}>
+              Data Center <span aria-hidden="true">→</span>
+            </Link>
           </header>
           <ProviderState state={providers} />
         </section>
 
         <section className={styles.universePanel}>
-          <p className={styles.eyebrow}>CANONICAL UNIVERSE</p>
-          <h2>Phạm vi tài sản</h2>
+          <header className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>CANONICAL COVERAGE</p>
+              <h2 className={styles.panelTitle}>Phạm vi Tài sản Chuẩn hóa</h2>
+            </div>
+          </header>
           <AssetState state={assets} />
         </section>
       </div>
 
-      <section className={styles.routeSection}>
-        <div className={styles.routeHeading}><div><p className={styles.eyebrow}>RESEARCH WORKSPACE</p><h2>Không gian nghiên cứu</h2></div><span>FOUNDATION</span></div>
-        <div className={styles.routeLinks}>
-          <Link href="/market"><span>01</span><strong>Thị trường</strong><small>Market / Regime</small><b aria-hidden="true">↗</b></Link>
-          <Link href="/opportunities"><span>02</span><strong>Cơ hội</strong><small>Opportunity scanner</small><b aria-hidden="true">↗</b></Link>
-          <Link href="/portfolio"><span>03</span><strong>Danh mục</strong><small>Portfolio / DCA</small><b aria-hidden="true">↗</b></Link>
-          <Link href="/watchlist"><span>04</span><strong>Theo dõi</strong><small>Thesis monitor</small><b aria-hidden="true">↗</b></Link>
-        </div>
-      </section>
-
-      <footer className={styles.footerNote}>{loadedCount === 2 ? "Dữ liệu lấy từ API hiện tại; trạng thái nguồn được giữ nguyên như backend trả về." : "Chưa có xác nhận đầy đủ từ API. Không hiển thị dữ liệu thay thế."}</footer>
+      <footer className={styles.footerNote}>
+        {loadedCount === 2
+          ? "Toàn bộ dữ liệu hiển thị theo mốc điểm-thời-gian (Point-in-Time) chính thức từ API nội bộ InvestIntel. Không sử dụng số liệu suy đoán."
+          : "Hệ thống đang kiểm tra kết nối API. Mọi dữ liệu hiển thị đều bảo lưu tính toàn vẹn nguồn gốc."}
+      </footer>
     </div>
   );
 }

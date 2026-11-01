@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-11-01 21:41:38",
+  "total_execution_seconds": 131.36649227142334,
+  "stream_duration_seconds": 124.69978308677673,
+  "settled": true,
+  "question": "Phân tích cổ phiếu BMP dựa trên toàn bộ dữ liệu tài chính hiện có trong InvestIntel. Hãy trình bày giá cổ phiếu và ngày dữ liệu, kỳ báo cáo tài chính mới nhất, tăng trưởng doanh thu và lợi nhuận, biên lợi nhuận, ROE, EPS, P/E, P/B, nợ vay và dòng tiền nếu có dữ liệu. Đánh giá chất lượng tài chính, định giá, các yếu tố hỗ trợ, rủi ro và những thông tin còn thiếu. Với mỗi chỉ tiêu, hãy nêu giá trị, đơn vị, kỳ báo cáo, ngày công bố và nguồn nếu dữ liệu hỗ trợ. Phân biệt rõ số liệu thực tế, số liệu tính toán và số liệu ước tính. Nếu thiếu dữ liệu, hãy phân tích những phần có đủ bằng chứng và nói rõ phần nào chưa thể kết luận. Không tự điền dữ liệu còn thiếu.",
+  "symbol": "BMP",
+  "pre_submit_screenshot": "C:\\Users\\baotr\\Downloads\\trading\\docs\\audits\\evidence\\bmp_qwen35_9b_diagnostic_2026-11-01\\bmp_submitted.png",
+  "final_screenshot": "C:\\Users\\baotr\\Downloads\\trading\\docs\\audits\\evidence\\bmp_qwen35_9b_diagnostic_2026-11-01\\bmp_final.png",
+  "dom_telemetry": {
+    "badges": [
+      "MÃ: BMP",
+      "PARTIAL"
+    ],
+    "modelLabel": "MÃ: BMP",
+    "answerProse": "BMP có tăng trưởng doanh thu 19,06% và EPS 26,35% so với cùng kỳ. \n§\nE002\n§\nE004\n Biên lợi nhuận gộp đạt 44,86% trong khi biên ròng là 22,47%. \n§\nE008\n§\nE011\n Dòng tiền hoạt động và dòng tiền tự do lần lượt là 547,88 tỷ và 504,72 tỷ VND. \n§\nE036\n§\nE037\n Chưa có dữ liệu về nợ vay, vốn chủ sở hữu hoặc các chỉ số thanh khoản.",
+    "claimRows": [
+      {
+        "type": "FACT",
+        "text": "BMP có tăng trưởng doanh thu 19,06% và EPS 26,35% so với cùng kỳ.",
+        "cids": [
+          "§\nE002",
+          "§\nE002",
+          "§",
+          "E002",
+          "§\nE004",
+          "§\nE004",
+          "§",
+          "E004"
+        ]
+      },
+      {
+        "type": "MODEL_OUTPUT",
+        "text": "Biên lợi nhuận gộp đạt 44,86% trong khi biên ròng là 22,47%.",
+        "cids": [
+          "§\nE008",
+          "§\nE008",
+          "§",
+          "E008",
+          "§\nE011",
+          "§\nE011",
+          "§",
+          "E011"
+        ]
+      },
+      {
+        "type": "FACT",
+        "text": "Dòng tiền hoạt động và dòng tiền tự do lần lượt là 547,88 tỷ và 504,72 tỷ VND.",
+        "cids": [
+          "§\nE036",
+          "§\nE036",
+          "§",
+          "E036",
+          "§\nE037",
+          "§\nE037",
+          "§",
+          "E037"
+        ]
+      },
+      {
+        "type": "UNCERTAINTY",
+        "text": "Chưa có dữ liệu về nợ vay, vốn chủ sở hữu hoặc các chỉ số thanh khoản.",
+        "cids": []
+      }
+    ],
+    "bannerBadge": "",
+    "bannerMsg": "",
+    "epsPill": "",
+    "bentoCards": [
+      "BMP\n48 chỉ số\nPRICE\n137.500\nREVENUE YOY\n19,06\nNET INCOME YOY\n26,35\nEPS YOY\n26,35\nREVENUE CAGR 3Y\n-1,48\nREVENUE CAGR 5Y\n3,52\nEPS CAGR 3Y\n21,71\nGROSS MARGIN\n4485.79%\nEBIT MARGIN\n2805.85%\nNET MARGIN\n2247.25%\nROE\n41,57\nROA\n35,25\nROIC\n50,87\nDEBT TO ASSETS\n15,38\nCFO TO NI\n0,44\nFCF TO NI\n0,4\nEPS TTM\n15.292,1\nBVPS\n38.740,11\nREVENUE\n5.570,47\nNET INCOME\n1.251,83\nOPERATING INCOME\n1562.99x\nCASH\n713,16\nTOTAL ASSETS\n3.747,71\nTOTAL EQUITY\n3.171,3\nCFO\n547,88\nFCF\n504,72\nPE\n8.99x\nPB\n3.55x\nEV EBITDA\n7,2\nFX USDVND\n25.390\nSBV CREDIT GROWTH\n1150.00%\nSBV POLICY RATE\n4,5\nVNM CPI GSO\n120,44\nVNM CPI YOY\n3,45\nVNM GDP GROWTH\n369833398.95%\nVNM GDP GSO\n3.698.333,99\nCUUR0000SA0\n336,94\nDGS10\n4,98\nFX USD VND\n25.795,63\nWB VNM CAB\n33.13B\nWB VNM CPI\n3,31\nWB VNM GDP\n514.70B\nWB VNM RES\n85.58B\nWB VNM UEM\n1,52\nNET PROFIT MARGIN PCT\n2247.00%\nGROSS MARGIN PCT\n4486.00%\nOPERATING MARGIN PCT\n2806.00%\nROE PCT\n41,57"
+    ],
+    "uncertaintyItems": [
+      "Nợ vay và EBITDA margin chưa được cung cấp.",
+      "Tỷ lệ đòn bẩy tài chính (Debt/Equity) không có trong dữ liệu."
+    ],
+    "bodyTextSample": "I\nInvestIntel\nPRECISION TERMINAL\nENGINE ONLINE\nv2.5\n\nKHÔNG GIAN LÀM VIỆC\n\nTổng quan\nThị trường\nCơ hội\nDanh mục\nTheo dõi\n\nTRUNG TÂM PHÂN TÍCH\n\nNghiên cứu\nAI Analyst\nSTREAM\n\nHỆ THỐNG & NGUỒN\n\nChất lượng dữ liệu\nCài đặt\n\nQuant engine calculates.\n\nAI explains with evidence.\n\n🛡️\n100% Local-First Engine\nINVESTINTEL\n/\nTRUNG TÂM PHÂN TÍCH\n/\nAI Analyst\n21:41:37 ICT\nZERO EXTERNAL LEAK\nAI INVESTMENT RESEARCH · LOCAL FIRST\n· qwen3.5:9b-q4_K_M\nTrợ lý Nghiên cứu & Thẩm định Tài chính\n\nĐối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin.\n\nMÃ CỔ PHIẾU TIÊU BIỂU\nFPT\nMWG\nVCB\nMBB\nTCB\nPLX\nHPG\nVNM\nBSR\nSSI\nBMP\nGỢI Ý CÂU HỎI CHO BMP\n🎯 Cơ hội & Triển vọng BMP\n📊 Định giá P/E & P/B\n💰 Biên lợi nhuận & Dòng tiền\n⚠️ Rủi ro & Lưu ý chính\n⚖️ Cơ cấu nợ & Khả năng chi trả\nPHẠM VI CÔNG CỤ PHÂN TÍCH (14/14)\nTất cả\nBỏ chọn\nTài sản / Asset\nCơ bản / Fundamentals\nĐịnh giá / Valuation\nYếu tố / Factors\nRủi ro / Risk\nVĩ mô / Macro\nChế độ thị trường / Regime\nSự kiện / Events\nCơ hội / Opportunity\nDanh mục / Portfolio\nTheo dõi / Watchlist\nSnapshot lịch sử / History\nBằng chứng / Evidence\nTài liệu / Documents\nMÃ: BMP\nPARTIAL\nqwen3.5:9b-q4_K_M\nBMP có tăng trưởng doanh thu 19,06% và EPS 26,35% so với cùng kỳ. \n§\nE002\n§\nE004\n Biên lợi nhuận gộp đạt 44,86% trong khi biên ròng là 22,47%. \n§\nE008\n§\nE011\n Dòng tiền hoạt động và dòng tiền tự do lần lượt là 547,88 tỷ và 504,72 tỷ VND. \n§\nE036\n§\nE037\n Chưa có dữ liệu về nợ vay, vốn chủ sở hữu hoặc các chỉ số thanh khoản.\nDữ liệu Đối chứng Chuẩn xác (Reference Benchmark Data)\nDữ liệu chuẩn hóa trích xuất trực tiếp từ Báo cáo Tài chính đối soát độc lập, không phải suy luận AI\nBMP\n48 chỉ số\nPRICE\n137.500\nREVENUE YOY\n19,06\nNET INCOME YOY\n26,35\nEPS YOY\n26,35\nREVENUE CAGR 3Y\n-1,48\nREVENUE CAGR 5Y\n3,52\nEPS CAGR 3Y\n21,71\nGROSS MARGIN\n4485.79%\nEBIT MARGIN\n2805.85%\nNET MARGIN\n2247.25%\nROE\n41,57\nROA\n35,25\nROIC\n50,87\nDEBT TO ASSETS\n15,38\nCFO TO NI\n0,44\nFCF TO NI\n0,4\nEPS TTM\n15.292,1\nBVPS\n38.740,11\nREVENUE\n5.570,47\nNET INCOME\n1.251,83\nOPERATING INCOME\n1562.99x\nCASH\n713,16\nTOTAL ASSETS\n3.747,71\nTOTAL EQUITY\n3.171,3\nCFO\n547,88\nFCF\n504,72\nPE\n8.99x\nPB\n3.55x\nEV EBITDA\n7,2\nFX USDVND\n25.390\nSBV CREDIT GROWTH\n1150.00%\nSBV POLICY RATE\n4,5\nVNM CPI GSO\n120,44\nVNM CPI YOY\n3,45\nVNM GDP GROWTH\n369833398.95%\nVNM GDP GSO\n3.698.333,99\nCUUR0000SA0\n336,94\nDGS10\n4,98\nFX USD VND\n25.795,63\nWB VNM CAB\n33.13B\nWB VNM CPI\n3,31\nWB VNM GDP\n514.70B\nWB VNM RES\n85.58B\nWB VNM UEM\n1,52\nNET PROFIT MARGIN PCT\n2247.00%\nGROSS MARGIN PCT\n4486.00%\nOPERATING MARGIN PCT\n2806.00%\nROE PCT\n41,57\nMỆNH ĐỀ PHÂN TÍCH ĐÃ ĐỐI SOÁT (4)\nFACT\nBMP có tăng trưởng doanh thu 19,06% và EPS 26,35% so với cùng kỳ.\n§\nE002\n§\nE004\nMODEL_OUTPUT\nBiên lợi nhuận gộp đạt 44,86% trong khi biên ròng là 22,47%.\n§\nE008\n§\nE011\nFACT\nDòng tiền hoạt động và dòng tiền tự do lần lượt là 547,88 tỷ và 504,72 tỷ VND.\n§\nE036\n§\nE037\nUNCERTAINTY\nChưa có dữ liệu về nợ vay, vốn chủ sở hữu hoặc các chỉ số thanh khoản.\nLƯU Ý DỮ LIỆU & RỦI RO (2)\nNợ vay và EBITDA margin chưa được "
+  },
+  "network_events_count": 247,
+  "ollama_ps_after": "NAME                 ID              SIZE      PROCESSOR          CONTEXT    UNTIL              \nqwen3.5:9b-q4_K_M    56671c2ab938    6.2 GB    76%/24% CPU/GPU    4096       4 minutes from now",
+  "gpu_memory_after": "NVIDIA GeForce RTX 3050 Laptop GPU, 4096 MiB, 2634 MiB, 1329 MiB"
+}

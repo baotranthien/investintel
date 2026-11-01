@@ -1,195 +1,416 @@
-.page { display: grid; gap: 16px; }
-.header { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
-.eyebrow { margin: 0 0 5px; color: var(--positive); font-size: 9px; font-weight: 800; letter-spacing: 0.05em; }
-.header h1 { margin: 0; font-family: "Segoe UI Variable", "Segoe UI", Aptos, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 30px; font-weight: 650; color: var(--ink); }
-.header h1 span { color: var(--ink-muted); font-family: "Segoe UI Variable", "Segoe UI", Aptos, sans-serif; font-size: 14px; font-weight: 400; }
-.health { display: grid; grid-template-columns: auto auto; align-items: center; gap: 3px 8px; }
-.health > span:first-child { color: var(--ink-muted); font-size: 8px; font-weight: 800; }
-.health small { grid-column: 1 / -1; color: var(--ink-muted); font-size: 8px; text-align: right; }
-.status { display: inline-flex; padding: 3px 6px; font-size: 8px; font-weight: 750; line-height: 1.3; }
-.good { background: #e7f2ed; color: #116b56; }
-.warn { background: #fff2dc; color: #8e5a12; }
-.missing { background: #f4ebe8; color: #974b3b; }
-.workspace { display: grid; grid-template-columns: minmax(320px, 0.86fr) minmax(0, 1.14fr); gap: 20px; align-items: start; }
-.composer, .response { display: grid; gap: 14px; min-width: 0; }
-.composer { padding: 16px; border-top: 2px solid var(--accent); background: var(--surface); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+/* apps/web/src/app/ai/page.module.css */
 
-/* Active Stock Context Banner */
-.activeStockBanner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #f0f7f4;
-  border: 1px solid #c2e2d6;
-  border-radius: 6px;
-  margin-bottom: 2px;
-}
-.bannerLeft {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #116b56;
-}
-.bannerLeft strong {
-  font-size: 14px;
-  letter-spacing: 0.05em;
-  background: #116b56;
-  color: #ffffff;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-.bannerRight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bannerLink {
-  font-size: 11px;
-  font-weight: 700;
-  color: #116b56;
-  text-decoration: underline;
-  transition: opacity 150ms ease;
-}
-.bannerLink:hover {
-  opacity: 0.8;
-}
-.bannerClearBtn {
-  background: none;
-  border: 1px solid #c2e2d6;
-  color: var(--ink-muted);
-  font-size: 10.5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-.bannerClearBtn:hover {
-  background: #fff;
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-/* Quick Ticker Switcher */
-.tickerSelectRow {
+.pageWrapper {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  width: 100%;
+  min-height: calc(100vh - 64px);
+  background-color: #F5F5F7;
+  color: #1D1D1F;
+  position: relative;
+  padding: 32px 24px 180px 24px;
+  box-sizing: border-box;
 }
-.tickerSelectLabel {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--ink-muted);
+
+.centerContainer {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 1. Header giới thiệu (Centered Hero) */
+.heroSection {
+  text-align: center;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background-color: #EFEFF4;
+  color: #6E6E73;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.heroTitle {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #1D1D1F;
+  margin: 0 0 8px 0;
+}
+
+.heroSubtitle {
+  font-size: 15px;
+  color: #6E6E73;
+  margin: 0 auto;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+/* 2. Dải chọn mã cổ phiếu & Câu hỏi gợi ý (Horizontal Pills) */
+.suggestionsSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.suggestionsLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: #86868B;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.tickerChips {
+
+.suggestionPills {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
-.tickerChip {
-  padding: 3px 8px;
-  border: 1px solid var(--line);
-  background: var(--surface-muted);
-  color: var(--ink);
-  font-size: 10px;
-  font-weight: 700;
+
+.suggestionPill {
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: #FFFFFF;
+  color: #1D1D1F;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  border-radius: 3px;
-  transition: all 150ms ease;
-}
-.tickerChip:hover {
-  border-color: #116b56;
-  background: #edf7f5;
-  color: #116b56;
-}
-.tickerChipActive {
-  background: #116b56;
-  color: #ffffff;
-  border-color: #116b56;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: background-color 150ms ease, transform 150ms cubic-bezier(0.22, 1, 0.36, 1), border-color 150ms ease;
 }
 
-.fieldRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.composer label { display: grid; gap: 5px; color: var(--ink-muted); font-size: 9.5px; font-weight: 700; }
-.composer input:not([type="checkbox"]), .composer textarea { width: 100%; min-height: 34px; padding: 7px 9px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; font-family: inherit; border-radius: 4px; }
-.composer textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
-.composer input:focus, .composer textarea:focus { border-color: var(--positive); outline: none; }
+.suggestionPill:hover {
+  background-color: #EFEFF4;
+  border-color: rgba(0, 0, 0, 0.12);
+}
 
-.toolScope { border: 0; border-top: 1px solid var(--line); padding-top: 9px; }
-.toolScope legend { padding-right: 7px; color: var(--ink-muted); font-size: 9px; font-weight: 750; }
-.toolScope > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 10px; }
-.toolScope label { display: flex; grid-template-columns: none; align-items: center; gap: 6px; min-width: 0; font-size: 8.5px; }
-.toolScope input { accent-color: var(--positive); }
-.submit { min-height: 38px; padding: 0 12px; border: 0; background: var(--ink); color: white; cursor: pointer; font-size: 11px; font-weight: 750; border-radius: 4px; transition: background 150ms ease; }
-.submit:hover:not(:disabled) { background: #116b56; }
-.submit:disabled { cursor: not-allowed; opacity: 0.55; }
-.localNote { color: var(--ink-muted); font-size: 8.5px; }
+.suggestionPill:active {
+  transform: scale(0.97);
+}
 
-.response { padding-top: 10px; border-top: 1px solid var(--line); }
-.response > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.response h2 { font-family: "Segoe UI Variable", "Segoe UI", Aptos, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 20px; font-weight: 650; color: var(--ink); margin: 0; }
-.answerText { font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
-.metadata { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 7px 0; border-block: 1px solid var(--line); color: var(--ink-muted); font-size: 8.5px; }
-.claims, .uncertainty, .citations { display: grid; gap: 8px; }
-.claims h3, .uncertainty h3 { font-size: 11px; margin: 0; font-weight: 700; color: var(--ink); }
-.claims article, .citations article { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 5px 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-.claims article p, .uncertainty p { min-width: 0; font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; margin: 0; }
-.claims article small { grid-column: 2; color: var(--ink-muted); font-size: 8.5px; }
-.uncertainty { padding: 9px 0; border-left: 3px solid var(--warning); padding-left: 10px; }
-.citations { border-top: 1px dashed var(--line); padding-top: 9px; }
-.citations summary { cursor: pointer; font-size: 10px; font-weight: 750; color: var(--ink); }
-.citations article { grid-template-columns: auto auto; }
-.citations article p, .citations article small { grid-column: 1 / -1; color: var(--ink-muted); font-size: 8.5px; overflow-wrap: anywhere; margin: 0; }
-.citations article strong { font-size: 9.5px; }
+/* 3. Khung Phạm vi công cụ (Collapsible / Clean White Card) */
+.scopeCard {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
 
-/* Dynamic Suggested Questions */
-.quickQueryContainer { display: grid; gap: 6px; margin-top: -2px; margin-bottom: 4px; }
-.quickQueryHeader { display: flex; justify-content: space-between; align-items: center; }
-.quickQueryLabel { color: var(--ink-muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-.stockContextBadge { font-size: 9px; font-weight: 700; color: #116b56; background: #e7f2ed; padding: 1px 6px; border-radius: 3px; }
-.quickQueryChips { display: flex; flex-wrap: wrap; gap: 6px; }
-.quickChip {
-  padding: 5px 9px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 10px;
+.scopeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.scopeTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6E6E73;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.scopeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px 16px;
+}
+
+.scopeItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1D1D1F;
+  cursor: pointer;
+  user-select: none;
+}
+
+.scopeCheckbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #1D1D1F;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* 4. Khu vực Hiển thị Kết quả AI (Editorial Reading Canvas) */
+.resultCard {
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: slideUpFade 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #EFEFF4;
+  color: #1D1D1F;
+}
+
+.iasWarningBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #FEF7E0;
+  color: #B06000;
+}
+
+.answerProse {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #1D1D1F;
+  white-space: pre-wrap;
+}
+
+.claimsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.claimRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background-color: #F9F9FB;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #1D1D1F;
+}
+
+.uncertaintySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.uncertaintyList {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uncertaintyItem {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6E6E73;
+}
+
+/* 5. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */
+.bottomDock {
+  position: fixed;
+  bottom: 0;
+  left: 260px; /* Trừ chiều rộng Sidebar trái */
+  right: 0;
+  background: linear-gradient(180deg, rgba(245, 245, 247, 0) 0%, #F5F5F7 35%, #F5F5F7 100%);
+  padding: 24px 24px 20px 24px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 1024px) {
+  .bottomDock {
+    left: 0;
+  }
+}
+
+.dockInner {
+  width: 100%;
+  max-width: 820px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Thanh trạng thái SSE nhỏ gọn nổi ngay trên khung chat */
+.sseStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1D1D1F;
+}
+
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #1D1D1F;
+  animation: pulseAnim 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseAnim {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+/* Hộp nhập câu hỏi chuẩn Apple / ChatGPT */
+.promptBox {
+  width: 100%;
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 22px;
+  padding: 10px 12px 10px 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-sizing: border-box;
+}
+
+.promptBox:focus-within {
+  border-color: #1D1D1F;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+
+.tickerInput {
+  width: 76px;
+  height: 36px;
+  background-color: #EFEFF4;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1D1D1F;
+  text-transform: uppercase;
+  text-align: center;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.tickerInput:focus {
+  background-color: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
+.promptTextarea {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  color: #1D1D1F !important;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 6px 4px;
+  resize: none;
+  outline: none !important;
+  min-height: 36px;
+  max-height: 140px;
+  font-family: inherit;
+}
+
+.promptTextarea::placeholder {
+  color: #86868B;
+}
+
+.submitBtn {
+  appearance: none;
+  border: none;
+  background-color: #1D1D1F;
+  color: #FFFFFF;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 9999px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
-  border-radius: 4px;
-  text-align: left;
-  line-height: 1.35;
-}
-.quickChip:hover {
-  background: #f0f7f4;
-  border-color: #116b56;
-  color: #116b56;
-}
-.stockQuickChip {
-  background: #fbfdfc;
-  border-color: #c2e2d6;
-}
-.stockQuickChip:hover {
-  background: #116b56;
-  border-color: #116b56;
-  color: #ffffff;
+  flex-shrink: 0;
+  transition: background-color 150ms ease, transform 150ms ease, opacity 150ms ease;
 }
 
-.responseTitleGroup { display: flex; align-items: center; gap: 10px; }
-.symbolBadge { display: inline-flex; align-items: center; padding: 2px 7px; border: 1px solid #116b56; background: #e7f2ed; color: #116b56; font-size: 10px; font-weight: 800; border-radius: 3px; letter-spacing: 0.04em; }
-.empty, .error { padding: 14px; border: 1px dashed var(--line); color: var(--ink-muted); font-size: 11px; border-radius: 4px; }
-.error { display: grid; gap: 5px; border-style: solid; border-left: 3px solid var(--negative); color: var(--negative); }
-
-@media (max-width: 860px) {
-  .workspace { grid-template-columns: 1fr; }
+.submitBtn:hover:not(:disabled) {
+  background-color: #333336;
 }
-@media (max-width: 560px) {
-  .header { align-items: start; flex-direction: column; }
-  .health small { text-align: left; }
-  .fieldRow { grid-template-columns: 1fr; }
-  .activeStockBanner { flex-direction: column; align-items: flex-start; }
+
+.submitBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.submitBtn:disabled {
+  background-color: #D2D2D7;
+  color: #86868B;
+  cursor: not-allowed;
+}
+
+.disclaimerText {
+  font-size: 11.5px;
+  color: #86868B;
+  text-align: center;
+  margin: 0;
 }

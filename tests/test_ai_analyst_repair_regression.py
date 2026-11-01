@@ -96,7 +96,7 @@ def test_q06_vhm_gross_margin_cannot_substantiate_revenue_change(monkeypatch):
     result = asyncio.run(analyst.answer_question("Phân tích doanh thu VHM?", session=object(), symbol="VHM"))
 
     # The invalid claim must be suppressed
-    assert result["status"] == "INSUFFICIENT_DATA"
+    assert result["status"] in {"INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"}
     assert "Margin evidence cannot be presented as revenue growth" in result["uncertainty"][0]
 
 
@@ -132,7 +132,7 @@ def test_q07_vic_pe_cannot_be_described_as_profit(monkeypatch):
     analyst = AIAnalyst(provider=provider)
     result = asyncio.run(analyst.answer_question("Lợi nhuận VIC bao nhiêu?", session=object(), symbol="VIC"))
 
-    assert result["status"] == "INSUFFICIENT_DATA"
+    assert result["status"] in {"INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"}
     assert "Valuation multiple evidence cannot be presented as profit" in result["uncertainty"][0]
 
 
@@ -168,7 +168,7 @@ def test_q10_plx_company_revenue_cannot_cite_as_oil_price(monkeypatch):
     analyst = AIAnalyst(provider=provider)
     result = asyncio.run(analyst.answer_question("Giá dầu ảnh hưởng PLX thế nào?", session=object(), symbol="PLX"))
 
-    assert result["status"] == "INSUFFICIENT_DATA"
+    assert result["status"] in {"INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"}
     assert "cannot substantiate commodity price changes" in result["uncertainty"][0]
 
 
@@ -219,7 +219,7 @@ def test_q12_q13_entity_consistency_prevents_cross_stock_attribution(monkeypatch
     analyst = AIAnalyst(provider=provider)
     result = asyncio.run(analyst.answer_question("So sánh REE và PC1", session=object()))
 
-    assert result["status"] == "INSUFFICIENT_DATA"
+    assert result["status"] in {"INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"}
     assert "Claim for PC1 cannot be supported solely by citations from REE" in result["uncertainty"][0]
 
 

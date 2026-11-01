@@ -69,9 +69,9 @@ app.add_middleware(
 )
 
 try:
-    from routers import data, fundamentals, valuation, factors, macro, risk, events, opportunity, ai, market, research, portfolio, watchlist, decision, automation, auth, cron
+    from routers import data, fundamentals, valuation, factors, macro, risk, events, opportunity, ai, market, research, portfolio, watchlist, decision, automation, auth, cron, screener, alerts
 except ImportError:
-    from apps.api.routers import data, fundamentals, valuation, factors, macro, risk, events, opportunity, ai, market, research, portfolio, watchlist, decision, automation, auth, cron
+    from apps.api.routers import data, fundamentals, valuation, factors, macro, risk, events, opportunity, ai, market, research, portfolio, watchlist, decision, automation, auth, cron, screener, alerts
 
 app.include_router(auth.router)
 app.include_router(cron.router)
@@ -90,6 +90,8 @@ app.include_router(portfolio.router)
 app.include_router(watchlist.router)
 app.include_router(decision.router)
 app.include_router(automation.router)
+app.include_router(screener.router)
+app.include_router(alerts.router)
 
 from database.connection import check_database_health, check_redis_health
 

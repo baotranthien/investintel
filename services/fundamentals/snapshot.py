@@ -114,9 +114,13 @@ class FundamentalSnapshotBuilder:
         cogs = get_income("cost_of_goods_sold")
         operating_income = get_income("operating_income")
         ebit = operating_income  # using operating income as EBIT proxy
-        ebitda_val = None
-        if ebit is not None and latest_cf.get("depreciation_amortization"):
-            ebitda_val = ebit + latest_cf["depreciation_amortization"]
+        ebitda_val = get_income("ebitda")
+        if ebitda_val is None and ebit is not None:
+            da = abs(latest_cf.get("depreciation_amortization")) if latest_cf.get("depreciation_amortization") is not None else None
+            if da is not None:
+                ebitda_val = ebit + da
+            else:
+                ebitda_val = ebit
         net_income = get_income("net_income")
         net_income_parent = get_income("net_income_parent") or net_income
         interest_income = get_income("interest_income")
@@ -430,10 +434,19 @@ class FundamentalSnapshotBuilder:
             "balance_sheet": {
                 "cash": cash,
                 "gross_debt": gross_debt_val,
+                "total_debt": gross_debt_val,
+                "short_term_debt": short_term_debt,
+                "long_term_debt": long_term_debt,
                 "net_debt": net_debt_val,
+                "total_current_assets": total_current_assets,
+                "total_current_liabilities": total_current_liabilities,
+                "inventory": inventory,
+                "accounts_receivable": accounts_receivable,
+                "accounts_payable": accounts_payable,
                 "total_equity": total_equity,
                 "equity_parent": equity_parent,
                 "total_assets": total_assets,
+                "total_liabilities": total_liabilities,
                 "de_ratio": _mr(de_ratio_r),
                 "net_debt_ebitda": _mr(net_debt_ebitda_r),
                 "debt_to_assets": _mr(debt_assets_r),

@@ -1,0 +1,76 @@
+[
+  {
+    "id": 4,
+    "symbol": "BMP",
+    "name": "Nhựa Bình Minh",
+    "sector": null,
+    "thesis": "High dividend yield, net cash balance sheet, deep value discount",
+    "horizon": null,
+    "invalidation": null,
+    "last_reviewed_at": null,
+    "last_changed_at": "2026-11-01T23:24:31.858918+07:00",
+    "opportunity": null,
+    "confidence": "INSUFFICIENT",
+    "risk": null,
+    "valuation": {
+      "pe": {
+        "value": 8.99,
+        "status": "AVAILABLE"
+      },
+      "pb": {
+        "value": 3.55,
+        "status": "AVAILABLE"
+      },
+      "ev_ebitda": {
+        "value": 5.74,
+        "status": "AVAILABLE"
+      },
+      "peg": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      },
+      "dividend_yield": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      },
+      "fcf_yield": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      },
+      "dcf": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      },
+      "residual_income": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      },
+      "ddm": {
+        "value": null,
+        "status": "INSUFFICIENT_DATA"
+      }
+    },
+    "why_now": [
+      {
+        "claim_type": "MODEL_OUTPUT",
+        "text": "Revenue trend is classified as improving by the FundamentalSnapshotBuilder.",
+        "calculation": "trend_v1",
+        "source": "VNDIRECT_FINFO",
+        "publication_date": "2026-10-19"
+      }
+    ],
+    "why_not_now": [
+      {
+        "claim_type": "UNCERTAINTY",
+        "text": "Valuation, factor, and risk outputs are withheld because their current producers rely on fixed assumptions, demo inputs, or stub defaults."
+      }
+    ],
+    "data_status": "AVAILABLE",
+    "data_freshness": {
+      "status": "AVAILABLE",
+      "as_of_date": "2026-11-01",
+      "source": "LOTUSMARKET"
+    },
+    "changes": []
+  }
+]

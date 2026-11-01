@@ -1,0 +1,22 @@
+{
+  "as_of_date": "2026-11-01",
+  "total_screened": 104,
+  "matched_count": 0,
+  "criteria_applied": {
+    "universe": "ALL",
+    "sector": null,
+    "pe_min": null,
+    "pe_max": 1.0,
+    "pb_min": null,
+    "pb_max": null,
+    "roe_min": 99.0,
+    "gross_margin_min": null,
+    "net_margin_min": null,
+    "de_ratio_max": null,
+    "current_ratio_min": null,
+    "margin_of_safety_min": null,
+    "market_cap_min_bil": null,
+    "limit": 50
+  },
+  "matches": []
+}

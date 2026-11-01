@@ -65,6 +65,8 @@ class OllamaProvider:
             "keep_alive": self.config.keep_alive,
             "options": {"num_ctx": self.config.num_ctx, "num_predict": self.config.num_predict},
         }
+        if not self.config.think:
+            payload["think"] = False
         if schema is not None:
             payload["format"] = schema
 
@@ -192,6 +194,7 @@ class OllamaProvider:
                     "retries": self.config.retries,
                     "num_ctx": self.config.num_ctx,
                     "num_predict": self.config.num_predict,
+                    "think": self.config.think,
                 },
             }
         except (httpx.HTTPError, ValueError, KeyError):

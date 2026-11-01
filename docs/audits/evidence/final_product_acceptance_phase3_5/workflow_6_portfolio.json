@@ -1,0 +1,35 @@
+{
+  "portfolio_id": "personal",
+  "as_of_date": "2026-11-01",
+  "status": "EMPTY",
+  "summary": {
+    "holdings_count": 0,
+    "total_value": null,
+    "cost_basis": 0.0,
+    "unrealized_pnl": null,
+    "currency": "VND",
+    "value_status": "INSUFFICIENT_DATA"
+  },
+  "holdings": [],
+  "allocation": {
+    "status": "INSUFFICIENT_DATA",
+    "sector": [],
+    "core_satellite": []
+  },
+  "concentration": {
+    "single_name_limit": null,
+    "sector_limit": null,
+    "status": "INSUFFICIENT_DATA",
+    "warnings": []
+  },
+  "risk_exposure": {
+    "status": "INSUFFICIENT_DATA",
+    "value": null,
+    "note": "Portfolio risk aggregation requires evidence-backed per-asset risk scores."
+  },
+  "factor_exposure": {
+    "status": "INSUFFICIENT_DATA",
+    "value": null,
+    "note": "Portfolio factor aggregation requires evidence-backed factor profiles."
+  }
+}

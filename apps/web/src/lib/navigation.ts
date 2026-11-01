@@ -12,6 +12,7 @@ export const appNavigation: AppNavigationItem[] = [
   { href: "/portfolio", label: "Danh mục", shortLabel: "Danh mục", group: "workspace" },
   { href: "/watchlist", label: "Theo dõi", shortLabel: "Theo dõi", group: "workspace" },
   { href: "/research", label: "Nghiên cứu", shortLabel: "Research", group: "research" },
+  { href: "/screener", label: "Bộ lọc cổ phiếu", shortLabel: "Screener", group: "research" },
   { href: "/ai", label: "AI Analyst", shortLabel: "AI", group: "research" },
   { href: "/data-center", label: "Chất lượng dữ liệu", shortLabel: "Dữ liệu", group: "system" },
   { href: "/settings", label: "Cài đặt", shortLabel: "Cài đặt", group: "system" },
@@ -22,6 +23,7 @@ export const sectionDescriptions: Record<string, { title: string; english: strin
   opportunities: { title: "Cơ hội", english: "Opportunities", milestone: "6B" },
   portfolio: { title: "Danh mục", english: "Portfolio", milestone: "6D" },
   watchlist: { title: "Theo dõi", english: "Watchlist", milestone: "6D" },
+  screener: { title: "Bộ lọc cổ phiếu", english: "Stock Screener", milestone: "5A" },
   ai: { title: "AI Analyst", english: "Local research assistant", milestone: "6F" },
   settings: { title: "Cài đặt", english: "Settings", milestone: "6A" },
 };

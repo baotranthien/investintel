@@ -1,0 +1,124 @@
+{
+  "symbol": "BMP",
+  "name": "Nhựa Bình Minh",
+  "as_of_date": "2026-11-01",
+  "status": "AVAILABLE",
+  "business_overview": {
+    "symbol": "BMP",
+    "name": "Nhựa Bình Minh",
+    "sector": "GENERAL",
+    "exchange": "HOSE",
+    "current_price": 137500.0,
+    "shares_outstanding": 81860938,
+    "market_cap_billion_vnd": 11255.88,
+    "data_origin": "CANONICAL_DATABASE",
+    "summary": "Nhựa Bình Minh (BMP) niêm yết tại sàn HOSE, hoạt động trong ngành GENERAL với quy mô vốn hóa ước đạt 11,255.9 tỷ VND."
+  },
+  "revenue_growth": {
+    "revenue_ttm": 5570.471941,
+    "revenue_yoy": 19.0623,
+    "net_income_yoy": 26.3499,
+    "eps_yoy": 26.3488,
+    "revenue_cagr_3y": -1.4773,
+    "revenue_cagr_5y": 3.5201,
+    "quarterly_history": [
+      {
+        "quarter": 4,
+        "year": 2025,
+        "period_end": "2025-12-31",
+        "revenue": 1286.058323,
+        "net_income": 261.343223,
+        "gross_profit": 604.409168
+      },
+      {
+        "quarter": 1,
+        "year": 2026,
+        "period_end": "2026-03-31",
+        "revenue": 1484.523999,
+        "net_income": 303.95606,
+        "gross_profit": 688.068277
+      },
+      {
+        "quarter": 2,
+        "year": 2026,
+        "period_end": "2026-06-30",
+        "revenue": 1337.036252,
+        "net_income": 367.189105,
+        "gross_profit": 616.687292
+      },
+      {
+        "quarter": 3,
+        "year": 2026,
+        "period_end": "2026-09-30",
+        "revenue": 1462.853367,
+        "net_income": 319.337654,
+        "gross_profit": 589.632473
+      }
+    ],
+    "assessment": "Tăng trưởng doanh thu duy trì xu hướng tích cực."
+  },
+  "profitability": {
+    "gross_margin": 44.8579,
+    "ebit_margin": 28.0585,
+    "ebitda_margin": 28.5478,
+    "net_margin": 22.4725,
+    "roe": 41.5664,
+    "roa": 35.2477,
+    "roic": 49.4981,
+    "assessment": "Khả năng sinh lời vượt trội với ROE đạt 41.6% và biên gộp 44.9%."
+  },
+  "financial_health": {
+    "debt_to_assets": 15.3803,
+    "de_ratio": 0.0173,
+    "net_debt_ebitda": -1.3384,
+    "current_ratio": 5.5786,
+    "quick_ratio": 4.4709,
+    "interest_coverage": 16309.5023,
+    "gross_debt": 54.9,
+    "cash": 713.155875,
+    "net_debt": -2128.413453,
+    "is_net_cash": true,
+    "assessment": "Cấu trúc vốn lành mạnh, tiền mặt vượt trội tổng nợ vay (vị thế tiền mặt ròng)."
+  },
+  "cash_flow_quality": {
+    "cfo": 547.876207,
+    "capex": null,
+    "fcf": 504.71774500000004,
+    "cfo_to_ni": 0.4377,
+    "fcf_to_ni": 0.4032,
+    "assessment": "Dòng tiền thuần từ kinh doanh (CFO) và dòng tiền tự do (FCF) dồi dào, chất lượng lợi nhuận cao."
+  },
+  "valuation": {
+    "current_price": 137500.0,
+    "pe": 8.99,
+    "pb": 3.55,
+    "ev_ebitda": 5.74,
+    "dividend_yield": null,
+    "bvps": 38740.10781552491,
+    "eps_ttm": 15292.104788733302,
+    "fair_value_composite": {
+      "bear": 152587.0,
+      "base": 179638.0,
+      "bull": 217183.0,
+      "confidence": "MEDIUM"
+    },
+    "dcf_intrinsic_value": {
+      "bear": 152587.0,
+      "base": 179638.0,
+      "bull": 217183.0
+    },
+    "margin_of_safety_pct": 23.5
+  },
+  "risks_and_catalysts": {
+    "risk_score": null,
+    "risk_status": "INSUFFICIENT_DATA",
+    "financial_flags": [],
+    "macro_sensitivities": [],
+    "catalysts": [],
+    "invalidation_triggers": [
+      "Biên lợi nhuận gộp suy giảm liên tiếp trên 2 quý.",
+      "Tỷ lệ nợ vay gia tăng đột biến vượt 50% tổng tài sản.",
+      "Dòng tiền kinh doanh CFO âm kéo dài trên 1 năm tài chính."
+    ]
+  }
+}

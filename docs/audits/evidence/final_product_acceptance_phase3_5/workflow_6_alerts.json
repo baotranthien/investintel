@@ -1,0 +1,44 @@
+[
+  {
+    "symbol": "FPT",
+    "alert_type": "VALUATION_OPPORTUNITY",
+    "severity": "LOW",
+    "title": "Cơ hội Định giá Hấp dẫn — FPT",
+    "description": "FPT đang giao dịch ở mức thị giá 52,700 VND, chiết khấu sâu với biên an toàn +20.6% so với giá trị hợp lý 66,403 VND.",
+    "metrics": {
+      "current_price": 52700.0,
+      "fair_value": 66403.0,
+      "margin_of_safety_pct": 20.6
+    },
+    "triggered_at": "2026-11-01T23:23:34.275099+07:00",
+    "status": "OPEN"
+  },
+  {
+    "symbol": "VCB",
+    "alert_type": "VALUATION_OVERVALUED",
+    "severity": "HIGH",
+    "title": "Cảnh báo Thị giá Vượt Giá trị Hợp lý — VCB",
+    "description": "VCB đang giao dịch ở mức cao hơn 28.2% so với giá trị hợp lý 43,901 VND.",
+    "metrics": {
+      "current_price": 56300.0,
+      "fair_value": 43901.0,
+      "margin_of_safety_pct": -28.2
+    },
+    "triggered_at": "2026-11-01T23:23:33.571406+07:00",
+    "status": "OPEN"
+  },
+  {
+    "symbol": "BMP",
+    "alert_type": "VALUATION_OPPORTUNITY",
+    "severity": "LOW",
+    "title": "Cơ hội Định giá Hấp dẫn — BMP",
+    "description": "BMP đang giao dịch ở mức thị giá 137,500 VND, chiết khấu sâu với biên an toàn +21.2% so với giá trị hợp lý 174,462 VND.",
+    "metrics": {
+      "current_price": 137500.0,
+      "fair_value": 174462.0,
+      "margin_of_safety_pct": 21.2
+    },
+    "triggered_at": "2026-11-01T23:23:32.841526+07:00",
+    "status": "OPEN"
+  }
+]

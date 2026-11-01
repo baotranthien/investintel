@@ -1,0 +1,308 @@
+.fallbackContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  animation: fadeIn 220ms var(--ease-spring) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Security / IAS 33 notice banner */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+}
+
+.bannerIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.bannerIcon {
+  font-size: 13px;
+}
+
+.bannerContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bannerHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bannerBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--warning);
+  letter-spacing: 0.02em;
+}
+
+.epsEstimatePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #FFFFFF;
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.bannerMessage {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* Bento comparisons section (Apple Tech Specs Style) */
+.bentoSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sectionHeader h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.sectionSub {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.comparisonsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.bentoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.bentoCard:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metricTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.deltaBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.deltaPositive {
+  background: var(--positive-soft);
+  color: var(--positive);
+  border: 1px solid var(--positive-border);
+}
+
+.deltaNegative {
+  background: var(--negative-soft);
+  color: var(--negative);
+  border: 1px solid var(--negative-border);
+}
+
+.comparisonBars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entityRow {
+  display: grid;
+  grid-template-columns: 50px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.symbolTag {
+  font-family: var(--font-mono);
+  font-weight: 650;
+  color: var(--ink-secondary);
+}
+
+.barTrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width var(--duration-fast) var(--ease-spring);
+}
+
+.barA {
+  background: #1D1D1F;
+}
+
+.barB {
+  background: #86868B;
+}
+
+.entityValue {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-weight: 650;
+  color: var(--ink);
+}
+
+/* Pearson correlation card */
+.pearsonCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pearsonStat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.pearsonLabel {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.pearsonValue {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pearsonStatus {
+  font-size: 12px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+}
+
+.symbolsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.symbolCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cardSymbolTitle {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.cardMetricCount {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+/* Apple.com Spec Table Style: Clean horizontal rows, no vertical lines */
+.metricList {
+  display: flex;
+  flex-direction: column;
+}
+
+.metricRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.metricRow:last-child {
+  border-bottom: none;
+}
+
+.metricKey {
+  color: var(--ink-secondary);
+  font-weight: 500;
+}
+
+.metricVal {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 650;
+  text-align: right;
+}

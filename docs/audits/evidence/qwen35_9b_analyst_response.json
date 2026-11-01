@@ -1,0 +1,448 @@
+{
+  "duration_seconds": 189.84948134422302,
+  "events_count": 54,
+  "final_response": {
+    "status": "AVAILABLE",
+    "symbol": "FPT",
+    "resolved_symbol": "FPT",
+    "as_of_date": "2026-11-01",
+    "prompt_version": "investment_analyst_v2",
+    "model": "qwen3.5:9b-q4_K_M",
+    "answer": "Hệ số P/E dựa trên EPS TTM được tính toán theo ước tính là 10,18 lần. [Evidence: E038]",
+    "claims": [
+      {
+        "claim_type": "MODEL_OUTPUT",
+        "text": "Hệ số P/E dựa trên EPS TTM được tính toán theo ước tính là 10,18 lần.",
+        "citation_ids": [
+          "E038"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "id": "E038",
+        "claim_type": "MODEL_OUTPUT",
+        "responsible_module": "valuation",
+        "metric": "pe",
+        "value": 10.18,
+        "unit": "multiple",
+        "source": "LOTUSMARKET",
+        "source_url": null,
+        "observation_date": "2026-10-29",
+        "publication_date": "2026-08-22",
+        "retrieved_at": null,
+        "data_origin": "LINEAGED_INGESTION",
+        "freshness": "AVAILABLE",
+        "is_estimate": true,
+        "diagnostic_reason": "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES",
+        "note": "Mathematically calculated from canonical adjusted close (54000.0 VND) / EPS TTM (5302.6 VND). Post-corporate-action share basis. (Denominator uses period-end shares fallback; multiple is an estimate.)",
+        "symbol": "FPT"
+      }
+    ],
+    "uncertainty": [
+      "Chênh lệch PPE và P/B so với các mã khác chưa được cung cấp.",
+      "Biên lợi nhuận EBITDA và nợ trên doanh thu còn thiếu trong dữ liệu."
+    ],
+    "tools_used": [
+      "asset",
+      "fundamentals",
+      "valuation",
+      "factors",
+      "risk",
+      "macro",
+      "regime",
+      "events",
+      "opportunity",
+      "portfolio",
+      "watchlist",
+      "historical_snapshot",
+      "evidence",
+      "document_retrieval"
+    ],
+    "usage": {
+      "model": "qwen3.5:9b-q4_K_M",
+      "total_duration_ns": 59844080900,
+      "load_duration_ns": 17017900,
+      "prompt_eval_count": 1569,
+      "prompt_eval_duration_ns": 412758000,
+      "eval_count": 223,
+      "eval_duration_ns": 59006632000,
+      "done_reason": "stop"
+    },
+    "structured_data_summary": {
+      "symbols": {
+        "FPT": {
+          "metrics": {
+            "price": {
+              "value": 54000.0,
+              "unit": null,
+              "observation_date": "2026-10-29",
+              "source": "LOTUSMARKET",
+              "citation_id": "E001",
+              "is_estimate": false
+            },
+            "revenue_yoy": {
+              "value": 1.4491,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E002",
+              "is_estimate": false
+            },
+            "net_income_yoy": {
+              "value": 27.2702,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E003",
+              "is_estimate": false
+            },
+            "eps_yoy": {
+              "value": 20.5965,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E004",
+              "is_estimate": false
+            },
+            "revenue_cagr_3y": {
+              "value": 13.1466,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E005",
+              "is_estimate": false
+            },
+            "revenue_cagr_5y": {
+              "value": 12.326,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E006",
+              "is_estimate": false
+            },
+            "eps_cagr_3y": {
+              "value": 2.1921,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E007",
+              "is_estimate": false
+            },
+            "gross_margin": {
+              "value": 34.647,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E008",
+              "is_estimate": false
+            },
+            "ebit_margin": {
+              "value": 19.5451,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E009",
+              "is_estimate": false
+            },
+            "net_margin": {
+              "value": 15.6829,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E011",
+              "is_estimate": false
+            },
+            "roe": {
+              "value": 24.6539,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E012",
+              "is_estimate": false
+            },
+            "roa": {
+              "value": 15.3974,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E013",
+              "is_estimate": false
+            },
+            "roic": {
+              "value": 31.007,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E014",
+              "is_estimate": false
+            },
+            "debt_to_assets": {
+              "value": 44.2714,
+              "unit": "%",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E017",
+              "is_estimate": false
+            },
+            "cfo_to_ni": {
+              "value": 0.1702,
+              "unit": "ratio",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E021",
+              "is_estimate": false
+            },
+            "fcf_to_ni": {
+              "value": 0.0955,
+              "unit": "ratio",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E022",
+              "is_estimate": false
+            },
+            "eps_ttm": {
+              "value": 5302.633318552266,
+              "unit": "VND/share",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E027",
+              "is_estimate": true
+            },
+            "bvps": {
+              "value": 21739.979711004376,
+              "unit": "VND/share",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E028",
+              "is_estimate": false
+            },
+            "revenue": {
+              "value": 63759.564587,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E029",
+              "is_estimate": false
+            },
+            "net_income": {
+              "value": 10943.639503000002,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E030",
+              "is_estimate": false
+            },
+            "operating_income": {
+              "value": 12461.897096,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E031",
+              "is_estimate": false
+            },
+            "cash": {
+              "value": 8843.161133,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E032",
+              "is_estimate": false
+            },
+            "total_assets": {
+              "value": 73563.10586,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E033",
+              "is_estimate": false
+            },
+            "total_equity": {
+              "value": 40995.680808,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E035",
+              "is_estimate": false
+            },
+            "cfo": {
+              "value": 1702.147711,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E036",
+              "is_estimate": false
+            },
+            "fcf": {
+              "value": 954.7334030000001,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E037",
+              "is_estimate": false
+            },
+            "pe": {
+              "value": 10.18,
+              "unit": "multiple",
+              "observation_date": "2026-10-29",
+              "source": "LOTUSMARKET",
+              "citation_id": "E038",
+              "is_estimate": true
+            },
+            "pb": {
+              "value": 2.48,
+              "unit": "multiple",
+              "observation_date": "2026-10-29",
+              "source": "LOTUSMARKET",
+              "citation_id": "E039",
+              "is_estimate": false
+            },
+            "ev_ebitda": {
+              "value": 8.17,
+              "unit": "multiple",
+              "observation_date": "2026-06-30",
+              "source": "HOSE_FILING",
+              "citation_id": "E040",
+              "is_estimate": false
+            },
+            "FX_USDVND": {
+              "value": 25390.0,
+              "unit": "VND",
+              "observation_date": "2026-10-15",
+              "source": "SBV",
+              "citation_id": "E054",
+              "is_estimate": false
+            },
+            "SBV_CREDIT_GROWTH": {
+              "value": 11.5,
+              "unit": "PERCENT",
+              "observation_date": "2026-09-30",
+              "source": "SBV",
+              "citation_id": "E055",
+              "is_estimate": false
+            },
+            "SBV_POLICY_RATE": {
+              "value": 4.5,
+              "unit": "PERCENT",
+              "observation_date": "2026-10-01",
+              "source": "SBV",
+              "citation_id": "E056",
+              "is_estimate": false
+            },
+            "vnm_cpi_gso": {
+              "value": 120.43885739191761,
+              "unit": "INDEX_2019_100",
+              "observation_date": "2025-10-31",
+              "source": "NSO_VIETNAM",
+              "citation_id": "E057",
+              "is_estimate": false
+            },
+            "VNM_CPI_YOY": {
+              "value": 3.45,
+              "unit": "PERCENT",
+              "observation_date": "2026-09-30",
+              "source": "NSO_VIETNAM",
+              "citation_id": "E058",
+              "is_estimate": false
+            },
+            "VNM_GDP_GROWTH": {
+              "value": 3698333.9895068174,
+              "unit": "PERCENT",
+              "observation_date": "2026-09-30",
+              "source": "NSO_VIETNAM",
+              "citation_id": "E059",
+              "is_estimate": false
+            },
+            "vnm_gdp_gso": {
+              "value": 3698333.9895068174,
+              "unit": "BILLION_VND",
+              "observation_date": "2026-09-30",
+              "source": "NSO_VIETNAM",
+              "citation_id": "E060",
+              "is_estimate": false
+            },
+            "CUUR0000SA0": {
+              "value": 336.94,
+              "unit": "INDEX_1982_84",
+              "observation_date": "2026-09-01",
+              "source": "BLS",
+              "citation_id": "E061",
+              "is_estimate": false
+            },
+            "DGS10": {
+              "value": 4.98,
+              "unit": "PERCENT",
+              "observation_date": "2026-10-29",
+              "source": "FRED",
+              "citation_id": "E062",
+              "is_estimate": false
+            },
+            "FX_USD_VND": {
+              "value": 25805.818056,
+              "unit": "VND_PER_USD",
+              "observation_date": "2026-10-28",
+              "source": "OPEN_EXCHANGE_RATES",
+              "citation_id": "E064",
+              "is_estimate": false
+            },
+            "WB_VNM_CAB": {
+              "value": 33135000000.0,
+              "unit": "USD",
+              "observation_date": "2025-12-31",
+              "source": "WORLD_BANK",
+              "citation_id": "E071",
+              "is_estimate": false
+            },
+            "WB_VNM_CPI": {
+              "value": 3.30999314219739,
+              "unit": "PERCENT",
+              "observation_date": "2025-12-31",
+              "source": "WORLD_BANK",
+              "citation_id": "E072",
+              "is_estimate": false
+            },
+            "WB_VNM_GDP": {
+              "value": 514697215165.065,
+              "unit": "USD",
+              "observation_date": "2025-12-31",
+              "source": "WORLD_BANK",
+              "citation_id": "E073",
+              "is_estimate": false
+            },
+            "WB_VNM_RES": {
+              "value": 85580367980.9693,
+              "unit": "USD",
+              "observation_date": "2025-12-31",
+              "source": "WORLD_BANK",
+              "citation_id": "E074",
+              "is_estimate": false
+            },
+            "WB_VNM_UEM": {
+              "value": 1.523,
+              "unit": "PERCENT",
+              "observation_date": "2025-12-31",
+              "source": "WORLD_BANK",
+              "citation_id": "E075",
+              "is_estimate": false
+            }
+          },
+          "calculated_indicators": {
+            "net_profit_margin_pct": 17.16,
+            "gross_margin_pct": 34.65,
+            "operating_margin_pct": 19.55,
+            "roe_pct": 24.65
+          }
+        }
+      },
+      "comparisons": null
+    },
+    "metadata_flags": {
+      "eps_is_estimate": true,
+      "shares_basis": "PERIOD_END_SHARES",
+      "accounting_standard_warning": "Chỉ số EPS và P/E được ước tính trên số lượng cổ phiếu lưu hành cuối kỳ theo dữ liệu BCTC thực tế; chưa áp dụng số lượng bình quân gia quyền theo chuẩn mực IAS 33 do thiếu dữ liệu phát hành quyền chọn/cổ tức nội quý.",
+      "data_origin": "CANONICAL_DATABASE",
+      "deterministic_validation": "PASSED_STRICT",
+      "total_verifiable_citations": 50
+    }
+  }
+}

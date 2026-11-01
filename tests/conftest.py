@@ -20,6 +20,22 @@ def initialize_database():
     from services.ingestion.seed_data import run_seed
     run_seed()
 
+    from scripts.seed_bank_and_commodity_data import (
+        seed_energy_stock_prices,
+        seed_bmp_prices,
+        seed_bank_metrics,
+        seed_macro_commodities,
+    )
+    from database.connection import SessionLocal
+    db = SessionLocal()
+    try:
+        seed_energy_stock_prices(db)
+        seed_bmp_prices(db)
+        seed_bank_metrics(db)
+        seed_macro_commodities(db)
+    finally:
+        db.close()
+
 
 @pytest.fixture(scope="function")
 def db_session():

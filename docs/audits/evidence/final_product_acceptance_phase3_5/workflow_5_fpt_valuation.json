@@ -1,0 +1,126 @@
+{
+  "symbol": "FPT",
+  "as_of": "2026-11-01",
+  "price_as_of": 52700.0,
+  "calculation_version": "v1",
+  "methods": [
+    {
+      "method": "Relative P/E",
+      "fair_value": {
+        "bear": 49309.18722921752,
+        "base": 58010.80850496179,
+        "bull": 66712.42978070605,
+        "currency": "VND"
+      },
+      "implied_price": null,
+      "applicability": "HIGH",
+      "confidence": "MEDIUM",
+      "weight": 0.4,
+      "assumptions_used": [],
+      "warnings": []
+    },
+    {
+      "method": "Relative P/B",
+      "fair_value": {
+        "bear": 19033.35223698433,
+        "base": 22392.179102334507,
+        "bull": 25751.005967684683,
+        "currency": "VND"
+      },
+      "implied_price": null,
+      "applicability": "HIGH",
+      "confidence": "MEDIUM",
+      "weight": 0.1,
+      "assumptions_used": [],
+      "warnings": []
+    },
+    {
+      "method": "DCF",
+      "fair_value": {
+        "bear": 68478.23219406475,
+        "base": 81919.31968396173,
+        "bull": 100574.54591876388,
+        "currency": "VND"
+      },
+      "implied_price": null,
+      "applicability": "HIGH",
+      "confidence": "MEDIUM",
+      "weight": 0.5,
+      "assumptions_used": [
+        {
+          "name": "Base Revenue",
+          "value": 63759.6,
+          "unit": "VND Billion",
+          "source": "Canonical Financial Statements",
+          "source_date": null,
+          "type": "OBSERVED",
+          "confidence": "MEDIUM",
+          "version": "v1"
+        },
+        {
+          "name": "WACC",
+          "value": 12.0,
+          "unit": "%",
+          "source": "Model baseline (Cost of Capital)",
+          "source_date": null,
+          "type": "MODEL_ASSUMPTION",
+          "confidence": "MEDIUM",
+          "version": "v1"
+        },
+        {
+          "name": "Terminal Growth Rate",
+          "value": 3.0,
+          "unit": "%",
+          "source": "Long-term GDP growth proxy",
+          "source_date": null,
+          "type": "MODEL_ASSUMPTION",
+          "confidence": "MEDIUM",
+          "version": "v1"
+        },
+        {
+          "name": "EBIT Margin",
+          "value": 20.0,
+          "unit": "%",
+          "source": "Baseline operating margin",
+          "source_date": null,
+          "type": "HISTORICAL_DERIVED",
+          "confidence": "MEDIUM",
+          "version": "v1"
+        },
+        {
+          "name": "Tax Rate",
+          "value": 20.0,
+          "unit": "%",
+          "source": "Corporate tax rate (20%)",
+          "source_date": null,
+          "type": "OBSERVED",
+          "confidence": "MEDIUM",
+          "version": "v1"
+        }
+      ],
+      "warnings": [
+        "DCF inputs: Base Revenue=63,759.6B VND, WACC=12.0%, Terminal Growth=3.0%, Tax=20.0%"
+      ]
+    }
+  ],
+  "composite_fair_value": {
+    "range": {
+      "bear": 55866.12621241782,
+      "base": 66403.20115419904,
+      "bull": 79547.34546843283,
+      "currency": "VND"
+    },
+    "confidence": "LOW",
+    "method_disagreement": true,
+    "disagreement_reason": "High dispersion between intrinsic and relative valuation methods."
+  },
+  "scenarios": [],
+  "margin_of_safety": 0.20636356253937177,
+  "warnings": [],
+  "data_sources": [
+    "HOSE_FILING",
+    "VIETCAP_IQ",
+    "VNDIRECT_FINFO"
+  ],
+  "data_status": "CANONICAL_DATABASE"
+}

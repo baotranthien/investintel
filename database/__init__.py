@@ -21,8 +21,9 @@ from .models import (
     FormulaRegistry,
     IndexMembership,
     StagingRecord,
-    EventRecord,
     DataQualityReportRecord,
+    BankMetric,
+    MacroCommodity,
 )
 from .connection import engine, SessionLocal, get_db, init_db, DATABASE_URL
 
@@ -51,6 +52,8 @@ __all__ = [
     "StagingRecord",
     "EventRecord",
     "DataQualityReportRecord",
+    "BankMetric",
+    "MacroCommodity",
     "engine",
     "SessionLocal",
     "get_db",

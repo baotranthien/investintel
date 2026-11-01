@@ -1,0 +1,213 @@
+.container {
+  position: relative;
+  display: inline-flex;
+  vertical-align: baseline;
+  margin: 0 2px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: #EFEFF4;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: #6E6E73;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.35;
+  user-select: none;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pill:hover,
+.pillActive {
+  background: #1D1D1F;
+  color: #FFFFFF;
+  border-color: #1D1D1F;
+  transform: translateY(-0.5px);
+}
+
+.pill:active {
+  transform: scale(0.96);
+}
+
+.pillIcon {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.pillText {
+  letter-spacing: 0.02em;
+}
+
+.popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: 320px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  animation: popoverFade 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes popoverFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.popoverHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.citationBadge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 750;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #1D1D1F;
+  color: #FFFFFF;
+}
+
+.moduleName {
+  font-size: 12px;
+  font-weight: 650;
+  color: #1D1D1F;
+}
+
+.statusIndicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1E8E3E;
+}
+
+.statusText {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #1E8E3E;
+  letter-spacing: 0.03em;
+}
+
+.contentBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.metricRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.metricLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6E6E73;
+}
+
+.metricValue {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: #1D1D1F;
+}
+
+.statementNote {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #1D1D1F;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #F5F5F7;
+}
+
+.provenanceTable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.provenanceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+}
+
+.provenanceKey {
+  color: #86868B;
+}
+
+.provenanceVal {
+  font-family: var(--font-mono);
+  color: #1D1D1F;
+  font-weight: 500;
+}
+
+.popoverFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.iasBadge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 650;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #FEF7E0;
+  color: #B06000;
+  border: 1px solid rgba(176, 96, 0, 0.2);
+}
+
+.popoverEscTip {
+  font-size: 9.5px;
+  color: #86868B;
+  font-family: var(--font-mono);
+}

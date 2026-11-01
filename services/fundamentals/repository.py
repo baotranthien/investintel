@@ -184,9 +184,20 @@ class FinancialRepository:
                         "publication_date": stmt.publication_date,
                         "revenue": numeric(norm_inc.revenue),
                         "cogs": numeric(norm_inc.cost_of_goods_sold),
+                        "cost_of_goods_sold": numeric(norm_inc.cost_of_goods_sold),
                         "gross_profit": numeric(norm_inc.gross_profit),
+                        "selling_expense": numeric(norm_inc.selling_expense),
+                        "general_admin_expense": numeric(norm_inc.general_admin_expense),
+                        "operating_expense": numeric(norm_inc.operating_expense),
                         "operating_income": numeric(norm_inc.operating_income),
+                        "ebit": numeric(norm_inc.ebit) if norm_inc.ebit is not None else numeric(norm_inc.operating_income),
+                        "ebitda": numeric(norm_inc.ebitda),
+                        "interest_income": numeric(norm_inc.interest_income),
+                        "interest_expense": numeric(norm_inc.interest_expense),
+                        "other_income": numeric(norm_inc.other_income),
+                        "other_expense": numeric(norm_inc.other_expense),
                         "pre_tax_income": numeric(norm_inc.pre_tax_income),
+                        "income_tax": numeric(norm_inc.income_tax),
                         "net_income": numeric(norm_inc.net_income),
                         "net_income_parent": (
                             numeric(norm_inc.net_income_parent)
@@ -197,12 +208,15 @@ class FinancialRepository:
                                 else (
                                     numeric(norm_inc.net_income) - numeric(norm_inc.minority_interest)
                                     if norm_inc.net_income is not None and norm_inc.minority_interest is not None
-                                    else None
+                                    else numeric(norm_inc.net_income)
                                 )
                             )
                         ),
+                        "minority_interest": numeric(norm_inc.minority_interest),
                         "eps_basic": numeric(norm_inc.eps_basic),
+                        "eps_diluted": numeric(norm_inc.eps_diluted),
                         "shares_basic": int(norm_inc.shares_basic) if norm_inc.shares_basic else None,
+                        "shares_diluted": int(norm_inc.shares_diluted) if norm_inc.shares_diluted else None,
                     }
                     if norm_inc.shares_basic:
                         latest_shares_basic = int(norm_inc.shares_basic)
@@ -225,8 +239,27 @@ class FinancialRepository:
                         "period_type": stmt.period_type,
                         "publication_date": stmt.publication_date,
                         "cash": numeric(norm_bs.cash),
+                        "short_term_investments": numeric(norm_bs.short_term_investments),
+                        "accounts_receivable": numeric(norm_bs.accounts_receivable),
+                        "inventory": numeric(norm_bs.inventory),
+                        "other_current_assets": numeric(norm_bs.other_current_assets),
+                        "total_current_assets": numeric(norm_bs.total_current_assets),
+                        "ppe": numeric(norm_bs.ppe),
+                        "intangibles": numeric(norm_bs.intangibles),
+                        "long_term_investments": numeric(norm_bs.long_term_investments),
+                        "other_non_current_assets": numeric(norm_bs.other_non_current_assets),
                         "total_assets": numeric(norm_bs.total_assets),
+                        "accounts_payable": numeric(norm_bs.accounts_payable),
+                        "short_term_debt": numeric(norm_bs.short_term_debt),
+                        "other_current_liabilities": numeric(norm_bs.other_current_liabilities),
+                        "total_current_liabilities": numeric(norm_bs.total_current_liabilities),
+                        "long_term_debt": numeric(norm_bs.long_term_debt),
+                        "other_non_current_liabilities": numeric(norm_bs.other_non_current_liabilities),
                         "total_liabilities": numeric(norm_bs.total_liabilities),
+                        "share_capital": numeric(norm_bs.share_capital),
+                        "retained_earnings": numeric(norm_bs.retained_earnings),
+                        "other_equity": numeric(norm_bs.other_equity),
+                        "minority_interest": numeric(norm_bs.minority_interest),
                         "total_equity": numeric(norm_bs.total_equity),
                         "equity_parent": (
                             numeric(norm_bs.equity_parent)
@@ -237,11 +270,10 @@ class FinancialRepository:
                                 else (
                                     numeric(norm_bs.total_equity) - numeric(norm_bs.minority_interest)
                                     if norm_bs.total_equity is not None and norm_bs.minority_interest is not None
-                                    else None
+                                    else numeric(norm_bs.total_equity)
                                 )
                             )
                         ),
-                        "share_capital": numeric(norm_bs.share_capital),
                         "loans_and_advances": numeric(norm_bs.loans_and_advances),
                         "customer_deposits": numeric(norm_bs.customer_deposits),
                         "provisions": numeric(norm_bs.provisions),
@@ -264,7 +296,14 @@ class FinancialRepository:
                         "publication_date": stmt.publication_date,
                         "cash_from_operations": numeric(norm_cf.cash_from_operations),
                         "cash_from_investing": numeric(norm_cf.cash_from_investing),
+                        "cash_from_financing": numeric(norm_cf.cash_from_financing),
                         "capex": numeric(norm_cf.capex),
+                        "dividends_paid": numeric(norm_cf.dividends_paid),
+                        "debt_issued": numeric(norm_cf.debt_issued),
+                        "debt_repaid": numeric(norm_cf.debt_repaid),
+                        "share_issuance": numeric(norm_cf.share_issuance),
+                        "share_buyback": numeric(norm_cf.share_buyback),
+                        "depreciation_amortization": numeric(norm_cf.depreciation_amortization),
                         "free_cash_flow": numeric(norm_cf.free_cash_flow),
                     }
                     cf_annual.append(row)

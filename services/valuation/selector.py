@@ -61,9 +61,9 @@ class ValuationMethodSelector:
         excluded = []
         reasons = {}
         
-        eps = fundamentals.get("eps_ttm", 0)
-        ebitda = fundamentals.get("ebitda_ttm", 0)
-        fcf = fundamentals.get("fcf_ttm", 0)
+        eps = fundamentals.get("eps_ttm") or 0
+        ebitda = fundamentals.get("ebitda_ttm") or 0
+        fcf = fundamentals.get("fcf_ttm") or 0
         is_financial = self.sector in ["BANK", "BANKING", "FINANCIAL SERVICES", "INSURANCE", "FINANCIALS"]
         
         # 1. P/E Method

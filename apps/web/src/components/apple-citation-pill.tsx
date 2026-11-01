@@ -1,0 +1,123 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from "react";
+import type { AICitation } from "@/lib/api";
+import styles from "./apple-citation-pill.module.css";
+
+interface CitationPillProps {
+  id: string;
+  citation?: AICitation;
+}
+
+export default function AppleCitationPill({ id, citation }: CitationPillProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [isOpen]);
+
+  const cleanId = id.toUpperCase().replace(/[\[\]]/g, "").trim();
+
+  return (
+    <span className={styles.container} ref={containerRef}>
+      <button
+        type="button"
+        className={`${styles.pill} ${isOpen ? styles.pillActive : ""}`}
+        onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={() => setIsOpen(true)}
+        aria-expanded={isOpen}
+        title="Xem nguồn dữ liệu kiểm chứng"
+      >
+        <span className={styles.pillIcon} aria-hidden="true">§</span>
+        <span className={`${styles.pillText} tabular-nums`}>{cleanId}</span>
+      </button>
+
+      {isOpen && citation && (
+        <div className={styles.popover} role="tooltip">
+          <div className={styles.popoverHeader}>
+            <div className={styles.titleGroup}>
+              <span className={`${styles.citationBadge} tabular-nums`}>{citation.id}</span>
+              <strong className={styles.moduleName}>{citation.responsible_module || "Data Tool"}</strong>
+            </div>
+            <span
+              className={`${styles.freshnessTag} ${
+                citation.freshness === "AVAILABLE"
+                  ? styles.freshnessAvailable
+                  : styles.freshnessWarning
+              }`}
+            >
+              {citation.freshness || "AVAILABLE"}
+            </span>
+          </div>
+
+          <div className={styles.detailsGrid}>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Nguồn công bố:</span>
+              <span className={styles.detailValue}>
+                {citation.source_url ? (
+                  <a
+                    href={citation.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    {citation.source || "Tài liệu đính kèm"} ↗
+                  </a>
+                ) : (
+                  citation.source || "CSDL Chuẩn hóa"
+                )}
+              </span>
+            </div>
+
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Nguồn gốc (Origin):</span>
+              <span className={styles.detailValue}>{citation.data_origin || "VERIFIED_PRIMARY"}</span>
+            </div>
+
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Ngày quan sát:</span>
+              <span className={`${styles.detailValue} tabular-nums`}>
+                {citation.observation_date || "N/A"}
+              </span>
+            </div>
+
+            {citation.publication_date && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Ngày công bố:</span>
+                <span className={`${styles.detailValue} tabular-nums`}>
+                  {citation.publication_date}
+                </span>
+              </div>
+            )}
+
+            {citation.note && (
+              <div className={styles.noteBox}>
+                <p>{citation.note}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}

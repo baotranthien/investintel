@@ -1,17 +1,105 @@
 :root {
   color-scheme: light;
-  --canvas: #f2f4f1;
-  --surface: #ffffff;
-  --surface-muted: #f7f8f6;
-  --ink: #202923;
-  --ink-muted: #68736b;
-  --line: #dce2dc;
-  --accent: #d85636;
-  --accent-soft: #fff0eb;
-  --positive: #16786c;
-  --warning: #a66a12;
-  --negative: #b54239;
-  --shadow: 0 8px 30px rgb(28 39 31 / 5%);
+
+  /* ==========================================================================
+     InvestIntel Apple Warm Neutral Minimalist Design System
+     Inspired by Apple Card, macOS System Settings, Apple Stocks on iPadOS
+     ========================================================================== */
+
+  /* Surface Hierarchy (Apple Daylight / Warm Stone Canvas) */
+  --canvas: #F5F5F7;
+  --canvas-base: #F5F5F7;
+  --canvas-subtle: #EBEBEF;
+  --canvas-inset: #E5E5EA;
+  --canvas-sidebar: #FAFAFC;
+
+  /* Elevated Surfaces & Cards */
+  --surface: #FFFFFF;
+  --surface-panel: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --surface-card-hover: #FAFAFC;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #F2F2F7;
+  --surface-active: #E8E8ED;
+  --surface-secondary: #EFEFF4;
+
+  /* Translucent Vibrancy (Glass chrome & sticky headers) */
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --surface-glass-border: rgba(0, 0, 0, 0.06);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.95);
+
+  /* Hairlines and Precision Edges */
+  --line: rgba(0, 0, 0, 0.06);
+  --line-strong: rgba(0, 0, 0, 0.12);
+  --line-subtle: rgba(0, 0, 0, 0.04);
+  --line-titanium: rgba(0, 0, 0, 0.06);
+  --border-specular: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --border-specular-cyan: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* Typography Contrast (Apple Charcoal & Neutral Grays) */
+  --ink: #1D1D1F;
+  --ink-secondary: #6E6E73;
+  --ink-muted: #86868B;
+  --ink-faint: #AEAEB2;
+
+  /* Monochrome Accent (Black & Charcoal, strictly zero cyan) */
+  --accent: #1D1D1F;
+  --accent-hover: #333336;
+  --accent-apple: #1D1D1F;
+  --accent-soft: rgba(0, 0, 0, 0.05);
+  --accent-cyan: #1D1D1F;
+  --accent-cyan-soft: rgba(0, 0, 0, 0.05);
+  --accent-blue: #1D1D1F;
+  --accent-blue-soft: rgba(0, 0, 0, 0.05);
+
+  /* Semantic Financial Colors (Calm, legible, non-neon) */
+  --positive: #1E8E3E;
+  --positive-soft: #E6F4EA;
+  --positive-border: rgba(30, 142, 62, 0.2);
+  --warning: #B06000;
+  --warning-soft: #FEF7E0;
+  --warning-border: rgba(176, 96, 0, 0.25);
+  --negative: #D93025;
+  --negative-soft: #FCE8E6;
+  --negative-border: rgba(217, 48, 37, 0.2);
+
+  /* Diffused Ambient Shadows (Soft, non-glowing) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.04), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-terminal: 0 2px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-island: 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  /* Apple Editorial Whitespace Tokens */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 18px;
+  --space-lg: 24px;
+  --space-xl: 36px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* Typography Optical Tracking & Leading */
+  --tracking-display: -0.035em;
+  --tracking-title: -0.025em;
+  --tracking-sub: -0.015em;
+  --tracking-mono: 0.02em;
+  --leading-display: 1.1;
+  --leading-title: 1.25;
+  --leading-prose: 1.68;
+
+  /* Emil Kowalski Motion Tokens */
+  --ease-apple: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-normal: 220ms;
+
+  /* Font Families */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
 }
 
 * {
@@ -20,13 +108,36 @@
   padding: 0;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   min-width: 320px;
   background-color: var(--canvas);
   color: var(--ink);
-  font-family: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* MANDATORY TECHNICAL CONSTRAINT: Numeric Tabular Figures */
+.tabular-nums,
+[data-tabular-nums="true"],
+code,
+var,
+.font-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv01" 1;
+}
+
+/* Monospace Terminal Code */
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
 }
 
 a {
@@ -41,19 +152,47 @@ textarea {
   font: inherit;
 }
 
+/* Tactile Button Feedback */
 button,
-a {
+a.action-btn,
+.interactive-pill {
   -webkit-tap-highlight-color: transparent;
+  transition: transform var(--duration-fast) var(--ease-spring), opacity var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+button:active:not(:disabled),
+a.action-btn:active,
+.interactive-pill:active {
+  transform: scale(0.985);
 }
 
 :focus-visible {
-  outline: 3px solid rgb(216 86 54 / 55%);
-  outline-offset: 3px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 ::selection {
-  background: #f4c4b6;
-  color: var(--ink);
+  background: #E5E5EA;
+  color: #1D1D1F;
+}
+
+/* Clean Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {

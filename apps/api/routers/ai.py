@@ -11,6 +11,7 @@ Endpoints:
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -61,6 +62,36 @@ async def chat_with_analyst(payload: AIChatRequest, session: Session = Depends(g
             symbol=payload.symbol,
             as_of=payload.as_of_date,
             tool_names=payload.tool_names,
+        )
+    except AIProviderError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@router.post("/chat/stream")
+async def chat_with_analyst_stream(payload: AIChatRequest, session: Session = Depends(get_db)):
+    """
+    Streaming AI Analyst endpoint via Server-Sent Events (SSE).
+    Emits real-time progress events:
+      - {"type": "status", "step": "fetching_data", "message": "..."}
+      - {"type": "status", "step": "llm_reasoning", "message": "..."} (with 3s heartbeat to avoid 90s timeout)
+      - {"type": "status", "step": "validating", "message": "..."}
+      - {"type": "result", "data": <AIChatResponse>}
+    """
+    try:
+        return StreamingResponse(
+            analyst.answer_question_stream(
+                payload.question,
+                session=session,
+                symbol=payload.symbol,
+                as_of=payload.as_of_date,
+                tool_names=payload.tool_names,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
         )
     except AIProviderError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error

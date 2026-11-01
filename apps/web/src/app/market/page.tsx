@@ -13,6 +13,7 @@ import {
   type OpportunityScanner,
 } from "@/lib/api";
 import styles from "./page.module.css";
+import DimensionalMarketRadar from "@/components/dimensional-market-radar";
 
 type Resource<T> =
   | { status: "loading" }
@@ -242,6 +243,14 @@ export default function MarketPage() {
     </header>
 
     {market.status === "ready" && <div className={styles.marketMeta}><Status value={market.data.status} /><span>Market as of {market.data.as_of_date}</span></div>}
+    {market.status === "ready" && (
+      <DimensionalMarketRadar
+        indexes={market.data.indexes}
+        regime={market.data.market_regime}
+        breadth={market.data.breadth}
+      />
+    )}
+
     <section className={styles.indexGrid} aria-label="Market overview indices">
       {market.status === "loading" && <p className={styles.state} role="status">Đang tải index quotes…</p>}
       {market.status === "error" && <ResourceState resource={market} />}

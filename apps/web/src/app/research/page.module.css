@@ -229,12 +229,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #edf7f5;
-  border: 1px solid #c2e5de;
+  background: var(--positive-soft);
+  border: 1px solid var(--positive-border);
   border-radius: 6px;
   color: var(--positive);
   font-size: 13px;
   font-weight: 600;
+  font-family: var(--font-mono);
 }
 
 .kpiGrid {
@@ -244,9 +245,9 @@
 }
 
 .kpiCard {
-  background: var(--surface-muted);
+  background: var(--surface-card);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -257,12 +258,15 @@
   font-size: 11px;
   color: var(--ink-muted);
   font-weight: 600;
+  font-family: var(--font-mono);
 }
 
 .kpiValue {
   font-size: 20px;
   font-weight: 700;
   color: var(--ink);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .kpiGreen {
@@ -276,7 +280,7 @@
 /* Backtest table */
 .tableWrap {
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   max-height: 320px;
   overflow-y: auto;
@@ -290,32 +294,35 @@
 }
 
 .dataTable th {
-  background: var(--surface-muted);
+  background: rgba(0, 0, 0, 0.25);
   padding: 10px 12px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
+  font-family: var(--font-mono);
   color: var(--ink-muted);
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 1;
+  text-transform: uppercase;
 }
 
 .dataTable td {
   padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
   color: var(--ink);
+  font-family: var(--font-mono);
 }
 
 .dataTable tr:hover td {
-  background: #f8faf8;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .errorBox {
   padding: 12px 16px;
-  background: #fdf2f2;
-  border: 1px solid #f8b4b4;
-  color: #9b1c1c;
+  background: var(--negative-soft);
+  border: 1px solid var(--negative-border);
+  color: #fb7185;
   border-radius: 6px;
   font-size: 13px;
 }

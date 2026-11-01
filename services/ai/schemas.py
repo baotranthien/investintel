@@ -66,7 +66,7 @@ class AICitation(BaseModel):
 
 
 class AIChatResponse(BaseModel):
-    status: Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"]
+    status: Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"]
     symbol: str | None = None
     resolved_symbol: str | None = None
     as_of_date: date
@@ -78,6 +78,8 @@ class AIChatResponse(BaseModel):
     uncertainty: list[str]
     tools_used: list[str]
     usage: dict[str, Any] = Field(default_factory=dict)
+    structured_data_summary: dict[str, Any] | None = None
+    metadata_flags: dict[str, Any] | None = None
 
 
 class AnalystBriefRead(BaseModel):
@@ -124,4 +126,4 @@ class AnalystJobRead(BaseModel):
 
 class AnalystJobListResponse(BaseModel):
     total: int
-    items: list[AnalystJobRead]
+    items: list[AnalystJobRead]

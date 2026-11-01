@@ -1,15 +1,19 @@
 "use client";
 
-import { FormEvent, startTransition, useEffect, useMemo, useState, Suspense } from "react";
+import React, { FormEvent, startTransition, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   getAIStatus,
-  submitAIQuestion,
+  streamAIChat,
   type AIChatResponse,
+  type AICitation,
   type AIStatus,
+  type AIStreamStep,
   type AIToolName,
 } from "@/lib/api";
+import AppleCitationPill from "@/components/apple-citation-pill";
+import AppleSmartFallback from "@/components/apple-smart-fallback";
+import { normalizeTicker, buildOpportunityQuestion } from "@/lib/ai-handoff";
 import styles from "./page.module.css";
 
 const toolOptions: Array<{ name: AIToolName; label: string }> = [
@@ -29,15 +33,15 @@ const toolOptions: Array<{ name: AIToolName; label: string }> = [
   { name: "document_retrieval", label: "Tài liệu / Documents" },
 ];
 
-const popularTickers = ["FPT", "MWG", "VCB", "HPG", "MBB", "TCB", "VNM", "BSR", "VHM", "SSI"];
+const popularTickers = ["FPT", "MWG", "VCB", "MBB", "TCB", "PLX", "HPG", "VNM", "BSR", "SSI"];
 
 const defaultMarketPrompts = [
-  { label: "📈 Toàn cảnh thị trường", query: "Thị trường hôm nay thế nào và xu hướng dòng tiền ra sao?" },
-  { label: "⭐ Cơ hội VN100 tốt nhất", query: "Những cổ phiếu nào đang có điểm cơ hội và định giá hấp dẫn nhất hiện nay?" },
-  { label: "🏦 Nhóm Ngân hàng (VCB, TCB)", query: "Đánh giá triển vọng tăng trưởng và chất lượng tài sản nhóm ngân hàng VCB, TCB, MBB?" },
-  { label: "💻 Triển vọng FPT", query: "Triển vọng và tiềm năng tăng trưởng của FPT trong các quý tới?" },
+  { label: "📈 Toàn cảnh thị trường & dòng tiền", query: "Thị trường hôm nay thế nào và xu hướng dòng tiền ra sao?" },
+  { label: "⭐ Cơ hội VN100 hấp dẫn nhất", query: "Những cổ phiếu nào đang có điểm cơ hội và định giá hấp dẫn nhất hiện nay?" },
+  { label: "🏦 So sánh NIM & NPL (MBB, VCB)", query: "So sánh NIM, tăng trưởng tín dụng và CASA giữa MBB và VCB?" },
+  { label: "💻 Triển vọng & Định giá FPT", query: "Triển vọng và tiềm năng tăng trưởng định giá P/E của FPT trong các quý tới?" },
+  { label: "🛢️ Tương quan PLX & Giá dầu", query: "Phân tích mối tương quan giữa doanh thu PLX và biến động giá dầu Brent/WTI?" },
   { label: "🛒 Bán lẻ (MWG, VNM)", query: "Tình hình tài chính, biên lợi nhuận và định giá của MWG và VNM?" },
-  { label: "👋 Hướng dẫn sử dụng", query: "Chào bạn, trợ lý AI Analyst có thể hỗ trợ nhà đầu tư phân tích những gì?" },
 ];
 
 function getStockPrompts(symbol: string) {
@@ -48,23 +52,19 @@ function getStockPrompts(symbol: string) {
       query: `Đánh giá tổng quan cơ hội đầu tư, điểm xếp hạng và triển vọng tăng trưởng của cổ phiếu ${sym}?`,
     },
     {
-      label: `📊 Định giá P/E & Giá trị`,
+      label: `📊 Định giá P/E & P/B`,
       query: `Phân tích định giá P/E, P/B và tiềm năng upside/downside của cổ phiếu ${sym} hiện tại?`,
     },
     {
-      label: `💰 Tài chính & Dòng tiền`,
+      label: `💰 Biên lợi nhuận & Dòng tiền`,
       query: `Sức khỏe tài chính, biên lợi nhuận (ROE, ROA) và chất lượng dòng tiền hoạt động của ${sym} ra sao?`,
     },
     {
-      label: `⚠️ Rủi ro & Bất lợi`,
+      label: `⚠️ Rủi ro & Lưu ý chính`,
       query: `Những yếu tố rủi ro chính, thách thức trong ngành và điểm cần lưu ý đối với ${sym} là gì?`,
     },
     {
-      label: `🚀 Luận điểm Why Now`,
-      query: `Luận điểm đầu tư chính và lý do tại sao nên quan sát hoặc mua tích lũy ${sym} ở thời điểm hiện tại?`,
-    },
-    {
-      label: `⚖️ Cơ cấu nợ & An toàn`,
+      label: `⚖️ Cơ cấu nợ & Khả năng chi trả`,
       query: `Cơ cấu nguồn vốn và mức độ an toàn nợ vay (D/E, Net Debt) của ${sym} như thế nào?`,
     },
   ];
@@ -72,329 +72,499 @@ function getStockPrompts(symbol: string) {
 
 type StatusResource = { state: "loading" } | { state: "ready"; value: AIStatus } | { state: "error"; message: string };
 
-function Status({ value }: { value: string }) {
-  const tone = value === "HEALTHY" || value === "AVAILABLE" ? styles.good : value === "DEGRADED" || value === "PARTIAL" ? styles.warn : styles.missing;
-  return <span className={`${styles.status} ${tone}`}>{value.replaceAll("_", " ")}</span>;
-}
-
 function usageValue(value: unknown, divisor = 1) {
   return typeof value === "number" ? (value / divisor).toFixed(divisor === 1 ? 0 : 2) : "N/A";
 }
 
-function AIPageContent() {
-  const searchParams = useSearchParams();
-  const urlSymbol = searchParams.get("symbol") || "";
-  const urlQuery = searchParams.get("q") || "";
+function renderAnswerWithCitations(text: string, citations: AICitation[]) {
+  const citationMap = new Map(citations.map((c) => [c.id.toUpperCase(), c]));
+  const regex = /\[(?:Evidence:\s*)?(E\d{3}(?:,\s*(?:Evidence:\s*)?E\d{3})*)\]/gi;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
 
-  const [health, setHealth] = useState<StatusResource>({ state: "loading" });
-  const [question, setQuestion] = useState("");
-  const [symbol, setSymbol] = useState("");
-  const [asOf, setAsOf] = useState("");
-  const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((item) => item.name));
-  const [answer, setAnswer] = useState<AIChatResponse | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  // Sync state when URL params change
-  useEffect(() => {
-    if (urlSymbol) {
-      setSymbol(urlSymbol.toUpperCase().trim());
-      if (urlQuery) {
-        setQuestion(urlQuery);
-      } else {
-        setQuestion(`Đánh giá tổng quan cơ hội đầu tư, điểm xếp hạng và triển vọng tăng trưởng của cổ phiếu ${urlSymbol.toUpperCase().trim()}?`);
-      }
-    } else if (urlQuery) {
-      setQuestion(urlQuery);
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
     }
-  }, [urlSymbol, urlQuery]);
+    const rawIds = match[1];
+    const ids = rawIds.split(",").map((s) => s.replace(/Evidence:\s*/i, "").trim().toUpperCase());
+    parts.push(
+      <span key={match.index} style={{ display: "inline-flex", gap: "4px", margin: "0 2px" }}>
+        {ids.map((id) => (
+          <AppleCitationPill key={id} id={id} citation={citationMap.get(id)} />
+        ))}
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
 
-  useEffect(() => {
-    const controller = new AbortController();
-    getAIStatus(controller.signal)
-      .then((value) => setHealth({ state: "ready", value }))
-      .catch((caught: unknown) => {
-        if (!controller.signal.aborted) {
-          setHealth({ state: "error", message: caught instanceof Error ? caught.message : "AI status unavailable" });
-        }
-      });
-    return () => controller.abort();
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
+function AIWorkspaceContent() {
+  const searchParams = useSearchParams();
+
+  // 1. Read incoming navigation context
+  const symbolParam = searchParams.get("symbol") || searchParams.get("ticker");
+  const qParam = searchParams.get("q") || searchParams.get("question");
+  const sourceParam = searchParams.get("source");
+
+  // 2. Validate and normalize ticker
+  const initialValidTicker = normalizeTicker(symbolParam);
+
+  // 3. Compute initial question from query context
+  const initialQuestion = useMemo(() => {
+    if (initialValidTicker) {
+      if (sourceParam === "opportunities" || !qParam) {
+        return buildOpportunityQuestion(initialValidTicker);
+      }
+      return qParam.trim();
+    }
+    if (qParam) {
+      return qParam.trim();
+    }
+    return "";
   }, []);
 
-  function toggleTool(tool: AIToolName) {
-    setSelectedTools((current) => current.includes(tool)
-      ? current.filter((item) => item !== tool)
-      : [...current, tool]);
-  }
+  const [activeSymbol, setActiveSymbol] = useState<string>(initialValidTicker ?? "");
+  const [question, setQuestion] = useState<string>(initialQuestion);
+  const [asOf, setAsOf] = useState("");
+  const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((t) => t.name));
+  const [busy, setBusy] = useState(false);
+  const [streamStep, setStreamStep] = useState<AIStreamStep | null>(null);
+  const [streamMessage, setStreamMessage] = useState("");
+  const [answer, setAnswer] = useState<AIChatResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [health, setHealth] = useState<StatusResource>({ state: "loading" });
 
-  function handleSelectTicker(t: string) {
-    const clean = t.toUpperCase().trim();
-    setSymbol(clean);
-    setQuestion(`Đánh giá tổng quan cơ hội đầu tư, điểm xếp hạng và triển vọng tăng trưởng của cổ phiếu ${clean}?`);
-  }
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const answerSectionRef = useRef<HTMLElement>(null);
 
-  function handleClearTicker() {
-    setSymbol("");
-    setQuestion("");
-  }
+  // Navigation tracking ref to ensure idempotency and prevent overwriting user edits
+  const lastHandledKeyRef = useRef<string>(
+    symbolParam || qParam || sourceParam
+      ? `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`
+      : ""
+  );
 
-  const activeSymbol = symbol.trim().toUpperCase();
+  useEffect(() => {
+    let cancelled = false;
+    getAIStatus()
+      .then((data) => {
+        if (!cancelled) setHealth({ state: "ready", value: data });
+      })
+      .catch((err) => {
+        if (!cancelled) setHealth({ state: "error", message: err.message || "Failed to load status" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Handle client-side navigation transitions (e.g. clicking different opportunities)
+  useEffect(() => {
+    const currentKey = `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`;
+
+    // If searchParams haven't changed since last handoff, don't overwrite user edits
+    if (lastHandledKeyRef.current === currentKey) {
+      return;
+    }
+    lastHandledKeyRef.current = currentKey;
+
+    const validTicker = normalizeTicker(symbolParam);
+
+    // If neither ticker nor question is present in URL (e.g. direct navigation to /ai),
+    // preserve any existing state so we never overwrite what user has started writing.
+    if (!validTicker && !qParam) {
+      return;
+    }
+
+    if (validTicker) {
+      setActiveSymbol(validTicker);
+      const targetQuestion =
+        sourceParam === "opportunities" || !qParam
+          ? buildOpportunityQuestion(validTicker)
+          : qParam.trim();
+      setQuestion(targetQuestion);
+      setAnswer(null);
+      setError(null);
+    } else if (qParam) {
+      setQuestion(qParam.trim());
+      setAnswer(null);
+      setError(null);
+    }
+  }, [symbolParam, qParam, sourceParam]);
 
   const currentPrompts = useMemo(() => {
-    if (activeSymbol) {
-      return getStockPrompts(activeSymbol);
-    }
-    return defaultMarketPrompts;
+    return activeSymbol ? getStockPrompts(activeSymbol) : defaultMarketPrompts;
   }, [activeSymbol]);
 
-  async function ask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
+  function handleSelectTicker(t: string) {
+    const nextTicker = activeSymbol === t ? "" : t;
+    setActiveSymbol(nextTicker);
+    setQuestion("");
     setAnswer(null);
+  }
+
+  function toggleTool(name: AIToolName) {
+    setSelectedTools((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name]));
+  }
+
+  function handleCancelStream() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setBusy(false);
+    setStreamStep(null);
+    setStreamMessage("");
+  }
+
+  async function ask(event: FormEvent) {
+    event.preventDefault();
+    if (busy || !question.trim()) return;
+
+    setBusy(true);
+    setStreamStep("fetching_data");
+    setStreamMessage("Đang khởi tạo kết nối luồng phân tích...");
+    setError(null);
+    setAnswer(null);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      const response = await submitAIQuestion({
-        question: question.trim(),
-        symbol: symbol.trim() || undefined,
-        as_of_date: asOf || undefined,
-        tool_names: selectedTools,
+      const finalResponse = await streamAIChat(
+        {
+          symbol: activeSymbol.trim() || undefined,
+          question: question.trim(),
+          as_of_date: asOf || undefined,
+          tool_names: selectedTools,
+        },
+        {
+          onStatusUpdate: (step: AIStreamStep, msg: string) => {
+            setStreamStep(step);
+            setStreamMessage(msg);
+          },
+        },
+        controller.signal
+      );
+
+      startTransition(() => {
+        if (finalResponse) {
+          setAnswer(finalResponse);
+          if (finalResponse.symbol && !activeSymbol) {
+            setActiveSymbol(finalResponse.symbol);
+          }
+        }
       });
-      startTransition(() => setAnswer(response));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Không thể kết nối AI API.");
+
+      setTimeout(() => {
+        answerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    } catch (err: unknown) {
+      if ((err as Error)?.name === "AbortError") {
+        setStreamMessage("Đã hủy phân tích theo yêu cầu.");
+      } else {
+        setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không mong muốn");
+      }
     } finally {
       setBusy(false);
+      setStreamStep(null);
+      setStreamMessage("");
+      abortControllerRef.current = null;
     }
   }
 
-  const healthValue = health.state === "ready" ? health.value.status : health.state === "loading" ? "CHECKING" : "UNAVAILABLE";
-
   return (
-    <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <p className={styles.eyebrow}>LOCAL ANALYST / 6F</p>
-          <h1>AI Analyst <span>/ Trợ lý nghiên cứu đầu tư</span></h1>
-        </div>
-        <div className={styles.health} aria-live="polite">
-          <span>OLLAMA</span><Status value={healthValue} />
-          {health.state === "ready" && (
-            <small>
-              {health.value.version ?? "Phiên bản không khả dụng"} / {health.value.configured_models?.primary ?? "Chưa cấu hình model"} / {health.value.configured_model_loaded ? "Model sẵn sàng" : "Chưa nạp vào VRAM"}
-            </small>
-          )}
-          {health.state === "error" && <small>{health.message}</small>}
-        </div>
-      </header>
-
-      <div className={styles.workspace}>
-        <form className={styles.composer} onSubmit={ask}>
-          {/* Active Stock Context Bar */}
-          {activeSymbol ? (
-            <div className={styles.activeStockBanner}>
-              <div className={styles.bannerLeft}>
-                <span>🎯 Đang phân tích mã:</span>
-                <strong>{activeSymbol}</strong>
-              </div>
-              <div className={styles.bannerRight}>
-                <Link href={`/research/${activeSymbol}`} className={styles.bannerLink} title="Xem báo cáo chi tiết">
-                  Nghiên cứu {activeSymbol} →
-                </Link>
-                <button
-                  type="button"
-                  className={styles.bannerClearBtn}
-                  onClick={handleClearTicker}
-                  title="Xóa mã để hỏi toàn cảnh thị trường"
-                >
-                  ✕ Bỏ chọn
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Quick Popular Ticker Selector */}
-          <div className={styles.tickerSelectRow}>
-            <span className={styles.tickerSelectLabel}>Chọn nhanh mã cổ phiếu theo dõi:</span>
-            <div className={styles.tickerChips}>
-              {popularTickers.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={`${styles.tickerChip} ${activeSymbol === t ? styles.tickerChipActive : ""}`}
-                  onClick={() => handleSelectTicker(t)}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+    <div className={styles.pageWrapper}>
+      <div className={styles.centerContainer}>
+        {/* 1. Header giới thiệu (Centered Hero) */}
+        <section className={styles.heroSection}>
+          <div className={styles.heroBadge}>
+            <span className={styles.pulseDot} />
+            <span>AI INVESTMENT RESEARCH · LOCAL FIRST</span>
+            {health.state === "ready" && (
+              <span style={{ opacity: 0.7 }}>· {health.value.configured_models?.primary ?? "qwen3.5:9b-q4_K_M"}</span>
+            )}
           </div>
-
-          <div className={styles.fieldRow}>
-            <label>
-              Mã cổ phiếu / Symbol
-              <input
-                value={symbol}
-                onChange={(event) => setSymbol(event.target.value.toUpperCase())}
-                maxLength={20}
-                placeholder="Tự động nhận diện (VD: FPT, MWG...)"
-              />
-            </label>
-            <label>
-              Ngày dữ liệu / As of
-              <input type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} />
-            </label>
-          </div>
-
-          <label>
-            Câu hỏi / Question
-            <textarea
-              required
-              minLength={2}
-              maxLength={4000}
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              placeholder={activeSymbol ? `Nhập câu hỏi phân tích cho mã ${activeSymbol}...` : "Hỏi về bằng chứng, thay đổi, định giá, rủi ro hoặc luận điểm..."}
-            />
-          </label>
-
-          {/* Dynamic Suggested Questions */}
-          <div className={styles.quickQueryContainer}>
-            <div className={styles.quickQueryHeader}>
-              <span className={styles.quickQueryLabel}>
-                {activeSymbol ? `Đề xuất câu hỏi cho ${activeSymbol}:` : "Gợi ý câu hỏi nhanh:"}
-              </span>
-              {activeSymbol && (
-                <span className={styles.stockContextBadge}>Tùy biến theo {activeSymbol}</span>
-              )}
-            </div>
-            <div className={styles.quickQueryChips}>
-              {currentPrompts.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className={`${styles.quickChip} ${activeSymbol ? styles.stockQuickChip : ""}`}
-                  onClick={() => setQuestion(item.query)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <fieldset className={styles.toolScope}>
-            <legend>Phạm vi công cụ / Data tools</legend>
-            <div>
-              {toolOptions.map((tool) => (
-                <label key={tool.name}>
-                  <input
-                    type="checkbox"
-                    checked={selectedTools.includes(tool.name)}
-                    onChange={() => toggleTool(tool.name)}
-                  />
-                  <span>{tool.label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <button
-            className={styles.submit}
-            type="submit"
-            disabled={busy || !question.trim() || selectedTools.length === 0}
-          >
-            {busy ? "Đang tổng hợp bằng chứng từ dữ liệu..." : activeSymbol ? `Hỏi AI Analyst về ${activeSymbol}` : "Hỏi AI Analyst"}
-          </button>
-          <p className={styles.localNote}>
-            Local Ollama only / Dữ liệu danh mục và truy vấn hoàn toàn bảo mật trên máy chủ nội bộ.
+          <h1 className={styles.heroTitle}>Trợ lý Nghiên cứu &amp; Thẩm định Tài chính</h1>
+          <p className={styles.heroSubtitle}>
+            Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin.
           </p>
-        </form>
+        </section>
 
-        <section className={styles.response} aria-live="polite">
-          <header>
-            <div className={styles.responseTitleGroup}>
-              <h2>Phân tích / Analysis</h2>
-              {answer?.symbol && <span className={styles.symbolBadge}>{answer.symbol}</span>}
+        {/* 2. Dải chọn mã cổ phiếu & Câu hỏi gợi ý (Horizontal Pills) */}
+        <section className={styles.suggestionsSection}>
+          <span className={styles.suggestionsLabel}>Mã cổ phiếu tiêu biểu</span>
+          <div className={styles.suggestionPills}>
+            {popularTickers.map((t) => (
+              <button
+                key={t}
+                type="button"
+                className={styles.suggestionPill}
+                style={
+                  activeSymbol === t
+                    ? { backgroundColor: "#1D1D1F", color: "#FFFFFF", borderColor: "#1D1D1F" }
+                    : undefined
+                }
+                onClick={() => handleSelectTicker(t)}
+              >
+                {t}
+              </button>
+            ))}
+            {activeSymbol && !popularTickers.includes(activeSymbol) && (
+              <button
+                type="button"
+                className={styles.suggestionPill}
+                style={{ backgroundColor: "#1D1D1F", color: "#FFFFFF", borderColor: "#1D1D1F" }}
+                onClick={() => handleSelectTicker(activeSymbol)}
+              >
+                {activeSymbol}
+              </button>
+            )}
+          </div>
+
+          <span className={styles.suggestionsLabel}>
+            {activeSymbol ? `Gợi ý câu hỏi cho ${activeSymbol}` : "Gợi ý phân tích nhanh"}
+          </span>
+          <div className={styles.suggestionPills}>
+            {currentPrompts.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={styles.suggestionPill}
+                onClick={() => setQuestion(item.query)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* 3. Khung Phạm vi công cụ (Collapsible / Clean White Card) */}
+        <section className={styles.scopeCard}>
+          <div className={styles.scopeHeader}>
+            <span className={styles.scopeTitle}>
+              Phạm vi công cụ phân tích ({selectedTools.length}/{toolOptions.length})
+            </span>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                type="button"
+                className={styles.suggestionPill}
+                style={{ padding: "4px 10px", fontSize: "11px" }}
+                onClick={() => setSelectedTools(toolOptions.map((t) => t.name))}
+              >
+                Tất cả
+              </button>
+              <button
+                type="button"
+                className={styles.suggestionPill}
+                style={{ padding: "4px 10px", fontSize: "11px" }}
+                onClick={() => setSelectedTools([])}
+              >
+                Bỏ chọn
+              </button>
             </div>
-            {answer && <Status value={answer.status} />}
-          </header>
-          {!answer && !error && (
-            <p className={styles.empty} role="status">
-              {activeSymbol
-                ? `Nhấn "Hỏi AI Analyst về ${activeSymbol}" để xem báo cáo phân tích tổng hợp kèm bằng chứng dữ liệu.`
-                : "Chọn câu hỏi gợi ý hoặc nhập câu hỏi để nhận báo cáo phân tích từ AI."}
-            </p>
-          )}
-          {error && (
-            <div className={styles.error} role="alert">
-              <strong>AI API không khả dụng</strong>
-              <span>{error}</span>
+          </div>
+          <div className={styles.scopeGrid}>
+            {toolOptions.map((tool) => (
+              <label key={tool.name} className={styles.scopeItem}>
+                <input
+                  type="checkbox"
+                  className={styles.scopeCheckbox}
+                  checked={selectedTools.includes(tool.name)}
+                  onChange={() => toggleTool(tool.name)}
+                />
+                <span>{tool.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* 4. Khu vực Hiển thị Kết quả AI (Editorial Reading Canvas) */}
+        {error && (
+          <div className={styles.resultCard} style={{ borderColor: "rgba(217, 48, 37, 0.25)" }}>
+            <div style={{ color: "#D93025", fontSize: "14px", fontWeight: 600 }}>
+              Không thể hoàn tất phân tích
             </div>
-          )}
-          {answer && (
-            <>
-              <p className={styles.answerText}>{answer.answer}</p>
-              <div className={styles.metadata}>
-                <span>{answer.model ?? "Không có cuộc gọi mô hình"}</span>
-                <span>{answer.prompt_version}</span>
-                <span>Tính đến ngày {answer.as_of_date}</span>
-                {typeof answer.usage.eval_count === "number" && <span>{usageValue(answer.usage.eval_count)} tokens</span>}
-                {typeof answer.usage.total_duration_ns === "number" && (
-                  <span>{usageValue(answer.usage.total_duration_ns, 1_000_000_000)} s</span>
+            <p style={{ margin: 0, fontSize: "13.5px", color: "#6E6E73" }}>{error}</p>
+          </div>
+        )}
+
+        {answer && (
+          <article ref={answerSectionRef} className={styles.resultCard}>
+            <header className={styles.resultHeader}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                <span className={styles.statusBadge}>
+                  {answer.symbol ? `MÃ: ${answer.symbol}` : "TOÀN CẢNH"}
+                </span>
+                <span className={styles.statusBadge}>
+                  {answer.status?.replace(/_/g, " ") || "HOÀN TẤT"}
+                </span>
+                {Boolean(answer.metadata_flags?.ias33_adjusted) && (
+                  <span className={styles.iasWarningBadge}>⚠️ IAS 33 ADJUSTED</span>
                 )}
               </div>
-              <section className={styles.claims}>
-                <h3>Luận cứ / Claims ({answer.claims.length})</h3>
-                {answer.claims.length ? (
-                  answer.claims.map((claim, index) => (
-                    <article key={`${claim.claim_type}-${index}`}>
-                      <Status value={claim.claim_type} />
-                      <p>{claim.text}</p>
-                      <small>{claim.citation_ids.join(", ") || "Không có trích dẫn"}</small>
-                    </article>
-                  ))
-                ) : (
-                  <p className={styles.empty}>Không có claim được hỗ trợ.</p>
-                )}
-              </section>
-              {answer.uncertainty.length > 0 && (
-                <section className={styles.uncertainty}>
-                  <h3>Dữ liệu chưa chắc chắn / Uncertainty</h3>
-                  {answer.uncertainty.map((item, index) => (
-                    <p key={index}>{item}</p>
-                  ))}
-                </section>
-              )}
-              <details className={styles.citations} open={answer.citations.length > 0}>
-                <summary>Bằng chứng trích dẫn / Evidence citations ({answer.citations.length})</summary>
-                {answer.citations.map((citation) => (
-                  <article key={citation.id}>
-                    <strong>
-                      {citation.id} / {citation.responsible_module}
-                    </strong>
-                    <Status value={citation.freshness ?? "INSUFFICIENT_DATA"} />
-                    <p>
-                      {citation.source ?? "Nguồn không xác định"} / {citation.data_origin ?? "Gốc không xác định"}
-                    </p>
-                    <small>
-                      Quan sát {citation.observation_date ?? "N/A"} / Công bố {citation.publication_date ?? "N/A"}
-                      {citation.source_url ? ` / ${citation.source_url}` : ""}
-                    </small>
-                    {citation.note && <small>{citation.note}</small>}
-                  </article>
+              <div style={{ fontSize: "12px", color: "#6E6E73", display: "flex", gap: "10px", alignItems: "center" }}>
+                <span>{answer.model || "qwen3.5:9b-q4_K_M"}</span>
+                {answer.usage?.total_duration ? (
+                  <span>· {usageValue(answer.usage.total_duration, 1e9)}s</span>
+                ) : null}
+              </div>
+            </header>
+
+            <div className={styles.answerProse}>
+              {renderAnswerWithCitations(answer.answer, answer.citations || [])}
+            </div>
+
+            {(answer.status === "PARTIAL_DATA_ONLY" || answer.structured_data_summary) && (
+              <AppleSmartFallback
+                summary={answer.structured_data_summary}
+                metadataFlags={answer.metadata_flags}
+                isFallbackMode={answer.status === "PARTIAL_DATA_ONLY"}
+              />
+            )}
+
+            {answer.claims && answer.claims.length > 0 && (
+              <div className={styles.claimsSection}>
+                <span className={styles.suggestionsLabel}>MỆNH ĐỀ PHÂN TÍCH ĐÃ ĐỐI SOÁT ({answer.claims.length})</span>
+                {answer.claims.map((claim, idx) => (
+                  <div key={idx} className={styles.claimRow}>
+                    <div>
+                      <strong style={{ fontSize: "11px", color: "#6E6E73", textTransform: "uppercase", display: "block", marginBottom: "2px" }}>
+                        {claim.claim_type}
+                      </strong>
+                      <span>{claim.text}</span>
+                    </div>
+                    {claim.citation_ids && claim.citation_ids.length > 0 && (
+                      <div style={{ display: "inline-flex", gap: "4px", flexShrink: 0 }}>
+                        {claim.citation_ids.map((id) => (
+                          <AppleCitationPill
+                            key={id}
+                            id={id}
+                            citation={answer.citations?.find((c) => c.id.toUpperCase() === id.toUpperCase())}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </details>
-            </>
-          )}
-        </section>
+              </div>
+            )}
+
+            {answer.uncertainty && answer.uncertainty.length > 0 && (
+              <div className={styles.uncertaintySection}>
+                <span className={styles.suggestionsLabel}>LƯU Ý DỮ LIỆU & RỦI RO ({answer.uncertainty.length})</span>
+                <ul className={styles.uncertaintyList}>
+                  {answer.uncertainty.map((item, idx) => (
+                    <li key={idx} className={styles.uncertaintyItem}>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </article>
+        )}
       </div>
-    </main>
+
+      {/* 5. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */}
+      <div className={styles.bottomDock}>
+        <div className={styles.dockInner}>
+          {busy && (
+            <div className={styles.sseStatusPill}>
+              <div className={styles.pulseDot} />
+              <span>{streamMessage || "AI đang phân tích..."}</span>
+              <button
+                type="button"
+                onClick={handleCancelStream}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#86868B",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  marginLeft: "4px",
+                  padding: "0 4px",
+                }}
+                title="Hủy phân tích"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <form className={styles.promptBox} onSubmit={ask}>
+            <input
+              type="text"
+              className={styles.tickerInput}
+              placeholder="MÃ CP"
+              maxLength={10}
+              value={activeSymbol}
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase();
+                setActiveSymbol(val);
+              }}
+              title="Mã cổ phiếu (để trống nếu hỏi toàn cảnh)"
+            />
+
+            <textarea
+              className={styles.promptTextarea}
+              rows={1}
+              placeholder={
+                activeSymbol
+                  ? `Hỏi chuyên sâu về mã ${activeSymbol} (P/E, biên LN, nợ vay, rủi ro)...`
+                  : "Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô..."
+              }
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (question.trim() && !busy) {
+                    ask(e);
+                  }
+                }
+              }}
+              required
+            />
+
+            <button
+              type="submit"
+              className={styles.submitBtn}
+              disabled={busy || !question.trim() || selectedTools.length === 0}
+            >
+              {busy ? "Đang xử lý…" : "Gửi câu hỏi"}
+            </button>
+          </form>
+
+          <p className={styles.disclaimerText}>
+            Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default function AIPage() {
+export default function AIResearchPage() {
   return (
-    <Suspense fallback={<div className={styles.page}><p className={styles.empty}>Đang nạp AI Analyst...</p></div>}>
-      <AIPageContent />
+    <Suspense
+      fallback={
+        <div className={styles.pageWrapper}>
+          <div className={styles.centerContainer}>
+            <p className={styles.heroSubtitle}>Đang chuẩn bị không gian làm việc...</p>
+          </div>
+        </div>
+      }
+    >
+      <AIWorkspaceContent />
     </Suspense>
   );
 }

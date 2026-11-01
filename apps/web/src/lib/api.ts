@@ -476,7 +476,7 @@ export type AIChatRequest = {
 };
 
 export type AIChatResponse = {
-  status: "AVAILABLE" | "PARTIAL" | "INSUFFICIENT_DATA";
+  status: "AVAILABLE" | "PARTIAL" | "INSUFFICIENT_DATA" | "PARTIAL_DATA_ONLY";
   symbol: string | null;
   as_of_date: string;
   prompt_version: string;
@@ -487,6 +487,23 @@ export type AIChatResponse = {
   uncertainty: string[];
   tools_used: AIToolName[];
   usage: Record<string, unknown>;
+  structured_data_summary?: Record<string, unknown> | null;
+  metadata_flags?: Record<string, unknown> | null;
+};
+
+export type AIStreamStep = "fetching_data" | "llm_reasoning" | "validating";
+
+export type AIStreamStatusEvent = {
+  type: "status";
+  step: AIStreamStep;
+  message: string;
+};
+
+export type AIStreamCallbacks = {
+  onStatusUpdate?: (step: AIStreamStep, message: string) => void;
+  onResult?: (response: AIChatResponse) => void;
+  onError?: (error: Error) => void;
+  onDone?: () => void;
 };
 
 export class ApiError extends Error {
@@ -635,6 +652,139 @@ export function captureDecisionSnapshot(symbol: string, asOf?: string) {
 export const getAIStatus = (signal?: AbortSignal) => apiGet<AIStatus>("/api/v1/ai/status", signal);
 export const submitAIQuestion = (payload: AIChatRequest) => apiWrite<AIChatResponse>("/api/v1/ai/chat", "POST", payload);
 
+export async function streamAIChat(
+  payload: AIChatRequest,
+  callbacks: AIStreamCallbacks,
+  signal?: AbortSignal
+): Promise<AIChatResponse | null> {
+  const response = await fetch("/api/v1/ai/chat/stream", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify(payload),
+    credentials: "include",
+    cache: "no-store",
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    let detail = errorText || response.statusText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed && typeof parsed === "object" && "detail" in parsed) {
+        detail = String(parsed.detail);
+      }
+    } catch {
+      // ignore
+    }
+    const err = new ApiError(detail || "Không thể kết nối luồng AI streaming.", response.status);
+    callbacks.onError?.(err);
+    throw err;
+  }
+
+  if (!response.body) {
+    const err = new Error("Phản hồi từ máy chủ không chứa luồng dữ liệu stream.");
+    callbacks.onError?.(err);
+    throw err;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let finalResult: AIChatResponse | null = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(":")) continue;
+
+        if (trimmed.startsWith("data:")) {
+          const rawData = trimmed.slice(5).trim();
+          if (rawData === "[DONE]") {
+            callbacks.onDone?.();
+            return finalResult;
+          }
+
+          try {
+            const parsed = JSON.parse(rawData);
+            if (parsed.type === "status") {
+              callbacks.onStatusUpdate?.(parsed.step, parsed.message);
+            } else if (parsed.type === "result") {
+              finalResult = parsed.data as AIChatResponse;
+              callbacks.onResult?.(finalResult);
+            } else if (parsed.type === "error") {
+              const errMsg = parsed.message || "Lỗi xử lý từ hệ thống phân tích AI";
+              const errObj = new ApiError(errMsg, 500);
+              callbacks.onError?.(errObj);
+              throw errObj;
+            }
+          } catch (e) {
+            if (e instanceof ApiError) throw e;
+            console.warn("Failed to parse SSE payload:", trimmed, e);
+          }
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      const trimmed = buffer.trim();
+      if (trimmed.startsWith("data:")) {
+        const rawData = trimmed.slice(5).trim();
+        if (rawData === "[DONE]") {
+          callbacks.onDone?.();
+        } else {
+          try {
+            const parsed = JSON.parse(rawData);
+            if (parsed.type === "status") {
+              callbacks.onStatusUpdate?.(parsed.step, parsed.message);
+            } else if (parsed.type === "result") {
+              finalResult = parsed.data as AIChatResponse;
+              callbacks.onResult?.(finalResult);
+            } else if (parsed.type === "error") {
+              const errMsg = parsed.message || "Lỗi xử lý từ hệ thống phân tích AI";
+              const errObj = new ApiError(errMsg, 500);
+              callbacks.onError?.(errObj);
+              throw errObj;
+            }
+          } catch (e) {
+            if (e instanceof ApiError) throw e;
+            // ignore
+          }
+        }
+      }
+    }
+
+    if (!finalResult && !signal?.aborted) {
+      const errObj = new ApiError("Không nhận được kết quả hoàn chỉnh từ luồng phân tích AI.", 500);
+      callbacks.onError?.(errObj);
+      throw errObj;
+    }
+
+    callbacks.onDone?.();
+    return finalResult;
+  } catch (err: unknown) {
+    if (signal?.aborted) {
+      return null;
+    }
+    const errorObj = err instanceof Error ? err : new Error(String(err));
+    callbacks.onError?.(errorObj);
+    throw errorObj;
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 export type BacktestConfig = {
   universe: string[];
   start_date: string;
@@ -731,3 +881,61 @@ export const getAutomationAlerts = (params?: Record<string, string>, signal?: Ab
 
 export const getAutomationAlert = (id: string, signal?: AbortSignal) =>
   apiGet<AutomationAlert>(`/api/v1/automation/alerts/${encodeURIComponent(id)}`, signal);
+
+// --- Phase 5A: Stock Screener Types & API ---
+export type ScreenedStock = {
+  symbol: string;
+  name: string;
+  sector: string;
+  current_price: number | null;
+  market_cap_billion_vnd: number | null;
+  pe: number | null;
+  pb: number | null;
+  roe: number | null;
+  gross_margin: number | null;
+  net_margin: number | null;
+  de_ratio: number | null;
+  current_ratio: number | null;
+  composite_fair_value_base: number | null;
+  margin_of_safety_pct: number | null;
+  passed_filters: string[];
+  data_status: string;
+};
+
+export type ScreenerResult = {
+  as_of_date: string;
+  total_screened: number;
+  matched_count: number;
+  criteria_applied: Record<string, unknown>;
+  matches: ScreenedStock[];
+};
+
+export type ScreenerFilterParams = {
+  universe?: string;
+  sector?: string;
+  pe_min?: number | string;
+  pe_max?: number | string;
+  pb_min?: number | string;
+  pb_max?: number | string;
+  roe_min?: number | string;
+  gross_margin_min?: number | string;
+  net_margin_min?: number | string;
+  de_ratio_max?: number | string;
+  current_ratio_min?: number | string;
+  margin_of_safety_min?: number | string;
+  market_cap_min_bil?: number | string;
+  limit?: number;
+};
+
+export const getStockScreener = (params?: ScreenerFilterParams, signal?: AbortSignal) => {
+  const query = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") {
+        query.set(k, String(v));
+      }
+    });
+  }
+  const qStr = query.toString() ? `?${query.toString()}` : "";
+  return apiGet<ScreenerResult>(`/api/v1/screener${qStr}`, signal);
+};

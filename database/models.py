@@ -816,3 +816,33 @@ class AnalystAlert(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     resolved_at = Column(DateTime(timezone=True), nullable=True)
 
+
+class BankMetric(Base, TimestampMixin):
+    """Quarterly bank-specific fundamental metrics (NIM, CASA, Credit Growth, NPL, LLR)."""
+    __tablename__ = "bank_metrics"
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
+    fiscal_date = Column(Date, nullable=False, index=True)
+    fiscal_period = Column(String, nullable=False)  # e.g. "2026-Q2"
+    credit_growth = Column(Float, nullable=True)  # % YoY
+    nim = Column(Float, nullable=True)  # % Net Interest Margin
+    casa_ratio = Column(Float, nullable=True)  # % Current Account Savings Account
+    npl_ratio = Column(Float, nullable=True)  # % Non-Performing Loans
+    llr_ratio = Column(Float, nullable=True)  # % Loan Loss Reserve coverage
+    source = Column(String, default="CANONICAL_FINANCIAL_STATEMENTS")
+    status = Column(String, default="AVAILABLE")
+    __table_args__ = (UniqueConstraint("asset_id", "fiscal_period", name="uq_bank_metrics_asset_period"),)
+
+
+class MacroCommodity(Base, TimestampMixin):
+    """Daily commodity & macro benchmark price series (BRENT, WTI, GOLD, USDVND)."""
+    __tablename__ = "macro_commodities"
+    id = Column(Integer, primary_key=True, index=True)
+    commodity_code = Column(String, nullable=False, index=True)  # e.g. BRENT, WTI, GOLD
+    observation_date = Column(Date, nullable=False, index=True)
+    close_price = Column(Float, nullable=False)
+    change_pct = Column(Float, nullable=True)
+    unit = Column(String, default="USD/barrel")
+    source = Column(String, default="PUBLIC_COMMODITY_FEED")
+    __table_args__ = (UniqueConstraint("commodity_code", "observation_date", name="uq_commodity_code_date"),)
+

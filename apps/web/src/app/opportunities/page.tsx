@@ -8,6 +8,7 @@ import {
   type OpportunityItem,
   type OpportunityScanner,
 } from "@/lib/api";
+import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
 import styles from "./page.module.css";
 
 const defaultFilters: OpportunityFilters = {
@@ -439,7 +440,7 @@ export default function OpportunitiesPage() {
                   </td>
                   <td className={styles.tableActions}>
                     <Link
-                      href={`/ai?symbol=${encodeURIComponent(item.symbol)}&q=${encodeURIComponent(`Đánh giá cơ hội đầu tư và triển vọng của cổ phiếu ${item.symbol}?`)}`}
+                      href={buildOpportunityAIUrl(item.symbol)}
                       className={styles.actionBtnAiSmall}
                       title={`Hỏi AI Analyst về mã ${item.symbol}`}
                     >
@@ -545,7 +546,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
       {/* Actions */}
       <div className={styles.cardActions}>
         <Link
-          href={`/ai?symbol=${encodeURIComponent(item.symbol)}&q=${encodeURIComponent(`Đánh giá cơ hội đầu tư và triển vọng của cổ phiếu ${item.symbol}?`)}`}
+          href={buildOpportunityAIUrl(item.symbol)}
           className={styles.actionBtnSecondary}
           title={`Hỏi AI Analyst về mã ${item.symbol}`}
         >

@@ -181,6 +181,7 @@ def seed_assets(session: Session) -> dict:
         # VN30 Constituents (verified official basket from HOSE / SSI iBoard)
         {"symbol": "ACB", "name": "Asia Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "BID", "name": "Bank for Investment and Development of Vietnam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
+        {"symbol": "BMP", "name": "Binh Minh Plastics Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "MANUFACTURING"},
         {"symbol": "BSR", "name": "Binh Son Refining and Petrochemical Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "ENERGY"},
         {"symbol": "CTG", "name": "Viet Nam Joint Stock Commercial Bank for Industry and Trade", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "FPT", "name": "FPT Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "TECHNOLOGY"},
@@ -769,6 +770,37 @@ def seed_financial_statements(session: Session, source_id: int):
                     "cash_from_operations": 12000.0, "cash_from_investing": -10000.0, "capex": -8000.0, "free_cash_flow": 4000.0
                 }
             ]
+        },
+        # BMP (Manufacturing)
+        {
+            "symbol": "BMP",
+            "sector": "MANUFACTURING",
+            "periods": [
+                {
+                    "fiscal_year": 2022, "fiscal_quarter": 4, "period_type": "ANNUAL",
+                    "fiscal_period_start": date(2022, 1, 1), "fiscal_period_end": date(2022, 12, 31),
+                    "statement_date": date(2022, 12, 31), "publication_date": date(2023, 1, 30),
+                    "revenue": 5808.0, "cogs": -4200.0, "gross_profit": 1608.0, "operating_income": 870.0,
+                    "net_income": 694.0, "net_income_parent": 694.0, "eps_basic": 8480.0, "shares_basic": 81860000,
+                    "cash": 560.0, "short_term_debt": 55.0, "long_term_debt": 0.0, "total_current_assets": 2800.0,
+                    "total_current_liabilities": 520.0, "inventory": 580.0,
+                    "total_assets": 3400.0, "total_liabilities": 550.0, "total_equity": 2850.0,
+                    "cash_from_operations": 850.0, "cash_from_investing": -200.0, "capex": -60.0, "free_cash_flow": 790.0,
+                    "depreciation_amortization": 50.0,
+                },
+                {
+                    "fiscal_year": 2023, "fiscal_quarter": 4, "period_type": "ANNUAL",
+                    "fiscal_period_start": date(2023, 1, 1), "fiscal_period_end": date(2023, 12, 31),
+                    "statement_date": date(2023, 12, 31), "publication_date": date(2024, 1, 29),
+                    "revenue": 5156.0, "cogs": -3050.0, "gross_profit": 2106.0, "operating_income": 1300.0,
+                    "net_income": 1041.0, "net_income_parent": 1041.0, "eps_basic": 12710.0, "shares_basic": 81860000,
+                    "cash": 713.16, "short_term_debt": 54.9, "long_term_debt": 0.0, "total_current_assets": 3118.17,
+                    "total_current_liabilities": 558.96, "inventory": 619.11,
+                    "total_assets": 3747.71, "total_liabilities": 576.41, "total_equity": 3171.30,
+                    "cash_from_operations": 1150.0, "cash_from_investing": -300.0, "capex": -50.0, "free_cash_flow": 1100.0,
+                    "depreciation_amortization": 60.0,
+                }
+            ]
         }
     ]
 
@@ -822,8 +854,10 @@ def seed_financial_statements(session: Session, source_id: int):
                     cost_of_goods_sold=p.get("cogs"),
                     gross_profit=p["gross_profit"],
                     operating_income=p["operating_income"],
-                    pre_tax_income=p["operating_income"] * 0.95,
-                    income_tax=p["operating_income"] * 0.15,
+                    ebit=p.get("ebit", p["operating_income"]),
+                    ebitda=p.get("ebitda", p["operating_income"] + abs(p.get("capex", 0.0)) * 0.8),
+                    pre_tax_income=p.get("pre_tax_income", p["operating_income"] * 0.95),
+                    income_tax=p.get("income_tax", p["operating_income"] * 0.15),
                     net_income=p["net_income"],
                     net_income_parent=p.get("net_income_parent", p["net_income"]),
                     eps_basic=p.get("eps_basic"),
@@ -876,11 +910,21 @@ def seed_financial_statements(session: Session, source_id: int):
                     fiscal_quarter=p.get("fiscal_quarter"),
                     period_type=p["period_type"],
                     cash=p.get("cash", 0.0),
+                    short_term_investments=p.get("short_term_investments", 0.0),
+                    accounts_receivable=p.get("accounts_receivable", p["total_assets"] * 0.1),
+                    inventory=p.get("inventory", p["total_assets"] * 0.15 if comp.get("sector") != "BANK" else None),
+                    other_current_assets=p.get("other_current_assets", 0.0),
+                    total_current_assets=p.get("total_current_assets", p["total_assets"] * 0.6 if comp.get("sector") != "BANK" else None),
                     total_assets=p["total_assets"],
+                    accounts_payable=p.get("accounts_payable", p["total_liabilities"] * 0.1),
+                    short_term_debt=p.get("short_term_debt", p["total_liabilities"] * 0.4 if comp.get("sector") != "BANK" else None),
+                    other_current_liabilities=p.get("other_current_liabilities", 0.0),
+                    total_current_liabilities=p.get("total_current_liabilities", p["total_liabilities"] * 0.7 if comp.get("sector") != "BANK" else None),
+                    long_term_debt=p.get("long_term_debt", p["total_liabilities"] * 0.1 if comp.get("sector") != "BANK" else None),
                     total_liabilities=p["total_liabilities"],
                     total_equity=p["total_equity"],
-                    equity_parent=p["total_equity"] * 0.98,
-                    share_capital=p["total_equity"] * 0.5
+                    equity_parent=p.get("equity_parent", p["total_equity"] * 0.98),
+                    share_capital=p.get("share_capital", p["total_equity"] * 0.5)
                 )
                 session.add(norm_bs)
 
@@ -917,7 +961,8 @@ def seed_financial_statements(session: Session, source_id: int):
                     cash_from_operations=p.get("cash_from_operations", 0.0),
                     cash_from_investing=p.get("cash_from_investing", 0.0),
                     capex=p.get("capex", 0.0),
-                    free_cash_flow=p.get("free_cash_flow", 0.0)
+                    free_cash_flow=p.get("free_cash_flow", 0.0),
+                    depreciation_amortization=p.get("depreciation_amortization", abs(p.get("capex", 0.0)) * 0.8)
                 )
                 session.add(norm_cf)
 

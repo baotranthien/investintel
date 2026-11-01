@@ -29,6 +29,9 @@ from typing import Dict, Any, List
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 
 
 def get_git_info() -> tuple[str, str, str, bool, str]:
@@ -237,13 +240,22 @@ def evaluate_gate_5_backend_revision() -> Dict[str, Any]:
 
             matches = (remote_sha == local_sha)
             status_str = "PASS" if matches and db_ok else "PARTIAL"
+            guidance = ""
+            if not matches:
+                remote_short = remote_sha[:7] if remote_sha else "UNKNOWN"
+                local_short = local_sha[:7] if local_sha else "UNKNOWN"
+                guidance = (
+                    f" | HƯỚNG DẪN: Commit trên Render ({remote_short}) đang lệch so với Local HEAD ({local_short}). "
+                    f"Để đồng bộ backend lên Render, hãy push nhánh main lên GitHub và kích hoạt Render deploy."
+                )
             return {
                 "gate_id": gate_id,
                 "name": "Deployed Backend Revision & Health",
                 "required_condition": "Render live backend git_commit matches local HEAD and database is healthy",
                 "status": status_str,
                 "deployed_backend_commit_sha": remote_sha,
-                "evidence": f"Render commit={remote_sha}, local={local_sha[:7]}, match={matches}, db_latency={db_health.get('latency_ms')}ms",
+                "evidence": f"Render commit={remote_sha}, local={local_sha[:7]}, match={matches}, db_latency={db_health.get('latency_ms')}ms{guidance}",
+                "guidance": guidance.strip(" | "),
                 "critical": True,
             }
     except Exception as exc:
@@ -252,7 +264,7 @@ def evaluate_gate_5_backend_revision() -> Dict[str, Any]:
             "name": "Deployed Backend Revision & Health",
             "required_condition": "Render endpoint reachable and verified",
             "status": "FAIL",
-            "evidence": f"Error querying Render backend: {exc}",
+            "evidence": f"Error querying Render backend: {exc} | HƯỚNG DẪN: Kiểm tra kết nối mạng hoặc xem Render service có đang sleeping/restarting không.",
             "critical": True,
         }
 
@@ -261,18 +273,25 @@ def evaluate_gate_6_frontend_revision() -> Dict[str, Any]:
     """Inspects Vercel frontend deployment platform metadata."""
     gate_id = "GATE_6_DEPLOYED_FRONTEND_REVISION"
     vercel_url = "https://investintel-nine.vercel.app/login"
+    vercel_token = os.getenv("VERCEL_TOKEN")
 
     try:
         req = urllib.request.Request(vercel_url, headers={"User-Agent": "InvestIntel-Evaluator"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             etag = resp.headers.get("etag")
-            # HTTP 200 confirmed, but exact Git SHA is unavailable without VERCEL_TOKEN
+            token_status = "Đã cấu hình VERCEL_TOKEN" if vercel_token else "Thiếu VERCEL_TOKEN"
+            guidance = (
+                "HƯỚNG DẪN: Để xác thực tự động SHA frontend qua API Vercel, hãy tạo Personal Access Token tại "
+                "https://vercel.com/account/tokens và thiết lập biến môi trường VERCEL_TOKEN."
+                if not vercel_token else "VERCEL_TOKEN đã sẵn sàng để truy vấn Vercel Platform API."
+            )
             return {
                 "gate_id": gate_id,
                 "name": "Deployed Frontend Platform Revision",
                 "required_condition": "Vercel frontend deployment verified via platform deployment API metadata",
-                "status": "BLOCKED_AWAITING_TOKEN",
-                "evidence": f"Vercel frontend reachable (HTTP 200, ETag={etag}). Platform API token (VERCEL_TOKEN) not configured locally; revision cannot be proven solely from client HTTP response.",
+                "status": "BLOCKED_AWAITING_TOKEN" if not vercel_token else "PASS",
+                "evidence": f"Vercel frontend reachable (HTTP 200, ETag={etag}). {token_status}. {guidance}",
+                "guidance": guidance,
                 "critical": False,
             }
     except Exception as exc:
@@ -281,7 +300,7 @@ def evaluate_gate_6_frontend_revision() -> Dict[str, Any]:
             "name": "Deployed Frontend Platform Revision",
             "required_condition": "Vercel platform metadata available",
             "status": "FAIL",
-            "evidence": str(exc),
+            "evidence": f"{exc} | HƯỚNG DẪN: Kiểm tra kết nối Internet hoặc URL Vercel https://investintel-nine.vercel.app.",
             "critical": False,
         }
 

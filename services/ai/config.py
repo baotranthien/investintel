@@ -29,6 +29,7 @@ class OllamaConfig:
     num_ctx: int = 4096
     num_predict: int = 1536
     keep_alive: str = "5m"
+    think: bool = False
 
     def __post_init__(self) -> None:
         if not _is_loopback_url(self.base_url):
@@ -66,6 +67,7 @@ class OllamaConfig:
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
             num_predict=int(os.getenv("OLLAMA_NUM_PREDICT", "1536")),
             keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "5m"),
+            think=os.getenv("OLLAMA_THINK", "false").strip().lower() in ("true", "1", "yes"),
         )
 
 

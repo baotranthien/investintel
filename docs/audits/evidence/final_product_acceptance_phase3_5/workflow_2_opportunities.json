@@ -1,0 +1,3294 @@
+{
+  "status": "AVAILABLE",
+  "as_of_date": "2026-11-01",
+  "universe": "ALL",
+  "horizon": "MEDIUM_TERM",
+  "total_assets": 101,
+  "result_count": 101,
+  "sector_options": [
+    "BANK",
+    "Banking",
+    "Consumer Goods",
+    "Energy",
+    "Financials",
+    "INDEX_FUND",
+    "Industrials",
+    "Materials",
+    "MATERIALS",
+    "Real Estate",
+    "RETAIL",
+    "TECHNOLOGY",
+    "Utilities"
+  ],
+  "applied_filters": {
+    "sector": null,
+    "score_min": null,
+    "score_max": null,
+    "risk_max": null,
+    "confidence": null,
+    "factor": null,
+    "valuation_status": null
+  },
+  "unavailable_filters": [],
+  "results": [
+    {
+      "symbol": "ACB",
+      "name": "Ngân hàng Á Châu",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 15.83
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "ANV",
+      "name": "Amicogen Nam Việt",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 22.82
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BAF",
+      "name": "Nông nghiệp BAF",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 2.16
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BCM",
+      "name": "Tập đoàn Đầu tư và Phát triển Công nghiệp Becamex",
+      "asset_type": "STOCK",
+      "sector": "Real Estate",
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.66
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BID",
+      "name": "Ngân hàng BIDV",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.57
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BMP",
+      "name": "Nhựa Bình Minh",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 41.57
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BSI",
+      "name": "Chứng khoán BIDV",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.17
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BSR",
+      "name": "Tổng Công ty Lọc hóa dầu Việt Nam",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 27.77
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BVH",
+      "name": "Tập đoàn Bảo Việt",
+      "asset_type": "STOCK",
+      "sector": "Financials",
+      "opportunity_score": 52.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.52
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "BWE",
+      "name": "M.trường Bình Dg",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.87
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CII",
+      "name": "H.tầng KT HCM",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 0.86
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CMG",
+      "name": "T.đoàn C.nghệ CMC",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 9.52
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CTD",
+      "name": "Xây dựng Coteccons",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.23
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CTG",
+      "name": "Vietinbank",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 20.66
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CTR",
+      "name": "Công trình Viettel",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 52.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 29.38
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "CTS",
+      "name": "Chứng Khoán VietinBank",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 3.89
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DBC",
+      "name": "Tập đoàn Dabaco VN",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 13.61
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DCM",
+      "name": "Đạm Cà Mau",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 22.71
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DGW",
+      "name": "CTCP Thế giới Số",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 22.48
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DIG",
+      "name": "TCT ĐTPT Xây dựng",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 7.54
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DPM",
+      "name": "Đạm Phú Mỹ",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 15.19
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DSE",
+      "name": "DNSE JSC",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 2.66
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "DXG",
+      "name": "CTCP Bluemarq Group",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 42.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 0.91
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "EIB",
+      "name": "Eximbank",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 1.86
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "EVF",
+      "name": "Tài chính Điện lực",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 9.42
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "FPT",
+      "name": "CTCP FPT",
+      "asset_type": "STOCK",
+      "sector": "TECHNOLOGY",
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 24.65
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "FRT",
+      "name": "Bán lẻ KTS FPT",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 19.81
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "FTS",
+      "name": "Chứng khoán FPT",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 9.03
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "FUEVN100",
+      "name": "VinaCapital VN100 ETF",
+      "asset_type": "ETF",
+      "sector": "INDEX_FUND",
+      "opportunity_score": null,
+      "confidence": "INSUFFICIENT",
+      "risk_score": null,
+      "valuation_status": "INSUFFICIENT_DATA",
+      "factor_summary": null,
+      "factor_status": "INSUFFICIENT_DATA",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Data",
+          "description": "INSUFFICIENT_DATA: chưa có fundamental/valuation inputs canonical để tạo rationale cho tài sản này.",
+          "direction": "UNCERTAINTY"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Dữ liệu tài chính chưa đầy đủ — điểm số dựa trên ước tính cơ sở."
+      ],
+      "data_status": "INSUFFICIENT_DATA",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "GAS",
+      "name": "TCT Khí Việt Nam",
+      "asset_type": "STOCK",
+      "sector": "Energy",
+      "opportunity_score": 52.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 18.05
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "GEE",
+      "name": "Gelex Electric",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 43.27
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "GEX",
+      "name": "Tập đoàn Gelex",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.01
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "GMD",
+      "name": "Vận Tải Và Công Nghiệp Hàng Hải Gemadept Holding",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 52.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.48
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "GVR",
+      "name": "Cao su Việt Nam",
+      "asset_type": "STOCK",
+      "sector": "Materials",
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 10.63
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HAG",
+      "name": "Hoàng Anh Gia Lai",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 19.96
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HCM",
+      "name": "Chứng khoán HSC",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.1
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HDB",
+      "name": "HDBank",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 22.02
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HDG",
+      "name": "Tập đoàn Hà Đô",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 11.12
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HHV",
+      "name": "Hạ tầng giao thông Đèo Cả",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.85
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HPG",
+      "name": "Hòa Phát",
+      "asset_type": "STOCK",
+      "sector": "MATERIALS",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.51
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HSG",
+      "name": "Tập đoàn Hoa Sen",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 5.62
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "HT1",
+      "name": "Xi măng VICEM Hà Tiên",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 7.79
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "KBC",
+      "name": "Đô thị Kinh Bắc",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 6.38
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "KDC",
+      "name": "Tập đoàn Kido",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.19
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "KDH",
+      "name": "Nhà Khang Điền",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.47
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "KOS",
+      "name": "CTCP Kosy",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 1.17
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "LPB",
+      "name": "Ngân hàng Lộc Phát",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 24.42
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "MBB",
+      "name": "Ngân hàng Quân đội",
+      "asset_type": "STOCK",
+      "sector": "BANK",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 19.63
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "MCH",
+      "name": "Tiêu Dùng Masan",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 37.73
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "MSB",
+      "name": "Ngân hàng MSB",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 13.2
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "MSN",
+      "name": "MASAN Group",
+      "asset_type": "STOCK",
+      "sector": "Consumer Goods",
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 14.72
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "MWG",
+      "name": "Thế Giới Di Động",
+      "asset_type": "STOCK",
+      "sector": "RETAIL",
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 27.27
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "NAB",
+      "name": "NH Nam Á",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 18.56
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "NKG",
+      "name": "Thép Nam Kim",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 2.18
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "NLG",
+      "name": "Đầu tư Nam Long",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 47.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.19
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "NT2",
+      "name": "Nhơn Trạch 2",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 28.0
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "NVL",
+      "name": "Địa ốc Novaland",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 6.74
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "OCB",
+      "name": "Ngân hàng Phương Đông",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.59
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PAN",
+      "name": "CTCP Tập đoàn PAN",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.74
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PC1",
+      "name": "Tập đoàn PC1",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.69
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PDR",
+      "name": "Công ty Phát Đạt",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.87
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PHR",
+      "name": "Cao su Phước Hòa",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 19.93
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PLX",
+      "name": "Xăng dầu Việt Nam",
+      "asset_type": "STOCK",
+      "sector": "Energy",
+      "opportunity_score": 47.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 11.06
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PNJ",
+      "name": "Vàng Phú Nhuận",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 52.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 17.53
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 68/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "POW",
+      "name": "PVPOWER",
+      "asset_type": "STOCK",
+      "sector": "Utilities",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 13.91
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PVD",
+      "name": "DV khoan D.khí",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 6.35
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "PVT",
+      "name": "TCT V.tải dầu khí",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 11.77
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "REE",
+      "name": "CTCP Cơ điện lạnh",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 10.43
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SAB",
+      "name": "SABECO",
+      "asset_type": "STOCK",
+      "sector": "Consumer Goods",
+      "opportunity_score": 54.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 20.92
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 75/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SBT",
+      "name": "Thành Thành Công - Biên Hòa",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 6.77
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SHB",
+      "name": "Ngân hàng SG HN",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.52
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SIP",
+      "name": "Đầu tư Sài Gòn VRG",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 24.6
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SJS",
+      "name": "SJ Group Joint Stock company",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 16.32
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SSB",
+      "name": "Ngân hàng TMCP Đông Nam Á",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 7.14
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "SSI",
+      "name": "Chứng khoán SSI",
+      "asset_type": "STOCK",
+      "sector": "Financials",
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 11.95
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "STB",
+      "name": "Ngân hàng Sài Gòn Tài Lộc",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 41.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.96
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng yếu (điểm: 35/100).",
+          "direction": "NEGATIVE"
+        }
+      ],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "TAL",
+      "name": "Bất Động Sản Taseco",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 13.3
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "TCB",
+      "name": "Techcombank",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 14.83
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "TCH",
+      "name": "T.chính Hoàng Huy",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 42.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 2.07
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biên lợi nhuận hoặc sức khỏe tài chính chịu áp lực ngắn hạn.",
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "TCX",
+      "name": "Chứng khoán Kỹ Thương",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 13.35
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "TPB",
+      "name": "Ng.hàng Tiên Phong",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 15.53
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VCB",
+      "name": "Vietcombank",
+      "asset_type": "STOCK",
+      "sector": "BANK",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 17.26
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VCG",
+      "name": "XNK & Xây dựng VN",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 56.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 32.37
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 85/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VCI",
+      "name": "Chứng khoán Vietcap",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.22
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VCK",
+      "name": "Chứng khoán VPS",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 52.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 14.62
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VGC",
+      "name": "TCT Viglacera",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 11.95
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VHC",
+      "name": "CTCP Vĩnh Hoàn",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 52.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 14.41
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 68/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VHM",
+      "name": "VINHOMES",
+      "asset_type": "STOCK",
+      "sector": "Real Estate",
+      "opportunity_score": 55.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 28.67
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 80/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VIB",
+      "name": "VIB Bank",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 51.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 15.3
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VIC",
+      "name": "Tập đoàn VINGROUP",
+      "asset_type": "STOCK",
+      "sector": "Real Estate",
+      "opportunity_score": 50.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.33
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VIX",
+      "name": "CHỨNG KHOÁN VIX",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 50.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 5.11
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 70/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VJC",
+      "name": "VIETJETAIR",
+      "asset_type": "STOCK",
+      "sector": "Industrials",
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 8.3
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VND",
+      "name": "VNDIRECT",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 12.59
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VNM",
+      "name": "VINAMILK",
+      "asset_type": "STOCK",
+      "sector": "Consumer Goods",
+      "opportunity_score": 54.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 30.3
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 75/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VPB",
+      "name": "Ng.hàng Thịnh Vượng",
+      "asset_type": "STOCK",
+      "sector": "Banking",
+      "opportunity_score": 53.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 15.94
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 73/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VPI",
+      "name": "Bất động sản Văn Phú",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 48.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 7.14
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VPL",
+      "name": "CTCP Vinpearl",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 47.5,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 7.24
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VPX",
+      "name": "Chứng khoán VPBANK",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 51.8,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 10.54
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VRE",
+      "name": "Vincom Retail",
+      "asset_type": "STOCK",
+      "sector": "Real Estate",
+      "opportunity_score": 55.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 14.6
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [
+        {
+          "category": "Fundamental",
+          "description": "Nền tảng doanh nghiệp mạnh (điểm: 78/100).",
+          "direction": "POSITIVE"
+        }
+      ],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VSC",
+      "name": "Container Việt Nam",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 46.2,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 4.89
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    },
+    {
+      "symbol": "VTP",
+      "name": "Bưu chính Viettel",
+      "asset_type": "STOCK",
+      "sector": null,
+      "opportunity_score": 47.0,
+      "confidence": "MODERATE",
+      "risk_score": 50.0,
+      "valuation_status": "AVAILABLE",
+      "factor_summary": {
+        "roe": 17.01
+      },
+      "factor_status": "AVAILABLE",
+      "why_now": [],
+      "why_not_now": [],
+      "what_could_go_wrong": [
+        "Biến động thị trường và chu kỳ ngành có thể tác động đến tiến độ phục hồi.",
+        "Các yếu tố vĩ mô và lãi suất có thể diễn biến bất lợi hơn dự báo."
+      ],
+      "data_status": "AVAILABLE",
+      "data_freshness": {
+        "status": "AVAILABLE",
+        "as_of_date": "2026-11-01",
+        "source": "LOTUSMARKET"
+      },
+      "horizon": "MEDIUM_TERM",
+      "model_version": "opportunity_medium_v1"
+    }
+  ],
+  "note": null
+}

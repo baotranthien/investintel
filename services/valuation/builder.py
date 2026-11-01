@@ -1,21 +1,21 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import date
 from .models import ValuationSnapshot, CompositeFairValue, FairValueRange, ValuationMethodOutput, DCFAssumptions
 from .selector import ValuationMethodSelector
 from .engine import DCFEngine, ResidualIncomeEngine, RelativeValuationEngine
 
 class ValuationSnapshotBuilder:
-    def __init__(self, symbol: str, sector: str):
+    def __init__(self, symbol: str, sector: Optional[str] = "GENERAL"):
         self.symbol = symbol.upper()
-        self.sector = sector.upper()
+        self.sector = (sector or "GENERAL").upper()
         self.selector = ValuationMethodSelector(self.symbol, self.sector)
 
     def build(self, fundamentals: Dict[str, Any], current_price: float, as_of: date) -> ValuationSnapshot:
         selection = self.selector.select_methods(fundamentals)
         methods = []
         
-        eps = fundamentals.get("eps_ttm", 0)
-        bvps = fundamentals.get("bvps", 0)
+        eps = fundamentals.get("eps_ttm") or 0
+        bvps = fundamentals.get("bvps") or 0
         shares_outstanding = fundamentals.get("shares_outstanding", 1_000_000_000)
         
         # Retrieve peer and historical multiples from dataset (None if missing)

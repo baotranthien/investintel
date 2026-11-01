@@ -4,7 +4,10 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
-from database.models import Asset, AssetDecisionSnapshot, WatchlistItem
+from database.models import (
+    Asset, AssetDecisionSnapshot, WatchlistItem,
+    BankMetric, MacroCommodity, Price
+)
 from services.decision.engine import build_decision_context
 from services.events.engine import EventEngine
 from services.macro.observations import get_latest_macro_series
@@ -42,6 +45,117 @@ def _status(data: Any) -> str:
     if isinstance(data, list):
         return "AVAILABLE" if data else "INSUFFICIENT_DATA"
     return "AVAILABLE"
+
+
+def _get_bank_evidence(db: Session, asset: Asset, as_of: date) -> list[dict[str, Any]]:
+    is_bank = (asset.sector and "BANK" in asset.sector.upper()) or asset.symbol in {
+        "VCB", "MBB", "TCB", "BID", "CTG", "ACB", "VPB", "STB", "HDB", "TPB", "MSB", "SHB", "VIB", "LPB", "SSB", "EIB", "OCB"
+    }
+    if not is_bank:
+        return []
+
+    metrics = (
+        db.query(BankMetric)
+        .filter(BankMetric.asset_id == asset.id, BankMetric.fiscal_date <= as_of)
+        .order_by(BankMetric.fiscal_date.desc())
+        .limit(2)
+        .all()
+    )
+    evidence: list[dict[str, Any]] = []
+    for m in metrics:
+        p_str = m.fiscal_period or str(m.fiscal_date)
+        items = [
+            ("nim", m.nim, "%", f"Biên lãi ròng (NIM) {asset.symbol} kỳ {p_str}: {m.nim}%"),
+            ("casa_ratio", m.casa_ratio, "%", f"Tỷ lệ tiền gửi không kỳ hạn (CASA) {asset.symbol} kỳ {p_str}: {m.casa_ratio}%"),
+            ("credit_growth", m.credit_growth, "%", f"Tăng trưởng tín dụng {asset.symbol} kỳ {p_str}: {m.credit_growth}%"),
+            ("npl_ratio", m.npl_ratio, "%", f"Tỷ lệ nợ xấu (NPL) {asset.symbol} kỳ {p_str}: {m.npl_ratio}%"),
+            ("llr_ratio", m.llr_ratio, "%", f"Tỷ lệ bao phủ nợ xấu (LLR) {asset.symbol} kỳ {p_str}: {m.llr_ratio}%"),
+        ]
+        for metric_name, val, unit, note in items:
+            if val is not None:
+                evidence.append({
+                    "claim_type": "FACT",
+                    "responsible_module": "bank_metrics",
+                    "metric": metric_name,
+                    "symbol": asset.symbol,
+                    "value": val,
+                    "unit": unit,
+                    "source": m.source or "BCTC_NGAN_HANG",
+                    "data_origin": "CANONICAL_DATABASE",
+                    "freshness": "AVAILABLE",
+                    "observation_date": m.fiscal_date.isoformat(),
+                    "note": note,
+                })
+    return evidence
+
+
+def _get_commodity_evidence_and_series(
+    db: Session,
+    norm_symbols: list[str],
+    as_of: date,
+    question: Optional[str] = None,
+) -> tuple[list[dict[str, Any]], list[float] | None, list[float] | None]:
+    evidence: list[dict[str, Any]] = []
+    c_series: list[float] | None = None
+    s_series: list[float] | None = None
+
+    energy_symbols = {"PLX", "GAS", "PVD", "PVS", "BSR", "OIL"}
+    has_energy_sym = any(s in energy_symbols for s in norm_symbols)
+    q_str = (question or "").lower()
+    has_oil_keyword = any(k in q_str for k in ("dầu", "dau", "brent", "wti", "oil", "nhiên liệu"))
+
+    if has_energy_sym or has_oil_keyword:
+        latest_brent = (
+            db.query(MacroCommodity)
+            .filter(MacroCommodity.commodity_code == "BRENT", MacroCommodity.observation_date <= as_of)
+            .order_by(MacroCommodity.observation_date.desc())
+            .first()
+        )
+        if latest_brent:
+            chg_str = f" ({latest_brent.change_pct:+.2f}%)" if latest_brent.change_pct is not None else ""
+            evidence.append({
+                "claim_type": "FACT",
+                "responsible_module": "macro",
+                "metric": "brent_close",
+                "symbol": "BRENT",
+                "value": latest_brent.close_price,
+                "unit": latest_brent.unit or "USD/barrel",
+                "source": latest_brent.source or "PUBLIC_COMMODITY_FEED",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "observation_date": latest_brent.observation_date.isoformat(),
+                "note": f"Giá dầu Brent giao ngay tại ngày {latest_brent.observation_date}: {latest_brent.close_price} USD/thùng{chg_str}.",
+            })
+
+        # Calculate time series correlation if energy stock present
+        target_sym = next((s for s in norm_symbols if s in energy_symbols), None)
+        if target_sym:
+            target_asset = db.query(Asset).filter(Asset.symbol == target_sym).first()
+            if target_asset:
+                stock_prices = (
+                    db.query(Price.observation_date, Price.raw_close)
+                    .filter(Price.asset_id == target_asset.id, Price.observation_date <= as_of)
+                    .order_by(Price.observation_date.asc())
+                    .all()
+                )
+                brent_prices = (
+                    db.query(MacroCommodity.observation_date, MacroCommodity.close_price)
+                    .filter(MacroCommodity.commodity_code == "BRENT", MacroCommodity.observation_date <= as_of)
+                    .order_by(MacroCommodity.observation_date.asc())
+                    .all()
+                )
+                brent_map = {d: p for d, p in brent_prices}
+                paired_s = []
+                paired_c = []
+                for d, sp in stock_prices:
+                    if d in brent_map:
+                        paired_s.append(sp)
+                        paired_c.append(brent_map[d])
+                if len(paired_s) >= 5:
+                    s_series = paired_s
+                    c_series = paired_c
+
+    return evidence, c_series, s_series
 
 
 class AITools:
@@ -143,6 +257,7 @@ class AITools:
         as_of: date,
         tool_names: Optional[list[str]] = None,
         session: Optional[Session] = None,
+        question: Optional[str] = None,
     ) -> dict[str, Any]:
         requested = tool_names or list(TOOL_NAMES)
         unknown = sorted(set(requested) - set(TOOL_NAMES))
@@ -154,7 +269,7 @@ class AITools:
         db = session or SessionLocal()
         try:
             from services.universe.registry import UniverseRegistry
-            
+
             # Normalize to list of symbols
             raw_symbols = [symbol] if isinstance(symbol, str) else (symbol or [])
             norm_symbols: list[str] = []
@@ -191,6 +306,11 @@ class AITools:
                             ev_copy = dict(ev)
                             ev_copy["symbol"] = sym
                             combined_evidence.append(ev_copy)
+
+                        # Bank metrics expansion
+                        bank_ev = _get_bank_evidence(db, asset, as_of)
+                        combined_evidence.extend(bank_ev)
+
                         if decision and decision.get("decision_state") == "AVAILABLE":
                             primary_decision_state = "AVAILABLE"
                     else:
@@ -204,6 +324,10 @@ class AITools:
                             "freshness": "INSUFFICIENT_DATA",
                             "note": f"Mã cổ phiếu {sym} không có trong cơ sở dữ liệu kiểm chứng của hệ thống.",
                         })
+
+                # Append commodity evidence and series
+                comm_ev, c_series, s_series = _get_commodity_evidence_and_series(db, norm_symbols, as_of, question)
+                combined_evidence.extend(comm_ev)
 
                 # Append market context evidence
                 for ev in market_context.get("market", {}).get("evidence", []):
@@ -231,6 +355,8 @@ class AITools:
                     "decision_state": primary_decision_state,
                     "tools": results,
                     "evidence": combined_evidence,
+                    "commodity_series": c_series,
+                    "stock_price_series": s_series,
                 }
 
             # Single symbol path (or no symbol)
@@ -262,6 +388,15 @@ class AITools:
             if normalized:
                 for ev in evidence:
                     ev.setdefault("symbol", normalized)
+
+            # Bank metrics expansion
+            if asset:
+                bank_ev = _get_bank_evidence(db, asset, as_of)
+                evidence.extend(bank_ev)
+
+            # Macro commodity expansion
+            comm_ev, c_series, s_series = _get_commodity_evidence_and_series(db, norm_symbols, as_of, question)
+            evidence.extend(comm_ev)
 
             rag_service = DocumentRAGService(session=db)
             rag_docs = rag_service.retrieve_documents(
@@ -314,6 +449,8 @@ class AITools:
                 "decision_state": decision.get("decision_state") if decision else market_context.get("status", "INSUFFICIENT_DATA"),
                 "tools": results,
                 "evidence": evidence,
+                "commodity_series": c_series,
+                "stock_price_series": s_series,
             }
         finally:
             if close_session:

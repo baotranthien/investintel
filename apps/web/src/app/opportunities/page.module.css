@@ -398,8 +398,8 @@
 }
 
 .scoreHigh {
-  background: #edf7f5;
-  border-color: var(--positive);
+  background: var(--positive-soft);
+  border-color: var(--positive-border);
   color: var(--positive);
 }
 
@@ -408,8 +408,8 @@
 }
 
 .scoreMid {
-  background: #fdf6ec;
-  border-color: var(--warning);
+  background: var(--warning-soft);
+  border-color: var(--warning-border);
   color: var(--warning);
 }
 
@@ -464,13 +464,15 @@
 }
 
 .pillGood {
-  background: #e2f4f0;
+  background: var(--positive-soft);
   color: var(--positive);
+  border: 1px solid var(--positive-border);
 }
 
 .pillWarn {
-  background: #fdf0dc;
+  background: var(--warning-soft);
   color: var(--warning);
+  border: 1px solid var(--warning-border);
 }
 
 .pillNeutral {
@@ -501,7 +503,7 @@
 
 .whyNowItem {
   color: var(--ink);
-  background: #f4faf8;
+  background: rgba(16, 185, 129, 0.08);
   border-left: 3px solid var(--positive);
   padding: 6px 10px;
   border-radius: 0 4px 4px 0;
@@ -545,23 +547,23 @@
 
 .actionBtnSecondary {
   font-size: 11px;
-  font-weight: 700;
-  color: #116b56;
-  background: #e7f2ed;
-  border: 1px solid #c2e2d6;
-  padding: 5px 10px;
-  border-radius: 4px;
+  font-weight: 650;
+  color: var(--accent-apple);
+  background: rgba(41, 151, 255, 0.08);
+  border: 1px solid rgba(41, 151, 255, 0.22);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   gap: 4px;
   text-decoration: none;
-  transition: all 150ms ease;
+  transition: all var(--duration-fast) var(--ease-spring);
 }
 
 .actionBtnSecondary:hover {
-  background: #116b56;
-  color: #ffffff;
-  border-color: #116b56;
+  background: rgba(41, 151, 255, 0.16);
+  color: var(--ink);
+  border-color: rgba(41, 151, 255, 0.4);
 }
 
 .actionBtnPrimary {

@@ -69,6 +69,24 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
             return v.get("value")
         return v
 
+    # Dynamic peer multiples from PeerComparisonEngine
+    peer_pe = None
+    peer_pb = None
+    try:
+        session = SessionLocal()
+        try:
+            from services.valuation.peers import PeerComparisonEngine
+            peer_engine = PeerComparisonEngine(session)
+            peer_res = peer_engine.compare_peers(sym, as_of=as_of_date)
+            if peer_res and peer_res.peer_median_pe:
+                peer_pe = peer_res.peer_median_pe
+            if peer_res and peer_res.peer_median_pb:
+                peer_pb = peer_res.peer_median_pb
+        finally:
+            session.close()
+    except Exception:
+        pass
+
     return {
         "symbol": sym,
         "sector": dataset["sector"],
@@ -82,10 +100,10 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
         "net_income_ttm": snapshot.get("net_income_ttm") or _val(ttm, "net_income_parent") or _val(ttm, "net_income") or snapshot.get("net_income_annual") or (dataset["income_annual"][-1].get("net_income_parent") if dataset.get("income_annual") else None),
         "net_debt": _val(balance_sheet, "net_debt"),
         "roe": _val(profitability, "roe"),
-        # Peer multiples — None means not ingested, engine will return INSUFFICIENT_DATA
-        "peer_pe": None,
+        # Dynamic peer multiples from PeerComparisonEngine
+        "peer_pe": peer_pe,
         "hist_pe": None,
-        "peer_pb": None,
+        "peer_pb": peer_pb,
         "hist_pb": None,
         "sources": dataset.get("sources", ["CANONICAL_DATABASE"]),
     }
@@ -209,37 +227,25 @@ def get_historical_valuation(symbol: str):
 
 
 @router.get("/{symbol}/peers")
-def get_peer_comparison(symbol: str):
+def get_peer_comparison(symbol: str, as_of: Optional[str] = Query(None)):
     """
-    Returns peer comparison metrics.
-    Returns INSUFFICIENT_DATA until peer multiples are ingested via data pipeline.
+    Returns peer comparison metrics computed by PeerComparisonEngine.
     """
     sym = symbol.upper()
+    as_of_date = date.fromisoformat(as_of) if as_of else None
     session = SessionLocal()
     try:
-        peer_groups = session.query(PeerGroup).filter(
-            PeerGroup.members.contains([sym])
-        ).all()
-        peer_names = [p.name for p in peer_groups]
-    except Exception:
-        peer_names = []
+        from services.valuation.peers import PeerComparisonEngine
+        engine = PeerComparisonEngine(session)
+        result = engine.compare_peers(sym, as_of=as_of_date)
+        return result.dict() if hasattr(result, "dict") else result.model_dump()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Peer comparison computation failed for '{sym}': {str(e)}"
+        )
     finally:
         session.close()
-
-    return {
-        "symbol": sym,
-        "status": "INSUFFICIENT_DATA",
-        "reason": (
-            "Peer multiples require ingested market prices for all peer group members. "
-            "Define peer group members and ingest their price data to compute live peer multiples."
-        ),
-        "peer_groups_found": peer_names,
-        "primary_peers": [],
-        "peer_median_pe": None,
-        "peer_median_pb": None,
-        "company_pe": None,
-        "discount_premium": None,
-    }
 
 
 @router.get("/{symbol}/dcf")
