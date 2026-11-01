@@ -10,7 +10,8 @@ A secure, non-destructive GitHub backup branch has been created, verified, and s
 
 - **Remote Repository**: `https://github.com/baotranthien/investintel.git`
 - **Backup Branch**: `backup/phase3-5-accepted-2026-11-02`
-- **Commit SHA**: `5efc8dae2769182012738a44d42ad8bf5001e50d`
+- **Implementation Backup Commit SHA**: `5efc8dae2769182012738a44d42ad8bf5001e50d`
+- **Latest Commit SHA (including report)**: `d9782c0637e6bd14e08a878c31b60eb68a361c45`
 - **Commit Message**: `backup: preserve InvestIntel Phase 3-5 accepted implementation`
 - **Push Method**: Standard non-force push (`git push -u origin backup/phase3-5-accepted-2026-11-02`).
 - **Base Commit**: `origin/main` (`61db939` -> direct parent).
