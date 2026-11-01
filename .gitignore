@@ -22,6 +22,8 @@ dist/
 build/
 
 # Local data and runtime state
+.run/
+logs/
 data/*
 !data/market/
 data/market/*

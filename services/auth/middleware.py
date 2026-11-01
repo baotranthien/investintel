@@ -22,6 +22,7 @@ EXEMPT_PATH_PATTERNS = [
     re.compile(r"^/api/v1/ready/?$"),
     re.compile(r"^/api/v1/system/info/?$"),
     re.compile(r"^/api/v1/system/observability/?$"),
+    re.compile(r"^/api/v1/system/diagnostics/?$"),
     re.compile(r"^/api/v1/auth/login/?$"),
     re.compile(r"^/api/v1/auth/logout/?$"),
     re.compile(r"^/api/v1/auth/session/?$"),

@@ -315,3 +315,20 @@ async def system_observability():
         "timestamp": time.time(),
     }
 
+
+
+@app.get("/api/v1/system/diagnostics")
+async def system_diagnostics():
+    """Real-time system, hardware telemetry, Ollama VRAM placement and inference metrics."""
+    from services.ai.telemetry import get_hardware_diagnostics, get_ollama_runtime_status, get_inference_summary
+    from services.scheduler.engine import local_scheduler
+    from database.connection import check_database_health
+
+    return {
+        "timestamp": time.time(),
+        "database": check_database_health(),
+        "hardware": get_hardware_diagnostics(),
+        "ollama_runtime": get_ollama_runtime_status(),
+        "inference_telemetry": get_inference_summary(),
+        "scheduler": local_scheduler.get_status(),
+    }

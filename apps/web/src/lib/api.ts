@@ -939,3 +939,68 @@ export const getStockScreener = (params?: ScreenerFilterParams, signal?: AbortSi
   const qStr = query.toString() ? `?${query.toString()}` : "";
   return apiGet<ScreenerResult>(`/api/v1/screener${qStr}`, signal);
 };
+
+
+export type SystemDiagnostics = {
+  timestamp: number;
+  database: {
+    status: string;
+    backend: string;
+    latency_ms: number;
+    connected: boolean;
+  };
+  hardware: {
+    timestamp: string;
+    gpu: {
+      status: string;
+      name: string | null;
+      vram_total_mb: number | null;
+      vram_used_mb: number | null;
+      vram_free_mb: number | null;
+      utilization_pct: number | null;
+      temperature_c: number | null;
+    };
+    system_ram: {
+      total_mb: number | null;
+      available_mb: number | null;
+      used_pct: number | null;
+    };
+  };
+  ollama_runtime: {
+    ollama_listening: boolean;
+    primary_model: string;
+    loaded_models: Array<{
+      name: string;
+      size_vram_mb: number;
+      size_total_mb: number;
+    }>;
+    installed_models: string[];
+  };
+  inference_telemetry: {
+    total_logged: number;
+    median_generation_tps: number;
+    median_ttft_sec: number;
+    last_record: Record<string, unknown> | null;
+  };
+  scheduler: {
+    scheduler_paused: boolean;
+    is_busy: boolean;
+    timezone: string;
+    jobs: Record<string, {
+      name: string;
+      schedule: string;
+      status: string;
+      retry_count: number;
+      last_run: string | null;
+    }>;
+    recent_executions: Array<Record<string, unknown>>;
+  };
+};
+
+export const getSystemDiagnostics = (signal?: AbortSignal) => {
+  return apiGet<SystemDiagnostics>("/api/v1/system/diagnostics", signal);
+};
+
+export const triggerAutomationPipeline = (symbols?: string[]) => {
+  return apiWrite<{ pipeline_status: string; stages: Record<string, unknown> }>("/api/v1/automation/scheduler/trigger", "POST", symbols ? { target_symbols: symbols } : {});
+};

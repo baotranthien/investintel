@@ -209,3 +209,40 @@ async def trigger_cycle(
         as_of=req.as_of_date,
     )
     return {"status": "SUCCESS", "results": results}
+
+
+@router.get("/scheduler/status")
+def get_scheduler_status():
+    """Returns local background scheduler status, job configurations and history."""
+    from services.scheduler.engine import local_scheduler
+    return local_scheduler.get_status()
+
+
+@router.post("/scheduler/pause")
+def pause_scheduler():
+    """Pauses local background scheduler."""
+    from services.scheduler.engine import local_scheduler
+    local_scheduler.pause()
+    return {"status": "PAUSED"}
+
+
+@router.post("/scheduler/resume")
+def resume_scheduler():
+    """Resumes local background scheduler."""
+    from services.scheduler.engine import local_scheduler
+    local_scheduler.resume()
+    return {"status": "ACTIVE"}
+
+
+@router.post("/scheduler/trigger")
+async def trigger_local_pipeline(target_symbols: Optional[list[str]] = None):
+    """Triggers the full local pipeline (Ingestion -> Opportunity -> Alerts -> Backup)."""
+    from services.scheduler.engine import local_scheduler, SchedulerLockError, JobDependencyError
+    try:
+        res = await local_scheduler.run_pipeline(target_symbols=target_symbols)
+        return res
+    except SchedulerLockError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except JobDependencyError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+

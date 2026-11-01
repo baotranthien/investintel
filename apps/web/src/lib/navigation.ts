@@ -15,6 +15,7 @@ export const appNavigation: AppNavigationItem[] = [
   { href: "/screener", label: "Bộ lọc cổ phiếu", shortLabel: "Screener", group: "research" },
   { href: "/ai", label: "AI Analyst", shortLabel: "AI", group: "research" },
   { href: "/data-center", label: "Chất lượng dữ liệu", shortLabel: "Dữ liệu", group: "system" },
+  { href: "/system", label: "Hệ thống & Tự phục hồi", shortLabel: "Hệ thống", group: "system" },
   { href: "/settings", label: "Cài đặt", shortLabel: "Cài đặt", group: "system" },
 ];
 
@@ -25,5 +26,6 @@ export const sectionDescriptions: Record<string, { title: string; english: strin
   watchlist: { title: "Theo dõi", english: "Watchlist", milestone: "6D" },
   screener: { title: "Bộ lọc cổ phiếu", english: "Stock Screener", milestone: "5A" },
   ai: { title: "AI Analyst", english: "Local research assistant", milestone: "6F" },
+  system: { title: "Hệ thống & Tự phục hồi", english: "System Observability", milestone: "6F" },
   settings: { title: "Cài đặt", english: "Settings", milestone: "6A" },
 };
