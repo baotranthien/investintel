@@ -2,12 +2,17 @@
 Trigger bounded LotusMarket ingestion on Render for FPT, VCB, MBB, MWG, HPG.
 """
 import json
+import os
 from pathlib import Path
 import httpx
 
+secret = os.getenv("CRON_SECRET", "")
 authsecr_path = Path(__file__).resolve().parent.parent / "authsecr.txt"
-with open(authsecr_path, "r", encoding="utf-8") as f:
-    secret = [l.strip() for l in f if l.strip()][1]
+if not secret and authsecr_path.exists():
+    with open(authsecr_path, "r", encoding="utf-8") as f:
+        lines = [l.strip() for l in f if l.strip()]
+        if len(lines) >= 2:
+            secret = lines[1]
 
 payload = {
     "force": True,

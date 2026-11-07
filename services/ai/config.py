@@ -4,6 +4,10 @@ import os
 import re
 from urllib.parse import urlparse, urlunparse
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def _is_loopback_url(value: str) -> bool:
     parsed = urlparse(value)
@@ -26,9 +30,11 @@ class OllamaConfig:
     timeout_seconds: float = 75.0
     connect_timeout_seconds: float = 3.0
     retries: int = 1
-    num_ctx: int = 4096
-    num_predict: int = 1536
-    keep_alive: str = "5m"
+    num_ctx: int = 2048
+    num_predict: int = 768
+    num_thread: int = 6
+    keep_alive: str = "60m"
+    flash_attention: bool = True
     think: bool = False
 
     def __post_init__(self) -> None:
@@ -42,6 +48,8 @@ class OllamaConfig:
             raise ValueError("Ollama retries must be between 0 and 2.")
         if self.num_ctx < 256 or self.num_predict < 1:
             raise ValueError("Ollama context and output limits are outside the supported range.")
+        if self.num_thread <= 0:
+            raise ValueError("Ollama num_thread must be positive.")
 
     @classmethod
     def from_env(cls) -> "OllamaConfig":
@@ -64,9 +72,11 @@ class OllamaConfig:
             timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "75")),
             connect_timeout_seconds=float(os.getenv("OLLAMA_CONNECT_TIMEOUT_SECONDS", "3")),
             retries=int(os.getenv("OLLAMA_RETRIES", "1")),
-            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "4096")),
-            num_predict=int(os.getenv("OLLAMA_NUM_PREDICT", "1536")),
-            keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "5m"),
+            num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "2048")),
+            num_predict=int(os.getenv("OLLAMA_NUM_PREDICT", "768")),
+            num_thread=int(os.getenv("OLLAMA_NUM_THREAD", "6")),
+            keep_alive=os.getenv("OLLAMA_KEEP_ALIVE", "60m"),
+            flash_attention=os.getenv("OLLAMA_FLASH_ATTENTION", "1").strip().lower() in ("1", "true", "yes"),
             think=os.getenv("OLLAMA_THINK", "false").strip().lower() in ("true", "1", "yes"),
         )
 

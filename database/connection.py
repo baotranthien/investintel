@@ -3,7 +3,7 @@ import os
 import time
 from pathlib import Path
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
 from database.models import Base
 
@@ -173,6 +173,26 @@ def check_redis_health() -> dict:
 
 
 ALLOW_PRODUCTION_DB_WRITE = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in ("1", "true", "yes")
+
+
+@event.listens_for(SessionLocal, "before_flush")
+def _enforce_canonical_sqlite_write_guard(session, flush_context, instances):
+    """Strictly prevent any accidental writes to canonical data/trading.db when ALLOW_PRODUCTION_DB_WRITE=false."""
+    allow_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in ("1", "true", "yes")
+    if allow_write:
+        return
+    try:
+        bind = session.get_bind()
+        url_str = str(getattr(bind, "url", "")).replace("\\", "/")
+        if "data/trading.db" in url_str:
+            raise PermissionError(
+                "Strict read-only guard active (ALLOW_PRODUCTION_DB_WRITE=false): "
+                "Refusing to flush mutations to canonical data/trading.db."
+            )
+    except PermissionError:
+        raise
+    except Exception:
+        pass
 
 
 def is_production_database_target() -> bool:

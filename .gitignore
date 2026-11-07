@@ -1,3 +1,7 @@
+# Executables and binaries
+*.exe
+InvestIntel.exe
+
 # Secrets
 .env
 .env.*

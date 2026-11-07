@@ -43,12 +43,13 @@ class FinancialRepository:
         asset = self._session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
         if not asset:
             return None
+        from services.fundamentals.sector_models import get_sector_for_symbol
         return {
             "symbol": asset.symbol,
             "name": asset.name,
             "asset_type": asset.asset_type,
             "exchange": asset.exchange,
-            "sector": asset.sector or "GENERAL",
+            "sector": get_sector_for_symbol(symbol, asset.sector),
             "currency": asset.currency or "VND",
             "status": asset.status or "ACTIVE",
         }
@@ -154,6 +155,12 @@ class FinancialRepository:
         # Sort chronologically ascending for fundamental analysis
         statements = sorted(deduped.values(), key=lambda s: (s.fiscal_period_end, s.statement_type))
 
+        # Batch prefetch normalized rows to avoid N+1 queries per statement
+        stmt_ids = [s.id for s in statements]
+        inc_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedIncome).filter(NormalizedIncome.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
+        bal_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedBalanceSheet).filter(NormalizedBalanceSheet.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
+        cf_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedCashFlow).filter(NormalizedCashFlow.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
+
         # Statement IDs by statement_type
         inc_annual = []
         inc_quarters = []
@@ -171,9 +178,7 @@ class FinancialRepository:
                     latest_pub_date = stmt.publication_date
 
             if stmt.statement_type == "INCOME_STATEMENT":
-                norm_inc = self._session.query(NormalizedIncome).filter(
-                    NormalizedIncome.statement_id == stmt.id
-                ).first()
+                norm_inc = inc_by_stmt.get(stmt.id)
                 if norm_inc:
                     row = {
                         "fiscal_period_start": stmt.fiscal_period_start,
@@ -208,7 +213,7 @@ class FinancialRepository:
                                 else (
                                     numeric(norm_inc.net_income) - numeric(norm_inc.minority_interest)
                                     if norm_inc.net_income is not None and norm_inc.minority_interest is not None
-                                    else numeric(norm_inc.net_income)
+                                    else None
                                 )
                             )
                         ),
@@ -227,9 +232,7 @@ class FinancialRepository:
                         inc_quarters.append(row)
 
             elif stmt.statement_type == "BALANCE_SHEET":
-                norm_bs = self._session.query(NormalizedBalanceSheet).filter(
-                    NormalizedBalanceSheet.statement_id == stmt.id
-                ).first()
+                norm_bs = bal_by_stmt.get(stmt.id)
                 if norm_bs:
                     row = {
                         "fiscal_period_start": stmt.fiscal_period_start,
@@ -283,9 +286,7 @@ class FinancialRepository:
                     bal_annual.append(row)
 
             elif stmt.statement_type == "CASH_FLOW":
-                norm_cf = self._session.query(NormalizedCashFlow).filter(
-                    NormalizedCashFlow.statement_id == stmt.id
-                ).first()
+                norm_cf = cf_by_stmt.get(stmt.id)
                 if norm_cf:
                     row = {
                         "fiscal_period_start": stmt.fiscal_period_start,

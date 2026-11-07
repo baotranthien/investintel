@@ -338,7 +338,7 @@ class ProfitabilityEngine:
             return MetricResult(
                 value=None, unit="%", metric_id=spec.metric_id, calculation_version=spec.version,
                 period=period, data_status=DataStatus.NOT_MEANINGFUL,
-                not_meaningful_reason="Invested capital ≤ 0 — ROIC not meaningful.",
+                not_meaningful_reason="NEGATIVE_INVESTED_CAPITAL (Thặng dư tiền mặt lớn hơn nợ và vốn chủ sở hữu / Invested capital ≤ 0)",
             )
         return MetricResult(
             value=(nopat / invested_capital) * 100,
@@ -438,7 +438,10 @@ class CoverageEngine:
             )
         # interest_expense stored as negative; use absolute value
         ie = abs(interest_expense)
-        return _safe_ratio(ebit, ie, spec.metric_id, spec.version, "times", period)
+        res = _safe_ratio(ebit, ie, spec.metric_id, spec.version, "times", period)
+        if ie < 1.0 and res.value is not None and res.value > 500:
+            res.not_meaningful_reason = "NEGLIGIBLE_INTEREST_EXPENSE (Chi phí lãi vay không đáng kể, cơ cấu vốn thuần tiền mặt)"
+        return res
 
 
 # ─────────────────────────────────────────────────────────

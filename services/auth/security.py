@@ -17,6 +17,96 @@ PBKDF2_ITERATIONS = 600_000
 SALT_SIZE_BYTES = 16
 HASH_ALGORITHM = "sha256"
 
+# JWT / Auth Secret configuration
+MIN_SECRET_LENGTH = 32
+PROHIBITED_JWT_SECRETS: set[str] = {
+    "local-dev-secret-do-not-use-in-production-123456",
+    "secret",
+    "password",
+    "changeme",
+    "admin",
+    "admin123",
+    "12345678901234567890123456789012",
+    "GENERATE_WITH_OPENSSL_RAND_HEX_32",
+    "test-secret",
+    "your-secret-key-here",
+    "your_jwt_secret_key_here",
+}
+
+
+def is_cloud_mode() -> bool:
+    """Check if application is running in cloud production mode."""
+    return (
+        os.getenv("CLOUD_MODE", "false").lower() in ("1", "true", "yes")
+        or os.getenv("APP_ENV", "development").lower() == "production"
+    )
+
+
+def is_auth_enabled() -> bool:
+    """Authentication is strictly enabled in cloud mode or when explicitly set."""
+    if is_cloud_mode():
+        return True
+    return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
+
+
+def get_jwt_secret(require_valid: bool = True) -> Optional[str]:
+    """Retrieve and validate the JWT session signing secret.
+    
+    Reads from JWT_SECRET_KEY or APP_AUTH_SECRET environment variables.
+    Enforces strict security constraints:
+    - Never falls back to a hardcoded or predictable default secret.
+    - In production, rejects missing secrets, secrets < 32 characters, and known defaults.
+    - In non-production, requires an explicitly configured secret if require_valid=True.
+    """
+    secret = os.getenv("JWT_SECRET_KEY") or os.getenv("APP_AUTH_SECRET")
+    in_prod = is_cloud_mode()
+
+    if not secret or not secret.strip():
+        if require_valid:
+            if in_prod:
+                raise RuntimeError(
+                    "CRITICAL: JWT secret key missing in production. "
+                    f"Must configure JWT_SECRET_KEY or APP_AUTH_SECRET with at least {MIN_SECRET_LENGTH} characters."
+                )
+            raise RuntimeError(
+                "JWT secret key is not configured. "
+                "Please configure JWT_SECRET_KEY or APP_AUTH_SECRET in your environment or .env."
+            )
+        return None
+
+    secret_clean = secret.strip()
+
+    # Reject known defaults across all environments
+    if secret_clean in PROHIBITED_JWT_SECRETS or "do-not-use-in-production" in secret_clean.lower():
+        if require_valid or in_prod:
+            raise RuntimeError(
+                "CRITICAL: Insecure or prohibited default JWT secret key detected. "
+                "Hardcoded/sample secrets are strictly forbidden."
+            )
+        return None
+
+    # Enforce minimum length in production
+    if in_prod and len(secret_clean) < MIN_SECRET_LENGTH:
+        if require_valid:
+            raise RuntimeError(
+                f"CRITICAL: JWT secret key in production is too short ({len(secret_clean)} chars). "
+                f"Minimum length required is {MIN_SECRET_LENGTH} characters."
+            )
+        return None
+
+    return secret_clean
+
+
+def validate_jwt_secret_configuration() -> None:
+    """Validate server authentication configuration at application startup (fail-closed)."""
+    # In cloud/production or if auth is enabled, validate fail-closed
+    if is_cloud_mode() or is_auth_enabled():
+        get_jwt_secret(require_valid=True)
+        if is_cloud_mode() and not os.getenv("APP_AUTH_PASSWORD_HASH"):
+            raise RuntimeError(
+                "CRITICAL: APP_AUTH_PASSWORD_HASH must be configured in production mode."
+            )
+
 # In-memory rate limiting fallback
 _MEMORY_ATTEMPTS: dict[str, list[float]] = {}
 _MEMORY_LOCK = threading.Lock()
@@ -74,13 +164,14 @@ def _b64decode_str(s: str) -> bytes:
 
 
 def create_session_token(
-    secret: str,
+    secret: Optional[str] = None,
     expiry_seconds: int = 86400,
     user_id: str = "personal_investor",
 ) -> str:
     """Issue a server-signed tamper-evident session token."""
-    if not secret:
-        raise ValueError("APP_AUTH_SECRET must be configured to generate session tokens.")
+    signing_secret = secret or get_jwt_secret(require_valid=True)
+    if not signing_secret:
+        raise ValueError("JWT_SECRET_KEY or APP_AUTH_SECRET must be configured to generate session tokens.")
 
     now = int(time.time())
     payload = {
@@ -93,7 +184,7 @@ def create_session_token(
     payload_b64 = _b64encode_str(payload_bytes)
 
     signature = hmac.new(
-        secret.encode("utf-8"),
+        signing_secret.encode("utf-8"),
         payload_b64.encode("utf-8"),
         hashlib.sha256,
     ).digest()
@@ -102,9 +193,10 @@ def create_session_token(
     return f"{payload_b64}.{sig_b64}"
 
 
-def verify_session_token(token: str, secret: str) -> Optional[dict[str, Any]]:
+def verify_session_token(token: str, secret: Optional[str] = None) -> Optional[dict[str, Any]]:
     """Verify session token signature and check expiration. Returns payload dict or None."""
-    if not token or not secret:
+    verification_secret = secret or get_jwt_secret(require_valid=False)
+    if not token or not verification_secret:
         return None
 
     parts = token.split(".")
@@ -114,7 +206,7 @@ def verify_session_token(token: str, secret: str) -> Optional[dict[str, Any]]:
     payload_b64, sig_b64 = parts[0], parts[1]
     try:
         expected_sig = hmac.new(
-            secret.encode("utf-8"),
+            verification_secret.encode("utf-8"),
             payload_b64.encode("utf-8"),
             hashlib.sha256,
         ).digest()

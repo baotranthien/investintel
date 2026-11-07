@@ -31,6 +31,69 @@ from database.models import Price, Asset, PeerGroup
 router = APIRouter(prefix="/api/v1/valuation", tags=["valuation"])
 
 
+def _compute_beta_and_wacc(
+    session,
+    sym: str,
+    sector: str,
+    de_ratio: Optional[float],
+    as_of_date: Optional[date] = None
+) -> tuple[float, float, float]:
+    beta = 1.0
+    try:
+        stock_asset = session.query(Asset).filter(Asset.symbol == sym).first()
+        mkt_asset = session.query(Asset).filter(Asset.symbol == "VNINDEX").first()
+        if stock_asset and mkt_asset:
+            stock_q = session.query(Price.observation_date, Price.raw_close).filter(
+                Price.asset_id == stock_asset.id,
+                Price.status == "VALID"
+            )
+            mkt_q = session.query(Price.observation_date, Price.raw_close).filter(
+                Price.asset_id == mkt_asset.id,
+                Price.status == "VALID"
+            )
+            if as_of_date:
+                stock_q = stock_q.filter(Price.observation_date <= as_of_date)
+                mkt_q = mkt_q.filter(Price.observation_date <= as_of_date)
+
+            stock_prices = dict(stock_q.order_by(Price.observation_date.desc()).limit(252).all())
+            mkt_prices = dict(mkt_q.order_by(Price.observation_date.desc()).limit(252).all())
+
+            common_dates = sorted(set(stock_prices.keys()).intersection(set(mkt_prices.keys())))
+            if len(common_dates) >= 30:
+                s_series = [stock_prices[d] for d in common_dates]
+                m_series = [mkt_prices[d] for d in common_dates]
+                r_stock = [(s_series[i] - s_series[i - 1]) / s_series[i - 1] for i in range(1, len(s_series))]
+                r_mkt = [(m_series[i] - m_series[i - 1]) / m_series[i - 1] for i in range(1, len(m_series))]
+
+                mean_s = sum(r_stock) / len(r_stock)
+                mean_m = sum(r_mkt) / len(r_mkt)
+                cov = sum((r_stock[i] - mean_s) * (r_mkt[i] - mean_m) for i in range(len(r_stock))) / (len(r_stock) - 1)
+                var_m = sum((r_mkt[i] - mean_m) ** 2 for i in range(len(r_mkt))) / (len(r_mkt) - 1)
+
+                if var_m > 1e-8:
+                    raw_beta = cov / var_m
+                    beta = max(0.60, min(1.60, raw_beta))
+    except Exception:
+        beta = 1.0
+
+    rf = 0.045
+    erp = 0.065
+    cost_of_equity = max(0.09, min(0.16, rf + beta * erp))
+
+    kd_after_tax = 0.085 * (1.0 - 0.20)
+    norm_sector = (sector or "").upper()
+    if norm_sector in ("BANK", "BANKING", "SECURITIES", "FINANCIALS"):
+        wacc = cost_of_equity
+    else:
+        de = max(0.0, float(de_ratio)) if de_ratio is not None else 0.5
+        d_weight = min(0.65, max(0.0, de / (1.0 + de)))
+        e_weight = 1.0 - d_weight
+        wacc_raw = (cost_of_equity * e_weight) + (kd_after_tax * d_weight)
+        wacc = max(0.085, min(0.155, wacc_raw))
+
+    return round(beta, 3), round(cost_of_equity, 4), round(wacc, 4)
+
+
 def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = None) -> dict:
     """
     Loads real fundamental data from canonical database.
@@ -44,7 +107,9 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
             return None
 
     # Build fundamental snapshot to get computed TTM metrics
-    builder = FundamentalSnapshotBuilder(sym, dataset["sector"])
+    from services.fundamentals.sector_models import get_sector_for_symbol
+    canonical_sector = get_sector_for_symbol(sym, dataset.get("sector"))
+    builder = FundamentalSnapshotBuilder(sym, canonical_sector)
     snapshot = builder.build_snapshot(
         income_quarters=dataset["income_quarters"],
         income_annual=dataset["income_annual"],
@@ -59,6 +124,8 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
     profitability = snapshot.get("profitability", {})
     balance_sheet = snapshot.get("balance_sheet", {})
     ttm = snapshot.get("ttm", {})
+    growth = snapshot.get("growth", {})
+    cash_flow = snapshot.get("cash_flow", {})
 
     def _val(d, key):
         """Extract numeric value from MetricResult dict or primitive."""
@@ -69,9 +136,35 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
             return v.get("value")
         return v
 
-    # Dynamic peer multiples from PeerComparisonEngine
+    revenue_yoy = _val(growth, "revenue_yoy")
+    if revenue_yoy is not None and abs(revenue_yoy) > 1.0:
+        revenue_yoy = revenue_yoy / 100.0
+
+    revenue_cagr_3y = _val(growth, "revenue_cagr_3y")
+    if revenue_cagr_3y is not None and abs(revenue_cagr_3y) > 1.0:
+        revenue_cagr_3y = revenue_cagr_3y / 100.0
+
+    operating_margin = (
+        _val(profitability, "operating_margin")
+        or _val(profitability, "ebit_margin")
+        or _val(profitability, "net_margin")
+    )
+    if operating_margin is not None and abs(operating_margin) > 1.0:
+        operating_margin = operating_margin / 100.0
+
+    de_ratio = _val(balance_sheet, "de_ratio")
+    fcf_ttm = _val(cash_flow, "fcf")
+    cfo_ttm = _val(cash_flow, "cfo")
+    capex_to_revenue = _val(cash_flow, "capex_to_revenue") or _val(profitability, "capex_to_revenue")
+    if capex_to_revenue is not None and abs(capex_to_revenue) > 1.0:
+        capex_to_revenue = abs(capex_to_revenue) / 100.0
+
+    # Dynamic peer multiples from PeerComparisonEngine and dynamic beta/wacc
     peer_pe = None
     peer_pb = None
+    beta = 1.0
+    cost_of_equity = 0.12
+    wacc = 0.12
     try:
         session = SessionLocal()
         try:
@@ -82,6 +175,14 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
                 peer_pe = peer_res.peer_median_pe
             if peer_res and peer_res.peer_median_pb:
                 peer_pb = peer_res.peer_median_pb
+
+            beta, cost_of_equity, wacc = _compute_beta_and_wacc(
+                session=session,
+                sym=sym,
+                sector=canonical_sector,
+                de_ratio=de_ratio,
+                as_of_date=as_of_date,
+            )
         finally:
             session.close()
     except Exception:
@@ -89,7 +190,7 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
 
     return {
         "symbol": sym,
-        "sector": dataset["sector"],
+        "sector": canonical_sector,
         "eps_ttm": snapshot.get("eps_ttm") or _val(per_share, "eps_ttm"),
         "is_eps_estimate": per_share.get("is_eps_estimate", False),
         "eps_diagnostic_reason": per_share.get("eps_diagnostic_reason"),
@@ -106,25 +207,27 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
         "peer_pb": peer_pb,
         "hist_pb": None,
         "sources": dataset.get("sources", ["CANONICAL_DATABASE"]),
+        # Dynamic assumption fields
+        "use_dynamic_assumptions": True,
+        "beta": beta,
+        "cost_of_equity": cost_of_equity,
+        "wacc": wacc,
+        "revenue_yoy": revenue_yoy,
+        "revenue_cagr_3y": revenue_cagr_3y,
+        "operating_margin": operating_margin,
+        "de_ratio": de_ratio,
+        "fcf_ttm": fcf_ttm,
+        "cfo_ttm": cfo_ttm,
+        "capex_to_revenue": capex_to_revenue,
     }
 
 
 def _get_latest_price(symbol: str, as_of_date: Optional[date] = None) -> Optional[float]:
-    """Gets the most recent canonical price for the symbol from DB."""
-    sym = symbol.upper()
+    """Gets the most recent canonical price for the symbol from DB via CanonicalPriceResolver."""
     session = SessionLocal()
     try:
-        query = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
-            Asset.symbol == sym,
-            Price.status == "VALID",
-        )
-        if as_of_date:
-            query = query.filter(Price.observation_date <= as_of_date)
-        price_row = query.order_by(Price.observation_date.desc()).first()
-        if price_row:
-            val = price_row.adjusted_close if price_row.adjusted_close is not None else price_row.raw_close
-            return float(val) if val is not None else None
-        return None
+        from services.market.canonical_price import CanonicalPriceResolver
+        return CanonicalPriceResolver.get_latest_price_value(session, symbol, as_of_date)
     finally:
         session.close()
 
@@ -174,7 +277,7 @@ def get_valuation_snapshot(symbol: str, as_of: Optional[str] = Query(None, descr
         as_of=as_of_date or date.today()
     )
 
-    result = snapshot.dict() if hasattr(snapshot, 'dict') else snapshot
+    result = snapshot.model_dump() if hasattr(snapshot, "model_dump") else (snapshot.dict() if hasattr(snapshot, "dict") else snapshot)
     result["data_sources"] = fundamentals["sources"]
     result["data_status"] = "CANONICAL_DATABASE"
     return result
@@ -238,7 +341,7 @@ def get_peer_comparison(symbol: str, as_of: Optional[str] = Query(None)):
         from services.valuation.peers import PeerComparisonEngine
         engine = PeerComparisonEngine(session)
         result = engine.compare_peers(sym, as_of=as_of_date)
-        return result.dict() if hasattr(result, "dict") else result.model_dump()
+        return result.model_dump() if hasattr(result, "model_dump") else (result.dict() if hasattr(result, "dict") else result)
     except Exception as e:
         raise HTTPException(
             status_code=500,

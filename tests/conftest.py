@@ -22,7 +22,9 @@ def initialize_database():
 
     from scripts.seed_bank_and_commodity_data import (
         seed_energy_stock_prices,
+        seed_plx_quarterly_statements,
         seed_bmp_prices,
+        seed_bmp_corporate_actions,
         seed_bank_metrics,
         seed_macro_commodities,
     )
@@ -30,7 +32,9 @@ def initialize_database():
     db = SessionLocal()
     try:
         seed_energy_stock_prices(db)
+        seed_plx_quarterly_statements(db)
         seed_bmp_prices(db)
+        seed_bmp_corporate_actions(db)
         seed_bank_metrics(db)
         seed_macro_commodities(db)
     finally:

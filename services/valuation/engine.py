@@ -27,6 +27,16 @@ class DCFEngine:
                 warnings=["INSUFFICIENT_DATA: Base revenue missing or non-positive. Cannot perform DCF."]
             )
 
+        if assumptions.wacc <= assumptions.terminal_growth_rate:
+            return ValuationMethodOutput(
+                method="DCF",
+                fair_value=FairValueRange(bear=0.0, base=0.0, bull=0.0),
+                applicability="NOT_APPLICABLE",
+                confidence="LOW",
+                weight=0.0,
+                warnings=["INVALID_ASSUMPTION: Terminal growth rate (g_t) must be strictly less than WACC. Gordon Growth Model is undefined for WACC <= g_t."]
+            )
+
         def _calc_dcf(wacc_adj: float, g_adj: float, margin_adj: float) -> float:
             fcf = []
             current_rev = assumptions.base_revenue
@@ -39,9 +49,13 @@ class DCFEngine:
                 ebit = current_rev * margin
                 nopat = ebit * (1 - assumptions.tax_rate)
                 
-                # Simplified FCF = NOPAT (ignoring D&A, Capex, WC changes for structural demo)
-                # Proper DCF would incorporate: FCF = NOPAT + D&A - Capex - dWC
-                projected_fcf = nopat
+                # Dynamic reinvestment rate (Capex & Working Capital) when provided
+                if assumptions.capex_percent_rev is not None or assumptions.wc_percent_rev is not None:
+                    reinvestment_rate = max(-0.05, min(0.12, (assumptions.capex_percent_rev or 0.0) + (assumptions.wc_percent_rev or 0.0)))
+                    projected_fcf = nopat - (current_rev * reinvestment_rate)
+                else:
+                    # Simplified FCF = NOPAT (ignoring D&A, Capex, WC changes for structural demo)
+                    projected_fcf = nopat
                 fcf.append(projected_fcf)
                 
             # Terminal Value
@@ -50,8 +64,8 @@ class DCFEngine:
             tg = assumptions.terminal_growth_rate + g_adj
             
             if wacc <= tg:
-                # Fallback to avoid negative denominator
-                tg = wacc - 0.001
+                # Mathematical boundary: terminal value undefined for WACC <= g_t
+                return 0.0
                 
             terminal_value = terminal_fcf / (wacc - tg)
             

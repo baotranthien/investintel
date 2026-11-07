@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { appNavigation } from "@/lib/navigation";
 import ColdStartBanner from "./cold-start-banner";
+import ThreeQualitySelector from "./three/three-quality-selector";
 import styles from "./app-shell.module.css";
 
 const groupLabels = {
@@ -23,6 +24,7 @@ function isActivePath(pathname: string, href: string) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isHomePage = pathname === "/";
   const currentItem = appNavigation.find((item) => isActivePath(pathname, item.href));
   const [isOnline, setIsOnline] = useState(true);
   const [currentTime, setCurrentTime] = useState("");
@@ -149,6 +151,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className={styles.topbarTelemetry}>
+            {isHomePage && <ThreeQualitySelector />}
             {currentTime && (
               <span className={`${styles.clockPill} tabular-nums`} title="Giờ thị trường">
                 <span className={styles.clockDot} />

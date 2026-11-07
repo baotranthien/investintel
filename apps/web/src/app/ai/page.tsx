@@ -410,6 +410,11 @@ function AIWorkspaceContent() {
                 {Boolean(answer.metadata_flags?.ias33_adjusted) && (
                   <span className={styles.iasWarningBadge}>⚠️ IAS 33 ADJUSTED</span>
                 )}
+                {Boolean(answer.symbol === "VNINDEX" || answer.citations?.some((c) => c.note?.includes("Proxy") || c.note?.includes("đại diện"))) && (
+                  <span className={styles.iasWarningBadge} style={{ background: "rgba(255, 149, 0, 0.12)", color: "#c96500", border: "1px solid rgba(255, 149, 0, 0.3)" }}>
+                    ⚠️ BỐI CẢNH ĐẠI DIỆN / PROXY CONTEXT (VN100)
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: "12px", color: "#6E6E73", display: "flex", gap: "10px", alignItems: "center" }}>
                 <span>{answer.model || "qwen3.5:9b-q4_K_M"}</span>

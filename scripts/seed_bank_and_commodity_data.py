@@ -217,6 +217,85 @@ def seed_energy_stock_prices(db) -> int:
     return inserted
 
 
+PLX_QUARTERLY_REVENUES = [
+    (2026, 2, date(2026, 4, 1), date(2026, 6, 30), 136046.30),
+    (2026, 1, date(2026, 1, 1), date(2026, 3, 31), 98724.24),
+    (2025, 4, date(2025, 10, 1), date(2025, 12, 31), 81843.10),
+    (2025, 3, date(2025, 7, 1), date(2025, 9, 30), 83631.41),
+    (2025, 2, date(2025, 4, 1), date(2025, 6, 30), 76538.98),
+    (2025, 1, date(2025, 1, 1), date(2025, 3, 31), 67861.03),
+    (2024, 4, date(2024, 10, 1), date(2024, 12, 31), 71055.34),
+    (2024, 3, date(2024, 7, 1), date(2024, 9, 30), 64352.15),
+    (2024, 2, date(2024, 4, 1), date(2024, 6, 30), 73559.42),
+    (2024, 1, date(2024, 1, 1), date(2024, 3, 31), 75131.89),
+    (2023, 4, date(2023, 10, 1), date(2023, 12, 31), 68656.42),
+    (2023, 3, date(2023, 7, 1), date(2023, 9, 30), 72414.13),
+    (2023, 2, date(2023, 4, 1), date(2023, 6, 30), 65749.81),
+    (2023, 1, date(2023, 1, 1), date(2023, 3, 31), 67432.31),
+    (2022, 4, date(2022, 10, 1), date(2022, 12, 31), 78383.07),
+    (2022, 3, date(2022, 7, 1), date(2022, 9, 30), 73694.77),
+    (2022, 2, date(2022, 4, 1), date(2022, 6, 30), 84982.54),
+    (2022, 1, date(2022, 1, 1), date(2022, 3, 31), 67019.92),
+    (2021, 4, date(2021, 10, 1), date(2021, 12, 31), 49371.86),
+    (2021, 3, date(2021, 7, 1), date(2021, 9, 30), 34625.30),
+    (2021, 2, date(2021, 4, 1), date(2021, 6, 30), 46868.91),
+    (2021, 1, date(2021, 1, 1), date(2021, 3, 31), 38247.06),
+    (2020, 4, date(2020, 10, 1), date(2020, 12, 31), 31276.77),
+    (2020, 3, date(2020, 7, 1), date(2020, 9, 30), 27461.97),
+]
+
+
+def seed_plx_quarterly_statements(db) -> int:
+    from database.models import DataSource, FinancialStatement, NormalizedIncome
+    asset = db.query(Asset).filter(Asset.symbol == "PLX").first()
+    if not asset:
+        return 0
+
+    count = db.query(FinancialStatement).filter(FinancialStatement.asset_id == asset.id).count()
+    if count >= 10:
+        return count
+
+    ds = db.query(DataSource).filter(DataSource.name == "VNDIRECT").first()
+    source_id = ds.id if ds else None
+
+    inserted = 0
+    for y, q, start, end, rev in PLX_QUARTERLY_REVENUES:
+        fs = FinancialStatement(
+            asset_id=asset.id,
+            symbol=asset.symbol,
+            source_id=source_id,
+            statement_type="INCOME_STATEMENT",
+            period_type="QUARTERLY",
+            fiscal_year=y,
+            fiscal_quarter=q,
+            fiscal_period_start=start,
+            fiscal_period_end=end,
+            statement_date=end,
+            publication_date=end,
+            consolidation="CONSOLIDATED",
+            currency="VND",
+        )
+        db.add(fs)
+        db.flush()
+
+        inc = NormalizedIncome(
+            statement_id=fs.id,
+            symbol=asset.symbol,
+            fiscal_period_end=end,
+            fiscal_year=y,
+            fiscal_quarter=q,
+            period_type="QUARTERLY",
+            revenue=rev,
+            net_income=rev * 0.02,
+        )
+        db.add(inc)
+        inserted += 1
+
+    db.commit()
+    print(f"Seeded {inserted} quarterly statements for PLX.")
+    return inserted
+
+
 def seed_bmp_prices(db) -> int:
     from datetime import timedelta
     asset = db.query(Asset).filter(Asset.symbol == "BMP").first()
@@ -248,6 +327,46 @@ def seed_bmp_prices(db) -> int:
         inserted += 1
     db.commit()
     print(f"Seeded {inserted} sample price records for BMP.")
+    return inserted
+
+
+def seed_bmp_corporate_actions(db) -> int:
+    """Seeds historical cash dividends for BMP adhering strictly to canonical corporate actions."""
+    from database.models import CorporateAction
+    from decimal import Decimal
+
+    existing = db.query(CorporateAction).filter(CorporateAction.symbol == "BMP").count()
+    if existing >= 5:
+        return existing
+
+    actions_data = [
+        {"action_date": date(2026, 6, 12), "action_type": "CASH_DIVIDEND", "value": Decimal("8360.0"), "notes": "Cổ tức tiền mặt đợt 2/2025 (8,360 đ/cp)"},
+        {"action_date": date(2025, 10, 20), "action_type": "CASH_DIVIDEND", "value": Decimal("6500.0"), "notes": "Cổ tức tiền mặt đợt 1/2025 (6,500 đ/cp)"},
+        {"action_date": date(2024, 12, 10), "action_type": "CASH_DIVIDEND", "value": Decimal("6100.0"), "notes": "Cổ tức tiền mặt đợt 2/2024 (6,100 đ/cp)"},
+        {"action_date": date(2024, 5, 15), "action_type": "CASH_DIVIDEND", "value": Decimal("6000.0"), "notes": "Cổ tức tiền mặt đợt 1/2024 (6,000 đ/cp)"},
+        {"action_date": date(2023, 11, 25), "action_type": "CASH_DIVIDEND", "value": Decimal("6500.0"), "notes": "Cổ tức tiền mặt đợt 2/2023 (6,500 đ/cp)"},
+        {"action_date": date(2023, 6, 10), "action_type": "CASH_DIVIDEND", "value": Decimal("5300.0"), "notes": "Cổ tức tiền mặt đợt 1/2023 (5,300 đ/cp)"},
+        {"action_date": date(2022, 12, 5), "action_type": "CASH_DIVIDEND", "value": Decimal("3100.0"), "notes": "Cổ tức tiền mặt đợt 2/2022 (3,100 đ/cp)"},
+        {"action_date": date(2022, 6, 15), "action_type": "CASH_DIVIDEND", "value": Decimal("1250.0"), "notes": "Cổ tức tiền mặt đợt 1/2022 (1,250 đ/cp)"},
+        {"action_date": date(2021, 12, 10), "action_type": "CASH_DIVIDEND", "value": Decimal("5000.0"), "notes": "Cổ tức tiền mặt đợt 2/2021 (5,000 đ/cp)"},
+        {"action_date": date(2021, 6, 20), "action_type": "CASH_DIVIDEND", "value": Decimal("3140.0"), "notes": "Cổ tức tiền mặt đợt 1/2021 (3,140 đ/cp)"},
+    ]
+
+    inserted = 0
+    for act in actions_data:
+        ca = CorporateAction(
+            symbol="BMP",
+            action_date=act["action_date"],
+            action_type=act["action_type"],
+            value=act["value"],
+            ratio=None,
+            notes=act["notes"],
+            source="SEED_CORPORATE_ACTIONS",
+        )
+        db.add(ca)
+        inserted += 1
+    db.commit()
+    print(f"Seeded {inserted} corporate action records for BMP.")
     return inserted
 
 

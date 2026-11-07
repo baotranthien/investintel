@@ -22,20 +22,78 @@ class OpportunityEngine:
         if not fund:
             return 50.0  # No data => neutral, NOT assumed positive
         score = 50.0
-        roe = fund.get("roe")
-        if roe is not None:
-            if roe > 0.20: score += 15
-            elif roe > 0.12: score += 8
-            elif roe < 0: score -= 20
-        profit_growth = fund.get("profit_growth_yoy")
-        if profit_growth is not None:
-            if profit_growth > 0.20: score += 15
-            elif profit_growth > 0: score += 5
-            elif profit_growth < -0.10: score -= 15
-        de_ratio = fund.get("de_ratio")
-        if de_ratio is not None:
-            if de_ratio > 3.0: score -= 10
-            elif de_ratio < 0.5: score += 5
+
+        sec = str(fund.get("sector") or "").strip().upper()
+        is_bank = sec in ("BANK", "BANKING")
+
+        if is_bank:
+            # Banking sector: leverage is natural; evaluate bank-specific health
+            roe = fund.get("roe")
+            if roe is not None:
+                if roe > 0.18: score += 18
+                elif roe > 0.12: score += 10
+                elif roe < 0: score -= 20
+
+            profit_growth = fund.get("profit_growth_yoy")
+            if profit_growth is not None:
+                if profit_growth > 0.20: score += 15
+                elif profit_growth > 0: score += 5
+                elif profit_growth < -0.10: score -= 15
+
+            # NIM scoring (auto-normalize if decimal)
+            nim = fund.get("nim")
+            if nim is not None:
+                nim_pct = nim * 100.0 if abs(nim) < 0.30 else nim
+                if nim_pct >= 3.8: score += 8
+                elif nim_pct < 2.5: score -= 6
+
+            # NPL ratio scoring (auto-normalize if decimal)
+            npl = fund.get("npl_ratio")
+            if npl is not None:
+                npl_pct = npl * 100.0 if abs(npl) < 0.30 else npl
+                if npl_pct <= 1.6: score += 8
+                elif npl_pct > 2.5: score -= 10
+
+            # LLR coverage scoring (auto-normalize if decimal)
+            llr = fund.get("llr_coverage") if fund.get("llr_coverage") is not None else fund.get("llr_ratio")
+            if llr is not None:
+                llr_pct = llr * 100.0 if abs(llr) < 3.0 else llr
+                if llr_pct >= 100.0: score += 5
+                elif llr_pct < 60.0: score -= 5
+        else:
+            # Non-banking sector (original baseline logic preserved)
+            roe = fund.get("roe")
+            if roe is not None:
+                if roe > 0.20: score += 15
+                elif roe > 0.12: score += 8
+                elif roe < 0: score -= 20
+            profit_growth = fund.get("profit_growth_yoy")
+            if profit_growth is not None:
+                if profit_growth > 0.20: score += 15
+                elif profit_growth > 0: score += 5
+                elif profit_growth < -0.10: score -= 15
+            de_ratio = fund.get("de_ratio")
+            if de_ratio is not None:
+                if de_ratio > 3.0: score -= 10
+                elif de_ratio < 0.5: score += 5
+
+        # Advanced signals for all sectors (only activate when keys are present in fund)
+        earn_accel = fund.get("earnings_acceleration")
+        if earn_accel is True:
+            score += 6
+        elif earn_accel is False or earn_accel == "DECELERATION":
+            score -= 5
+
+        cfo_pos = fund.get("cfo_positive")
+        if cfo_pos is True:
+            score += 5
+        elif cfo_pos is False:
+            score -= 6
+
+        mom_score = fund.get("price_momentum_score")
+        if mom_score is not None:
+            score += max(-10.0, min(10.0, float(mom_score)))
+
         return max(0.0, min(100.0, score))
 
     @staticmethod
@@ -103,7 +161,12 @@ class OpportunityEngine:
         Formula (not production-calibrated):
           raw = (f_score*0.25) + (v_score*0.25) + (m_score*0.20) + 20 + catalyst - risk_penalty
         """
-        data_available = bool(fundamental_data or valuation_data)
+        has_fund_metrics = any(
+            v is not None for k, v in fundamental_data.items()
+            if k not in ("sector",)
+        ) if fundamental_data else False
+        has_val_metrics = any(v is not None for v in valuation_data.values()) if valuation_data else False
+        data_available = has_fund_metrics or has_val_metrics
 
         f_score = OpportunityEngine._score_fundamental(fundamental_data)
         v_score = OpportunityEngine._score_valuation(valuation_data)

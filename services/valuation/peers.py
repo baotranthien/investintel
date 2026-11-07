@@ -67,13 +67,16 @@ class PeerComparisonEngine:
         "MANUFACTURING": ["BMP", "HPG", "HSG", "GVR"],
         "ENERGY": ["PLX", "BSR", "GAS", "PVD"],
         "OIL_GAS": ["PLX", "BSR", "GAS", "PVD"],
-        "UTILITIES": ["GAS", "PLX", "POW"],
+        "UTILITIES": ["REE", "POW", "NT2", "BWE"],
+        "UTILITY": ["REE", "POW", "NT2", "BWE"],
         "CONSUMER": ["VNM", "MSN", "SAB", "MCH"],
         "CONSUMER_GOODS": ["VNM", "MSN", "SAB", "MCH"],
         "REAL_ESTATE": ["VHM", "VIC", "VRE"],
         "CONGLOMERATE": ["VIC", "VHM", "MSN"],
         "SECURITIES": ["SSI", "VND", "HCM", "VCI"],
         "FINANCIALS": ["SSI", "VND", "HCM", "VCI"],
+        "INDUSTRIAL": ["CII", "CTD", "CTR", "GEE", "GEX", "HHV", "PC1", "VCG"],
+        "TRANSPORTATION": ["GMD", "HVN", "PVT", "VJC", "VSC", "VTP"],
     }
 
     def __init__(self, session: Session):
@@ -91,21 +94,14 @@ class PeerComparisonEngine:
             pass
 
         # 2. Check sector clustering with normalization
-        from services.fundamentals.sector_models import get_sector_for_symbol
-        raw_sector = sector or get_sector_for_symbol(sym)
-        sec_key = (raw_sector or "GENERAL").upper().replace(" ", "_")
-
-        # Normalize sector aliases
-        if sec_key in ("BANKING", "BANKS"):
-            sec_key = "BANK"
-        elif sec_key in ("CONSUMER", "CONSUMER_GOODS"):
-            sec_key = "CONSUMER_GOODS"
-        elif sec_key in ("OIL_GAS", "OIL_AND_GAS"):
-            sec_key = "ENERGY"
-        elif sec_key in ("FINANCIALS",):
-            sec_key = "SECURITIES"
-        elif sec_key in ("MANUFACTURING", "INDUSTRIAL", "INDUSTRIALS"):
-            sec_key = "MATERIALS"
+        from services.fundamentals.sector_models import get_sector_for_symbol, normalize_sector_name
+        sec_key = get_sector_for_symbol(sym, sector)
+        if sec_key in ("CONSUMER_GOODS",):
+            sec_key = "CONSUMER"
+        elif sec_key in ("OIL_AND_GAS",):
+            sec_key = "OIL_GAS"
+        elif sec_key in ("UTILITIES",):
+            sec_key = "UTILITY"
 
         if sec_key in self.SECTOR_PEER_FALLBACKS:
             peer_list = list(self.SECTOR_PEER_FALLBACKS[sec_key])
@@ -119,19 +115,14 @@ class PeerComparisonEngine:
     def _get_stock_row(self, sym: str, as_of: date, is_target: bool = False) -> Optional[PeerMetricRow]:
         asset = self.session.query(Asset).filter(Asset.symbol == sym).first()
         name = asset.name if asset else f"{sym} Corporation"
-        sec = asset.sector if asset and asset.sector else "GENERAL"
+        from services.fundamentals.sector_models import get_sector_for_symbol
+        sec = get_sector_for_symbol(sym, asset.sector if asset else None)
 
         # Price lookup
         price = None
         if asset:
-            p_row = (
-                self.session.query(Price)
-                .filter(Price.asset_id == asset.id, Price.status == "VALID", Price.observation_date <= as_of)
-                .order_by(Price.observation_date.desc())
-                .first()
-            )
-            if p_row:
-                price = float(p_row.adjusted_close if p_row.adjusted_close is not None else p_row.raw_close)
+            from services.market.canonical_price import CanonicalPriceResolver
+            price = CanonicalPriceResolver.get_latest_price_value(self.session, sym, as_of)
 
         # Fundamentals lookup
         repo = FinancialRepository(self.session)

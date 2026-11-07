@@ -476,7 +476,7 @@ export type AIChatRequest = {
 };
 
 export type AIChatResponse = {
-  status: "AVAILABLE" | "PARTIAL" | "INSUFFICIENT_DATA" | "PARTIAL_DATA_ONLY";
+  status: "AVAILABLE" | "PARTIAL" | "INSUFFICIENT_DATA" | "PARTIAL_DATA_ONLY" | "WRONG_SCOPE";
   symbol: string | null;
   as_of_date: string;
   prompt_version: string;
@@ -657,17 +657,43 @@ export async function streamAIChat(
   callbacks: AIStreamCallbacks,
   signal?: AbortSignal
 ): Promise<AIChatResponse | null> {
-  const response = await fetch("/api/v1/ai/chat/stream", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    },
-    body: JSON.stringify(payload),
-    credentials: "include",
-    cache: "no-store",
-    signal,
-  });
+  const isLocalHost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const directStreamUrl = isLocalHost
+    ? "http://127.0.0.1:8000/api/v1/ai/chat/stream"
+    : "/api/v1/ai/chat/stream";
+
+  let response: Response;
+  try {
+    response = await fetch(directStreamUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify(payload),
+      credentials: "include",
+      cache: "no-store",
+      signal,
+    });
+  } catch (networkErr) {
+    if (directStreamUrl !== "/api/v1/ai/chat/stream" && !signal?.aborted) {
+      response = await fetch("/api/v1/ai/chat/stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+        },
+        body: JSON.stringify(payload),
+        credentials: "include",
+        cache: "no-store",
+        signal,
+      });
+    } else {
+      throw networkErr;
+    }
+  }
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");

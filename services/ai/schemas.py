@@ -66,7 +66,7 @@ class AICitation(BaseModel):
 
 
 class AIChatResponse(BaseModel):
-    status: Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY"]
+    status: Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA", "PARTIAL_DATA_ONLY", "WRONG_SCOPE"]
     symbol: str | None = None
     resolved_symbol: str | None = None
     as_of_date: date

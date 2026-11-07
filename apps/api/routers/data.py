@@ -106,14 +106,16 @@ def get_providers():
         # Check FRED
         fred_key = os.getenv("FRED_API_KEY")
         fred_run = session.query(DataRun).filter(DataRun.provider == "FRED").order_by(DataRun.started_at.desc()).first()
+        fred_success = session.query(DataRun).filter(DataRun.provider == "FRED", DataRun.status == "SUCCESS").order_by(DataRun.started_at.desc()).first()
         fred_status = fred_run.status if fred_run else ("CONFIGURED" if fred_key else "BLOCKED")
-        fred_last_success = fred_run.finished_at.isoformat() if (fred_run and fred_run.status == "SUCCESS" and fred_run.finished_at) else None
+        fred_last_success = fred_success.finished_at.isoformat() if (fred_success and fred_success.finished_at) else None
 
         # Check BLS
         bls_key = os.getenv("BLS_API_KEY")
         bls_run = session.query(DataRun).filter(DataRun.provider == "BLS").order_by(DataRun.started_at.desc()).first()
+        bls_success = session.query(DataRun).filter(DataRun.provider == "BLS", DataRun.status == "SUCCESS").order_by(DataRun.started_at.desc()).first()
         bls_status = bls_run.status if bls_run else ("CONFIGURED" if bls_key else "BLOCKED")
-        bls_last_success = bls_run.finished_at.isoformat() if (bls_run and bls_run.status == "SUCCESS" and bls_run.finished_at) else None
+        bls_last_success = bls_success.finished_at.isoformat() if (bls_success and bls_success.finished_at) else None
 
         # Check MarketDataCSV
         csv_runs = session.query(DataRun).filter(DataRun.provider == "MarketDataCSV").order_by(DataRun.started_at.desc()).all()
@@ -122,6 +124,14 @@ def get_providers():
         csv_status = csv_last_run.status if csv_last_run else "NEVER_RUN"
         csv_last_success = csv_success_runs[0].finished_at.isoformat() if (csv_success_runs and csv_success_runs[0].finished_at) else None
         csv_records = sum(r.records_inserted or 0 for r in csv_success_runs)
+
+        # Check NSO_VIETNAM
+        nso_runs = session.query(DataRun).filter(DataRun.provider == "NSO_VIETNAM").order_by(DataRun.started_at.desc()).all()
+        nso_valid_runs = [r for r in nso_runs if r.status in ("SUCCESS", "PARTIAL") and r.finished_at]
+        nso_last_run = nso_runs[0] if nso_runs else None
+        nso_status = (nso_valid_runs[0].status if nso_valid_runs else nso_last_run.status) if nso_last_run else "BLOCKED"
+        nso_last_success = nso_valid_runs[0].finished_at.isoformat() if nso_valid_runs else None
+        nso_records = sum(r.records_inserted or 0 for r in nso_valid_runs)
 
         return [
             {
@@ -139,9 +149,9 @@ def get_providers():
                 "last_success": fred_last_success,
                 "records_last_run": fred_run.records_inserted if (fred_run and fred_run.status == "SUCCESS") else 0,
                 "data_freshness": "NEVER_RUN" if not fred_last_success else "RECENT",
-                "requires": "FRED_API_KEY environment variable",
-                "api_key_configured": bool(fred_key),
-                "reason": None if fred_key else "FRED_API_KEY environment variable is not configured"
+                "requires": "FRED_API_KEY or Public CSV fallback",
+                "api_key_configured": bool(fred_key) or bool(fred_last_success),
+                "reason": "Nguồn dữ liệu vĩ mô Fed (DGS10 / Fed Funds) đã kiểm định" if fred_last_success else (None if fred_key else "FRED_API_KEY environment variable is not configured")
             },
             {
                 "provider": "BLS",
@@ -149,19 +159,19 @@ def get_providers():
                 "last_success": bls_last_success,
                 "records_last_run": bls_run.records_inserted if (bls_run and bls_run.status == "SUCCESS") else 0,
                 "data_freshness": "NEVER_RUN" if not bls_last_success else "RECENT",
-                "requires": "BLS_API_KEY environment variable",
-                "api_key_configured": bool(bls_key),
-                "reason": None if bls_key else "BLS_API_KEY environment variable is not configured"
+                "requires": "BLS Public API / BLS_API_KEY",
+                "api_key_configured": bool(bls_key) or bool(bls_last_success),
+                "reason": "Nguồn dữ liệu CPI Hoa Kỳ (BLS Public API) đã kiểm định" if bls_last_success else (None if bls_key else "BLS_API_KEY environment variable is not configured")
             },
             {
                 "provider": "NSO_VIETNAM",
-                "status": "BLOCKED",
-                "last_success": None,
-                "records_last_run": 0,
-                "data_freshness": "NOT_IMPLEMENTED",
-                "requires": "Manual CSV/Excel import (No official public JSON API)",
-                "api_key_configured": False,
-                "reason": "General Statistics Office Vietnam requires manual publication table import"
+                "status": nso_status,
+                "last_success": nso_last_success,
+                "records_last_run": nso_records,
+                "data_freshness": "RECENT" if nso_last_success else "NOT_IMPLEMENTED",
+                "requires": "GSO / NSO SDMX & Canonical Macro Series",
+                "api_key_configured": bool(nso_last_success),
+                "reason": "Tổng cục Thống kê Việt Nam (CPI, GDP, FDI) đã đồng bộ" if nso_last_success else "General Statistics Office Vietnam requires manual publication table import"
             }
         ]
     finally:

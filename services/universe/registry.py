@@ -5,6 +5,7 @@ Authoritative source of truth for all supported market instruments in InvestInte
 from dataclasses import dataclass, field
 import json
 import logging
+import os
 from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -13,6 +14,25 @@ from sqlalchemy.orm import Session
 from database.models import Asset, IndexMembership, DataSource
 
 logger = logging.getLogger(__name__)
+
+
+def _can_auto_register_asset(session: Any) -> bool:
+    """Only allow automatic Asset row creation in disposable test DBs or when DB writes are explicitly enabled."""
+    if session is None or not hasattr(session, "query"):
+        return False
+    allow_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in ("1", "true", "yes")
+    if allow_write:
+        return True
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        try:
+            bind = session.get_bind()
+            url_str = str(getattr(bind, "url", "")).replace("\\", "/")
+            if "data/trading.db" in url_str:
+                return False
+        except Exception:
+            pass
+        return True
+    return False
 
 # Known index benchmarks
 BENCHMARK_INDICES: Dict[str, Dict[str, Any]] = {
@@ -35,7 +55,7 @@ BENCHMARK_INDICES: Dict[str, Dict[str, Any]] = {
         "exchange": "HOSE",
         "asset_type": "INDEX",
         "sector": "Benchmark",
-        "canonical_target": "VN100",  # Map VNINDEX queries to VN100 canonical benchmark
+        # Note: VNINDEX is preserved as distinct index entity (not silently remapped to VN100)
         "aliases": ["VNI", "VN-INDEX", "VN_INDEX", "HOSE:VNINDEX"]
     }
 }
@@ -140,7 +160,9 @@ NON_SYMBOL_WORDS: Set[str] = {
     "FYI", "CAGR", "EBIT", "EBITDA", "CASA", "NIM", "DCF", "DSO", "DIO",
     "DPO", "CCC", "BVPS", "FCF", "NAV", "WACC", "OPEX", "CAPEX", "TICKER",
     "STOCK", "INDEX", "ASOF", "DATE", "YEAR", "QUARTER", "SAN", "HOSE",
-    "HNX", "UPCOM", "VN30", "VN100", "VNI", "CODE",
+    "HNX", "UPCOM", "VN30", "VN100", "VNI", "CODE", "WTI", "NPL", "LLR",
+    "PEG", "CPI", "GDP", "YOY", "QOQ", "SBV", "BLS", "GSO", "NSO", "IAS",
+    "IFRS", "ETF", "CAR", "LDR", "CIR", "SGA", "BCTC",
 }
 
 _PREFIX_RE = re.compile(r"^(?:HOSE|HNX|UPCOM|INDEX|STOCK)[:/_-]", re.IGNORECASE)
@@ -349,7 +371,7 @@ class UniverseRegistry:
             if has_db:
                 try:
                     asset = session.query(Asset).filter(Asset.symbol == norm_sym).first()
-                    if not asset:
+                    if not asset and _can_auto_register_asset(session):
                         asset = Asset(
                             symbol=norm_sym,
                             name=meta["name"],
@@ -402,7 +424,7 @@ class UniverseRegistry:
         if norm_sym in constituents:
             c_data = constituents[norm_sym]
             asset = None
-            if has_db:
+            if has_db and _can_auto_register_asset(session):
                 try:
                     asset = Asset(
                         symbol=norm_sym,

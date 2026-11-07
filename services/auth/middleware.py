@@ -8,7 +8,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from services.auth.security import verify_session_token
+from services.auth.security import get_jwt_secret, verify_session_token
 
 logger = logging.getLogger(__name__)
 
@@ -69,16 +69,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         auth_required = is_auth_enabled() and not is_exempt
 
         if auth_required:
-            secret = os.getenv("APP_AUTH_SECRET")
-            # Fail closed in cloud mode if secret is missing
-            if not secret:
-                if is_cloud_mode():
-                    logger.critical("APP_AUTH_SECRET missing in cloud mode. Failing closed.")
-                    return JSONResponse(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        content={"detail": "Lỗi cấu hình bảo mật hệ thống.", "code": "AUTH_CONFIG_ERROR"},
-                    )
-                secret = "local-dev-secret-do-not-use-in-production-123456"
+            try:
+                secret = get_jwt_secret(require_valid=True)
+            except Exception as e:
+                logger.critical("JWT authentication secret missing or invalid: %s. Failing closed.", e)
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={
+                        "detail": "Lỗi cấu hình bảo mật hệ thống: Khóa JWT chưa được cấu hình hợp lệ.",
+                        "code": "AUTH_CONFIG_ERROR",
+                    },
+                )
 
             # Extract session token
             token = request.cookies.get(SESSION_COOKIE_NAME)
@@ -134,7 +135,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         # 4. Strict Cache-Control for private APIs: NEVER let CDN or browser cache private financial data
         if not is_exempt and path.startswith("/api/"):
-            response.headers["Cache-Control"] = "private, no-store, no-cache, must-revalidate"
+            if path.endswith("/stream"):
+                response.headers["Cache-Control"] = "private, no-store, no-cache, no-transform, must-revalidate"
+            else:
+                response.headers["Cache-Control"] = "private, no-store, no-cache, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
             response.headers["X-Content-Type-Options"] = "nosniff"

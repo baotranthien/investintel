@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { getAssets, getDataProviders, type AssetSummary, type DataProvider } from "@/lib/api";
 import styles from "./page.module.css";
+
+const InvestIntelSceneHost = dynamic(
+  () => import("@/components/three/investintel-scene-host"),
+  { ssr: false }
+);
 
 type LoadState<T> =
   | { status: "loading" }
@@ -117,7 +123,7 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
-      {/* 1. Confident Whitespace Hero */}
+      {/* 1. Confident Whitespace Hero with Dedicated 3D Spatial Stage */}
       <section className={styles.heroSection}>
         <div className={styles.heroContent}>
           <p className={styles.eyebrow}>INVESTINTEL · RESEARCH WORKSTATION</p>
@@ -127,10 +133,20 @@ export default function Home() {
           <p className={styles.heroLede}>
             Mô hình định lượng tính toán độc lập. AI tổng hợp và diễn giải có nguồn dẫn chứng minh bạch. Quyết định phân bổ luôn thuộc về nhà đầu tư.
           </p>
+          <div className={styles.heroActions}>
+            <button className={styles.refreshButton} onClick={reload} type="button" aria-label="Làm mới trạng thái">
+              ↻ <span>Làm mới hệ thống</span>
+            </button>
+            <div className={styles.engineBadge}>
+              <span className={styles.engineDot} />
+              <span>DETERMINISTIC QUANT ENGINE</span>
+            </div>
+          </div>
         </div>
-        <button className={styles.refreshButton} onClick={reload} type="button" aria-label="Làm mới trạng thái">
-          ↻ <span>Làm mới hệ thống</span>
-        </button>
+
+        <div className={styles.heroVisualStage} aria-label="AI Intelligence Globe 3D">
+          <InvestIntelSceneHost />
+        </div>
       </section>
 
       {/* 2. System Quality Telemetry Strip */}

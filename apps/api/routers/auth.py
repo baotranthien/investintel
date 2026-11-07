@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from services.auth.security import (
     check_failed_login_rate_limit,
     create_session_token,
+    get_jwt_secret,
     hash_password,
     record_failed_login,
     reset_failed_login,
@@ -67,25 +68,32 @@ async def login(req: LoginRequest, request: Request, response: Response):
             headers={"Retry-After": str(retry_after)},
         )
 
-    # 2. Retrieve server secrets
-    secret = os.getenv("APP_AUTH_SECRET")
-    password_hash = os.getenv("APP_AUTH_PASSWORD_HASH")
+    # 2. Retrieve server secrets (fail-closed if missing or insecure)
+    try:
+        secret = get_jwt_secret(require_valid=True)
+    except Exception as e:
+        logger.critical("Authentication secrets validation failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Cấu hình xác thực máy chủ chưa hoàn tất: Khóa bảo mật chưa được thiết lập.",
+        )
 
-    # Cloud mode fail closed requirement
+    password_hash = os.getenv("APP_AUTH_PASSWORD_HASH")
     if is_cloud_environment():
-        if not secret or not password_hash:
-            logger.critical("Authentication secrets missing in cloud mode.")
+        if not password_hash:
+            logger.critical("Authentication password hash missing in cloud mode.")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Cấu hình xác thực máy chủ chưa hoàn tất.",
             )
     else:
-        # In local dev if no secret is set, generate a transient secret
-        if not secret:
-            secret = "local-dev-secret-do-not-use-in-production-123456"
-        # If no password hash is set in dev, allow fallback check or require password
         if not password_hash:
-            dev_pw = os.getenv("APP_AUTH_PASSWORD", "admin123")
+            dev_pw = os.getenv("APP_AUTH_PASSWORD")
+            if not dev_pw:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Cấu hình mật khẩu máy chủ chưa hoàn tất. Vui lòng thiết lập APP_AUTH_PASSWORD hoặc APP_AUTH_PASSWORD_HASH.",
+                )
             password_hash = hash_password(dev_pw)
 
     # 3. Verify password
@@ -137,11 +145,9 @@ async def logout(response: Response):
 @router.get("/session")
 async def get_session(request: Request):
     """Inspect current session status without leaking sensitive data."""
-    secret = os.getenv("APP_AUTH_SECRET")
+    secret = get_jwt_secret(require_valid=False)
     if not secret:
-        if is_cloud_environment():
-            return {"authenticated": False, "reason": "auth_unconfigured"}
-        secret = "local-dev-secret-do-not-use-in-production-123456"
+        return {"authenticated": False, "reason": "auth_unconfigured"}
 
     token = request.cookies.get(SESSION_COOKIE_NAME)
     if not token:

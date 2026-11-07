@@ -18,24 +18,30 @@ async def lifespan(app: FastAPI):
     is_cloud = os.getenv("CLOUD_MODE", "false").lower() in {"1", "true", "yes"} or os.getenv("APP_ENV") == "production"
     enable_in_process = os.getenv("ENABLE_IN_PROCESS_SCHEDULER", "false" if (is_cloud or is_pytest) else "true").lower() in {"1", "true", "yes"}
     
-    if enable_in_process:
+    # Fail-closed authentication configuration validation on startup
+    from services.auth.security import validate_jwt_secret_configuration
+    validate_jwt_secret_configuration()
+    
+    allow_db_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
+    if enable_in_process and allow_db_write:
         if os.getenv("INGESTION_SCHEDULER_ENABLED", "true").lower() in {"1", "true", "yes"}:
             from services.ingestion.scheduler import scheduled_ingestion_loop
             scheduler_task = asyncio.create_task(scheduled_ingestion_loop(stop_event))
         if os.getenv("ANALYST_AUTOMATION_ENABLED", "false").lower() in {"1", "true", "yes"}:
             from services.ai.scheduler import scheduled_analyst_automation_loop
             analyst_task = asyncio.create_task(scheduled_analyst_automation_loop(stop_event))
-    # Idempotent reference data bootstrap check on startup
-    try:
-        from scripts.bootstrap_cloud_db import seed_reference_data
-        from database.connection import SessionLocal
-        init_session = SessionLocal()
+    # Idempotent reference data bootstrap check on startup (only when DB writes are explicitly enabled)
+    if allow_db_write and not is_pytest:
         try:
-            seed_reference_data(init_session)
-        finally:
-            init_session.close()
-    except Exception as exc:
-        logging.getLogger(__name__).warning("Reference data startup check: %s", exc)
+            from scripts.bootstrap_cloud_db import seed_reference_data
+            from database.connection import SessionLocal
+            init_session = SessionLocal()
+            try:
+                seed_reference_data(init_session)
+            finally:
+                init_session.close()
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Reference data startup check: %s", exc)
 
     try:
         yield

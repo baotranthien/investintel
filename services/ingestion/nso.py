@@ -133,6 +133,7 @@ class NsoProvider(BaseProvider):
 
         # 2. Extract observations from <Obs TIME_PERIOD="..." OBS_VALUE="..."/>
         points: List[MacroDataPoint] = []
+        seen_dates = set()
         for elem in root.iter():
             tag = elem.tag.split("}")[-1] if "}" in elem.tag else elem.tag
             if tag == "Obs":
@@ -163,7 +164,8 @@ class NsoProvider(BaseProvider):
                 elif re.match(r"^\d{4}$", time_period):
                     obs_date = date(int(time_period), 12, 31)
 
-                if obs_date:
+                if obs_date and obs_date not in seen_dates:
+                    seen_dates.add(obs_date)
                     points.append(MacroDataPoint(
                         series_id=series_id,
                         observation_date=obs_date,
@@ -173,6 +175,7 @@ class NsoProvider(BaseProvider):
                         release_date=pub_dt.date() if pub_dt else None
                     ))
 
+        points.sort(key=lambda p: p.observation_date)
         return points, pub_dt
 
     async def fetch_macro_series(self, series_id: str, **kwargs) -> List[MacroDataPoint]:

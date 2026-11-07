@@ -7,6 +7,11 @@ from sqlalchemy.orm import Session
 
 from database.models import Asset, IndexMembership, Price
 from services.fundamentals.repository import FinancialRepository
+from services.fundamentals.sector_models import (
+    get_sector_for_symbol,
+    normalize_sector_name,
+    COMPANY_SECTOR_MAP,
+)
 from services.fundamentals.snapshot import FundamentalSnapshotBuilder
 from services.opportunity.engine import OpportunityEngine
 
@@ -96,12 +101,13 @@ def _item_for_asset(
         }
 
     dataset = repository.get_financial_dataset(asset.symbol, as_of_date=as_of) if repository else None
+    resolved_sector = get_sector_for_symbol(asset.symbol, dataset.get("sector") if dataset else asset.sector)
     has_financials = bool(
         dataset and (dataset.get("income_annual") or dataset.get("income_quarters") or dataset.get("balance_annual"))
     )
 
     if has_financials and dataset:
-        builder = FundamentalSnapshotBuilder(asset.symbol, dataset.get("sector") or asset.sector)
+        builder = FundamentalSnapshotBuilder(asset.symbol, resolved_sector)
         snap = builder.build_snapshot(
             income_quarters=dataset.get("income_quarters", []),
             income_annual=dataset.get("income_annual", []),
@@ -115,16 +121,139 @@ def _item_for_asset(
         ni_yoy_val = snap.get("growth", {}).get("net_income_yoy", {}).get("value")
         profit_growth_yoy = (ni_yoy_val / 100.0) if ni_yoy_val is not None else None
         de_ratio = snap.get("balance_sheet", {}).get("de_ratio", {}).get("value")
-        fund_data = {"roe": roe, "profit_growth_yoy": profit_growth_yoy, "de_ratio": de_ratio}
+        fund_data = {
+            "sector": resolved_sector,
+            "roe": roe,
+            "profit_growth_yoy": profit_growth_yoy,
+            "de_ratio": de_ratio,
+        }
+
+        if resolved_sector == "BANK":
+            sec_metrics = snap.get("sector_metrics", {}).get("metrics", {})
+            nim = sec_metrics.get("nim", {}).get("value")
+            npl = sec_metrics.get("npl_ratio", {}).get("value")
+            llr = sec_metrics.get("llr_coverage", {}).get("value")
+            if nim is None or npl is None or llr is None:
+                try:
+                    from database.models import BankMetric
+                    bm = session.query(BankMetric).filter(
+                        BankMetric.asset_id == asset.id,
+                        BankMetric.fiscal_date <= as_of
+                    ).order_by(BankMetric.fiscal_date.desc()).first()
+                    if bm:
+                        if nim is None: nim = bm.nim
+                        if npl is None: npl = bm.npl_ratio
+                        if llr is None: llr = bm.llr_ratio
+                except Exception:
+                    pass
+            if nim is not None: fund_data["nim"] = nim
+            if npl is not None: fund_data["npl_ratio"] = npl
+            if llr is not None: fund_data["llr_coverage"] = llr
+
+        # Earnings acceleration from income_quarters
+        income_quarters = dataset.get("income_quarters", [])
+        if len(income_quarters) >= 5:
+            sorted_q = sorted(
+                [q for q in income_quarters if q.get("fiscal_period_end")],
+                key=lambda x: x["fiscal_period_end"]
+            )
+            if len(sorted_q) >= 5:
+                latest_q = sorted_q[-1]
+                prior_q = sorted_q[-2]
+
+                def _get_ni(q):
+                    return q.get("net_income_parent") or q.get("net_income") or 0.0
+
+                latest_ni = _get_ni(latest_q)
+                prior_ni = _get_ni(prior_q)
+                yoy_latest_base = _get_ni(sorted_q[-5])
+                yoy_prior_base = _get_ni(sorted_q[-6]) if len(sorted_q) >= 6 else None
+
+                if yoy_latest_base and abs(yoy_latest_base) > 0:
+                    g_latest = (latest_ni - yoy_latest_base) / abs(yoy_latest_base)
+                    if yoy_prior_base and abs(yoy_prior_base) > 0:
+                        g_prior = (prior_ni - yoy_prior_base) / abs(yoy_prior_base)
+                        if g_latest > g_prior:
+                            fund_data["earnings_acceleration"] = True
+                        elif g_latest < g_prior - 0.20 and g_latest < 0:
+                            fund_data["earnings_acceleration"] = False
+
+        # CFO positive from cash_flow
+        cf_data = snap.get("cash_flow", {})
+        cfo = cf_data.get("cfo")
+        cfo_ni = cf_data.get("cfo_to_ni", {})
+        cfo_to_ni_val = cfo_ni.get("value") if isinstance(cfo_ni, dict) else cfo_ni
+        if cfo is not None:
+            if cfo > 0 and (cfo_to_ni_val is None or cfo_to_ni_val >= 0.8):
+                fund_data["cfo_positive"] = True
+            elif cfo < 0:
+                fund_data["cfo_positive"] = False
+
+        # Price momentum score from 60 past trading sessions
+        try:
+            past_prices = session.query(Price.raw_close).filter(
+                Price.asset_id == asset.id,
+                Price.observation_date <= as_of,
+                Price.status == "VALID"
+            ).order_by(Price.observation_date.desc()).limit(60).all()
+            closes = [p[0] for p in past_prices if p[0] is not None]
+            if len(closes) >= 20:
+                current_p = closes[0]
+                ma20 = sum(closes[:20]) / 20.0
+                ret20 = (current_p - closes[19]) / closes[19] if closes[19] > 0 else 0.0
+                ma50 = sum(closes[:50]) / 50.0 if len(closes) >= 50 else ma20
+
+                mom = 0.0
+                if current_p > ma20: mom += 2.5
+                else: mom -= 2.5
+                if current_p > ma50: mom += 2.5
+                else: mom -= 2.5
+                if ma20 > ma50: mom += 2.0
+                else: mom -= 2.0
+
+                if ret20 > 0.05: mom += 3.0
+                elif ret20 > 0.0: mom += 1.0
+                elif ret20 < -0.05: mom -= 3.0
+                else: mom -= 1.0
+
+                fund_data["price_momentum_score"] = max(-10.0, min(10.0, mom))
+        except Exception:
+            pass
 
         eps = snap.get("per_share", {}).get("eps_ttm")
+        bvps = snap.get("per_share", {}).get("bvps") or snap.get("bvps")
         val_data = {}
         val_status = "INSUFFICIENT_DATA"
-        if latest_price and latest_price.raw_close and eps and eps > 0:
-            pe = latest_price.raw_close / eps
-            mos = 0.20 if pe < 12 else (0.10 if pe < 18 else (-0.15 if pe > 25 else 0.0))
-            val_data = {"pe": pe, "margin_of_safety": mos}
-            val_status = "AVAILABLE"
+        if latest_price and latest_price.raw_close:
+            price_val = float(latest_price.raw_close)
+            try:
+                from services.valuation.builder import ValuationSnapshotBuilder
+                val_builder = ValuationSnapshotBuilder(asset.symbol, resolved_sector)
+                fund_for_val = {
+                    "symbol": asset.symbol,
+                    "sector": resolved_sector,
+                    "eps_ttm": eps,
+                    "bvps": bvps,
+                    "shares_outstanding": dataset.get("shares_outstanding") or 1_000_000_000,
+                    "revenue_ttm": snap.get("revenue_ttm") or (dataset["income_annual"][-1].get("revenue") if dataset.get("income_annual") else None),
+                    "net_income_ttm": snap.get("net_income_ttm") or (dataset["income_annual"][-1].get("net_income_parent") if dataset.get("income_annual") else None),
+                    "net_debt": snap.get("balance_sheet", {}).get("net_debt", {}).get("value") if isinstance(snap.get("balance_sheet", {}).get("net_debt"), dict) else snap.get("balance_sheet", {}).get("net_debt"),
+                    "roe": roe_val,
+                }
+                val_snap = val_builder.build(fund_for_val, price_val, as_of)
+                if val_snap.margin_of_safety is not None:
+                    val_data["margin_of_safety"] = val_snap.margin_of_safety
+                    val_status = "AVAILABLE"
+                if eps and eps > 0:
+                    val_data["pe"] = price_val / eps
+                    if val_status == "INSUFFICIENT_DATA":
+                        val_status = "AVAILABLE"
+            except Exception:
+                if eps and eps > 0:
+                    pe = price_val / eps
+                    mos = 0.20 if pe < 12 else (0.10 if pe < 18 else (-0.15 if pe > 25 else 0.0))
+                    val_data = {"pe": pe, "margin_of_safety": mos}
+                    val_status = "AVAILABLE"
 
         engine_result = OpportunityEngine.calculate_medium_term(
             symbol=asset.symbol,
@@ -152,7 +281,7 @@ def _item_for_asset(
             symbol=asset.symbol,
             name=asset.name,
             asset_type=asset.asset_type,
-            sector=asset.sector,
+            sector=resolved_sector,
             opportunity_score=engine_result.opportunity_score,
             confidence=engine_result.confidence,
             risk_score=engine_result.risk_score,
@@ -182,7 +311,7 @@ def _item_for_asset(
         symbol=asset.symbol,
         name=asset.name,
         asset_type=asset.asset_type,
-        sector=asset.sector,
+        sector=resolved_sector,
         opportunity_score=None,
         confidence=engine_result.confidence,
         risk_score=None,
@@ -217,13 +346,20 @@ def build_opportunity_scanner(
     valuation_status: Optional[str] = None,
     symbol: Optional[str] = None,
 ) -> OpportunityScannerResponse:
-    sector_options = [
+    db_sectors = [
         value for (value,) in session.query(Asset.sector).filter(
             Asset.status == "ACTIVE",
             Asset.asset_type.in_(["STOCK", "ETF", "MUTUAL_FUND"]),
             Asset.sector.is_not(None),
-        ).distinct().order_by(Asset.sector).all()
+        ).distinct().all()
     ]
+    all_sectors = set(COMPANY_SECTOR_MAP.values())
+    for s in db_sectors:
+        n = normalize_sector_name(s)
+        if n:
+            all_sectors.add(n)
+    sector_options = sorted(list(all_sectors))
+
     universe_symbols = _universe_symbols(session, universe, as_of)
     query = session.query(Asset).filter(
         Asset.status == "ACTIVE",
@@ -232,7 +368,11 @@ def build_opportunity_scanner(
     if universe_symbols is not None:
         query = query.filter(Asset.symbol.in_(universe_symbols)) if universe_symbols else query.filter(Asset.id == -1)
     if sector:
-        query = query.filter(Asset.sector.ilike(sector))
+        norm_filter_sec = normalize_sector_name(sector) or sector.upper()
+        matching_symbols = [sym for sym, sec in COMPANY_SECTOR_MAP.items() if sec == norm_filter_sec]
+        query = query.filter(
+            (Asset.sector.ilike(f"%{sector}%")) | (Asset.symbol.in_(matching_symbols))
+        )
     if symbol:
         query = query.filter(Asset.symbol == symbol.upper())
 
@@ -268,6 +408,15 @@ def build_opportunity_scanner(
                 for asset in assets
             ]
         _SCANNER_CACHE[cache_key] = (now, list(items))
+
+    if sector:
+        norm_filter_sec = normalize_sector_name(sector) or sector.upper()
+        matching_symbols = [sym for sym, sec in COMPANY_SECTOR_MAP.items() if sec == norm_filter_sec]
+        items = [
+            item for item in items
+            if (item.sector and normalize_sector_name(item.sector) == norm_filter_sec)
+            or (item.symbol in matching_symbols)
+        ]
 
     unavailable_filters = []
     score_data_available = any(item.opportunity_score is not None for item in items)

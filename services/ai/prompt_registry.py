@@ -15,8 +15,12 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"pb", "pb_ratio", "price_to_book"},
     ),
     "roe": (
-        [r"\b(roe|lợi\s*nhuận\s*trên\s*vốn\s*chủ|sinh\s*lời\s*trên\s*vốn)\b"],
+        [r"\b(roe|lợi\s*nhuận\s*trên\s*vốn\s*chủ|sinh\s*lời\s*trên\s*vốn(?!\s*(?:đầu\s*tư|hoạt\s*động|hóa|hoá)))\b"],
         {"roe"},
+    ),
+    "roic": (
+        [r"\b(roic|return\s*on\s*invested\s*capital|lợi\s*nhuận\s*trên\s*vốn\s*(?:đầu\s*tư|hoạt\s*động))\b"],
+        {"roic"},
     ),
     "roa": (
         [r"\b(roa|sinh\s*lời\s*trên\s*tài\s*sản)\b"],
@@ -95,6 +99,10 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"cfo", "fcf", "cfo_to_ni", "fcf_to_ni"},
     ),
     # Solvency & Liquidity
+    "interest_coverage": (
+        [r"\b(khả\s*năng\s*(?:chi\s*trả\s*)?lãi\s*vay|chi\s*trả\s*lãi\s*vay|bao\s*phủ\s*lãi\s*vay|interest\s*coverage)\b"],
+        {"interest_coverage"},
+    ),
     "solvency_liquidity": (
         [r"\b(thanh\s*khoản|khả\s*năng\s*thanh\s*toán|current\s*ratio|quick\s*ratio)\b"],
         {"current_ratio", "quick_ratio", "interest_coverage"},
@@ -111,13 +119,49 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         [r"\b(nim|casa|tín\s*dụng|credit\s*growth|nợ\s*xấu|npl|llr)\b"],
         {"nim", "casa_ratio", "credit_growth", "npl_ratio", "llr_ratio"},
     ),
+    "revenue_commodity_correlation": (
+        [r"\b(tương\s*quan\s*doanh\s*thu|doanh\s*thu\s*và\s*(?:giá\s*)?dầu|doanh\s*thu\s*plx|revenue\s*(?:and|to|vs)\s*oil)\b"],
+        {"revenue_commodity_correlation"},
+    ),
     "macro_commodity": (
         [r"\b(giá\s*dầu|oil|brent|wti|tương\s*quan|correlation|lạm\s*phát|cpi|tỷ\s*giá|usd\/vnd)\b"],
-        {"pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct", "FX_USDVND", "VNM_CPI_YOY"},
+        {"revenue_commodity_correlation", "pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct", "FX_USDVND", "VNM_CPI_YOY"},
     ),
     "operating_expense": (
         [r"\b(chi\s*phí\s*hoạt\s*động|chi\s*phí\s*bán\s*hàng|chi\s*phí\s*quản\s*lý|opex|sga)\b"],
         {"operating_expense", "sga", "operating_cost"},
+    ),
+    "total_equity": (
+        [r"\b(vốn\s*chủ(?:\s*sở\s*hữu)?|quy\s*mô\s*vốn(?:\s*chủ)?|total\s*equity|equity\s*size)\b"],
+        {"total_equity", "equity", "bvps"},
+    ),
+    "dcf": (
+        [r"\b(dcf|chiết\s*khấu\s*dòng\s*tiền|kịch\s*bản\s*cơ\s*sở|base\s*case|fair\s*value|giá\s*trị\s*hợp\s*lý)\b"],
+        {"dcf_fair_value", "dcf_base", "composite_fair_value_base", "margin_of_safety", "wacc", "terminal_growth"},
+    ),
+    "peer_medians": (
+        [r"\b(trung\s*vị\s*ngành|peer\s*median|bình\s*quân\s*ngành|so\s*với\s*ngành|so\s*với\s*các\s*doanh\s*nghiệp\s*cùng\s*ngành|materials\s*peers)\b"],
+        {"peer_median_pe", "peer_median_pb", "peer_median_roe"},
+    ),
+    "dividends": (
+        [r"\b(cổ\s*tức|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|chính\s*sách\s*cổ\s*tức|chi\s*trả\s*cổ\s*tức)\b"],
+        {"dividend_yield", "cash_dividend", "dividend_payout_ratio"},
+    ),
+    "working_capital_cycle": (
+        [r"\b(ccc|chu\s*kỳ\s*tiền|dio|dso|dpo|vòng\s*quay\s*tồn\s*kho|vòng\s*quay\s*phải\s*thu|quản\s*lý\s*hàng\s*tồn\s*kho|quản\s*lý\s*vốn\s*lưu\s*động)\b"],
+        {"ccc", "dio", "dso", "dpo"},
+    ),
+    "market_regime": (
+        [r"\b(chế\s*độ\s*thị\s*trường|market\s*regime|độ\s*rộng(?:\s*thị\s*trường)?|breadth|số\s*mã\s*tăng|số\s*mã\s*giảm)\b"],
+        {"market_regime", "breadth_advancing", "breadth_declining", "market_breadth_pct"},
+    ),
+    "screener": (
+        [r"\b(tìm\s*các\s*cổ\s*phiếu|lọc\s*cổ\s*phiếu|screener|screen|thỏa\s*mãn\s*tiêu\s*chí|bộ\s*lọc)\b"],
+        {"screened_count", "matched_count", "matching_symbols"},
+    ),
+    "capex": (
+        [r"\b(chi\s*phí\s*vốn|tiến\s*độ\s*mở\s*rộng|capex|chi\s*tiêu\s*vốn|mở\s*rộng\s*nhà\s*máy|dự\s*án\s*mở\s*rộng)\b"],
+        {"capex", "capital_expenditure"},
     ),
 }
 
@@ -168,32 +212,86 @@ def extract_requested_metric_groups(question: str) -> dict[str, set[str]]:
         if not re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|price)\b", q_no_val):
             del requested["price"]
 
+    # 8. Disambiguate total equity from debt-to-equity
+    if "total_equity" in requested and "debt_to_equity" in requested:
+        q_no_de = re.sub(
+            r"\b(?:nợ\s*(?:vay|phải\s*trả)?\s*[\/\:]\s*vốn\s*chủ(?:\s*sở\s*hữu)?|nợ\s*(?:vay)?\s*trên\s*vốn(?:\s*chủ(?:\s*sở\s*hữu)?)?|d\/e|de\s*ratio|debt\s*(?:to|[\/])\s*equity)\b",
+            "",
+            q_lower,
+        )
+        if not re.search(r"\b(vốn\s*chủ(?:\s*sở\s*hữu)?|quy\s*mô\s*vốn(?:\s*chủ)?|total\s*equity|equity\s*size)\b", q_no_de):
+            del requested["total_equity"]
+        elif not re.search(r"\b(nợ|vay|d\/e|de\s*ratio|debt)\b", q_lower):
+            del requested["debt_to_equity"]
+
+    # 9. Disambiguate DCF valuation from generic valuation multiples
+    if "dcf" in requested and "valuation_multiples" in requested:
+        if not re.search(r"\b(bội\s*số|p\/e|p\/b|ev\/ebitda)\b", q_lower):
+            del requested["valuation_multiples"]
+
+    # 10. Disambiguate generic valuation multiples when specific multiples (pe/pb) or screener or peer_medians are present
+    if ("pe" in requested or "pb" in requested or "screener" in requested or "peer_medians" in requested) and "valuation_multiples" in requested:
+        if not re.search(r"\b(ev[\/\s]ebitda|bội\s*số)\b", q_lower):
+            del requested["valuation_multiples"]
+
+    # 11. Disambiguate cash balance vs working capital cash conversion cycle ("chu kỳ chuyển đổi tiền mặt")
+    if "cash_balance" in requested and "working_capital_cycle" in requested:
+        q_no_ccc = re.sub(r"\b(?:chu\s*kỳ\s*(?:chuyển\s*đổi\s*)?tiền(?:\s*mặt)?|ccc)\b", "", q_lower)
+        if not re.search(r"\b(tiền\s*và\s*tương\s*đương\s*tiền|tiền\s*mặt(?:\s*hiện\s*tại)?|lượng\s*tiền(?:\s*mặt)?|số\s*dư\s*tiền|tiền\s*hiện\s*tại|tiền\s*hiện\s*có|cash\s*balance)\b", q_no_ccc):
+            del requested["cash_balance"]
+
+    # 12. In a universe screener query, the requested metric is the screener result, not standalone single-stock criteria
+    if "screener" in requested:
+        for crit in ("pe", "pb", "roe", "roa", "roic", "valuation_multiples", "margins_generic"):
+            if crit in requested:
+                del requested[crit]
+
+    # 13. Disambiguate standalone revenue from revenue commodity correlation
+    if "revenue_commodity_correlation" in requested and "revenue" in requested:
+        q_no_corr = re.sub(r"\b(?:tương\s*quan\s*(?:giữa\s*)?doanh\s*thu|doanh\s*thu\s*(?:và|vs|to)\s*(?:giá\s*)?dầu|doanh\s*thu\s*plx)\b", "", q_lower)
+        if not re.search(r"\b(doanh\s*thu\s*(?:thuần|năm|quý)?|doanh\s*số|net\s*revenue)\b", q_no_corr):
+            del requested["revenue"]
+
+    # 10. Disambiguate ROE vs ROIC when only ROIC is requested
+    if "roic" in requested and "roe" in requested:
+        q_no_roic = re.sub(r"\b(?:roic|return\s*on\s*invested\s*capital)\b", "", q_lower)
+        if not re.search(r"\b(?:roe|lợi\s*nhuận\s*trên\s*vốn\s*chủ|sinh\s*lời\s*trên\s*vốn(?!\s*(?:đầu\s*tư|hoạt\s*động|hóa|hoá)))\b", q_no_roic):
+            del requested["roe"]
+
+    # 11. Disambiguate interest_coverage vs solvency_liquidity
+    if "interest_coverage" in requested and "solvency_liquidity" in requested:
+        if not re.search(r"\b(thanh\s*khoản|khả\s*năng\s*thanh\s*toán|current\s*ratio|quick\s*ratio)\b", q_lower):
+            del requested["solvency_liquidity"]
+
+    # 12. Disambiguate revenue_commodity_correlation vs generic macro_commodity
+    if "revenue_commodity_correlation" in requested and "macro_commodity" in requested:
+        del requested["macro_commodity"]
+
+    # 14. When peer_medians is in requested and the question does NOT compare an individual stock to peers
+    # (e.g. asking purely for sector medians like "Định giá P/E và P/B trung vị của nhóm cổ phiếu ngành vật liệu"),
+    # the requested metrics are the peer medians (peer_median_pe, peer_median_pb), not single-stock pe/pb/roe.
+    if "peer_medians" in requested:
+        if not re.search(r"\b(?:so\s*với|so\s*sánh|vs|chênh\s*lệch)\b", q_lower):
+            for m in ("pe", "pb", "roe", "roic", "valuation_multiples"):
+                if m in requested:
+                    del requested[m]
+
     return requested
 
 
-SYSTEM_PROMPT = """Bạn là trợ lý phân tích nghiên cứu đầu tư chuyên nghiệp của InvestIntel.
-Nhiệm vụ: Phân tích và trả lời câu hỏi của nhà đầu tư bằng tiếng Việt một cách khách quan, chính xác dựa trên dữ liệu bằng chứng được cung cấp.
-
-Quy tắc cốt lõi:
-1. Ngôn ngữ & Thuật ngữ:
-   - Luôn trả lời 100% bằng tiếng Việt tự nhiên, gãy gọn, đúng văn phong tài chính.
-   - Đơn vị 'VND/share' dịch chuẩn là 'VND/cổ phiếu', tuyệt đối không dịch là 'VND/thành viên'.
-   - Chỉ số P/E là hệ số định giá (lần), không bao giờ được gọi là lợi nhuận hoặc doanh thu.
-   - Biên lợi nhuận (gross_margin) là tỷ suất sinh lời, không được nhầm lẫn với tăng trưởng hay suy giảm doanh thu.
-2. Căn cứ dữ liệu & trích dẫn:
-   - Mọi nhận định có số liệu tài chính hoặc dữ kiện từ 'verifiable_evidence' PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['mã_bằng_chứng'] (ví dụ ['E001']).
-   - Phân biệt rõ từng mã cổ phiếu: Chỉ số của công ty nào (xem trường 'symbol' trong bằng chứng) PHẢI gán đúng cho công ty đó. Tuyệt đối không dùng số liệu của mã này để gán cho mã khác trong câu so sánh.
-   - Nếu bằng chứng có 'is_estimate': true hoặc có 'note' ghi nhận việc sử dụng số cổ phiếu cuối kỳ (period-end shares fallback), BẮT BUỘC phải nêu rõ đây là số liệu ước tính dựa trên số cổ phiếu cuối kỳ, không gọi là số liệu chính xác tuyệt đối.
-3. Chỉ số tính toán sẵn (Pre-computed Metrics):
-   - Các chỉ số: biên lợi nhuận ròng ('net_margin'), chênh lệch P/E và P/B giữa các mã ('pe_diff', 'pb_diff'), hệ số tương quan Pearson ('pearson_correlation'), chỉ số ngân hàng ('nim', 'casa_ratio', 'credit_growth', 'npl_ratio') ĐÃ ĐƯỢC TÍNH SẴN bằng Python trong danh sách verifiable_evidence.
-   - Hãy trích dẫn trực tiếp các con số có sẵn này kèm mã ID bằng chứng tương ứng. Tuyệt đối không tự làm toán hay tính nhẩm trong đầu.
-4. Nhất quán và Dữ liệu chưa chắc chắn:
-   - Nếu một chỉ số đã được cung cấp trong verifiable_evidence và đưa vào claims, TUYỆT ĐỐI KHÔNG ghi trong 'uncertainty' rằng chỉ số đó bị thiếu hay chưa cung cấp.
-   - Với các mã cổ phiếu hoặc chỉ tiêu không có dữ liệu, nêu rõ trong claims (claim_type='UNCERTAINTY', citation_ids=[]) hoặc trong 'uncertainty'.
-5. Cấu trúc JSON trả về (AIAnswerDraft):
-   - "answer": Bài phân tích tổng hợp trả lời trực tiếp câu hỏi của nhà đầu tư.
-   - "claims": Danh sách các mệnh đề phân tích (mỗi claim độc lập, có claim_type và citation_ids phù hợp).
-   - "uncertainty": Danh sách các chỉ số hoặc yếu tố thực sự còn thiếu/chưa kiểm chứng."""
+SYSTEM_PROMPT = """Bạn là trợ lý phân tích nghiên cứu đầu tư của InvestIntel. Trả lời 100% bằng tiếng Việt tự nhiên, khách quan dựa trên verifiable_evidence.
+Quy tắc bắt buộc:
+1. Thuật ngữ: 'VND/share' dịch là 'VND/cổ phiếu' (không dịch là thành viên); P/E là hệ số định giá (lần), không gọi là lợi nhuận/doanh thu; biên lợi nhuận (gross_margin) không nhầm với tăng trưởng doanh thu.
+2. Trích dẫn & thực thể:
+- Mọi mệnh đề chứa số liệu từ verifiable_evidence PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['E...'].
+- Gán đúng chỉ số theo trường 'symbol' của từng mã cổ phiếu; không gộp nhầm số liệu mã này sang mã khác.
+- Tương quan doanh thu PLX & giá dầu Brent: BẮT BUỘC trích dẫn 'revenue_commodity_correlation' (trên doanh thu quý), không dùng tương quan giá cổ phiếu thay cho doanh thu.
+- VNINDEX vs VN100: Nêu rõ chuỗi giá trực tiếp VNINDEX (toàn sàn HOSE) chưa có sẵn và trình bày VN100 làm bối cảnh đại diện (Proxy Context).
+- Nợ & khả năng trả nợ (như HPG): Cung cấp cả 'net_debt_ebitda' và 'interest_coverage'.
+- Trung vị ngành ('peer_median_pe', 'peer_median_pb', 'peer_median_roe' của *_PEERS): Không dùng chỉ số riêng của mã cổ phiếu thay cho trung vị ngành.
+- Định giá DCF ('dcf_base', 'composite_fair_value_base', 'margin_of_safety'), vốn chủ sở hữu ('total_equity' tỷ VND và 'pb'), bộ lọc ('screened_count', 'matched_count', 'matching_symbols'): Trích dẫn trực tiếp con số đã tính sẵn trong verifiable_evidence, tuyệt đối không tự tính nhẩm.
+- Nếu bằng chứng có 'is_estimate': true hoặc dùng số cổ phiếu cuối kỳ (period-end shares fallback), BẮT BUỘC nêu rõ đây là số liệu ước tính.
+3. Không ghi vào 'uncertainty' các chỉ số đã có trong verifiable_evidence."""
 
 
 def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
@@ -410,7 +508,6 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             "missing_requested_metrics": list(dict.fromkeys(missing_requested_metrics)),
             "context_budget": max_evidence_items,
         }
-        compact_context["evidence_telemetry"] = telemetry_info
         if isinstance(context, dict):
             context["evidence_telemetry"] = telemetry_info
 
@@ -420,19 +517,11 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         compact_context["unverified_or_missing_metrics"] = all_missing[:6]
 
     return (
-        f"Câu hỏi của nhà đầu tư:\n{question}\n\n"
-        "Dữ liệu bằng chứng được cung cấp (JSON):\n"
+        f"Câu hỏi:\n{question}\n\n"
+        "Bằng chứng (JSON):\n"
         f"{json.dumps(compact_context, ensure_ascii=False, separators=(',', ':'), default=str)}\n\n"
-        "Yêu cầu trả lời bằng tiếng Việt (JSON) tuân thủ cấu trúc AIAnswerDraft:\n"
-        "- Trả lời ngắn gọn, súc tích trong 150-200 từ.\n"
-        "- 'answer': Bài phân tích súc tích (1-2 đoạn ngắn) trả lời trực tiếp câu hỏi.\n"
-        "- 'claims': Danh sách từ 3 đến 5 mệnh đề logic cốt lõi (ngắn gọn, mỗi mệnh đề 1 câu):\n"
-        "  + BẮT BUỘC: Mỗi mệnh đề chứa số liệu phải trích dẫn ĐÚNG mã 'id' tương ứng của chỉ số đó trong danh sách verifiable_evidence.\n"
-        "  + Nếu phân tích nhiều mã cổ phiếu: ghi rõ mã cổ phiếu trong câu và chỉ trích dẫn đúng ID thuộc về mã đó.\n"
-        "  + Nếu chỉ số có 'is_estimate': true hoặc dùng số cổ phiếu cuối kỳ (fallback shares), BẮT BUỘC nêu rõ đây là ước tính.\n"
-        "  + Nếu trích dẫn số liệu/dữ kiện từ verifiable_evidence: claim_type='FACT' hoặc 'MODEL_OUTPUT' và citation_ids=['mã_bằng_chứng'].\n"
-        "  + Nếu là nhận định định tính, rủi ro, hoặc dữ liệu thiếu từ unverified_or_missing_metrics: claim_type='UNCERTAINTY' và citation_ids=[].\n"
-        "- 'uncertainty': Tối đa 2-3 gạch đầu dòng ngắn gọn về các chỉ số còn thiếu (không lặp lại các chỉ số đã có bằng chứng).\n\n"
-        "QUY ĐỊNH BẮT BUỘC VỀ ĐỘ DÀI: Xuất tối đa 2 đến 3 claims ngắn gọn (mỗi câu dưới 20 từ). "
-        "Phần 'answer' gồm 1 đến 2 câu súc tích. Hoàn thành toàn bộ JSON trong dưới 200 từ."
+        "Trả lời tiếng Việt theo JSON AIAnswerDraft (ngắn gọn dưới 160 từ):\n"
+        "- 'answer': 1-2 câu súc tích trả lời trực tiếp câu hỏi.\n"
+        "- 'claims': 2-4 mệnh đề ngắn (mỗi câu < 25 từ). Mệnh đề có số liệu từ verifiable_evidence PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['id']. Nếu chỉ số có is_estimate=true, nêu rõ là ước tính. Mệnh đề về dữ liệu thiếu đặt claim_type='UNCERTAINTY', citation_ids=[].\n"
+        "- 'uncertainty': Tối đa 2 mục ngắn gọn về dữ liệu còn thiếu (không lặp lại chỉ số đã có)."
     )

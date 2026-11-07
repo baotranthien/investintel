@@ -181,7 +181,7 @@ def seed_assets(session: Session) -> dict:
         # VN30 Constituents (verified official basket from HOSE / SSI iBoard)
         {"symbol": "ACB", "name": "Asia Commercial Joint Stock Bank", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "BID", "name": "Bank for Investment and Development of Vietnam", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
-        {"symbol": "BMP", "name": "Binh Minh Plastics Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "MANUFACTURING"},
+        {"symbol": "BMP", "name": "Binh Minh Plastics Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "MATERIALS"},
         {"symbol": "BSR", "name": "Binh Son Refining and Petrochemical Joint Stock Company", "asset_type": "STOCK", "exchange": "HOSE", "sector": "ENERGY"},
         {"symbol": "CTG", "name": "Viet Nam Joint Stock Commercial Bank for Industry and Trade", "asset_type": "STOCK", "exchange": "HOSE", "sector": "BANK"},
         {"symbol": "FPT", "name": "FPT Corporation", "asset_type": "STOCK", "exchange": "HOSE", "sector": "TECHNOLOGY"},
@@ -771,10 +771,10 @@ def seed_financial_statements(session: Session, source_id: int):
                 }
             ]
         },
-        # BMP (Manufacturing)
+        # BMP (Materials)
         {
             "symbol": "BMP",
-            "sector": "MANUFACTURING",
+            "sector": "MATERIALS",
             "periods": [
                 {
                     "fiscal_year": 2022, "fiscal_quarter": 4, "period_type": "ANNUAL",

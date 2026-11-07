@@ -26,8 +26,8 @@ function Log-Message {
     $entry = "[$ts] [$Level] $Msg"
     $color = switch ($Level) {
         "ERROR" { "Red" }
-        "WARN"  { "Yellow" }
-        "OK"    { "Green" }
+        "WARN" { "Yellow" }
+        "OK" { "Green" }
         default { "Cyan" }
     }
     Write-Host $entry -ForegroundColor $color
@@ -63,7 +63,8 @@ function Test-HttpEndpoint {
         $body = $reader.ReadToEnd()
         $resp.Close()
         return @{ Success = ($code -ge 200 -and $code -lt 400); StatusCode = $code; Body = $body }
-    } catch [System.Net.WebException] {
+    }
+    catch [System.Net.WebException] {
         if ($_.Response) {
             $code = [int]$_.Response.StatusCode
             $reader = New-Object System.IO.StreamReader($_.Response.GetResponseStream())
@@ -72,7 +73,8 @@ function Test-HttpEndpoint {
             return @{ Success = ($code -ge 200 -and $code -lt 400); StatusCode = $code; Body = $body }
         }
         return @{ Success = $false; StatusCode = 0; Error = $_.Message }
-    } catch {
+    }
+    catch {
         return @{ Success = $false; StatusCode = 0; Error = $_.Message }
     }
 }
@@ -113,25 +115,20 @@ if (-not $SkipLLM) {
 
     if ($ollamaHealth.Success) {
         Log-Message "Ollama is already running and healthy on port 11434." "OK"
-    } else {
+    }
+    else {
         if (-not $ollamaExe) {
             Log-Message "ERROR: Ollama executable not found. Please install Ollama." "ERROR"
             exit 1
         }
         Log-Message "Starting Ollama daemon ($ollamaExe serve)..." "INFO"
+        $env:OLLAMA_FLASH_ATTENTION = "1"
+        $env:OLLAMA_NUM_PARALLEL = "1"
         $ollamaLog = Join-Path $ProjectRoot "logs\ollama\ollama.log"
+        $ollamaErrLog = Join-Path $ProjectRoot "logs\ollama\ollama_err.log"
         Rotate-LogFile -FilePath $ollamaLog
 
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = $ollamaExe
-        $psi.Arguments = "serve"
-        $psi.WorkingDirectory = $ProjectRoot
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-
-        $proc = [System.Diagnostics.Process]::Start($psi)
+        $proc = Start-Process -FilePath $ollamaExe -ArgumentList "serve" -WorkingDirectory $ProjectRoot -RedirectStandardOutput $ollamaLog -RedirectStandardError $ollamaErrLog -WindowStyle Hidden -PassThru
         if ($proc) {
             Set-Content -Path (Join-Path $RunDir "ollama.pid") -Value $proc.Id
             Log-Message "Ollama process launched with PID $($proc.Id). Waiting for HTTP health..." "INFO"
@@ -148,10 +145,12 @@ if (-not $SkipLLM) {
             }
             if ($ready) {
                 Log-Message "Ollama is healthy on http://127.0.0.1:11434." "OK"
-            } else {
+            }
+            else {
                 Log-Message "WARNING: Ollama process started (PID $($proc.Id)) but health check timed out." "WARN"
             }
-        } else {
+        }
+        else {
             Log-Message "ERROR: Failed to launch Ollama process." "ERROR"
             exit 1
         }
@@ -162,7 +161,8 @@ if (-not $SkipLLM) {
     if ($tagsCheck.Success -and $tagsCheck.Body) {
         if ($tagsCheck.Body -notlike "*qwen3.5:9b-q4_K_M*") {
             Log-Message "WARNING: Primary model 'qwen3.5:9b-q4_K_M' not found in Ollama models list." "WARN"
-        } else {
+        }
+        else {
             Log-Message "Verified primary model 'qwen3.5:9b-q4_K_M' is available." "OK"
         }
     }
@@ -190,21 +190,18 @@ $apiHealth = Test-HttpEndpoint -Url "http://127.0.0.1:8000/health"
 
 if ($apiHealth.Success) {
     Log-Message "FastAPI Backend is already running and healthy on port 8000." "OK"
-} else {
+}
+else {
     Log-Message "Starting FastAPI Uvicorn server on port 8000..." "INFO"
     $backendLog = Join-Path $ProjectRoot "logs\backend\backend.log"
+    $backendErrLog = Join-Path $ProjectRoot "logs\backend\backend_err.log"
     Rotate-LogFile -FilePath $backendLog
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = $pyExe
-    $psi.Arguments = "-m uvicorn apps.api.main:app --port 8000 --host 127.0.0.1"
-    $psi.WorkingDirectory = $ProjectRoot
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.UseShellExecute = $false
-    $psi.CreateNoWindow = $true
+    $env:ALLOW_PRODUCTION_DB_WRITE = "false"
+    $env:ENABLE_IN_PROCESS_SCHEDULER = "false"
+    $env:INGESTION_SCHEDULER_ENABLED = "false"
 
-    $proc = [System.Diagnostics.Process]::Start($psi)
+    $proc = Start-Process -FilePath $pyExe -ArgumentList "-m uvicorn apps.api.main:app --port 8000 --host 127.0.0.1" -WorkingDirectory $ProjectRoot -RedirectStandardOutput $backendLog -RedirectStandardError $backendErrLog -WindowStyle Hidden -PassThru
     if ($proc) {
         Set-Content -Path (Join-Path $RunDir "backend.pid") -Value $proc.Id
         Log-Message "FastAPI launched with PID $($proc.Id). Waiting for HTTP health..." "INFO"
@@ -221,10 +218,12 @@ if ($apiHealth.Success) {
         }
         if ($ready) {
             Log-Message "FastAPI Backend is healthy on http://127.0.0.1:8000." "OK"
-        } else {
+        }
+        else {
             Log-Message "WARNING: FastAPI process started (PID $($proc.Id)) but health check timed out." "WARN"
         }
-    } else {
+    }
+    else {
         Log-Message "ERROR: Failed to launch FastAPI process." "ERROR"
         exit 1
     }
@@ -239,21 +238,14 @@ if (-not $SkipFrontend) {
 
     if ($webHealth.Success -or $webHealth.StatusCode -eq 200 -or $webHealth.StatusCode -eq 307) {
         Log-Message "Next.js Frontend is already running and healthy on port 3000." "OK"
-    } else {
+    }
+    else {
         Log-Message "Starting Next.js Turbopack dev server on port 3000..." "INFO"
         $frontendLog = Join-Path $ProjectRoot "logs\frontend\frontend.log"
+        $frontendErrLog = Join-Path $ProjectRoot "logs\frontend\frontend_err.log"
         Rotate-LogFile -FilePath $frontendLog
 
-        $psi = New-Object System.Diagnostics.ProcessStartInfo
-        $psi.FileName = "cmd.exe"
-        $psi.Arguments = "/c npm --prefix apps/web run dev"
-        $psi.WorkingDirectory = $ProjectRoot
-        $psi.RedirectStandardOutput = $true
-        $psi.RedirectStandardError = $true
-        $psi.UseShellExecute = $false
-        $psi.CreateNoWindow = $true
-
-        $proc = [System.Diagnostics.Process]::Start($psi)
+        $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm --prefix apps/web run dev" -WorkingDirectory $ProjectRoot -RedirectStandardOutput $frontendLog -RedirectStandardError $frontendErrLog -WindowStyle Hidden -PassThru
         if ($proc) {
             Set-Content -Path (Join-Path $RunDir "frontend.pid") -Value $proc.Id
             Log-Message "Next.js launched with PID $($proc.Id). Waiting for readiness..." "INFO"
@@ -270,10 +262,12 @@ if (-not $SkipFrontend) {
             }
             if ($ready) {
                 Log-Message "Next.js Frontend is ready on http://localhost:3000." "OK"
-            } else {
+            }
+            else {
                 Log-Message "WARNING: Next.js process started (PID $($proc.Id)) but readiness check timed out." "WARN"
             }
-        } else {
+        }
+        else {
             Log-Message "ERROR: Failed to launch Next.js frontend." "ERROR"
         }
     }

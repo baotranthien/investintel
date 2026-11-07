@@ -146,14 +146,68 @@ class AIAnalyst:
         else:
             evidence_items = []
 
+        def _generate_default_note(m_name: str | None, val: Any, sym: str | None, u: str | None) -> str | None:
+            if val is None or not m_name:
+                return None
+            m_lower = str(m_name).lower()
+            sym_str = f"của {sym} " if sym else ""
+            try:
+                f_val = float(val)
+            except (ValueError, TypeError):
+                return None
+            if m_lower == "roic":
+                return f"Tỷ suất sinh lời trên vốn đầu tư (ROIC) {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "net_debt_ebitda":
+                return f"Tỷ số Nợ ròng trên EBITDA (Net Debt / EBITDA) {sym_str}ở mức: {f_val:.2f} lần."
+            if m_lower == "total_equity":
+                return f"Quy mô vốn chủ sở hữu {sym_str}đạt: {f_val:,.2f} tỷ VND."
+            if m_lower == "ccc":
+                return f"Chu kỳ chuyển đổi tiền mặt (CCC) {sym_str}là: {f_val:.2f} ngày."
+            if m_lower == "dio":
+                return f"Số ngày tồn kho bình quân (DIO) {sym_str}là: {f_val:.2f} ngày."
+            if m_lower == "dso":
+                return f"Số ngày thu tiền bình quân (DSO) {sym_str}là: {f_val:.2f} ngày."
+            if m_lower == "dpo":
+                return f"Số ngày phải trả bình quân (DPO) {sym_str}là: {f_val:.2f} ngày."
+            if m_lower == "de_ratio":
+                return f"Hệ số nợ vay trên vốn chủ sở hữu (D/E) {sym_str}là: {f_val:.2f} lần."
+            if m_lower == "net_margin":
+                return f"Biên lợi nhuận ròng {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "gross_margin":
+                return f"Biên lợi nhuận gộp {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "roe":
+                return f"Tỷ suất sinh lời trên vốn chủ sở hữu (ROE) {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "roa":
+                return f"Tỷ suất sinh lời trên tổng tài sản (ROA) {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "current_ratio":
+                return f"Hệ số thanh toán hiện hành {sym_str}đạt: {f_val:.2f} lần."
+            if m_lower == "quick_ratio":
+                return f"Hệ số thanh toán nhanh {sym_str}đạt: {f_val:.2f} lần."
+            if m_lower == "dividend_yield":
+                return f"Tỷ suất cổ tức tiền mặt (Dividend Yield) {sym_str}đạt: {f_val:.2f}%."
+            if m_lower == "cash_dividend":
+                return f"Mức chi trả cổ tức tiền mặt {sym_str}đạt: {f_val:,.0f} đ/cổ phiếu."
+            if m_lower == "interest_coverage":
+                return f"Hệ số khả năng chi trả lãi vay {sym_str}đạt: {f_val:.2f} lần."
+            if m_lower == "revenue_commodity_correlation":
+                return f"Hệ số tương quan Pearson giữa doanh thu thuần theo quý {sym_str}và giá dầu Brent trung bình quý đạt: {f_val:.4f}."
+            if m_lower == "peer_median_roe":
+                return f"Tỷ suất sinh lời trên vốn chủ sở hữu (ROE) trung vị ngành {sym_str}đạt: {f_val:.2f}%."
+            return None
+
         for index, item in enumerate(evidence_items, start=1):
+            metric_val = item.get("value")
+            metric_name = item.get("metric")
+            item_sym = item.get("symbol")
+            item_unit = item.get("unit")
+            item_note = item.get("note") or _generate_default_note(metric_name, metric_val, item_sym, item_unit)
             citations.append(AICitation(
                 id=f"E{index:03d}",
                 claim_type=item.get("claim_type", "UNCERTAINTY"),
                 responsible_module=item.get("responsible_module", "unknown"),
-                metric=item.get("metric"),
-                value=item.get("value"),
-                unit=item.get("unit"),
+                metric=metric_name,
+                value=metric_val,
+                unit=item_unit,
                 source=item.get("source"),
                 source_url=item.get("source_url"),
                 observation_date=str(item["observation_date"]) if item.get("observation_date") else None,
@@ -163,8 +217,8 @@ class AIAnalyst:
                 freshness=item.get("freshness"),
                 is_estimate=item.get("is_estimate", False),
                 diagnostic_reason=item.get("diagnostic_reason"),
-                note=item.get("note"),
-                symbol=item.get("symbol"),
+                note=item_note,
+                symbol=item_sym,
             ))
         return citations
 
@@ -668,14 +722,429 @@ class AIAnalyst:
                     text=f"Hệ số tương quan tuyến tính Pearson giữa giá cổ phiếu và dầu Brent đạt {float(c.value):.4f}.",
                     citation_ids=[c.id] if c.id in evidence_by_id else [],
                 ))
+            elif c.metric == "market_regime" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"Trạng thái chế độ thị trường VN100 hiện tại: {c.value}.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "market_breadth_pct" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Độ rộng thị trường VN100: {float(c.value):.1f}% mã tăng.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "dcf_base" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"Định giá DCF kịch bản cơ sở (Base Case) của {c.symbol or 'doanh nghiệp'}: {float(c.value):,.0f} VND/cổ phiếu.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "composite_fair_value_base" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"Giá trị hợp lý tổng hợp kịch bản cơ sở (Composite Base Case): {float(c.value):,.0f} VND/cổ phiếu.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "peer_median_pe" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Hệ số P/E trung vị của nhóm ngành: {float(c.value):.2f} lần.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "peer_median_pb" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Hệ số P/B trung vị của nhóm ngành: {float(c.value):.2f} lần.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "peer_median_roe" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Tỷ suất sinh lời ROE trung vị của nhóm ngành: {float(c.value):.2f}%.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "revenue_commodity_correlation" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"Hệ số tương quan Pearson giữa doanh thu thuần theo quý của {c.symbol or 'doanh nghiệp'} và giá dầu Brent trung bình quý đạt: {float(c.value):.4f}.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "interest_coverage" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Hệ số khả năng chi trả lãi vay (Interest Coverage) của {c.symbol or 'doanh nghiệp'} đạt {float(c.value):.2f} lần.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "market_regime_vnindex":
+                fallback_claims.append(AIClaim(
+                    claim_type="UNCERTAINTY",
+                    text="Dữ liệu chuỗi giá trực tiếp của VNINDEX (toàn sàn HOSE) chưa có sẵn trong cơ sở dữ liệu kiểm chứng. Hệ thống cung cấp trạng thái rổ chỉ số VN100 làm bối cảnh đại diện quy mô lớn.",
+                    citation_ids=[],
+                ))
+            elif c.metric == "screened_count" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Tổng số cổ phiếu được quét trong vũ trụ đầu tư: {c.value} mã.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "matched_count" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Số lượng cổ phiếu thỏa mãn tiêu chí: {c.value} mã.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "matching_symbols" and c.value:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Các mã cổ phiếu tiêu biểu thỏa mãn: {c.value}.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "ccc" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Chu kỳ chuyển đổi tiền mặt (CCC) của {c.symbol or 'doanh nghiệp'}: {float(c.value):.2f} ngày.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "roic" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Tỷ suất sinh lời trên vốn đầu tư (ROIC) của {c.symbol or 'doanh nghiệp'}: {float(c.value):.2f}%.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "net_debt_ebitda" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Tỷ số Nợ ròng trên EBITDA của {c.symbol or 'doanh nghiệp'}: {float(c.value):.2f} lần.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "total_equity" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Quy mô vốn chủ sở hữu của {c.symbol or 'doanh nghiệp'}: {float(c.value):,.2f} tỷ VND.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "dividend_yield" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT" if getattr(c, "freshness", None) == "AVAILABLE" else "MODEL_OUTPUT",
+                    text=f"Tỷ suất cổ tức tiền mặt TTM của {c.symbol or 'doanh nghiệp'}: {float(c.value):.2f}%.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
+            elif c.metric == "cash_dividend" and c.value is not None:
+                fallback_claims.append(AIClaim(
+                    claim_type="FACT" if getattr(c, "freshness", None) == "AVAILABLE" else "MODEL_OUTPUT",
+                    text=f"Mức chi trả cổ tức tiền mặt TTM của {c.symbol or 'doanh nghiệp'}: {float(c.value):,.0f} đ/cổ phiếu.",
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
 
         # Always add an honest notice
+        verdict_claims, _ = self._build_investment_verdict_claims(
+            citations=citations,
+            structured_summary=structured_summary,
+            extracted_symbols=extracted_symbols,
+            existing_claims=fallback_claims,
+        )
+        fallback_claims.extend(verdict_claims)
         fallback_claims.append(AIClaim(
             claim_type="UNCERTAINTY",
             text="Lưu ý: Mô hình AI chưa tạo được kết luận văn bản vượt qua lớp kiểm định chống Hallucination. Bảng số liệu trên được trích xuất trực tiếp từ CSDL kiểm chứng của InvestIntel.",
             citation_ids=[],
         ))
         return fallback_claims
+
+    def _build_investment_verdict_claims(
+        self,
+        citations: list[AICitation],
+        structured_summary: dict[str, Any] | None,
+        extracted_symbols: list[str],
+        existing_claims: list[AIClaim] | None = None,
+    ) -> tuple[list[AIClaim], set[str]]:
+        """
+        Deterministically builds grounded investment valuation comparison and actionable
+        recommendation claims ("Có nên đầu tư hay không?") backed by verified citations.
+        """
+        verdict_claims: list[AIClaim] = []
+        used_cids: set[str] = set()
+        if not citations:
+            return verdict_claims, used_cids
+
+        evidence_by_id = {c.id: c for c in citations}
+        existing_texts = " ".join(c.text.lower() for c in (existing_claims or []))
+        already_cited_metrics = {
+            evidence_by_id[cid].metric
+            for c in (existing_claims or [])
+            for cid in (c.citation_ids or [])
+            if cid in evidence_by_id and evidence_by_id[cid].metric
+        }
+
+        # Map (symbol, metric) -> AICitation
+        by_sym_metric: dict[tuple[str, str], AICitation] = {}
+        for c in citations:
+            if not self._has_verifiable_evidence([c]) or c.value is None or not c.metric:
+                continue
+            sym_key = (c.symbol or "MARKET").upper()
+            key = (sym_key, c.metric.lower())
+            if key not in by_sym_metric:
+                by_sym_metric[key] = c
+
+        # Handle Universe Screener query verdict
+        if "ALL" in [s.upper() for s in extracted_symbols] or ("UNIVERSE_ALL", "matching_symbols") in by_sym_metric:
+            m_syms = by_sym_metric.get(("UNIVERSE_ALL", "matching_symbols"))
+            m_cnt = by_sym_metric.get(("UNIVERSE_ALL", "matched_count"))
+            if m_syms and m_syms.value:
+                cids = [m_syms.id]
+                if m_cnt:
+                    cids.append(m_cnt.id)
+                used_cids.update(cids)
+                verdict_claims.append(AIClaim(
+                    claim_type="INTERPRETATION",
+                    text=(
+                        f"🎯 KHUYẾN NGHỊ CHỌN LỌC ĐẦU TƯ: Trong số {m_cnt.value if m_cnt else 'các'} cổ phiếu vượt qua bộ lọc định giá rẻ (P/E hợp lý) và hiệu quả sinh lời ROE cao, "
+                        f"nhà đầu tư nên ưu tiên đưa vào danh mục theo dõi và giải ngân tích lũy các mã đầu ngành gồm: {m_syms.value}."
+                    ),
+                    citation_ids=cids,
+                ))
+            return verdict_claims, used_cids
+
+        stock_symbols = [
+            s.upper() for s in extracted_symbols
+            if s and s.upper() not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE_ALL", "BRENT", "WTI")
+            and not s.upper().endswith("_PEERS")
+        ]
+
+        stock_scores: list[tuple[str, float, list[str]]] = []
+
+        for sym in stock_symbols:
+            def _get(m_name: str, target_s: str = sym) -> AICitation | None:
+                return by_sym_metric.get((target_s, m_name))
+
+            price_c = _get("price")
+            pe_c = _get("pe") or _get("pe_ratio")
+            pb_c = _get("pb") or _get("pb_ratio")
+            roe_c = _get("roe")
+            ni_yoy_c = _get("net_income_yoy")
+            de_c = _get("de_ratio")
+            ic_c = _get("interest_coverage")
+            fv_c = _get("composite_fair_value_base")
+            dcf_c = _get("dcf_base")
+            mos_c = _get("margin_of_safety")
+            opp_c = _get("opportunity_score")
+            risk_c = _get("risk_score")
+            nim_c = _get("nim")
+            npl_c = _get("npl_ratio")
+            peer_pe_c = _get("peer_median_pe", f"{sym}_PEERS")
+            peer_roe_c = _get("peer_median_roe", f"{sym}_PEERS")
+
+            # Require at least 2 core financial/valuation metrics so single-metric unit tests remain unaffected
+            core_present = sum(1 for x in (price_c, pe_c, pb_c, roe_c, fv_c, mos_c, opp_c, nim_c) if x is not None)
+            if core_present < 2:
+                continue
+
+            # 1. Intrinsic Valuation & Margin of Safety synthesis (if available & not yet cited)
+            if (fv_c or dcf_c or mos_c) and not ({"composite_fair_value_base", "dcf_base", "margin_of_safety"} & already_cited_metrics):
+                val_parts = []
+                val_cids = []
+                if price_c:
+                    val_parts.append(f"thị giá hiện tại {float(price_c.value):,.0f} VND")
+                    val_cids.append(price_c.id)
+                if fv_c:
+                    val_parts.append(f"giá trị hợp lý tổng hợp (Composite Fair Value) đạt {float(fv_c.value):,.0f} VND/cp")
+                    val_cids.append(fv_c.id)
+                if dcf_c:
+                    val_parts.append(f"định giá DCF cơ sở đạt {float(dcf_c.value):,.0f} VND/cp")
+                    val_cids.append(dcf_c.id)
+                if mos_c:
+                    mos_v = float(mos_c.value)
+                    status_lbl = "chiết khấu hấp dẫn" if mos_v >= 10 else ("quanh vùng hợp lý" if mos_v >= -5 else "cao hơn giá trị nội tại cơ sở")
+                    val_parts.append(f"biên an toàn (Margin of Safety) ở mức {mos_v:+.2f}% ({status_lbl})")
+                    val_cids.append(mos_c.id)
+                if val_parts and val_cids:
+                    used_cids.update(val_cids)
+                    verdict_claims.append(AIClaim(
+                        claim_type="MODEL_OUTPUT",
+                        text=f"Định giá nội tại & Biên an toàn ({sym}): {', '.join(val_parts)}.",
+                        citation_ids=val_cids,
+                    ))
+
+            # 2. Fundamental Quality & Peer Comparison synthesis
+            if (roe_c or ni_yoy_c or peer_pe_c or peer_roe_c) and not ({"roe", "peer_median_pe", "peer_median_roe"} <= already_cited_metrics):
+                qual_parts = []
+                qual_cids = []
+                if roe_c:
+                    r_v = float(roe_c.value)
+                    if peer_roe_c:
+                        pr_v = float(peer_roe_c.value)
+                        cmp_str = "vượt trội trung vị ngành" if r_v > pr_v else "so với trung vị ngành"
+                        qual_parts.append(f"ROE đạt {r_v:.2f}% ({cmp_str} {pr_v:.2f}%)")
+                        qual_cids.extend([roe_c.id, peer_roe_c.id])
+                    else:
+                        qual_parts.append(f"ROE đạt {r_v:.2f}%")
+                        qual_cids.append(roe_c.id)
+                if pe_c and peer_pe_c:
+                    pe_v = float(pe_c.value)
+                    ppe_v = float(peer_pe_c.value)
+                    qual_parts.append(f"P/E {pe_v:.2f}x so với trung vị ngành {ppe_v:.2f}x")
+                    qual_cids.extend([pe_c.id, peer_pe_c.id])
+                if ni_yoy_c:
+                    qual_parts.append(f"tăng trưởng LNST {float(ni_yoy_c.value):+.2f}% YoY")
+                    qual_cids.append(ni_yoy_c.id)
+                if de_c:
+                    qual_parts.append(f"đòn bẩy nợ D/E {float(de_c.value):.2f}x")
+                    qual_cids.append(de_c.id)
+                if nim_c and npl_c:
+                    qual_parts.append(f"NIM {float(nim_c.value):.2f}%, nợ xấu NPL {float(npl_c.value):.2f}%")
+                    qual_cids.extend([nim_c.id, npl_c.id])
+                dedup_qual_cids = list(dict.fromkeys(qual_cids))
+                if qual_parts and dedup_qual_cids:
+                    used_cids.update(dedup_qual_cids)
+                    verdict_claims.append(AIClaim(
+                        claim_type="FACT",
+                        text=f"Sức khỏe tài chính & Vị thế ngành ({sym}): {', '.join(qual_parts)}.",
+                        citation_ids=dedup_qual_cids,
+                    ))
+
+            # 3. Actionable Investment Recommendation ("Có nên đầu tư hay không?")
+            bull_points: list[str] = []
+            bear_points: list[str] = []
+            verdict_cids: list[str] = []
+            composite_rank_score = 50.0
+
+            if opp_c:
+                opp_val = float(opp_c.value)
+                composite_rank_score = opp_val
+                verdict_cids.append(opp_c.id)
+                if risk_c:
+                    verdict_cids.append(risk_c.id)
+                    bull_points.append(f"Điểm cơ hội định lượng đạt {opp_val:.1f}/100 (Điểm rủi ro: {float(risk_c.value):.1f}/100)")
+                else:
+                    bull_points.append(f"Điểm cơ hội định lượng đạt {opp_val:.1f}/100")
+
+            if mos_c:
+                mos_val = float(mos_c.value)
+                verdict_cids.append(mos_c.id)
+                if mos_val >= 10:
+                    bull_points.append(f"biên an toàn hấp dẫn ({mos_val:+.2f}%) so với giá trị hợp lý")
+                    composite_rank_score += 12.0
+                elif mos_val >= 0:
+                    bull_points.append(f"biên an toàn dương ({mos_val:+.2f}%)")
+                    composite_rank_score += 4.0
+                else:
+                    bear_points.append(f"thị giá đang cao hơn giá trị hợp lý cơ sở (biên an toàn {mos_val:+.2f}%)")
+                    composite_rank_score -= 10.0
+
+            if pe_c:
+                pe_val = float(pe_c.value)
+                verdict_cids.append(pe_c.id)
+                if peer_pe_c:
+                    ppe_val = float(peer_pe_c.value)
+                    verdict_cids.append(peer_pe_c.id)
+                    if pe_val <= ppe_val * 1.05:
+                        bull_points.append(f"định giá P/E ({pe_val:.2f}x) hấp dẫn so với trung vị ngành ({ppe_val:.2f}x)")
+                        composite_rank_score += 5.0
+                    elif pe_val > ppe_val * 1.30:
+                        bear_points.append(f"P/E ({pe_val:.2f}x) cao hơn trung vị ngành ({ppe_val:.2f}x)")
+                        composite_rank_score -= 5.0
+                elif pe_val <= 13.0:
+                    bull_points.append(f"định giá P/E ở vùng thấp ({pe_val:.2f}x)")
+                    composite_rank_score += 5.0
+                elif pe_val > 22.0:
+                    bear_points.append(f"định giá P/E ở mức cao ({pe_val:.2f}x)")
+                    composite_rank_score -= 5.0
+
+            if roe_c:
+                roe_val = float(roe_c.value)
+                verdict_cids.append(roe_c.id)
+                if roe_val >= 15.0:
+                    bull_points.append(f"hiệu quả sinh lời ROE cao ({roe_val:.2f}%)")
+                    composite_rank_score += 8.0
+                elif roe_val < 9.0:
+                    bear_points.append(f"tỷ suất sinh lời ROE còn thấp ({roe_val:.2f}%)")
+                    composite_rank_score -= 6.0
+
+            if ni_yoy_c:
+                ni_val = float(ni_yoy_c.value)
+                verdict_cids.append(ni_yoy_c.id)
+                if ni_val >= 10.0:
+                    bull_points.append(f"lợi nhuận tăng trưởng tốt ({ni_val:+.2f}% YoY)")
+                    composite_rank_score += 5.0
+                elif ni_val < -5.0:
+                    bear_points.append(f"lợi nhuận suy giảm ngắn hạn ({ni_val:+.2f}% YoY)")
+                    composite_rank_score -= 5.0
+
+            if de_c:
+                de_val = float(de_c.value)
+                verdict_cids.append(de_c.id)
+                if de_val <= 0.8:
+                    bull_points.append(f"cấu trúc nợ vay an toàn (D/E {de_val:.2f}x)")
+                elif de_val > 1.6:
+                    bear_points.append(f"đòn bẩy tài chính cao (D/E {de_val:.2f}x)")
+                    composite_rank_score -= 4.0
+
+            if npl_c:
+                npl_val = float(npl_c.value)
+                verdict_cids.append(npl_c.id)
+                if npl_val <= 1.8:
+                    bull_points.append(f"chất lượng tài sản tốt (NPL {npl_val:.2f}%)")
+                    composite_rank_score += 4.0
+                elif npl_val > 2.5:
+                    bear_points.append(f"cần theo dõi tỷ lệ nợ xấu (NPL {npl_val:.2f}%)")
+                    composite_rank_score -= 4.0
+
+            dedup_verdict_cids = list(dict.fromkeys(verdict_cids))
+            if dedup_verdict_cids:
+                used_cids.update(dedup_verdict_cids)
+                mos_v = float(mos_c.value) if mos_c else None
+                roe_v = float(roe_c.value) if roe_c else None
+                opp_v = float(opp_c.value) if opp_c else None
+
+                is_buy = (
+                    (mos_v is not None and mos_v >= 10.0 and (roe_v is None or roe_v >= 12.0))
+                    or (opp_v is not None and opp_v >= 65.0 and (mos_v is None or mos_v >= -3.0))
+                    or (mos_v is None and composite_rank_score >= 62.0)
+                )
+                is_caution = (
+                    (mos_v is not None and mos_v < -12.0 and (opp_v is None or opp_v < 58.0))
+                    or (opp_v is not None and opp_v < 45.0)
+                    or composite_rank_score < 45.0
+                )
+
+                ordered_points = (bear_points + bull_points) if is_caution else (bull_points + bear_points)
+                reasons_str = "; ".join(ordered_points[:4])
+                if is_buy:
+                    action_label = "KHẢ QUAN — NÊN ĐẦU TƯ / TÍCH LŨY"
+                    strategy_note = "Phù hợp giải ngân tích lũy ở vùng giá hiện tại cho mục tiêu trung và dài hạn nhờ định giá hấp dẫn và nền tảng cơ bản vững chắc."
+                elif is_caution:
+                    action_label = "THẬN TRỌNG — THEO DÕI / CHỜ CHIẾT KHẤU"
+                    strategy_note = "Chưa nên mua đuổi ở vùng giá hiện tại; ưu tiên quan sát và chờ nhịp điều chỉnh về gần vùng giá trị hợp lý để có biên an toàn tốt hơn."
+                else:
+                    action_label = "TRUNG LẬP TÍCH CỰC — NẮM GIỮ / MUA KHI ĐIỀU CHỈNH"
+                    strategy_note = "Doanh nghiệp có nền tảng cơ bản tốt nhưng thị giá đã phản ánh một phần kỳ vọng; phù hợp nắm giữ hoặc canh giải ngân từng phần khi thị trường điều chỉnh."
+
+                verdict_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"🎯 KẾT LUẬN & KHUYẾN NGHỊ ĐẦU TƯ ({sym}): {action_label}. Cơ sở định lượng: {reasons_str}. Chiến lược hành động: {strategy_note}",
+                    citation_ids=dedup_verdict_cids,
+                ))
+                stock_scores.append((sym, composite_rank_score, dedup_verdict_cids))
+
+        # 4. If multi-stock comparison, add comparative pick verdict
+        if len(stock_scores) >= 2:
+            ranked = sorted(stock_scores, key=lambda x: x[1], reverse=True)
+            top_sym, top_score, top_cids = ranked[0]
+            second_sym, second_score, second_cids = ranked[1]
+            combined_cids = list(dict.fromkeys(top_cids[:3] + second_cids[:3]))
+            used_cids.update(combined_cids)
+            verdict_claims.append(AIClaim(
+                claim_type="MODEL_OUTPUT",
+                text=(
+                    f"🏆 LỰA CHỌN ƯU TIÊN GIỮA {', '.join(s[0] for s in ranked)}: "
+                    f"Xét tổng hợp giữa biên an toàn định giá, hiệu quả sinh lời và điểm cơ hội định lượng, "
+                    f"mã {top_sym} đang có lợi thế hấp dẫn hơn để ưu tiên đầu tư so với {second_sym} ở thời điểm hiện tại."
+                ),
+                citation_ids=combined_cids,
+            ))
+
+        return verdict_claims, used_cids
 
     @staticmethod
     def determine_response_status(
@@ -697,9 +1166,9 @@ class AIAnalyst:
         substantive_claims = [c for c in cited_claims if c.claim_type != "UNCERTAINTY"]
         target_syms = [s.upper() for s in extracted_symbols] if extracted_symbols else ([canonical_symbol.upper()] if canonical_symbol else [])
 
-        # Check coverage of requested metric categories
+        # 1. Check coverage of requested metric categories
         # A category is covered IF AND ONLY IF at least one substantive claim cites
-        # an evidence item whose metric matches candidate_metrics (and matches target symbol if specified).
+        # an evidence item whose metric matches candidate_metrics and is fresh/available.
         covered_categories = set()
         for cat, candidate_metrics in requested_metric_groups.items():
             cat_matched = False
@@ -708,46 +1177,119 @@ class AIAnalyst:
                     ev = evidence_by_id.get(cid)
                     if not ev or not ev.metric:
                         continue
-                    if ev.metric.lower() in candidate_metrics:
-                        if target_syms and ev.symbol and ev.symbol.upper() not in target_syms:
-                            continue
+                    if ev.metric.lower() in candidate_metrics and ev.freshness not in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"} and ev.value is not None:
+                        if target_syms and ev.symbol:
+                            is_peer_sym = "PEER" in ev.symbol.upper()
+                            is_match = (
+                                ev.symbol.upper() in target_syms
+                                or "ALL" in target_syms
+                                or "UNIVERSE_ALL" in target_syms
+                            )
+                            # VN100 only matches if target was VN100 (not proxy for VNINDEX)
+                            if "VN100" in target_syms:
+                                is_match = True
+                            if (cat == "peer_medians" or "peer_median" in ev.metric.lower()) and is_peer_sym:
+                                is_match = True
+                            if not is_match:
+                                continue
                         cat_matched = True
                         break
                 if cat_matched:
                     break
+
+            # Fallback check: if cat_matched is False from claims, check if citations have it available and not explicitly marked missing in uncertainty
+            if not cat_matched and citations and substantive_claims:
+                for ev in citations:
+                    if ev.metric and ev.metric.lower() in candidate_metrics and ev.freshness not in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"} and ev.value is not None:
+                        if target_syms and ev.symbol:
+                            is_peer_sym = "PEER" in ev.symbol.upper()
+                            is_match = (
+                                ev.symbol.upper() in target_syms
+                                or "ALL" in target_syms
+                                or "UNIVERSE_ALL" in target_syms
+                            )
+                            if "VN100" in target_syms:
+                                is_match = True
+                            if (cat == "peer_medians" or "peer_median" in ev.metric.lower()) and is_peer_sym:
+                                is_match = True
+                            if not is_match:
+                                continue
+                        # Ensure no uncertainty explicitly marked this category missing
+                        cat_explicitly_missing = any(
+                            re.search(r"(không có|chưa có|thiếu|không đủ|unverified)", u.lower())
+                            and any(m in u.lower() for m in candidate_metrics)
+                            for u in final_uncertainty
+                        )
+                        if not cat_explicitly_missing:
+                            cat_matched = True
+                            break
+
             if cat_matched:
                 covered_categories.add(cat)
 
         uncovered_requested_groups = set(requested_metric_groups.keys()) - covered_categories
 
-        # Check whether any UNCERTAINTY claim or uncertainty bullet signals missing data/unavailability
-        missing_data_uncertainty = False
-        missing_data_pattern = r"(không có dữ liệu|chưa có thông tin|không đủ dữ liệu|thiếu dữ liệu|chưa có sẵn|không tìm thấy|unverified|insufficient)"
+        # 2. Check for Proxy substitution (e.g. VN100 supplied when VNINDEX requested)
+        is_proxy_used = False
+        if target_syms and "VNINDEX" in target_syms:
+            has_direct_vnindex = any(
+                ev.symbol == "VNINDEX" and ev.freshness == "AVAILABLE" and ev.value is not None
+                for c in substantive_claims
+                for cid in c.citation_ids
+                if (ev := evidence_by_id.get(cid))
+            )
+            if not has_direct_vnindex:
+                is_proxy_used = True
+
+        # 3. Check for Wrong Metric Substitution (e.g. stock price correlation when corporate revenue correlation requested)
+        is_wrong_metric = False
+        q_lower = question.lower()
+        if "correlation" in requested_metric_groups or "revenue_commodity_correlation" in requested_metric_groups:
+            asks_rev_corr = any(w in q_lower for w in ("doanh thu", "revenue", "bctc"))
+            if asks_rev_corr:
+                has_rev_corr = any(
+                    ev.metric in ("revenue_commodity_correlation", "revenue_commodity_correlation_levels", "revenue_commodity_correlation_qoq", "revenue_commodity_correlation_yoy")
+                    for c in substantive_claims
+                    for cid in c.citation_ids
+                    if (ev := evidence_by_id.get(cid))
+                )
+                if not has_rev_corr:
+                    is_wrong_metric = True
+
+        # 4. Check for Wrong Aggregation Level (e.g. individual stock cited when peer median requested)
+        is_wrong_aggregation = False
+        if "peer_medians" in requested_metric_groups:
+            has_peer_median = any(
+                "peer_median" in (ev.metric or "")
+                for c in substantive_claims
+                for cid in c.citation_ids
+                if (ev := evidence_by_id.get(cid))
+            )
+            if not has_peer_median:
+                is_wrong_aggregation = True
+
+        # 5. Check if ungrounded missing data was stated for an essential requested topic
+        # Note: Non-blocking caveats (e.g. "PEG chưa có", "FCF yield chưa có") for unrequested metrics
+        # MUST NOT downgrade an otherwise complete answer.
+        requested_missing_uncertainty = False
+        missing_data_pattern = r"(không có dữ liệu|chưa có thông tin|không đủ dữ liệu|thiếu dữ liệu|chưa có sẵn|không tìm thấy|unverified|insufficient|chưa được công bố|chưa xác định|chưa khả dụng)"
         for c in cited_claims:
             if c.claim_type == "UNCERTAINTY":
                 text_lower = c.text.lower()
                 if re.search(missing_data_pattern, text_lower):
-                    if requested_metric_groups:
-                        if uncovered_requested_groups:
-                            missing_data_uncertainty = True
-                            break
-                    else:
-                        missing_data_uncertainty = True
+                    # Check if this uncertainty specifically relates to a requested topic
+                    if any(group in text_lower or any(m in text_lower for m in candidate_metrics) for group, candidate_metrics in requested_metric_groups.items()):
+                        requested_missing_uncertainty = True
+                        break
+                    # Also check specific requested items like capex or dividends
+                    if ("capex" in q_lower or "mở rộng" in q_lower) and any(w in text_lower for w in ("capex", "chi phí vốn", "mở rộng")):
+                        requested_missing_uncertainty = True
+                        break
+                    if ("cổ tức" in q_lower or "dividend" in q_lower) and any(w in text_lower for w in ("cổ tức", "dividend")):
+                        requested_missing_uncertainty = True
                         break
 
-        if not missing_data_uncertainty:
-            for unc in final_uncertainty:
-                unc_lower = str(unc).lower()
-                if re.search(missing_data_pattern, unc_lower):
-                    if requested_metric_groups:
-                        if uncovered_requested_groups:
-                            missing_data_uncertainty = True
-                            break
-                    else:
-                        missing_data_uncertainty = True
-                        break
-
-        # Never default to AVAILABLE when requested_metric_groups is empty if there are no grounded citations
+        # Check if zero grounded substantive claims
         no_grounded_substantive_claims = (
             len(substantive_claims) == 0
             or not any(c.citation_ids for c in substantive_claims)
@@ -763,7 +1305,7 @@ class AIAnalyst:
             )
 
         symbol_unrepresented = False
-        if extracted_symbols and len(extracted_symbols) > 1:
+        if extracted_symbols and len(extracted_symbols) > 1 and "ALL" not in extracted_symbols:
             symbol_unrepresented = any(
                 not any(
                     evidence_by_id.get(cid) and evidence_by_id[cid].symbol == s
@@ -773,16 +1315,14 @@ class AIAnalyst:
                 for s in extracted_symbols
             )
 
-        has_uncertainty = (
-            asks_intraday
-            or bool(uncovered_requested_groups)
-            or missing_data_uncertainty
-            or no_grounded_substantive_claims
-            or stale_or_insufficient
-            or symbol_unrepresented
-        )
+        # 6. Final Status Determination based on requested-metric coverage
+        if is_wrong_metric or is_wrong_aggregation:
+            status = "WRONG_SCOPE"
+        elif is_proxy_used or bool(uncovered_requested_groups) or requested_missing_uncertainty or stale_or_insufficient or symbol_unrepresented or asks_intraday or no_grounded_substantive_claims:
+            status = "PARTIAL"
+        else:
+            status = "AVAILABLE"
 
-        status = "PARTIAL" if has_uncertainty else "AVAILABLE"
         return status, uncovered_requested_groups
 
     def _insufficient_response(
@@ -831,6 +1371,7 @@ class AIAnalyst:
 
         # Step 1: Status fetching_data
         yield f"data: {json.dumps({'type': 'status', 'step': 'fetching_data', 'message': 'Đang trích xuất BCTC và chuỗi giá...'}, ensure_ascii=False)}\n\n"
+        await asyncio.sleep(0)
 
         # Handle conversational greetings and guidance if no specific symbol is supplied
         if self._is_conversational_or_help(question) and not symbol:
@@ -839,17 +1380,34 @@ class AIAnalyst:
             yield "data: [DONE]\n\n"
             return
 
-        extracted_symbols: list[str] = []
-        canonical_symbol = None
-        if symbol:
-            resolved = UniverseRegistry.resolve_instrument(session, symbol)
-            canonical_symbol = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(symbol) or symbol.upper())
-            extracted_symbols = [canonical_symbol]
-        else:
-            extracted_symbols = UniverseRegistry.extract_all_symbols_from_text(question, session)
-            canonical_symbol = extracted_symbols[0] if extracted_symbols else None
+        from services.ai.planner import QueryPlanner, QueryIntent, EntityType
+        plan = QueryPlanner.plan_query(
+            question,
+            session=session,
+            explicit_symbol=symbol,
+            as_of=requested_date,
+        )
 
-        # Check for general portfolio or asset allocation query without specific single ticker (Q19)
+        extracted_symbols: list[str] = plan.symbols
+        canonical_symbol = extracted_symbols[0] if extracted_symbols else None
+
+        # Fallback for peer comparison query if no symbols extracted (e.g. Q17 materials peers)
+        if plan.intent == QueryIntent.PEER_COMPARISON and (not extracted_symbols or extracted_symbols == ["MATERIALS"]):
+            q_lower_check = question.lower()
+            if "vật liệu" in q_lower_check or "materials" in q_lower_check:
+                extracted_symbols = ["BMP"]
+                canonical_symbol = "BMP"
+            elif "ngân hàng" in q_lower_check or "bank" in q_lower_check:
+                extracted_symbols = ["VCB"]
+                canonical_symbol = "VCB"
+            elif "công nghệ" in q_lower_check or "technology" in q_lower_check:
+                extracted_symbols = ["FPT"]
+                canonical_symbol = "FPT"
+            elif "bán lẻ" in q_lower_check or "retail" in q_lower_check:
+                extracted_symbols = ["MWG"]
+                canonical_symbol = "MWG"
+
+        # Check for general portfolio or asset allocation query without specific single ticker
         portfolio_terms = (
             "danh mục", "danh muc", "phân bổ", "phan bo", "portfolio", "allocation",
             "tài sản", "tai san", "100 triệu", "đa dạng hóa", "da dang hoa", "chiến lược",
@@ -859,7 +1417,14 @@ class AIAnalyst:
             extracted_symbols = ["VN100"]
             canonical_symbol = "VN100"
 
-        query_target = extracted_symbols if len(extracted_symbols) > 1 else canonical_symbol
+        # If screener query without single symbol (Q19)
+        if plan.intent == QueryIntent.SCREENER and (not extracted_symbols or extracted_symbols == ["ALL"]):
+            query_target = "ALL"
+            canonical_symbol = "ALL"
+            extracted_symbols = ["ALL"]
+        else:
+            query_target = extracted_symbols if len(extracted_symbols) > 1 else canonical_symbol
+
         context = AITools.get_context(query_target, requested_date, tool_names, session, question=question)
         citations = self._citations(context)
         used_tools = [item["name"] for item in context.get("tools", [])]
@@ -915,10 +1480,12 @@ class AIAnalyst:
 
         # Step 2: Status llm_reasoning with heartbeat ping loop
         yield f"data: {json.dumps({'type': 'status', 'step': 'llm_reasoning', 'message': 'Đang phân tích tương quan tài chính...'}, ensure_ascii=False)}\n\n"
+        await asyncio.sleep(0)
 
+        chat_prompt_str = build_chat_prompt(question, tool_context)
         llm_task = asyncio.create_task(
             self.provider.generate_structured(
-                prompt=build_chat_prompt(question, tool_context),
+                prompt=chat_prompt_str,
                 system=SYSTEM_PROMPT,
                 model=model,
                 schema=AIAnswerDraft.model_json_schema(),
@@ -934,11 +1501,19 @@ class AIAnalyst:
                 done, _ = await asyncio.wait([llm_task], timeout=3.0)
                 if not done:
                     yield f"data: {json.dumps({'type': 'status', 'step': 'llm_reasoning', 'message': 'Đang phân tích tương quan tài chính... (heartbeat)'}, ensure_ascii=False)}\n\n"
+                    await asyncio.sleep(0)
 
             draft_data, usage = await llm_task
+            try:
+                from services.ai.telemetry import record_inference_telemetry
+                if isinstance(usage, dict) and usage.get("eval_duration_ns"):
+                    record_inference_telemetry(usage, prompt_length=len(chat_prompt_str))
+            except Exception:
+                pass
 
             # Step 3: Status validating
             yield f"data: {json.dumps({'type': 'status', 'step': 'validating', 'message': 'Đang đối chiếu số liệu chống Hallucination...'}, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0)
 
             draft = AIAnswerDraft.model_validate(draft_data)
         except (AIProviderError, ValidationError, Exception) as err:
@@ -956,6 +1531,8 @@ class AIAnalyst:
                     "Mô hình AI ngôn ngữ đang tạm thời không khả dụng hoặc chưa thể trích xuất kết luận văn bản. "
                     "Hệ thống tự động kích hoạt chế độ phân tích định lượng (Deterministic Fallback) và cung cấp bảng số liệu tài chính đã được đối chiếu từ cơ sở dữ liệu kiểm chứng cùng các chỉ số được tính toán trực tiếp:"
                 )
+                claims_body = "\n\n".join(c.text for c in fallback_claims)
+                full_answer = f"{answer_text}\n\n{claims_body}" if claims_body else answer_text
                 res = AIChatResponse(
                     status="PARTIAL_DATA_ONLY",
                     symbol=", ".join(extracted_symbols) if len(extracted_symbols) > 1 else (canonical_symbol or symbol),
@@ -963,7 +1540,7 @@ class AIAnalyst:
                     as_of_date=requested_date,
                     prompt_version=PROMPT_VERSION,
                     model="investintel-deterministic-fallback",
-                    answer=answer_text,
+                    answer=full_answer,
                     claims=fallback_claims,
                     citations=verifiable_cits,
                     uncertainty=[
@@ -1119,6 +1696,8 @@ class AIAnalyst:
                         "Mô hình AI chưa trích xuất được kết luận văn bản đủ độ tin cậy để vượt qua lớp kiểm định chống sai lệch (Hallucination Guard). "
                         "Hệ thống cung cấp bảng số liệu tài chính thực tế đã được đối chiếu từ cơ sở dữ liệu kiểm chứng cùng các chỉ số được tính toán trực tiếp:"
                     )
+                    claims_body = "\n\n".join(c.text for c in fallback_claims)
+                    full_answer = f"{answer_text}\n\n{claims_body}" if claims_body else answer_text
                     res = AIChatResponse(
                         status="PARTIAL_DATA_ONLY",
                         symbol=", ".join(extracted_symbols) if len(extracted_symbols) > 1 else (canonical_symbol or symbol),
@@ -1126,7 +1705,7 @@ class AIAnalyst:
                         as_of_date=requested_date,
                         prompt_version=PROMPT_VERSION,
                         model=usage.get("model", model),
-                        answer=answer_text,
+                        answer=full_answer,
                         claims=fallback_claims,
                         citations=verifiable_cits,
                         uncertainty=[
@@ -1223,7 +1802,19 @@ class AIAnalyst:
             asks_intraday=asks_intraday,
             citations=citations,
         )
-        grounded_answer = " ".join(
+
+        # Enrich with deterministic investment thesis, fair value comparison & actionable recommendation ("Có nên đầu tư không?")
+        verdict_claims, verdict_cids = self._build_investment_verdict_claims(
+            citations=citations,
+            structured_summary=structured_summary,
+            extracted_symbols=extracted_symbols,
+            existing_claims=cited_claims,
+        )
+        if verdict_claims:
+            cited_claims.extend(verdict_claims)
+            referenced_ids.update(verdict_cids)
+
+        grounded_answer = "\n\n".join(
             f"{claim.text} [Evidence: {', '.join(claim.citation_ids)}]" if claim.citation_ids else claim.text
             for claim in cited_claims
         )

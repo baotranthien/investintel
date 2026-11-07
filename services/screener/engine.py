@@ -77,7 +77,7 @@ class StockScreenerEngine:
         # 1. Resolve asset universe
         query = self.session.query(Asset).filter(Asset.status == "ACTIVE")
         if criteria.universe in ("VN30", "VN100"):
-            query = query.join(IndexMembership, Asset.id == IndexMembership.asset_id).filter(
+            query = query.join(IndexMembership, Asset.symbol == IndexMembership.symbol).filter(
                 IndexMembership.index_symbol == criteria.universe,
                 IndexMembership.start_date <= as_of,
                 (IndexMembership.end_date.is_(None)) | (IndexMembership.end_date >= as_of),
@@ -89,19 +89,19 @@ class StockScreenerEngine:
         assets = query.all()
         matched_stocks: List[ScreenedStock] = []
 
+        # Canonical market price batch resolution
+        from services.market.canonical_price import CanonicalPriceResolver
+        asset_ids = [a.id for a in assets]
+        canonical_prices = CanonicalPriceResolver.resolve_prices_batch(self.session, asset_ids=asset_ids, as_of=as_of)
+        latest_prices = {cp.symbol: cp.price for cp in canonical_prices.values()}
+
         for asset in assets:
             sym = asset.symbol.upper()
             if not sym or sym.startswith("^"):
                 continue
 
-            # Load Price
-            p_row = (
-                self.session.query(Price)
-                .filter(Price.asset_id == asset.id, Price.status == "VALID", Price.observation_date <= as_of)
-                .order_by(Price.observation_date.desc())
-                .first()
-            )
-            price = float(p_row.adjusted_close if p_row.adjusted_close is not None else p_row.raw_close) if p_row else None
+            # Load Price from canonical resolver
+            price = latest_prices.get(sym)
 
             # Load Fundamentals
             dataset = self.repo.get_financial_dataset(sym, as_of_date=as_of)
@@ -138,7 +138,6 @@ class StockScreenerEngine:
             cr = _mval(snap.get("balance_sheet", {}), "current_ratio")
 
             # Valuation Fair Value & Margin of Safety (lazy evaluation)
-            val_builder = ValuationSnapshotBuilder(sym, sec)
             comp_fv = None
             mos_pct = None
 
@@ -153,15 +152,15 @@ class StockScreenerEngine:
                 else:
                     matched = False
 
-            # P/E filters
+            # P/E filters (strict boundary: P/E < pe_max)
             if matched and criteria.pe_min is not None:
-                if pe_val is not None and pe_val >= criteria.pe_min:
-                    passed.append(f"P/E >= {criteria.pe_min}")
+                if pe_val is not None and pe_val > criteria.pe_min:
+                    passed.append(f"P/E > {criteria.pe_min}")
                 else:
                     matched = False
             if matched and criteria.pe_max is not None:
-                if pe_val is not None and pe_val <= criteria.pe_max:
-                    passed.append(f"P/E <= {criteria.pe_max}")
+                if pe_val is not None and pe_val < criteria.pe_max:
+                    passed.append(f"P/E < {criteria.pe_max}")
                 else:
                     matched = False
 
@@ -177,10 +176,10 @@ class StockScreenerEngine:
                 else:
                     matched = False
 
-            # Profitability filters
+            # Profitability filters (strict boundary: ROE > roe_min)
             if matched and criteria.roe_min is not None:
-                if roe is not None and roe >= criteria.roe_min:
-                    passed.append(f"ROE >= {criteria.roe_min}%")
+                if roe is not None and roe > criteria.roe_min:
+                    passed.append(f"ROE > {criteria.roe_min}%")
                 else:
                     matched = False
 
@@ -214,7 +213,7 @@ class StockScreenerEngine:
                 try:
                     from apps.api.routers.valuation import _load_fundamentals_for_valuation
                     funds = _load_fundamentals_for_valuation(sym, as_of) or {}
-                    val_snap = val_builder.build(funds, price, as_of)
+                    val_snap = ValuationSnapshotBuilder(sym, sec).build(funds, price, as_of)
                     if val_snap and val_snap.composite_fair_value:
                         base = val_snap.composite_fair_value.range.base
                         if base and base > 0:

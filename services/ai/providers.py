@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass
 import json
+import re
 import subprocess
 from typing import Any
 import httpx
@@ -43,6 +44,55 @@ def _generation_metadata(payload: dict[str, Any], model: str) -> dict[str, Any]:
         done_reason=payload.get("done_reason"),
     ))
 
+def _clean_and_parse_json(text: str) -> dict[str, Any]:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    cleaned = cleaned.strip()
+
+    # Thử parse trực tiếp
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Thử tìm object JSON bao ngoài {...}
+    match = re.search(r"(\{.*\})", cleaned, flags=re.DOTALL)
+    if match:
+        try:
+            parsed = json.loads(match.group(1))
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+
+    # Thử tự động đóng chuỗi và ngoặc nếu bị cắt cụt do giới hạn token
+    repaired = cleaned
+    first_brace = repaired.find("{")
+    if first_brace != -1:
+        repaired = repaired[first_brace:]
+    if repaired.count('"') % 2 != 0:
+        repaired += '"'
+    open_brackets = repaired.count('[') - repaired.count(']')
+    if open_brackets > 0:
+        repaired += ']' * open_brackets
+    open_braces = repaired.count('{') - repaired.count('}')
+    if open_braces > 0:
+        repaired += '}' * open_braces
+
+    try:
+        parsed = json.loads(repaired)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    raise AIProviderError("Ollama returned invalid JSON for a structured response.")
+
+
 class OllamaProvider:
     def __init__(self, config: OllamaConfig | None = None):
         self.config = config or OllamaConfig.from_env()
@@ -57,13 +107,18 @@ class OllamaProvider:
         schema: dict[str, Any] | None = None,
     ) -> tuple[str, dict[str, Any]]:
         model_to_use = model or self.default_model
+        options = {
+            "num_ctx": self.config.num_ctx,
+            "num_predict": self.config.num_predict,
+            "num_thread": getattr(self.config, "num_thread", 6),
+        }
         payload: dict[str, Any] = {
             "model": model_to_use,
             "prompt": prompt,
             "system": system,
             "stream": False,
             "keep_alive": self.config.keep_alive,
-            "options": {"num_ctx": self.config.num_ctx, "num_predict": self.config.num_predict},
+            "options": options,
         }
         if not self.config.think:
             payload["think"] = False
@@ -116,12 +171,7 @@ class OllamaProvider:
         model: str | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         text, metadata = await self._generate_result(prompt, system, model, schema)
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError as error:
-            raise AIProviderError("Ollama returned invalid JSON for a structured response.") from error
-        if not isinstance(data, dict):
-            raise AIProviderError("Ollama structured response must be a JSON object.")
+        data = _clean_and_parse_json(text)
         return data, metadata
 
     def _detect_gpu(self) -> dict[str, Any]:
@@ -194,6 +244,7 @@ class OllamaProvider:
                     "retries": self.config.retries,
                     "num_ctx": self.config.num_ctx,
                     "num_predict": self.config.num_predict,
+                    "num_thread": getattr(self.config, "num_thread", 6),
                     "think": self.config.think,
                 },
             }

@@ -153,7 +153,10 @@ class FundamentalSnapshotBuilder:
         # ─── Cash flow ─────────────────────────────────────────
         cfo = latest_cf.get("cash_from_operations")
         capex_val = latest_cf.get("capex")
-        fcf_val = CashFlowQualityEngine.fcf(cfo, capex_val) if cfo is not None else latest_cf.get("free_cash_flow")
+        if self.sector == "BANK":
+            fcf_val = None
+        else:
+            fcf_val = CashFlowQualityEngine.fcf(cfo, capex_val) if cfo is not None else latest_cf.get("free_cash_flow")
 
         # ─── DERIVED: Debt ─────────────────────────────────────
         gross_debt_val = DebtEngine.gross_debt(short_term_debt, long_term_debt)
@@ -161,7 +164,14 @@ class FundamentalSnapshotBuilder:
 
         # ─── MARGINS ───────────────────────────────────────────
         period = "TTM" if ttm_ok else "ANNUAL"
-        gross_margin_r = MarginEngine.gross_margin(gross_profit, revenue, period)
+        if self.sector == "BANK":
+            gross_margin_r = MetricResult(
+                value=None, unit="%", metric_id="gross_margin", calculation_version="gross_margin_v1",
+                period=period, data_status=DataStatus.NOT_MEANINGFUL,
+                not_meaningful_reason="Not applicable for banking sector. Banks do not report COGS.",
+            )
+        else:
+            gross_margin_r = MarginEngine.gross_margin(gross_profit, revenue, period)
         ebit_margin_r = MarginEngine.ebit_margin(ebit, revenue, period)
         ebitda_margin_r = MarginEngine.ebitda_margin(ebitda_val, revenue, period)
         net_margin_r = MarginEngine.net_margin(net_income_parent, revenue, period)
@@ -170,13 +180,27 @@ class FundamentalSnapshotBuilder:
         # ─── PROFITABILITY ─────────────────────────────────────
         roe_r = ProfitabilityEngine.roe(net_income_parent, equity_parent_prior, equity_parent, period)
         roa_r = ProfitabilityEngine.roa(net_income, total_assets_prior, total_assets, period)
-        # Effective tax rate
+        # Effective tax rate: compute using matching period to avoid period mismatch
         eff_tax = None
-        if income_tax is not None and net_income is not None and net_income != 0:
+        if ttm_ok and ttm:
+            pre_tax_ttm = ttm.get("pre_tax_income")
+            tax_ttm = ttm.get("income_tax")
+            ni_ttm_val = ttm.get("net_income")
+            if pre_tax_ttm and abs(pre_tax_ttm) > 0 and tax_ttm is not None:
+                eff_tax = abs(tax_ttm) / abs(pre_tax_ttm)
+            elif ni_ttm_val and tax_ttm is not None:
+                calc_pre_tax = ni_ttm_val + abs(tax_ttm)
+                if abs(calc_pre_tax) > 0:
+                    eff_tax = abs(tax_ttm) / abs(calc_pre_tax)
+        elif income_tax is not None and net_income is not None and net_income != 0:
             pre_tax = (latest_income_a.get("pre_tax_income") or
-                       (net_income - income_tax if income_tax else None))
+                       (net_income + abs(income_tax) if income_tax else None))
             if pre_tax and abs(pre_tax) > 0:
                 eff_tax = abs(income_tax) / abs(pre_tax)
+        # Corporate tax rate must be within realistic corporate range [0%, 50%], fallback to standard statutory 20%
+        if eff_tax is None or eff_tax < 0.0 or eff_tax > 0.50:
+            eff_tax = 0.20
+
         roic_r = ProfitabilityEngine.roic(
             ebit, eff_tax, total_equity, gross_debt_val, cash,
             period, self.sector
@@ -194,11 +218,30 @@ class FundamentalSnapshotBuilder:
             total_current_assets, inventory, total_current_liabilities, period, self.sector)
 
         # ─── COVERAGE ──────────────────────────────────────────
-        interest_cov_r = CoverageEngine.interest_coverage(ebit, interest_expense, period)
+        if self.sector == "BANK":
+            interest_cov_r = MetricResult(
+                value=None, unit="times", metric_id="interest_coverage", calculation_version="interest_coverage_v1",
+                period=period, data_status=DataStatus.NOT_MEANINGFUL,
+                not_meaningful_reason="Not applicable for banking sector. Interest expense reflects deposit cost of funds, not debt service burden.",
+            )
+        else:
+            interest_cov_r = CoverageEngine.interest_coverage(ebit, interest_expense, period)
 
         # ─── CASH FLOW QUALITY ─────────────────────────────────
-        cfo_ni_r = CashFlowQualityEngine.cfo_to_ni(cfo, net_income_parent, period)
-        fcf_ni_r = CashFlowQualityEngine.fcf_to_ni(fcf_val, net_income_parent, period)
+        if self.sector == "BANK":
+            cfo_ni_r = MetricResult(
+                value=None, unit="ratio", metric_id="cfo_to_ni", calculation_version="cfo_to_ni_v1",
+                period=period, data_status=DataStatus.NOT_MEANINGFUL,
+                not_meaningful_reason="Not applicable for banking sector. Operating cash flow includes customer deposits and loan disbursements.",
+            )
+            fcf_ni_r = MetricResult(
+                value=None, unit="ratio", metric_id="fcf_to_ni", calculation_version="fcf_to_ni_v1",
+                period=period, data_status=DataStatus.NOT_MEANINGFUL,
+                not_meaningful_reason="Not applicable for banking sector. Industrial free cash flow is not applicable.",
+            )
+        else:
+            cfo_ni_r = CashFlowQualityEngine.cfo_to_ni(cfo, net_income_parent, period)
+            fcf_ni_r = CashFlowQualityEngine.fcf_to_ni(fcf_val, net_income_parent, period)
         capex_rev_r = MarginEngine.cfo_margin(abs(capex_val) if capex_val else None, revenue, period)
 
         # ─── GROWTH ────────────────────────────────────────────

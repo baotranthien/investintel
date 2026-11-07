@@ -64,18 +64,22 @@ class BankModel:
         "net_margin", "roe", "roa", "nim", "npl_ratio", "llr_coverage",
         "ldr", "cir", "revenue_yoy", "net_income_yoy", "eps_yoy",
         "revenue_cagr_3y", "eps_cagr_3y", "bvps", "eps_ttm", "de_ratio",
-        "cfo_to_ni", "gross_debt", "net_debt", "interest_coverage",
+        "gross_debt", "net_debt",
     ]
     NOT_APPLICABLE = [
-        "gross_margin",  # N/A for banks
-        "current_ratio",  # N/A
-        "quick_ratio",   # N/A
-        "inventory",     # N/A
-        "dio",           # N/A
-        "dpo",           # N/A
-        "roic",          # N/A
-        "ebitda_margin", # N/A
-        "capex_to_revenue",  # rarely meaningful
+        "gross_margin",      # N/A for banks (no COGS)
+        "current_ratio",     # N/A
+        "quick_ratio",       # N/A
+        "inventory",         # N/A
+        "dio",               # N/A
+        "dpo",               # N/A
+        "roic",              # N/A
+        "ebitda_margin",     # N/A
+        "capex_to_revenue",  # N/A
+        "interest_coverage", # N/A for banks (deposit cost of funds)
+        "cfo_to_ni",         # N/A (deposits/loans skew operating CF)
+        "fcf",               # N/A (industrial FCF not applicable)
+        "fcf_to_ni",         # N/A
     ]
 
     def calculate_metrics(self, company_id: int, snapshot: dict[str, Any]) -> SectorMetrics:
@@ -427,6 +431,30 @@ class TransportationModel:
 
 
 # ─────────────────────────────────────────────────────────
+# UTILITY MODEL (e.g., Power, Water, Renewable Energy)
+# ─────────────────────────────────────────────────────────
+
+class UtilityModel:
+    sector = "UTILITY"
+
+    APPLICABLE = [
+        "revenue_yoy", "gross_margin", "ebit_margin", "net_margin",
+        "roe", "roa", "roic", "fcf", "cfo_to_ni", "capex_to_revenue",
+        "de_ratio", "net_debt_ebitda", "interest_coverage",
+    ]
+    NOT_APPLICABLE = ["nim", "npl_ratio", "inventory", "dio", "ldr", "cir"]
+
+    def calculate_metrics(self, company_id: int, snapshot: dict[str, Any]) -> SectorMetrics:
+        notes = ["Utility sector: stable cash flow, regulated tariff, and high dividend payout are key."]
+        return SectorMetrics(sector=self.sector, metrics={},
+                             applicable_metrics=self.APPLICABLE,
+                             not_applicable=self.NOT_APPLICABLE, notes=notes)
+
+    def get_applicable_metrics(self) -> list[str]:
+        return self.APPLICABLE
+
+
+# ─────────────────────────────────────────────────────────
 # GENERAL / DEFAULT MODEL
 # ─────────────────────────────────────────────────────────
 
@@ -467,59 +495,120 @@ SECTOR_MODELS: dict[str, type] = {
     "INDUSTRIAL": IndustrialModel,
     "MATERIALS": MaterialsModel,
     "OIL_GAS": OilGasModel,
+    "UTILITY": UtilityModel,
     "REAL_ESTATE": RealEstateModel,
     "TRANSPORTATION": TransportationModel,
     "GENERAL": GeneralModel,
 }
 
-# Default sector assignments for key VN companies
+
+def normalize_sector_name(sector: Optional[str]) -> Optional[str]:
+    """
+    Standardize inconsistent sector names from DB into canonical sector identifiers.
+    """
+    if not sector:
+        return None
+    s = str(sector).strip().upper()
+    mapping = {
+        "BANK": "BANK",
+        "BANKING": "BANK",
+        "BANKS": "BANK",
+        "SECURITIES": "SECURITIES",
+        "FINANCIALS": "SECURITIES",
+        "FINANCIAL SERVICES": "SECURITIES",
+        "FINANCIAL_SERVICES": "SECURITIES",
+        "INSURANCE": "SECURITIES",
+        "REAL ESTATE": "REAL_ESTATE",
+        "REAL_ESTATE": "REAL_ESTATE",
+        "CONSUMER GOODS": "CONSUMER",
+        "CONSUMER_GOODS": "CONSUMER",
+        "CONSUMER": "CONSUMER",
+        "RETAIL": "RETAIL",
+        "TECHNOLOGY": "TECHNOLOGY",
+        "IT": "TECHNOLOGY",
+        "MATERIALS": "MATERIALS",
+        "BASIC MATERIALS": "MATERIALS",
+        "BASIC_MATERIALS": "MATERIALS",
+        "ENERGY": "OIL_GAS",
+        "OIL_GAS": "OIL_GAS",
+        "OIL & GAS": "OIL_GAS",
+        "OIL_AND_GAS": "OIL_GAS",
+        "UTILITIES": "UTILITY",
+        "UTILITY": "UTILITY",
+        "INDUSTRIALS": "INDUSTRIAL",
+        "INDUSTRIAL": "INDUSTRIAL",
+        "MANUFACTURING": "INDUSTRIAL",
+        "CONSTRUCTION": "INDUSTRIAL",
+        "TRANSPORTATION": "TRANSPORTATION",
+        "LOGISTICS": "TRANSPORTATION",
+    }
+    return mapping.get(s, s)
+
+
+# Canonical sector assignments for 100 HOSE universe stocks
 COMPANY_SECTOR_MAP: dict[str, str] = {
-    "FPT": "TECHNOLOGY",
-    "VCB": "BANK",
-    "MBB": "BANK",
-    "ACB": "BANK",
-    "BID": "BANK",
-    "CTG": "BANK",
-    "TCB": "BANK",
-    "VPB": "BANK",
-    "MWG": "RETAIL",
-    "FRT": "RETAIL",
-    "DGW": "RETAIL",
-    "HPG": "MATERIALS",
-    "HSG": "MATERIALS",
-    "NKG": "MATERIALS",
-    "BMP": "MATERIALS",
-    "VNM": "CONSUMER",
-    "SAB": "CONSUMER",
-    "MSN": "CONSUMER",
-    "VIC": "REAL_ESTATE",
-    "VHM": "REAL_ESTATE",
-    "PDR": "REAL_ESTATE",
-    "HVN": "TRANSPORTATION",
-    "VJC": "TRANSPORTATION",
-    "PVD": "OIL_GAS",
-    "GAS": "OIL_GAS",
-    "PLX": "OIL_GAS",
-    "SSI": "SECURITIES",
-    "VND": "SECURITIES",
-    "HCM": "SECURITIES",
+    # BANK (17)
+    "ACB": "BANK", "BID": "BANK", "CTG": "BANK", "EIB": "BANK", "HDB": "BANK",
+    "LPB": "BANK", "MBB": "BANK", "MSB": "BANK", "NAB": "BANK", "OCB": "BANK",
+    "SHB": "BANK", "SSB": "BANK", "STB": "BANK", "TCB": "BANK", "TPB": "BANK",
+    "VCB": "BANK", "VPB": "BANK",
+    # SECURITIES (14)
+    "BSI": "SECURITIES", "BVH": "SECURITIES", "CTS": "SECURITIES", "DSE": "SECURITIES",
+    "EVF": "SECURITIES", "FTS": "SECURITIES", "HCM": "SECURITIES", "SSI": "SECURITIES",
+    "TCX": "SECURITIES", "VCI": "SECURITIES", "VCK": "SECURITIES", "VIX": "SECURITIES",
+    "VND": "SECURITIES", "VPX": "SECURITIES",
+    # REAL_ESTATE (19)
+    "BCM": "REAL_ESTATE", "DIG": "REAL_ESTATE", "DXG": "REAL_ESTATE", "HDG": "REAL_ESTATE",
+    "KBC": "REAL_ESTATE", "KDH": "REAL_ESTATE", "KOS": "REAL_ESTATE", "NLG": "REAL_ESTATE",
+    "NVL": "REAL_ESTATE", "PDR": "REAL_ESTATE", "SIP": "REAL_ESTATE", "SJS": "REAL_ESTATE",
+    "TAL": "REAL_ESTATE", "TCH": "REAL_ESTATE", "VGC": "REAL_ESTATE", "VHM": "REAL_ESTATE",
+    "VIC": "REAL_ESTATE", "VPI": "REAL_ESTATE", "VRE": "REAL_ESTATE",
+    # RETAIL (4)
+    "DGW": "RETAIL", "FRT": "RETAIL", "MWG": "RETAIL", "PNJ": "RETAIL",
+    # TECHNOLOGY (3)
+    "CMG": "TECHNOLOGY", "FPT": "TECHNOLOGY", "ELC": "TECHNOLOGY",
+    # MATERIALS (9)
+    "BMP": "MATERIALS", "DCM": "MATERIALS", "DPM": "MATERIALS", "GVR": "MATERIALS",
+    "HPG": "MATERIALS", "HSG": "MATERIALS", "HT1": "MATERIALS", "NKG": "MATERIALS",
+    "PHR": "MATERIALS",
+    # CONSUMER (13)
+    "ANV": "CONSUMER", "BAF": "CONSUMER", "DBC": "CONSUMER", "HAG": "CONSUMER",
+    "KDC": "CONSUMER", "MCH": "CONSUMER", "MSN": "CONSUMER", "PAN": "CONSUMER",
+    "SAB": "CONSUMER", "SBT": "CONSUMER", "VHC": "CONSUMER", "VNM": "CONSUMER",
+    "VPL": "CONSUMER",
+    # OIL_GAS (4)
+    "BSR": "OIL_GAS", "GAS": "OIL_GAS", "PLX": "OIL_GAS", "PVD": "OIL_GAS",
+    # UTILITY (4)
+    "BWE": "UTILITY", "NT2": "UTILITY", "POW": "UTILITY", "REE": "UTILITY",
+    # INDUSTRIAL (8)
+    "CII": "INDUSTRIAL", "CTD": "INDUSTRIAL", "CTR": "INDUSTRIAL", "GEE": "INDUSTRIAL",
+    "GEX": "INDUSTRIAL", "HHV": "INDUSTRIAL", "PC1": "INDUSTRIAL", "VCG": "INDUSTRIAL",
+    # TRANSPORTATION (6)
+    "GMD": "TRANSPORTATION", "HVN": "TRANSPORTATION", "PVT": "TRANSPORTATION",
+    "VJC": "TRANSPORTATION", "VSC": "TRANSPORTATION", "VTP": "TRANSPORTATION",
 }
+
+
+def get_sector_for_symbol(symbol: str, db_sector: Optional[str] = None) -> str:
+    """
+    Return the sector string for a symbol.
+    Priority: COMPANY_SECTOR_MAP -> normalize_sector_name(db_sector) -> "GENERAL"
+    """
+    if symbol:
+        mapped = COMPANY_SECTOR_MAP.get(symbol.upper())
+        if mapped:
+            return mapped
+    normalized = normalize_sector_name(db_sector)
+    if normalized:
+        return normalized
+    return "GENERAL"
 
 
 def get_sector_model(symbol: str, sector: Optional[str] = None) -> SectorFundamentalModel:
     """
     Return the appropriate sector model for a given company.
-    Checks COMPANY_SECTOR_MAP first, then falls back to provided sector, then GENERAL.
+    Checks COMPANY_SECTOR_MAP first, then falls back to normalized sector, then GENERAL.
     """
-    resolved_sector = (
-        COMPANY_SECTOR_MAP.get(symbol.upper())
-        or (sector.upper() if sector else None)
-        or "GENERAL"
-    )
+    resolved_sector = get_sector_for_symbol(symbol, sector)
     model_class = SECTOR_MODELS.get(resolved_sector, GeneralModel)
     return model_class()
-
-
-def get_sector_for_symbol(symbol: str) -> str:
-    """Return the sector string for a symbol."""
-    return COMPANY_SECTOR_MAP.get(symbol.upper(), "GENERAL")
