@@ -19,8 +19,9 @@ async def lifespan(app: FastAPI):
     enable_in_process = os.getenv("ENABLE_IN_PROCESS_SCHEDULER", "false" if (is_cloud or is_pytest) else "true").lower() in {"1", "true", "yes"}
     
     # Fail-closed authentication configuration validation on startup
-    from services.auth.security import validate_jwt_secret_configuration
-    validate_jwt_secret_configuration()
+    from services.auth.security import is_auth_enabled, validate_jwt_secret_configuration
+    if is_auth_enabled():
+        validate_jwt_secret_configuration()
     
     allow_db_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
     if enable_in_process and allow_db_write:

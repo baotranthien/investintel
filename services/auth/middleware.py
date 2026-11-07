@@ -43,10 +43,12 @@ def is_cloud_mode() -> bool:
 
 
 def is_auth_enabled() -> bool:
-    """Authentication is strictly enabled in cloud mode or when explicitly set."""
-    if is_cloud_mode():
-        return True
-    return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
+    """Authentication is disabled in runtime (local & cloud) for direct personal workstation access.
+    Only enabled during isolated unit tests when PYTEST_CURRENT_TEST is set and APP_AUTH_ENABLED=true.
+    """
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
+    return False
 
 
 def get_allowed_origins() -> list[str]:
@@ -129,6 +131,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
             # Attach user info to request state
             request.state.user = payload.get("sub", "personal_investor")
+        else:
+            request.state.user = "personal_investor"
 
         # Process request
         response: Response = await call_next(request)
