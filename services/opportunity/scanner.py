@@ -59,15 +59,24 @@ class OpportunityScannerResponse(BaseModel):
 def _universe_symbols(session: Session, universe: str, as_of: date) -> Optional[set[str]]:
     if universe == "ALL":
         return None
-    memberships = session.query(IndexMembership).filter(
-        IndexMembership.index_symbol == universe,
-        IndexMembership.start_date <= as_of,
-        (IndexMembership.end_date.is_(None)) | (IndexMembership.end_date >= as_of),
-    ).all()
-    return {
-        member.symbol for member in memberships
-        if member.published_at is None or member.published_at.date() <= as_of
-    }
+    try:
+        memberships = session.query(IndexMembership).filter(
+            IndexMembership.index_symbol == universe,
+            IndexMembership.start_date <= as_of,
+            (IndexMembership.end_date.is_(None)) | (IndexMembership.end_date >= as_of),
+        ).all()
+        res = set()
+        for member in memberships:
+            pub = member.published_at
+            if pub is None:
+                res.add(member.symbol)
+            elif hasattr(pub, "date") and pub.date() <= as_of:
+                res.add(member.symbol)
+            elif str(pub)[:10] <= as_of.isoformat():
+                res.add(member.symbol)
+        return res
+    except Exception:
+        return None
 
 
 def _item_for_asset(
@@ -427,20 +436,41 @@ def build_opportunity_scanner(
         items = list(_SCANNER_CACHE[cache_key][1])
     else:
         with FinancialRepository(session=session) as repository:
-            items = [
-                _item_for_asset(
-                    session=session,
-                    asset=asset,
-                    as_of=as_of,
-                    horizon=horizon,
-                    repository=repository,
-                    latest_price=latest_price_map.get(asset.id),
-                    macro_data=object(),
-                    past_closes=past_closes_map.get(asset.id),
-                    bank_metric=bank_metric_map.get(asset.id),
-                )
-                for asset in assets
-            ]
+            items = []
+            for asset in assets:
+                try:
+                    item = _item_for_asset(
+                        session=session,
+                        asset=asset,
+                        as_of=as_of,
+                        horizon=horizon,
+                        repository=repository,
+                        latest_price=latest_price_map.get(asset.id),
+                        macro_data=object(),
+                        past_closes=past_closes_map.get(asset.id),
+                        bank_metric=bank_metric_map.get(asset.id),
+                    )
+                    items.append(item)
+                except Exception:
+                    items.append(ScannerItem(
+                        symbol=asset.symbol,
+                        name=asset.name,
+                        asset_type=asset.asset_type,
+                        sector=asset.sector,
+                        opportunity_score=None,
+                        confidence="INSUFFICIENT",
+                        risk_score=None,
+                        valuation_status="INSUFFICIENT_DATA",
+                        factor_summary=None,
+                        factor_status="INSUFFICIENT_DATA",
+                        why_now=[],
+                        why_not_now=[],
+                        what_could_go_wrong=[],
+                        data_status="INSUFFICIENT_DATA",
+                        data_freshness={"status": "INSUFFICIENT_DATA", "as_of_date": None, "source": None},
+                        horizon=horizon,
+                        model_version="opportunity_medium_v1",
+                    ))
         _SCANNER_CACHE[cache_key] = (now, list(items))
 
     if sector:

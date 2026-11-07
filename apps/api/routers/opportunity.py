@@ -31,19 +31,25 @@ def get_opportunity_scanner(
     session: Session = Depends(get_db),
 ) -> OpportunityScannerResponse:
     """Return canonical assets with engine-derived values only when inputs support them."""
-    return build_opportunity_scanner(
-        session=session,
-        as_of=date.today(),
-        universe=universe,
-        sector=sector,
-        horizon=horizon,
-        score_min=score_min,
-        score_max=score_max,
-        risk_max=risk_max,
-        confidence=confidence,
-        factor=factor,
-        valuation_status=valuation_status,
-    )
+    try:
+        return build_opportunity_scanner(
+            session=session,
+            as_of=date.today(),
+            universe=universe,
+            sector=sector,
+            horizon=horizon,
+            score_min=score_min,
+            score_max=score_max,
+            risk_max=risk_max,
+            confidence=confidence,
+            factor=factor,
+            valuation_status=valuation_status,
+        )
+    except Exception as exc:
+        import traceback
+        err_msg = f"Scanner error: {exc}\n{traceback.format_exc()}"
+        print(err_msg, flush=True)
+        raise HTTPException(status_code=500, detail=err_msg)
 
 
 @router.get("/{symbol}", response_model=ScannerItem)
