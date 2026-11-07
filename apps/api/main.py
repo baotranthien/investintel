@@ -44,6 +44,22 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logging.getLogger(__name__).warning("Reference data startup check: %s", exc)
 
+    # Pre-warm opportunity scanner cache in background task for fast first-response
+    if not is_pytest:
+        async def _prewarm_opportunity_cache():
+            try:
+                await asyncio.sleep(1)
+                from database.connection import SessionLocal
+                from services.opportunity.scanner import build_opportunity_scanner
+                from datetime import date
+                with SessionLocal() as s:
+                    build_opportunity_scanner(s, date.today(), universe="VN100")
+                    build_opportunity_scanner(s, date.today(), universe="ALL")
+            except Exception as exc:
+                logging.getLogger(__name__).warning("Scanner pre-warm: %s", exc)
+
+        asyncio.create_task(_prewarm_opportunity_cache())
+
     try:
         yield
     finally:

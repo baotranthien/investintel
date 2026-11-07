@@ -38,9 +38,10 @@ class FinancialRepository:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def get_company_profile(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_company_profile(self, symbol: str, asset: Optional[Asset] = None) -> Optional[Dict[str, Any]]:
         """Returns asset profile from canonical DB."""
-        asset = self._session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+        if asset is None:
+            asset = self._session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
         if not asset:
             return None
         from services.fundamentals.sector_models import get_sector_for_symbol
@@ -57,7 +58,8 @@ class FinancialRepository:
     def get_financial_dataset(
         self,
         symbol: str,
-        as_of_date: Optional[Union[date, datetime]] = None
+        as_of_date: Optional[Union[date, datetime]] = None,
+        asset: Optional[Asset] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Loads point-in-time canonical financial records from database.
@@ -70,7 +72,7 @@ class FinancialRepository:
         def numeric(value):
             return float(value) if value is not None else None
 
-        profile = self.get_company_profile(sym)
+        profile = self.get_company_profile(sym, asset=asset)
         if not profile:
             return None
 

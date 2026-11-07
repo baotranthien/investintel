@@ -16,7 +16,7 @@ from services.fundamentals.snapshot import FundamentalSnapshotBuilder
 from services.opportunity.engine import OpportunityEngine
 
 _SCANNER_CACHE: dict[str, tuple[float, list["ScannerItem"]]] = {}
-_CACHE_TTL_SECONDS = 180.0
+_CACHE_TTL_SECONDS = 1800.0  # 30 minutes in-memory cache
 
 
 ScannerStatus = Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA", "UNSUPPORTED_HORIZON"]
@@ -78,6 +78,8 @@ def _item_for_asset(
     repository: Optional[FinancialRepository] = None,
     latest_price: Optional[Price] = None,
     macro_data: Any = None,
+    past_closes: Optional[list[float]] = None,
+    bank_metric: Optional[Any] = None,
 ) -> ScannerItem:
     if latest_price is None:
         latest_price = session.query(Price).filter(
@@ -100,7 +102,7 @@ def _item_for_asset(
             "source": latest_price.source,
         }
 
-    dataset = repository.get_financial_dataset(asset.symbol, as_of_date=as_of) if repository else None
+    dataset = repository.get_financial_dataset(asset.symbol, as_of_date=as_of, asset=asset) if repository else None
     resolved_sector = get_sector_for_symbol(asset.symbol, dataset.get("sector") if dataset else asset.sector)
     has_financials = bool(
         dataset and (dataset.get("income_annual") or dataset.get("income_quarters") or dataset.get("balance_annual"))
@@ -134,18 +136,20 @@ def _item_for_asset(
             npl = sec_metrics.get("npl_ratio", {}).get("value")
             llr = sec_metrics.get("llr_coverage", {}).get("value")
             if nim is None or npl is None or llr is None:
-                try:
-                    from database.models import BankMetric
-                    bm = session.query(BankMetric).filter(
-                        BankMetric.asset_id == asset.id,
-                        BankMetric.fiscal_date <= as_of
-                    ).order_by(BankMetric.fiscal_date.desc()).first()
-                    if bm:
-                        if nim is None: nim = bm.nim
-                        if npl is None: npl = bm.npl_ratio
-                        if llr is None: llr = bm.llr_ratio
-                except Exception:
-                    pass
+                bm = bank_metric
+                if bm is None:
+                    try:
+                        from database.models import BankMetric
+                        bm = session.query(BankMetric).filter(
+                            BankMetric.asset_id == asset.id,
+                            BankMetric.fiscal_date <= as_of
+                        ).order_by(BankMetric.fiscal_date.desc()).first()
+                    except Exception:
+                        pass
+                if bm:
+                    if nim is None: nim = bm.nim
+                    if npl is None: npl = bm.npl_ratio
+                    if llr is None: llr = bm.llr_ratio
             if nim is not None: fund_data["nim"] = nim
             if npl is not None: fund_data["npl_ratio"] = npl
             if llr is not None: fund_data["llr_coverage"] = llr
@@ -190,35 +194,37 @@ def _item_for_asset(
                 fund_data["cfo_positive"] = False
 
         # Price momentum score from 60 past trading sessions
-        try:
-            past_prices = session.query(Price.raw_close).filter(
-                Price.asset_id == asset.id,
-                Price.observation_date <= as_of,
-                Price.status == "VALID"
-            ).order_by(Price.observation_date.desc()).limit(60).all()
-            closes = [p[0] for p in past_prices if p[0] is not None]
-            if len(closes) >= 20:
-                current_p = closes[0]
-                ma20 = sum(closes[:20]) / 20.0
-                ret20 = (current_p - closes[19]) / closes[19] if closes[19] > 0 else 0.0
-                ma50 = sum(closes[:50]) / 50.0 if len(closes) >= 50 else ma20
+        closes = past_closes
+        if closes is None:
+            try:
+                past_prices = session.query(Price.raw_close).filter(
+                    Price.asset_id == asset.id,
+                    Price.observation_date <= as_of,
+                    Price.status == "VALID"
+                ).order_by(Price.observation_date.desc()).limit(60).all()
+                closes = [p[0] for p in past_prices if p[0] is not None]
+            except Exception:
+                closes = []
+        if len(closes) >= 20:
+            current_p = closes[0]
+            ma20 = sum(closes[:20]) / 20.0
+            ret20 = (current_p - closes[19]) / closes[19] if closes[19] > 0 else 0.0
+            ma50 = sum(closes[:50]) / 50.0 if len(closes) >= 50 else ma20
 
-                mom = 0.0
-                if current_p > ma20: mom += 2.5
-                else: mom -= 2.5
-                if current_p > ma50: mom += 2.5
-                else: mom -= 2.5
-                if ma20 > ma50: mom += 2.0
-                else: mom -= 2.0
+            mom = 0.0
+            if current_p > ma20: mom += 2.5
+            else: mom -= 2.5
+            if current_p > ma50: mom += 2.5
+            else: mom -= 2.5
+            if ma20 > ma50: mom += 2.0
+            else: mom -= 2.0
 
-                if ret20 > 0.05: mom += 3.0
-                elif ret20 > 0.0: mom += 1.0
-                elif ret20 < -0.05: mom -= 3.0
-                else: mom -= 1.0
+            if ret20 > 0.05: mom += 3.0
+            elif ret20 > 0.0: mom += 1.0
+            elif ret20 < -0.05: mom -= 3.0
+            else: mom -= 1.0
 
-                fund_data["price_momentum_score"] = max(-10.0, min(10.0, mom))
-        except Exception:
-            pass
+            fund_data["price_momentum_score"] = max(-10.0, min(10.0, mom))
 
         eps = snap.get("per_share", {}).get("eps_ttm")
         bvps = snap.get("per_share", {}).get("bvps") or snap.get("bvps")
@@ -377,16 +383,42 @@ def build_opportunity_scanner(
         query = query.filter(Asset.symbol == symbol.upper())
 
     assets = query.order_by(Asset.symbol).all()
+    asset_ids = [a.id for a in assets]
 
-    # Pre-fetch latest prices
-    latest_prices = session.query(Price).filter(
-        Price.status == "VALID",
-        Price.observation_date <= as_of,
-    ).order_by(Price.observation_date.desc()).all()
-    latest_price_map: dict[int, Price] = {}
-    for p in latest_prices:
-        if p.asset_id not in latest_price_map:
-            latest_price_map[p.asset_id] = p
+    # Pre-fetch latest prices and past 60 closes in a single indexed query
+    latest_price_map: dict[int, Any] = {}
+    past_closes_map: dict[int, list[float]] = {}
+    if asset_ids:
+        recent_prices = session.query(
+            Price.asset_id, Price.observation_date, Price.raw_close, Price.source, Price.status
+        ).filter(
+            Price.asset_id.in_(asset_ids),
+            Price.status == "VALID",
+            Price.observation_date <= as_of,
+        ).order_by(Price.asset_id, Price.observation_date.desc()).all()
+        for p in recent_prices:
+            aid = p.asset_id
+            if aid not in latest_price_map:
+                latest_price_map[aid] = p
+                past_closes_map[aid] = []
+            if len(past_closes_map[aid]) < 60 and p.raw_close is not None:
+                past_closes_map[aid].append(float(p.raw_close))
+
+    # Pre-fetch bank metrics in a single query for bank assets
+    bank_metric_map: dict[int, Any] = {}
+    bank_asset_ids = [a.id for a in assets if get_sector_for_symbol(a.symbol, a.sector) == "BANK"]
+    if bank_asset_ids:
+        try:
+            from database.models import BankMetric
+            bm_rows = session.query(BankMetric).filter(
+                BankMetric.asset_id.in_(bank_asset_ids),
+                BankMetric.fiscal_date <= as_of,
+            ).order_by(BankMetric.asset_id, BankMetric.fiscal_date.desc()).all()
+            for bm in bm_rows:
+                if bm.asset_id not in bank_metric_map:
+                    bank_metric_map[bm.asset_id] = bm
+        except Exception:
+            pass
 
     # Memory cache key
     cache_key = f"{universe}_{sector}_{symbol}_{as_of.isoformat()}_{horizon}"
@@ -404,6 +436,8 @@ def build_opportunity_scanner(
                     repository=repository,
                     latest_price=latest_price_map.get(asset.id),
                     macro_data=object(),
+                    past_closes=past_closes_map.get(asset.id),
+                    bank_metric=bank_metric_map.get(asset.id),
                 )
                 for asset in assets
             ]
