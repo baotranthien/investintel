@@ -11,10 +11,8 @@ export const appNavigation: AppNavigationItem[] = [
   { href: "/opportunities", label: "Cơ hội", shortLabel: "Cơ hội", group: "workspace" },
   { href: "/portfolio", label: "Danh mục", shortLabel: "Danh mục", group: "workspace" },
   { href: "/watchlist", label: "Theo dõi", shortLabel: "Theo dõi", group: "workspace" },
-  { href: "/research", label: "Nghiên cứu", shortLabel: "Nghiên cứu", group: "research" },
   { href: "/screener", label: "Bộ lọc cổ phiếu", shortLabel: "Bộ lọc", group: "research" },
   { href: "/ai", label: "AI Analyst", shortLabel: "AI", group: "research" },
-  { href: "/data-center", label: "Chất lượng dữ liệu", shortLabel: "Dữ liệu", group: "system" },
   { href: "/system", label: "Hệ thống & tự phục hồi", shortLabel: "Hệ thống", group: "system" },
   { href: "/settings", label: "Cài đặt", shortLabel: "Cài đặt", group: "system" },
 ];
@@ -62,10 +60,8 @@ export const mobilePrimaryNav: MobileNavItem[] = [
 ];
 
 export const mobileDrawerNav: { href: string; label: string }[] = [
-  { href: "/research", label: "Nghiên cứu" },
   { href: "/screener", label: "Bộ lọc cổ phiếu" },
   { href: "/watchlist", label: "Theo dõi" },
-  { href: "/data-center", label: "Chất lượng dữ liệu" },
   { href: "/system", label: "Hệ thống & tự phục hồi" },
   { href: "/settings", label: "Cài đặt" },
 ];

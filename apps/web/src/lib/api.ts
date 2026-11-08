@@ -463,6 +463,7 @@ export type AIStatus = {
   configured_models?: Record<string, string>;
   configured_model_installed?: boolean;
   configured_model_loaded?: boolean;
+  model_state?: "LOADED" | "STANDBY" | string;
   running_models?: Array<Record<string, unknown>>;
   gpu?: { available: boolean; name: string | null; memory_total_mib: number | null; memory_used_mib: number | null };
   reason?: string;

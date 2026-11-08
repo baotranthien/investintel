@@ -482,7 +482,7 @@
 
 /* OPPORTUNITY CARD (COMPACT) */
 .opportunityCard {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  background: var(--surface);
 }
 
 .oppsDesc {

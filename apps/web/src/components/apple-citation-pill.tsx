@@ -12,6 +12,23 @@ interface CitationPillProps {
 export default function AppleCitationPill({ id, citation }: CitationPillProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLSpanElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => setIsOpen(true), 120);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 150);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -39,12 +56,16 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
   const cleanId = id.toUpperCase().replace(/[\[\]]/g, "").trim();
 
   return (
-    <span className={styles.container} ref={containerRef}>
+    <span
+      className={styles.container}
+      ref={containerRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
         type="button"
         className={`${styles.pill} ${isOpen ? styles.pillActive : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
-        onMouseEnter={() => setIsOpen(true)}
+        onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         title="Xem nguồn dữ liệu kiểm chứng"
       >

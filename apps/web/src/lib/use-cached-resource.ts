@@ -30,7 +30,7 @@ export function readCachedValue<T>(key: string): { data: T; updatedAt: number } 
   }
 
   try {
-    const raw = window.localStorage.getItem(`investintel:cache:v1:${key}`);
+    const raw = window.localStorage.getItem(`investintel:cache:v2:${key}`);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed.t === "number" && "v" in parsed) {
@@ -80,7 +80,7 @@ export function useCachedResource<T>(
   options?: UseCachedResourceOptions<T>
 ): CachedResource<T> {
   const maxAge = options?.maxAgeMs ?? 60_000;
-  const timeoutMs = options?.timeoutMs ?? 10_000;
+  const timeoutMs = options?.timeoutMs ?? 25_000;
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const [state, setState] = useState<InternalState<T>>(() => {
@@ -200,7 +200,7 @@ export function useCachedResource<T>(
           try {
             const serialized = JSON.stringify({ t: now, v: freshData });
             if (serialized.length <= 1_500_000) {
-              window.localStorage.setItem(`investintel:cache:v1:${key}`, serialized);
+              window.localStorage.setItem(`investintel:cache:v2:${key}`, serialized);
             }
           } catch {
             // Ignore quota or serialization errors

@@ -35,30 +35,42 @@ def get_hardware_diagnostics() -> Dict[str, Any]:
         "temperature_c": None,
     }
 
-    # 1. Query NVIDIA GPU via nvidia-smi
-    nvidia_smi = "C:\\Windows\\System32\\nvidia-smi.exe"
-    if os.path.exists(nvidia_smi):
-        try:
-            cmd = [
-                nvidia_smi,
-                "--query-gpu=name,memory.total,memory.used,memory.free,utilization.gpu,temperature.gpu",
-                "--format=csv,noheader,nounits",
-            ]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
-            if res.returncode == 0 and res.stdout.strip():
-                parts = [p.strip() for p in res.stdout.strip().split(",")]
-                if len(parts) >= 6:
-                    gpu_data["status"] = "ACTIVE"
-                    gpu_data["name"] = parts[0]
-                    gpu_data["vram_total_mb"] = int(parts[1])
-                    gpu_data["vram_used_mb"] = int(parts[2])
-                    gpu_data["vram_free_mb"] = int(parts[3])
-                    gpu_data["utilization_pct"] = int(parts[4])
-                    gpu_data["temperature_c"] = int(parts[5])
-        except Exception as e:
-            gpu_data["status"] = f"ERROR ({e})"
-    else:
-        gpu_data["status"] = "UNAVAILABLE (nvidia-smi not found)"
+    # 1. Query NVIDIA GPU via in-process NVML (ctypes) — 100% silent, zero console windows
+    try:
+        import ctypes
+        nvml = ctypes.CDLL("nvml.dll")
+        nvml.nvmlInit()
+        handle = ctypes.c_void_p()
+        nvml.nvmlDeviceGetHandleByIndex(0, ctypes.byref(handle))
+
+        class nvmlMemory_t(ctypes.Structure):
+            _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+
+        class nvmlUtilization_t(ctypes.Structure):
+            _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
+
+        mem = nvmlMemory_t()
+        nvml.nvmlDeviceGetMemoryInfo(handle, ctypes.byref(mem))
+        name_buf = ctypes.create_string_buffer(64)
+        nvml.nvmlDeviceGetName(handle, name_buf, 64)
+        name = name_buf.value.decode("utf-8")
+
+        util = nvmlUtilization_t()
+        nvml.nvmlDeviceGetUtilizationRates(handle, ctypes.byref(util))
+
+        temp = ctypes.c_uint()
+        nvml.nvmlDeviceGetTemperature(handle, 0, ctypes.byref(temp))
+        nvml.nvmlShutdown()
+
+        gpu_data["status"] = "ACTIVE"
+        gpu_data["name"] = name
+        gpu_data["vram_total_mb"] = int(mem.total // (1024 * 1024))
+        gpu_data["vram_used_mb"] = int(mem.used // (1024 * 1024))
+        gpu_data["vram_free_mb"] = int(mem.free // (1024 * 1024))
+        gpu_data["utilization_pct"] = int(util.gpu)
+        gpu_data["temperature_c"] = int(temp.value)
+    except Exception as e:
+        gpu_data["status"] = f"UNAVAILABLE ({e})"
 
     # 2. Query System RAM via Python / OS
     ram_data: Dict[str, Any] = {
@@ -73,20 +85,50 @@ def get_hardware_diagnostics() -> Dict[str, Any]:
         ram_data["available_mb"] = round(vm.available / (1024 * 1024), 1)
         ram_data["used_pct"] = vm.percent
     except ImportError:
-        # Fallback using Windows WMIC / PowerShell if psutil not present
-        try:
-            ps_cmd = ["powershell.exe", "-NoProfile", "-Command", "(Get-CimInstance Win32_OperatingSystem) | Select-Object TotalVisibleMemorySize, FreePhysicalMemory | ConvertTo-Json"]
-            ps_res = subprocess.run(ps_cmd, capture_output=True, text=True, timeout=3)
-            if ps_res.returncode == 0:
-                data = json.loads(ps_res.stdout)
-                total_kb = data.get("TotalVisibleMemorySize", 0)
-                free_kb = data.get("FreePhysicalMemory", 0)
+        if os.name == "nt":
+            try:
+                import ctypes
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ('dwLength', ctypes.c_ulong),
+                        ('dwMemoryLoad', ctypes.c_ulong),
+                        ('ullTotalPhys', ctypes.c_ulonglong),
+                        ('ullAvailPhys', ctypes.c_ulonglong),
+                        ('ullTotalPageFile', ctypes.c_ulonglong),
+                        ('ullAvailPageFile', ctypes.c_ulonglong),
+                        ('ullTotalVirtual', ctypes.c_ulonglong),
+                        ('ullAvailVirtual', ctypes.c_ulonglong),
+                        ('sullAvailExtendedVirtual', ctypes.c_ulonglong),
+                    ]
+                stat = MEMORYSTATUSEX()
+                stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
+                if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+                    total_mb = stat.ullTotalPhys / (1024 * 1024)
+                    avail_mb = stat.ullAvailPhys / (1024 * 1024)
+                    ram_data["total_mb"] = round(total_mb, 1)
+                    ram_data["available_mb"] = round(avail_mb, 1)
+                    ram_data["used_pct"] = float(stat.dwMemoryLoad)
+            except Exception:
+                pass
+        else:
+            try:
+                with open("/proc/meminfo", "r") as f:
+                    lines = f.readlines()
+                mem = {}
+                for line in lines:
+                    parts = line.split(":")
+                    if len(parts) == 2:
+                        key = parts[0].strip()
+                        val = parts[1].strip().split()[0]
+                        mem[key] = int(val)
+                total_kb = mem.get("MemTotal", 0)
+                avail_kb = mem.get("MemAvailable", mem.get("MemFree", 0))
                 ram_data["total_mb"] = round(total_kb / 1024, 1)
-                ram_data["available_mb"] = round(free_kb / 1024, 1)
+                ram_data["available_mb"] = round(avail_kb / 1024, 1)
                 if total_kb > 0:
-                    ram_data["used_pct"] = round(((total_kb - free_kb) / total_kb) * 100, 1)
-        except Exception:
-            pass
+                    ram_data["used_pct"] = round(((total_kb - avail_kb) / total_kb) * 100, 1)
+            except Exception:
+                pass
 
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),

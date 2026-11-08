@@ -414,7 +414,7 @@ export default function StockScreenerPage() {
                 result.matches.map((stock: ScreenedStock) => (
                   <tr key={stock.symbol}>
                     <td className={styles.tickerCell}>
-                      <Link href={`/research/${stock.symbol}`}>
+                      <Link href={`/ai?symbol=${encodeURIComponent(stock.symbol)}`}>
                         <strong>{stock.symbol}</strong>
                       </Link>
                       <span>{stock.name}</span>

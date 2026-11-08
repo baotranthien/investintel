@@ -143,11 +143,11 @@ export default function ResearchAnalyst() {
               {loading ? "Đang phân tích..." : "✦ Phân tích bằng AI"}
             </button>
             <Link
-              href={`/research/${symbol.trim() || "FPT"}`}
+              href={`/ai?symbol=${encodeURIComponent(symbol.trim() || "FPT")}`}
               className={styles.actionBtn}
               style={{ background: "var(--ink)", textDecoration: "none" }}
             >
-              Xem không gian nghiên cứu chi tiết →
+              Mở AI Analyst thẩm định chi tiết →
             </Link>
           </div>
 

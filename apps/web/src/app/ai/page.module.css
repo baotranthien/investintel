@@ -5,8 +5,8 @@
   flex-direction: column;
   width: 100%;
   min-height: calc(100vh - 64px);
-  background-color: #F5F5F7;
-  color: #1D1D1F;
+  background-color: var(--canvas);
+  color: var(--ink);
   position: relative;
   padding: 32px 24px 180px 24px;
   box-sizing: border-box;
@@ -49,7 +49,7 @@
 .starterTitleLabel {
   font-size: 12px;
   font-weight: 600;
-  color: #86868B;
+  color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -69,8 +69,8 @@
 
 .starterCard {
   appearance: none;
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 20px;
   display: flex;
@@ -78,13 +78,14 @@
   gap: 10px;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .starterCard:hover {
-  border-color: rgba(0, 0, 0, 0.18);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  background-color: var(--surface-card-hover);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -106,8 +107,8 @@
 .starterTag {
   font-size: 11px;
   font-weight: 600;
-  color: #6E6E73;
-  background-color: #EFEFF4;
+  color: var(--ink-secondary);
+  background-color: var(--surface-secondary);
   padding: 3px 8px;
   border-radius: 9999px;
   text-transform: uppercase;
@@ -117,8 +118,8 @@
 .starterSymbolBadge {
   font-size: 11px;
   font-weight: 700;
-  color: #FFFFFF;
-  background-color: #1D1D1F;
+  color: var(--canvas);
+  background-color: var(--ink);
   padding: 2px 7px;
   border-radius: 6px;
   margin-left: auto;
@@ -128,20 +129,20 @@
 .starterTitle {
   font-size: 14.5px;
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--ink);
   line-height: 1.35;
 }
 
 .starterQuery {
   font-size: 13px;
-  color: #424245;
+  color: var(--ink-secondary);
   line-height: 1.45;
   font-style: italic;
 }
 
 .starterDesc {
   font-size: 12px;
-  color: #86868B;
+  color: var(--ink-muted);
   line-height: 1.4;
   margin-top: auto;
 }
@@ -156,7 +157,7 @@
 .suggestionsLabel {
   font-size: 12px;
   font-weight: 600;
-  color: #86868B;
+  color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -170,21 +171,21 @@
 
 .suggestionPill {
   appearance: none;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  background-color: #FFFFFF;
-  color: #1D1D1F;
+  border: 1px solid var(--line);
+  background-color: var(--surface);
+  color: var(--ink);
   padding: 7px 15px;
   border-radius: 9999px;
   font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
   transition: background-color 150ms ease, transform 150ms cubic-bezier(0.22, 1, 0.36, 1), border-color 150ms ease;
 }
 
 .suggestionPill:hover {
-  background-color: #EFEFF4;
-  border-color: rgba(0, 0, 0, 0.12);
+  background-color: var(--surface-secondary);
+  border-color: var(--line-strong);
 }
 
 .suggestionPill:active {
@@ -192,18 +193,18 @@
 }
 
 .suggestionPillActive {
-  background-color: #1D1D1F !important;
-  color: #FFFFFF !important;
-  border-color: #1D1D1F !important;
+  background-color: var(--ink) !important;
+  color: var(--canvas) !important;
+  border-color: var(--ink) !important;
 }
 
 /* 4. Scope Card (Collapsible Tool Scope) */
 .scopeCard {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 16px 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
 }
 
 .scopeHeader {
@@ -216,7 +217,7 @@
 .scopeTitle {
   font-size: 12px;
   font-weight: 600;
-  color: #6E6E73;
+  color: var(--ink-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0;
@@ -238,7 +239,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #1D1D1F;
+  color: var(--ink);
   cursor: pointer;
   user-select: none;
 }
@@ -246,18 +247,18 @@
 .scopeCheckbox {
   width: 15px;
   height: 15px;
-  accent-color: #1D1D1F;
+  accent-color: var(--accent);
   cursor: pointer;
   margin: 0;
 }
 
 /* 5. Loading Answer State Card */
 .loadingAnswerCard {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 28px 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -270,7 +271,7 @@
   justify-content: space-between;
   gap: 10px;
   padding-bottom: 14px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--line);
 }
 
 .loadingHeaderInfo {
@@ -279,14 +280,14 @@
   gap: 8px;
   font-size: 13.5px;
   font-weight: 500;
-  color: #1D1D1F;
+  color: var(--ink);
 }
 
 .cancelBtn {
   appearance: none;
   border: none;
   background: transparent;
-  color: #D93025;
+  color: var(--negative);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -296,7 +297,7 @@
 }
 
 .cancelBtn:hover {
-  background-color: rgba(217, 48, 37, 0.08);
+  background-color: var(--negative-soft);
 }
 
 /* 6. Desktop 2-Column Split View (Chat + Evidence Split View) */
@@ -330,11 +331,11 @@
 
 /* 7. Khu vực Kết quả AI (Cột Trái 60%) */
 .resultCard {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 20px;
   padding: 28px 30px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -357,7 +358,7 @@
   justify-content: space-between;
   align-items: center;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -374,7 +375,7 @@
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #6E6E73;
+  color: var(--ink-secondary);
 }
 
 .iasWarningBadge {
@@ -385,9 +386,9 @@
   border-radius: 9999px;
   font-size: 11.5px;
   font-weight: 600;
-  background-color: #FEF7E0;
-  color: #B06000;
-  border: 1px solid rgba(176, 96, 0, 0.2);
+  background-color: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
 }
 
 .proxyBadge {
@@ -398,16 +399,16 @@
   border-radius: 9999px;
   font-size: 11.5px;
   font-weight: 600;
-  background-color: rgba(255, 149, 0, 0.1);
-  color: #C96500;
-  border: 1px solid rgba(255, 149, 0, 0.25);
+  background-color: var(--warning-soft);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
 }
 
 .resetQuestionBtn {
   appearance: none;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background-color: #F5F5F7;
-  color: #1D1D1F;
+  border: 1px solid var(--line);
+  background-color: var(--surface-secondary);
+  color: var(--ink);
   padding: 4px 10px;
   border-radius: 9999px;
   font-size: 11.5px;
@@ -417,7 +418,7 @@
 }
 
 .resetQuestionBtn:hover {
-  background-color: #E5E5EA;
+  background-color: var(--surface-muted);
 }
 
 .streamProgressBanner {
@@ -426,11 +427,11 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 14px;
-  background-color: #F0F4FF;
-  border: 1px solid rgba(0, 113, 227, 0.2);
+  background-color: var(--surface-muted);
+  border: 1px solid var(--line);
   border-radius: 12px;
   font-size: 13px;
-  color: #0071E3;
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -438,7 +439,7 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: #D93025;
+  color: var(--negative);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -447,13 +448,13 @@
 }
 
 .cancelButton:hover {
-  background-color: rgba(217, 48, 37, 0.08);
+  background-color: var(--negative-soft);
 }
 
 .answerProse {
   font-size: 15px;
   line-height: 1.75;
-  color: #1D1D1F;
+  color: var(--ink);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -463,13 +464,13 @@
   flex-direction: column;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .sectionTitle {
   font-size: 11.5px;
   font-weight: 600;
-  color: #86868B;
+  color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -482,42 +483,62 @@
 
 .claimRow {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  background-color: #F9F9FB;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  background-color: var(--surface-muted);
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--line);
+  transition: border-color var(--duration-fast) var(--ease-apple);
 }
 
-.claimContent {
+.claimRow:hover {
+  border-color: var(--line-focus);
+}
+
+.claimHeader {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 
 .claimTypeBadge {
   font-size: 10.5px;
   font-weight: 700;
-  color: #6E6E73;
+  color: var(--ink-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  background-color: var(--surface-elevated);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+}
+
+.claimTypeBadgeModel {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .claimText {
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: #1D1D1F;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
   margin: 0;
+  width: 100%;
 }
 
 .claimPills {
   display: inline-flex;
-  gap: 4px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .uncertaintySection {
@@ -525,7 +546,7 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 .uncertaintyList {
@@ -539,16 +560,16 @@
 .uncertaintyItem {
   font-size: 13px;
   line-height: 1.5;
-  color: #6E6E73;
+  color: var(--ink-secondary);
 }
 
 /* 8. Cột Phải Bằng chứng & Số liệu Đối chứng (40%) */
 .evidenceHeaderCard {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 18px 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -568,13 +589,13 @@
 .evidenceTitle {
   font-size: 15px;
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--ink);
   margin: 0;
 }
 
 .evidenceSubtitle {
   font-size: 12px;
-  color: #86868B;
+  color: var(--ink-muted);
   margin: 2px 0 0 0;
 }
 
@@ -588,8 +609,8 @@
 .evidenceCountBadge {
   font-size: 11.5px;
   font-weight: 600;
-  color: #0071E3;
-  background-color: #F0F4FF;
+  color: var(--ink);
+  background-color: var(--surface-muted);
   padding: 3px 10px;
   border-radius: 9999px;
 }
@@ -597,11 +618,11 @@
 .iasEvidenceBadge {
   font-size: 11.5px;
   font-weight: 600;
-  color: #B06000;
-  background-color: #FEF7E0;
+  color: var(--warning);
+  background-color: var(--warning-soft);
   padding: 3px 10px;
   border-radius: 9999px;
-  border: 1px solid rgba(176, 96, 0, 0.2);
+  border: 1px solid var(--warning-border);
 }
 
 .evidenceList {
@@ -611,11 +632,11 @@
 }
 
 .evidenceCard {
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -623,7 +644,7 @@
 }
 
 .evidenceCard:hover {
-  border-color: rgba(0, 0, 0, 0.15);
+  border-color: var(--line-strong);
 }
 
 .evidenceCardHeader {
@@ -637,8 +658,8 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   font-weight: 700;
-  color: #0071E3;
-  background-color: #F0F4FF;
+  color: var(--ink);
+  background-color: var(--surface-muted);
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -646,7 +667,7 @@
 .evidenceModule {
   font-size: 11px;
   font-weight: 600;
-  color: #6E6E73;
+  color: var(--ink-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -654,15 +675,15 @@
 .evidenceFreshness {
   font-size: 10.5px;
   font-weight: 600;
-  color: #34C759;
-  background-color: #E8F9ED;
+  color: var(--positive);
+  background-color: var(--positive-soft);
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 .evidenceNote {
   font-size: 13px;
-  color: #1D1D1F;
+  color: var(--ink);
   line-height: 1.45;
   margin: 0;
 }
@@ -673,27 +694,27 @@
   align-items: center;
   gap: 8px;
   font-size: 11.5px;
-  color: #86868B;
+  color: var(--ink-muted);
   padding-top: 6px;
-  border-top: 1px dashed rgba(0, 0, 0, 0.06);
+  border-top: 1px dashed var(--line);
   flex-wrap: wrap;
 }
 
 .evidenceSource {
-  color: #6E6E73;
+  color: var(--ink-secondary);
 }
 
 .evidenceDate {
-  color: #86868B;
+  color: var(--ink-muted);
 }
 
 .evidenceEmpty {
-  background-color: #FFFFFF;
-  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background-color: var(--surface-muted);
+  border: 1px dashed var(--line-strong);
   border-radius: 14px;
   padding: 24px;
   text-align: center;
-  color: #86868B;
+  color: var(--ink-muted);
   font-size: 13px;
 }
 
@@ -703,7 +724,7 @@
   bottom: 0;
   left: 260px; /* Trừ chiều rộng Sidebar trái */
   right: 0;
-  background: linear-gradient(180deg, rgba(245, 245, 247, 0) 0%, #F5F5F7 35%, #F5F5F7 100%);
+  background: linear-gradient(180deg, transparent 0%, var(--canvas) 35%, var(--canvas) 100%);
   padding: 24px 24px 20px 24px;
   z-index: 40;
   display: flex;
@@ -736,22 +757,22 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background-color: rgba(255, 255, 255, 0.92);
+  background-color: var(--surface-glass);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
   padding: 6px 14px;
   border-radius: 9999px;
   font-size: 12.5px;
   font-weight: 500;
-  color: #1D1D1F;
+  color: var(--ink);
 }
 
 .pulseDot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #1D1D1F;
+  background-color: var(--ink);
   animation: pulseAnim 1.4s infinite ease-in-out;
 }
 
@@ -763,11 +784,11 @@
 /* Hộp nhập câu hỏi chuẩn Apple / ChatGPT */
 .promptBox {
   width: 100%;
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 22px;
   padding: 10px 12px 10px 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-island);
   display: flex;
   align-items: flex-end;
   gap: 10px;
@@ -776,20 +797,20 @@
 }
 
 .promptBox:focus-within {
-  border-color: #1D1D1F;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
 }
 
 .tickerInput {
   width: 78px;
   height: 36px;
-  background-color: #EFEFF4;
-  border: 1px solid transparent;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #1D1D1F;
+  color: var(--ink);
   text-transform: uppercase;
   text-align: center;
   outline: none;
@@ -797,15 +818,15 @@
 }
 
 .tickerInput:focus {
-  background-color: #FFFFFF;
-  border-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--surface);
+  border-color: var(--accent);
 }
 
 .promptTextarea {
   flex: 1;
   border: none !important;
   background: transparent !important;
-  color: #1D1D1F !important;
+  color: var(--ink) !important;
   font-size: 15px;
   line-height: 1.5;
   padding: 6px 4px;
@@ -817,14 +838,14 @@
 }
 
 .promptTextarea::placeholder {
-  color: #86868B;
+  color: var(--ink-muted);
 }
 
 .submitBtn {
   appearance: none;
   border: none;
-  background-color: #1D1D1F;
-  color: #FFFFFF;
+  background-color: var(--accent);
+  color: var(--canvas);
   height: 36px;
   padding: 0 18px;
   border-radius: 9999px;
@@ -836,7 +857,7 @@
 }
 
 .submitBtn:hover:not(:disabled) {
-  background-color: #333336;
+  background-color: var(--accent-hover);
 }
 
 .submitBtn:active:not(:disabled) {
@@ -844,14 +865,173 @@
 }
 
 .submitBtn:disabled {
-  background-color: #D2D2D7;
-  color: #86868B;
+  background-color: var(--surface-secondary);
+  color: var(--ink-muted);
   cursor: not-allowed;
 }
 
 .disclaimerText {
   font-size: 11.5px;
-  color: #86868B;
+  color: var(--ink-muted);
   text-align: center;
   margin: 0;
+}
+
+/* 11. History Section (Local-First Persistence Bar) */
+.historySection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.historyHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.historyTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.historyCountBadge {
+  background-color: var(--surface-muted);
+  color: var(--ink-secondary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.historyClearBtn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 150ms ease;
+}
+
+.historyClearBtn:hover {
+  color: var(--negative);
+  background-color: var(--negative-soft);
+}
+
+.historyList {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.historyItem {
+  flex: 0 0 auto;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  text-align: left;
+}
+
+.historyItem:hover {
+  background-color: var(--surface-card-hover);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.historyItemActive {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.historyBadge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background-color: var(--ink);
+  color: var(--canvas);
+}
+
+.historyItemActive .historyBadge {
+  background-color: var(--accent);
+  color: var(--canvas);
+}
+
+.historyContent {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  flex: 1;
+}
+
+.historyQuestionText {
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.historyTimeText {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.historyDeleteBtn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: all 150ms ease;
+  flex-shrink: 0;
+}
+
+.historyDeleteBtn:hover {
+  opacity: 1;
+  color: var(--negative);
+  background-color: var(--negative-soft);
+}
+
+.historyEmpty {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  background-color: var(--surface-muted);
+  border-radius: 12px;
+  padding: 12px 16px;
+  line-height: 1.5;
+  border: 1px dashed var(--line-strong);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

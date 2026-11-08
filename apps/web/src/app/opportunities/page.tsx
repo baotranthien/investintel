@@ -442,8 +442,8 @@ export default function OpportunitiesPage() {
                     >
                       ✦ Hỏi AI
                     </Link>
-                    <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
-                      Nghiên cứu →
+                    <Link href={`/market?symbol=${item.symbol}`} className={styles.actionBtnPrimary}>
+                      Thị trường →
                     </Link>
                   </td>
                 </tr>
@@ -542,8 +542,8 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         >
           ✦ Hỏi AI
         </Link>
-        <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
-          Nghiên cứu chi tiết →
+        <Link href={`/market?symbol=${item.symbol}`} className={styles.actionBtnPrimary}>
+          Thị trường & định giá →
         </Link>
       </div>
     </article>

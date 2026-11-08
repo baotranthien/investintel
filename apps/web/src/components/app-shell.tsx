@@ -18,6 +18,7 @@ import {
 import ColdStartBanner from "./cold-start-banner";
 import { StatusBar } from "./status-bar";
 import CommandPalette from "./command-palette";
+import ThemeToggle from "./theme-toggle";
 import styles from "./app-shell.module.css";
 
 const groupLabels = {
@@ -283,8 +284,10 @@ export default function AppShell({ children }: { children: ReactNode }): JSX.Ele
             </button>
           </div>
 
-          {/* Column 3: Right Empty on Desktop */}
-          <div className={styles.topbarRight} />
+          {/* Column 3: Theme Switcher & Preferences on Desktop */}
+          <div className={styles.topbarRight}>
+            <ThemeToggle />
+          </div>
         </header>
 
         <main className={styles.content} id="main-content">
@@ -377,6 +380,11 @@ export default function AppShell({ children }: { children: ReactNode }): JSX.Ele
                 );
               })}
             </nav>
+
+            <div className={styles.drawerThemeSection}>
+              <span className={styles.drawerSectionLabel}>Giao diện (Theme)</span>
+              <ThemeToggle variant="drawer" />
+            </div>
           </div>
         </div>
       )}

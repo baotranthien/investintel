@@ -1,0 +1,125 @@
+.toggleWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.segmentedControl {
+  display: inline-flex;
+  align-items: center;
+  background: var(--canvas-subtle);
+  border-radius: 9999px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.segmentButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segmentButton:hover {
+  color: var(--ink);
+}
+
+.segmentActive {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0.5px 1px rgba(0, 0, 0, 0.04);
+}
+
+.segmentIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.segmentLabel {
+  font-size: 11px;
+  letter-spacing: -0.01em;
+}
+
+.settingsLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1;
+  transition: all var(--duration-fast) var(--ease-spring);
+  box-shadow: var(--shadow-sm);
+}
+
+.settingsLink:hover {
+  color: var(--ink);
+  background: var(--surface-card-hover);
+  border-color: var(--line-strong);
+}
+
+.settingsLink:active {
+  transform: scale(0.95);
+}
+
+/* Compact mode for tighter headers or mobile drawer */
+.compactWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.compactControl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--canvas-subtle);
+  border-radius: 12px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  gap: 4px;
+}
+
+.compactBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.compactBtnActive {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+

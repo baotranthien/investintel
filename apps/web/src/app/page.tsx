@@ -314,7 +314,7 @@ export default function Home(): JSX.Element {
                 {topOpportunities.map((opp) => (
                   <Link
                     key={opp.symbol}
-                    href={`/research/${encodeURIComponent(opp.symbol)}`}
+                    href={`/ai?symbol=${encodeURIComponent(opp.symbol)}&source=opportunities`}
                     className={styles.oppRow}
                   >
                     <div className={styles.oppIdentity}>
@@ -532,8 +532,8 @@ export default function Home(): JSX.Element {
           </span>
         </div>
 
-        <Link href="/data-center" className={styles.telemetryLink}>
-          Chi tiết Data Center <span aria-hidden="true">→</span>
+        <Link href="/system" className={styles.telemetryLink}>
+          Chi tiết hệ thống & dữ liệu <span aria-hidden="true">→</span>
         </Link>
       </section>
 

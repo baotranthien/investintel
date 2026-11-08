@@ -27,7 +27,7 @@ class OllamaConfig:
     fast_model: str = "qwen2.5:0.5b"
     primary_model: str = "qwen2.5:0.5b"
     reasoning_model: str = "qwen2.5:0.5b"
-    timeout_seconds: float = 75.0
+    timeout_seconds: float = 150.0
     connect_timeout_seconds: float = 3.0
     retries: int = 1
     num_ctx: int = 2048
@@ -69,7 +69,7 @@ class OllamaConfig:
             fast_model=os.getenv("OLLAMA_FAST_MODEL", default_model).strip() or default_model,
             primary_model=os.getenv("OLLAMA_PRIMARY_MODEL", default_model).strip() or default_model,
             reasoning_model=os.getenv("OLLAMA_REASONING_MODEL", default_model).strip() or default_model,
-            timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "75")),
+            timeout_seconds=float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "150")),
             connect_timeout_seconds=float(os.getenv("OLLAMA_CONNECT_TIMEOUT_SECONDS", "3")),
             retries=int(os.getenv("OLLAMA_RETRIES", "1")),
             num_ctx=int(os.getenv("OLLAMA_NUM_CTX", "2048")),

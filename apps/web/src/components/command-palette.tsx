@@ -6,6 +6,7 @@ import { getAssets, type AssetSummary } from "@/lib/api";
 import { useCachedResource } from "@/lib/use-cached-resource";
 import { appNavigation } from "@/lib/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { setThemePreference } from "@/lib/theme";
 import styles from "./command-palette.module.css";
 
 const POPULAR_SYMBOLS = ["FPT", "VCB", "HPG", "MBB", "MWG"];
@@ -34,6 +35,13 @@ type PaletteItem =
       group: "page";
       label: string;
       href: string;
+      action: () => void;
+    }
+  | {
+      id: string;
+      group: "action";
+      label: string;
+      icon?: string;
       action: () => void;
     }
   | {
@@ -101,6 +109,53 @@ export default function CommandPalette({
     const normQuery = removeVietnameseDiacritics(trimmedQuery);
     const result: PaletteItem[] = [];
 
+    const themeActions = [
+      {
+        id: "action-theme-dark",
+        group: "action" as const,
+        label: "Chuyển giao diện: Chế độ Tối (Dark Mode)",
+        icon: "🌙",
+        keywords: ["toi", "dark", "giao dien", "theme", "night", "den"],
+        action: () => {
+          setThemePreference("dark");
+          onClose();
+        },
+      },
+      {
+        id: "action-theme-light",
+        group: "action" as const,
+        label: "Chuyển giao diện: Chế độ Sáng (Light Mode)",
+        icon: "☀️",
+        keywords: ["sang", "light", "giao dien", "theme", "day", "trang"],
+        action: () => {
+          setThemePreference("light");
+          onClose();
+        },
+      },
+      {
+        id: "action-theme-system",
+        group: "action" as const,
+        label: "Chuyển giao diện: Tự động theo hệ thống (System)",
+        icon: "🖥️",
+        keywords: ["tu dong", "he thong", "system", "auto", "giao dien", "theme"],
+        action: () => {
+          setThemePreference("system");
+          onClose();
+        },
+      },
+      {
+        id: "action-settings-page",
+        group: "action" as const,
+        label: "Cài đặt & Tùy chọn hệ thống",
+        icon: "⚙️",
+        keywords: ["cai dat", "tuy chon", "preference", "settings", "cau hinh"],
+        action: () => {
+          router.push("/settings");
+          onClose();
+        },
+      },
+    ];
+
     if (!trimmedQuery) {
       // 1. Popular stocks
       const assetMap = new Map<string, AssetSummary>();
@@ -119,11 +174,11 @@ export default function CommandPalette({
           name: found ? found.name : sym,
           exchange: found ? found.exchange : "HOSE",
           action: () => {
-            router.push(`/research/${sym}`);
+            router.push(`/ai?symbol=${encodeURIComponent(sym)}`);
             onClose();
           },
           actionAlt: () => {
-            router.push(`/ai?symbol=${sym}`);
+            router.push(`/market?symbol=${encodeURIComponent(sym)}`);
             onClose();
           },
         });
@@ -140,6 +195,17 @@ export default function CommandPalette({
             router.push(nav.href);
             onClose();
           },
+        });
+      }
+
+      // 3. Theme & Preferences quick actions
+      for (const act of themeActions) {
+        result.push({
+          id: act.id,
+          group: "action",
+          label: act.label,
+          icon: act.icon,
+          action: act.action,
         });
       }
 
@@ -180,11 +246,11 @@ export default function CommandPalette({
           name: s.name,
           exchange: s.exchange,
           action: () => {
-            router.push(`/research/${s.symbol}`);
+            router.push(`/ai?symbol=${encodeURIComponent(s.symbol)}`);
             onClose();
           },
           actionAlt: () => {
-            router.push(`/ai?symbol=${s.symbol}`);
+            router.push(`/market?symbol=${encodeURIComponent(s.symbol)}`);
             onClose();
           },
         });
@@ -209,7 +275,22 @@ export default function CommandPalette({
       }
     }
 
-    // c) Ask AI option
+    // c) Theme & Preferences matching query
+    for (const act of themeActions) {
+      const normActLabel = removeVietnameseDiacritics(act.label);
+      const matchKeyword = act.keywords.some((k) => normQuery.includes(k) || k.includes(normQuery));
+      if (normActLabel.includes(normQuery) || matchKeyword) {
+        result.push({
+          id: act.id,
+          group: "action",
+          label: act.label,
+          icon: act.icon,
+          action: act.action,
+        });
+      }
+    }
+
+    // d) Ask AI option
     result.push({
       id: `ai-ask`,
       group: "ai",
@@ -387,6 +468,37 @@ export default function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div className={styles.itemLeft}>
+                      <span className={styles.itemName}>{item.label}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </>
+          )}
+
+          {/* ACTIONS & PREFERENCES GROUP */}
+          {items.some((i) => i.group === "action") && (
+            <>
+              <div className={styles.groupHeader}>Giao diện & Cài đặt</div>
+              {items.map((item, index) => {
+                if (item.group !== "action") return null;
+                const isSelected = index === selectedIndex;
+                return (
+                  <li
+                    id={item.id}
+                    key={item.id}
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`${styles.item} ${isSelected ? styles.itemSelected : ""}`}
+                    onClick={item.action}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                  >
+                    <div className={styles.itemLeft}>
+                      {item.icon && (
+                        <span style={{ fontSize: "14px", marginRight: "8px", lineHeight: 1 }} aria-hidden="true">
+                          {item.icon}
+                        </span>
+                      )}
                       <span className={styles.itemName}>{item.label}</span>
                     </div>
                   </li>

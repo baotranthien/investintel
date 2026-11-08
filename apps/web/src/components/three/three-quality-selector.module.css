@@ -9,43 +9,43 @@
   align-items: center;
   gap: 6px;
   padding: 4px 9px;
-  background: var(--surface-card, #ffffff);
-  border: 1px solid var(--line-strong, rgba(0, 0, 0, 0.12));
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 6px;
   font-family: var(--font-mono, monospace);
   font-size: 11px;
   font-weight: 500;
-  color: var(--ink, #1d1d1f);
+  color: var(--ink);
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
 }
 
 .triggerButton:hover {
-  background: var(--canvas-subtle, #ebebef);
+  background: var(--surface-muted);
 }
 
 .tierIndicator {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #1e8e3e;
+  background: var(--positive, #1e8e3e);
 }
 
 .tierIndicator[data-tier="HIGH"] {
-  background: #1e8e3e;
+  background: var(--positive, #1e8e3e);
 }
 
 .tierIndicator[data-tier="BALANCED"] {
-  background: #1d1d1f;
+  background: var(--ink);
 }
 
 .tierIndicator[data-tier="LOW"] {
-  background: #8e8e93;
+  background: var(--ink-muted, #8e8e93);
 }
 
 .tierIndicator[data-tier="OFF"] {
-  background: #d1d1d6;
+  background: var(--line-strong, #d1d1d6);
 }
 
 .tierIndicator[data-ai="true"] {
@@ -62,11 +62,11 @@
   top: calc(100% + 6px);
   right: 0;
   width: 250px;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: var(--surface-elevated);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-island, 0 8px 24px rgba(0, 0, 0, 0.08));
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -78,7 +78,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 6px 8px 8px 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid var(--line);
   margin-bottom: 4px;
 }
 
@@ -86,13 +86,13 @@
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: #8e8e93;
+  color: var(--ink-muted);
 }
 
 .fpsDisplay {
   font-family: var(--font-mono, monospace);
   font-size: 10px;
-  color: #1d1d1f;
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -111,11 +111,11 @@
 }
 
 .menuOption:hover {
-  background: #f5f5f7;
+  background: var(--surface-muted);
 }
 
 .menuOption.selected {
-  background: #f2f2f7;
+  background: var(--surface-secondary, var(--surface-muted));
 }
 
 .optionMain {
@@ -126,18 +126,17 @@
 
 .optionLabel {
   font-size: 12px;
-  color: #1d1d1f;
+  color: var(--ink);
   font-weight: 600;
 }
 
 .optionDesc {
   font-size: 10px;
-  color: #6e6e73;
+  color: var(--ink-secondary);
 }
 
 .checkMark {
   font-size: 12px;
-  color: #1d1d1f;
+  color: var(--ink);
   font-weight: 700;
 }
-

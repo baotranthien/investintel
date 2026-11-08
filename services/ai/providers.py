@@ -1,9 +1,16 @@
 from dataclasses import asdict, dataclass
 import json
+import logging
+import os
 import re
+import shutil
+import socket
 import subprocess
+from pathlib import Path
 from typing import Any
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from .config import OllamaConfig
 from .provider import AIProvider
@@ -93,11 +100,77 @@ def _clean_and_parse_json(text: str) -> dict[str, Any]:
     raise AIProviderError("Ollama returned invalid JSON for a structured response.")
 
 
+def ensure_ollama_server() -> bool:
+    """Check if Ollama is listening on 11434; if not and local binary exists, auto-start `ollama serve`."""
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return False
+    if os.getenv("CLOUD_MODE", "false").lower() in {"1", "true", "yes"}:
+        return False
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)
+    try:
+        s.connect(("127.0.0.1", 11434))
+        s.close()
+        return True
+    except (socket.error, ConnectionRefusedError, TimeoutError, OSError):
+        pass
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+    candidates = [
+        Path(r"C:\Users\baotr\AppData\Local\Microsoft\WinGet\Packages\Ollama.Ollama.Portable_Microsoft.Winget.Source_8wekyb3d8bbwe\ollama.exe"),
+        Path(os.path.expanduser("~")) / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
+    ]
+    which_ollama = shutil.which("ollama")
+    if which_ollama:
+        candidates.insert(0, Path(which_ollama))
+
+    for exe_path in candidates:
+        if exe_path.exists():
+            try:
+                flags = 0
+                if os.name == "nt":
+                    # CREATE_NO_WINDOW = 0x08000000, DETACHED_PROCESS = 0x00000008
+                    flags = 0x08000000 | 0x00000008
+                subprocess.Popen([str(exe_path), "serve"], creationflags=flags)
+                logger.info("Auto-started Ollama server from %s", exe_path)
+                return True
+            except Exception as e:
+                logger.warning("Failed to auto-start Ollama: %s", e)
+    return False
+
+
 class OllamaProvider:
     def __init__(self, config: OllamaConfig | None = None):
         self.config = config or OllamaConfig.from_env()
         self.base_url = self.config.base_url
         self.default_model = self.config.primary_model
+        if "127.0.0.1:11434" in self.base_url or "localhost:11434" in self.base_url:
+            ensure_ollama_server()
+            if "PYTEST_CURRENT_TEST" not in os.environ and os.getenv("CLOUD_MODE", "false").lower() not in {"1", "true", "yes"}:
+                try:
+                    import threading
+                    threading.Thread(target=self.prewarm, daemon=True).start()
+                except Exception:
+                    pass
+
+    def prewarm(self) -> None:
+        """Send a keep-alive ping to ensure the configured model stays loaded in memory."""
+        if "PYTEST_CURRENT_TEST" in os.environ or os.getenv("CLOUD_MODE", "false").lower() in {"1", "true", "yes"}:
+            return
+        try:
+            timeout = httpx.Timeout(45.0, connect=3.0)
+            with httpx.Client(timeout=timeout, trust_env=False) as client:
+                client.post(
+                    f"{self.base_url}/api/generate",
+                    json={"model": self.default_model, "keep_alive": self.config.keep_alive},
+                )
+        except Exception:
+            pass
 
     async def _generate_result(
         self,
@@ -175,17 +248,29 @@ class OllamaProvider:
         return data, metadata
 
     def _detect_gpu(self) -> dict[str, Any]:
+        """In-process GPU telemetry via nvml.dll (ctypes) — 100% silent, zero subprocess/console window."""
         try:
-            result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=name,memory.total,memory.used", "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=3
-            )
-            if result.returncode != 0 or not result.stdout.strip():
-                return {"available": False, "name": None, "memory_total_mib": None, "memory_used_mib": None}
-            name, total, used = (part.strip() for part in result.stdout.splitlines()[0].split(",", 2))
-            return {"available": True, "name": name, "memory_total_mib": int(total), "memory_used_mib": int(used)}
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return {"available": False, "name": None, "memory_total_mib": None, "memory_used_mib": None}
+            import ctypes
+            nvml = ctypes.CDLL("nvml.dll")
+            nvml.nvmlInit()
+            handle = ctypes.c_void_p()
+            nvml.nvmlDeviceGetHandleByIndex(0, ctypes.byref(handle))
+
+            class nvmlMemory_t(ctypes.Structure):
+                _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+
+            mem = nvmlMemory_t()
+            nvml.nvmlDeviceGetMemoryInfo(handle, ctypes.byref(mem))
+            name_buf = ctypes.create_string_buffer(64)
+            nvml.nvmlDeviceGetName(handle, name_buf, 64)
+            name = name_buf.value.decode("utf-8")
+            total_mib = int(mem.total // (1024 * 1024))
+            used_mib = int(mem.used // (1024 * 1024))
+            nvml.nvmlShutdown()
+            return {"available": True, "name": name, "memory_total_mib": total_mib, "memory_used_mib": used_mib}
+        except Exception:
+            pass
+        return {"available": False, "name": None, "memory_total_mib": None, "memory_used_mib": None}
 
     def status(self) -> dict[str, Any]:
         try:
@@ -223,8 +308,14 @@ class OllamaProvider:
                     "gpu": self._detect_gpu(),
                     "reason": f"Configured model '{configured}' is not installed in Ollama. Installed models: {models}",
                 }
+            if not loaded and "PYTEST_CURRENT_TEST" not in os.environ and os.getenv("CLOUD_MODE", "false").lower() not in {"1", "true", "yes"}:
+                try:
+                    import threading
+                    threading.Thread(target=self.prewarm, daemon=True).start()
+                except Exception:
+                    pass
             return {
-                "status": "HEALTHY" if loaded else "DEGRADED",
+                "status": "HEALTHY",
                 "available": True,
                 "model_state": "LOADED" if loaded else "STANDBY",
                 "provider": "ollama",

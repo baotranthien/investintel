@@ -190,6 +190,223 @@ function renderAnswerWithCitations(text: string, citations: AICitation[]) {
   return parts;
 }
 
+export type AIHistoryItem = {
+  id: string;
+  timestamp: number;
+  symbol: string;
+  question: string;
+  answer: AIChatResponse;
+};
+
+export type AICurrentSession = {
+  activeSymbol: string;
+  question: string;
+  answer: AIChatResponse | null;
+  updatedAt: number;
+};
+
+const CURRENT_SESSION_KEY = "investintel:ai:current_session:v1";
+const HISTORY_KEY = "investintel:ai:history:v1";
+
+function readCurrentSession(): AICurrentSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CURRENT_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeCurrentSession(session: AICurrentSession): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+function readHistory(): AIHistoryItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory(items: AIHistoryItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 30)));
+  } catch {}
+}
+
+function formatHistoryTime(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "Vừa xong";
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)} phút trước`;
+  const d = new Date(ts);
+  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+type StreamListener = {
+  onStatusUpdate?: (step: AIStreamStep, message: string) => void;
+  onSuccess?: (response: AIChatResponse) => void;
+  onError?: (error: Error) => void;
+  onBusyChange?: (busy: boolean) => void;
+};
+
+class AIBackgroundStreamManager {
+  private controller: AbortController | null = null;
+  private busy = false;
+  private currentStep: AIStreamStep | null = null;
+  private currentMessage = "";
+  private activeSymbol = "";
+  private currentQuestion = "";
+  private listeners = new Set<StreamListener>();
+
+  public isBusy(): boolean {
+    return this.busy;
+  }
+
+  public getStatus() {
+    return {
+      busy: this.busy,
+      step: this.currentStep,
+      message: this.currentMessage,
+      symbol: this.activeSymbol,
+      question: this.currentQuestion,
+    };
+  }
+
+  public subscribe(listener: StreamListener): () => void {
+    this.listeners.add(listener);
+    if (this.busy) {
+      listener.onBusyChange?.(true);
+      if (this.currentStep && this.currentMessage) {
+        listener.onStatusUpdate?.(this.currentStep, this.currentMessage);
+      }
+    }
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  public cancel(): void {
+    if (this.controller) {
+      this.controller.abort();
+      this.controller = null;
+    }
+    this.busy = false;
+    this.currentStep = null;
+    this.currentMessage = "";
+    for (const l of this.listeners) {
+      l.onBusyChange?.(false);
+      l.onStatusUpdate?.("fetching_data", "Đã hủy phân tích theo yêu cầu.");
+    }
+  }
+
+  public async startStream(
+    symbol: string,
+    question: string,
+    asOf: string,
+    selectedTools: AIToolName[]
+  ): Promise<void> {
+    if (this.busy) return;
+
+    this.busy = true;
+    this.activeSymbol = symbol;
+    this.currentQuestion = question;
+    this.currentStep = "fetching_data";
+    this.currentMessage = "Đang khởi tạo kết nối luồng phân tích...";
+    this.controller = new AbortController();
+
+    for (const l of this.listeners) {
+      l.onBusyChange?.(true);
+      l.onStatusUpdate?.(this.currentStep, this.currentMessage);
+    }
+
+    try {
+      const finalResponse = await streamAIChat(
+        {
+          symbol: symbol.trim() || undefined,
+          question: question.trim(),
+          as_of_date: asOf || undefined,
+          tool_names: selectedTools,
+        },
+        {
+          onStatusUpdate: (step: AIStreamStep, msg: string) => {
+            this.currentStep = step;
+            this.currentMessage = msg;
+            for (const l of this.listeners) {
+              l.onStatusUpdate?.(step, msg);
+            }
+          },
+          onResult: (resultData: AIChatResponse) => {
+            writeCurrentSession({
+              activeSymbol: resultData.symbol || symbol,
+              question,
+              answer: resultData,
+              updatedAt: Date.now(),
+            });
+            for (const l of this.listeners) {
+              l.onSuccess?.(resultData);
+            }
+          },
+        },
+        this.controller.signal
+      );
+
+      if (finalResponse) {
+        writeCurrentSession({
+          activeSymbol: finalResponse.symbol || symbol,
+          question,
+          answer: finalResponse,
+          updatedAt: Date.now(),
+        });
+
+        const history = readHistory();
+        const itemSymbol = finalResponse.symbol || symbol || "TOÀN CẢNH";
+        const newItem: AIHistoryItem = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: Date.now(),
+          symbol: itemSymbol,
+          question,
+          answer: finalResponse,
+        };
+        const filtered = history.filter(
+          (h) => !(h.symbol === newItem.symbol && h.question.trim() === newItem.question.trim())
+        );
+        writeHistory([newItem, ...filtered]);
+
+        for (const l of this.listeners) {
+          l.onSuccess?.(finalResponse);
+        }
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name !== "AbortError") {
+        for (const l of this.listeners) {
+          l.onError?.(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    } finally {
+      this.busy = false;
+      this.currentStep = null;
+      this.currentMessage = "";
+      this.controller = null;
+      for (const l of this.listeners) {
+        l.onBusyChange?.(false);
+      }
+    }
+  }
+}
+
+const backgroundStream = new AIBackgroundStreamManager();
+
 function AIWorkspaceContent() {
   const searchParams = useSearchParams();
 
@@ -224,6 +441,8 @@ function AIWorkspaceContent() {
   const [streamMessage, setStreamMessage] = useState("");
   const [answer, setAnswer] = useState<AIChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<AIHistoryItem[]>([]);
+  const [isClient, setIsClient] = useState(false);
 
   // Background fetch of AI Model Status via SWR Cache without blocking UI
   const { data: aiStatus, isLoading: isStatusLoading } = useCachedResource<AIStatus>(
@@ -232,46 +451,206 @@ function AIWorkspaceContent() {
     { maxAgeMs: 60_000 }
   );
 
-  const abortControllerRef = useRef<AbortController | null>(null);
   const answerSectionRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Navigation tracking ref to ensure idempotency and prevent overwriting user edits
-  const lastHandledKeyRef = useRef<string>(
-    symbolParam || qParam || sourceParam
-      ? `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`
-      : ""
-  );
+  const lastHandledKeyRef = useRef<string>("");
+  const isMountedRef = useRef<boolean>(false);
 
-  // Handle client-side navigation transitions (e.g. clicking different opportunities)
+  // 1. Initial client-side state hydration from localStorage
   useEffect(() => {
-    const currentKey = `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`;
+    setIsClient(true);
+    const storedHistory = readHistory();
+    setHistory(storedHistory);
 
-    // If searchParams haven't changed since last handoff, don't overwrite user edits
+    const session = readCurrentSession();
+    const validTicker = normalizeTicker(symbolParam);
+
+    // Case 1: URL has no specific ticker or question (e.g. user navigated from sidebar /ai or home)
+    if (!validTicker && !qParam) {
+      if (session && session.answer) {
+        if (session.activeSymbol) setActiveSymbol(session.activeSymbol);
+        if (session.question) setQuestion(session.question);
+        setAnswer(session.answer);
+        return;
+      }
+      if (storedHistory.length > 0 && storedHistory[0].answer) {
+        const latest = storedHistory[0];
+        setActiveSymbol(latest.symbol === "TOÀN CẢNH" ? "" : latest.symbol);
+        setQuestion(latest.question);
+        setAnswer(latest.answer);
+        return;
+      }
+    }
+
+    // Case 2: URL has a specific ticker (e.g. from /opportunities or query)
+    if (validTicker) {
+      // 2a: Check if current session matches this ticker
+      if (
+        session &&
+        session.answer &&
+        session.activeSymbol?.toUpperCase() === validTicker.toUpperCase()
+      ) {
+        setActiveSymbol(session.activeSymbol);
+        if (session.question) setQuestion(session.question);
+        setAnswer(session.answer);
+        return;
+      }
+
+      // 2b: Check if history has a previous answer for this ticker
+      const matched = storedHistory.find(
+        (h) => h.symbol?.toUpperCase() === validTicker.toUpperCase()
+      );
+      if (matched && matched.answer) {
+        setActiveSymbol(validTicker);
+        setQuestion(matched.question);
+        setAnswer(matched.answer);
+        return;
+      }
+    }
+
+    // Case 3: Fallback restore if session has any answer and no question in URL
+    if (!qParam && session?.answer) {
+      if (session.activeSymbol) setActiveSymbol(session.activeSymbol);
+      if (session.question) setQuestion(session.question);
+      setAnswer(session.answer);
+    }
+  }, []);
+
+  // 1b. Auto-persist whenever answer, activeSymbol, or question updates
+  useEffect(() => {
+    if (!answer) return;
+
+    const sym = answer.symbol || activeSymbol || "TOÀN CẢNH";
+    const q = question.trim() || `Phân tích ${sym}`;
+
+    writeCurrentSession({
+      activeSymbol: sym === "TOÀN CẢNH" ? "" : sym,
+      question: q,
+      answer,
+      updatedAt: Date.now(),
+    });
+
+    const currentHistory = readHistory();
+    const existingIndex = currentHistory.findIndex(
+      (h) =>
+        h.symbol?.toUpperCase() === sym.toUpperCase() &&
+        (h.question.trim() === q || h.answer.answer === answer.answer)
+    );
+
+    const newItem: AIHistoryItem = {
+      id:
+        existingIndex >= 0
+          ? currentHistory[existingIndex].id
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: Date.now(),
+      symbol: sym,
+      question: q,
+      answer,
+    };
+
+    const nextHistory = [
+      newItem,
+      ...currentHistory.filter((h) => h.id !== newItem.id),
+    ].slice(0, 30);
+
+    writeHistory(nextHistory);
+    setHistory(nextHistory);
+  }, [answer, activeSymbol, question]);
+
+  // 2. Subscribe to background streaming runner
+  useEffect(() => {
+    const unsubscribe = backgroundStream.subscribe({
+      onBusyChange: (isBusy) => {
+        setBusy(isBusy);
+      },
+      onStatusUpdate: (step, msg) => {
+        setStreamStep(step);
+        setStreamMessage(msg);
+      },
+      onSuccess: (resp) => {
+        startTransition(() => {
+          setAnswer(resp);
+          setHistory(readHistory());
+          if (resp.symbol && !activeSymbol) {
+            setActiveSymbol(resp.symbol);
+          }
+        });
+        setTimeout(() => {
+          answerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      },
+      onError: (err) => {
+        setError(err.message || "Đã xảy ra lỗi không mong muốn");
+      },
+    });
+
+    const currentStatus = backgroundStream.getStatus();
+    if (currentStatus.busy) {
+      setBusy(true);
+      setStreamStep(currentStatus.step);
+      setStreamMessage(currentStatus.message);
+      if (currentStatus.symbol) setActiveSymbol(currentStatus.symbol);
+      if (currentStatus.question) setQuestion(currentStatus.question);
+    }
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeSymbol]);
+
+  // 3. Handle client-side navigation transitions (e.g. clicking different opportunities while page is open)
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+
+    const currentKey = `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`;
     if (lastHandledKeyRef.current === currentKey) {
       return;
     }
     lastHandledKeyRef.current = currentKey;
 
     const validTicker = normalizeTicker(symbolParam);
-
-    // If neither ticker nor question is present in URL (e.g. direct navigation to /ai),
-    // preserve any existing state so we never overwrite what user has started writing.
     if (!validTicker && !qParam) {
       return;
     }
 
+    const targetQuestion =
+      validTicker && (sourceParam === "opportunities" || !qParam)
+        ? buildOpportunityQuestion(validTicker)
+        : (qParam?.trim() ?? "");
+
     if (validTicker) {
       setActiveSymbol(validTicker);
-      const targetQuestion =
-        sourceParam === "opportunities" || !qParam
-          ? buildOpportunityQuestion(validTicker)
-          : qParam.trim();
+    }
+    if (targetQuestion) {
       setQuestion(targetQuestion);
-      setAnswer(null);
+    }
+
+    // Check if current_session already has an answer matching this ticker & question
+    const session = readCurrentSession();
+    if (
+      session &&
+      session.answer &&
+      session.activeSymbol?.toUpperCase() === (validTicker || "").toUpperCase()
+    ) {
+      setAnswer(session.answer);
       setError(null);
-    } else if (qParam) {
-      setQuestion(qParam.trim());
+      return;
+    }
+
+    // Check if history already has an answer matching this ticker & question
+    const storedHistory = readHistory();
+    const matched = storedHistory.find(
+      (h) => h.symbol?.toUpperCase() === (validTicker || "").toUpperCase()
+    );
+    if (matched && matched.answer) {
+      setAnswer(matched.answer);
+      setError(null);
+    } else {
       setAnswer(null);
       setError(null);
     }
@@ -300,15 +679,40 @@ function AIWorkspaceContent() {
     textareaRef.current?.focus();
   }
 
+  function handleSelectHistoryItem(item: AIHistoryItem) {
+    setActiveSymbol(item.symbol === "TOÀN CẢNH" ? "" : item.symbol);
+    setQuestion(item.question);
+    setAnswer(item.answer);
+    setError(null);
+    writeCurrentSession({
+      activeSymbol: item.symbol === "TOÀN CẢNH" ? "" : item.symbol,
+      question: item.question,
+      answer: item.answer,
+      updatedAt: Date.now(),
+    });
+    setTimeout(() => {
+      answerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+
+  function handleDeleteHistoryItem(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    const next = history.filter((h) => h.id !== id);
+    setHistory(next);
+    writeHistory(next);
+  }
+
+  function handleClearAllHistory() {
+    setHistory([]);
+    writeHistory([]);
+  }
+
   function toggleTool(name: AIToolName) {
     setSelectedTools((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name]));
   }
 
   function handleCancelStream() {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    backgroundStream.cancel();
     setBusy(false);
     setStreamStep(null);
     setStreamMessage("");
@@ -325,56 +729,10 @@ function AIWorkspaceContent() {
     event.preventDefault();
     if (busy || !question.trim()) return;
 
-    setBusy(true);
-    setStreamStep("fetching_data");
-    setStreamMessage("Đang khởi tạo kết nối luồng phân tích...");
     setError(null);
     setAnswer(null);
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    try {
-      const finalResponse = await streamAIChat(
-        {
-          symbol: activeSymbol.trim() || undefined,
-          question: question.trim(),
-          as_of_date: asOf || undefined,
-          tool_names: selectedTools,
-        },
-        {
-          onStatusUpdate: (step: AIStreamStep, msg: string) => {
-            setStreamStep(step);
-            setStreamMessage(msg);
-          },
-        },
-        controller.signal
-      );
-
-      startTransition(() => {
-        if (finalResponse) {
-          setAnswer(finalResponse);
-          if (finalResponse.symbol && !activeSymbol) {
-            setActiveSymbol(finalResponse.symbol);
-          }
-        }
-      });
-
-      setTimeout(() => {
-        answerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    } catch (err: unknown) {
-      if ((err as Error)?.name === "AbortError") {
-        setStreamMessage("Đã hủy phân tích theo yêu cầu.");
-      } else {
-        setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không mong muốn");
-      }
-    } finally {
-      setBusy(false);
-      setStreamStep(null);
-      setStreamMessage("");
-      abortControllerRef.current = null;
-    }
+    await backgroundStream.startStream(activeSymbol, question, asOf, selectedTools);
   }
 
   return (
@@ -391,11 +749,43 @@ function AIWorkspaceContent() {
               </span>
             ) : aiStatus ? (
               <span className={styles.statusBadgeWrapper}>
-                <StatusBadge
-                  status={aiStatus.status}
-                  label={aiStatus.configured_models?.primary || "Mô hình sẵn sàng"}
-                  title={`Trạng thái: ${aiStatus.status}`}
-                />
+                {(() => {
+                  const modelName = aiStatus.configured_models?.primary || "qwen3.5:9b-q4_K_M";
+                  if (aiStatus.available) {
+                    if (aiStatus.model_state === "LOADED") {
+                      return (
+                        <StatusBadge
+                          status="HEALTHY"
+                          label={`${modelName} · Sẵn sàng`}
+                          title={`Mô hình ${modelName} đã nạp VRAM & sẵn sàng suy luận.`}
+                        />
+                      );
+                    }
+                    if (aiStatus.model_state === "STANDBY" || aiStatus.status === "DEGRADED") {
+                      return (
+                        <StatusBadge
+                          status="AVAILABLE"
+                          label={`${modelName} · Chế độ chờ`}
+                          title={`Mô hình ${modelName} đã cài đặt cục bộ (sẵn sàng tự động nạp khi nhận câu hỏi).`}
+                        />
+                      );
+                    }
+                    return (
+                      <StatusBadge
+                        status="AVAILABLE"
+                        label={modelName}
+                        title="Mô hình cục bộ sẵn sàng"
+                      />
+                    );
+                  }
+                  return (
+                    <StatusBadge
+                      status="UNAVAILABLE"
+                      label="AI Ngoại tuyến"
+                      title={aiStatus.reason || "Dịch vụ AI chưa kết nối."}
+                    />
+                  );
+                })()}
               </span>
             ) : (
               <span className={styles.statusBadgeWrapper}>
@@ -444,6 +834,66 @@ function AIWorkspaceContent() {
             )}
           </div>
         </section>
+
+        {/* 2.5 Lịch sử phân tích gần đây (Local-First Persistence Bar) */}
+        {isClient && (
+          <section className={styles.historySection}>
+            <div className={styles.historyHeader}>
+              <div className={styles.historyTitle}>
+                <span>🕒 Lịch sử phân tích gần đây</span>
+                <span className={styles.historyCountBadge}>{history.length}</span>
+              </div>
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  className={styles.historyClearBtn}
+                  onClick={handleClearAllHistory}
+                  title="Xóa toàn bộ lịch sử"
+                >
+                  Xóa tất cả
+                </button>
+              )}
+            </div>
+
+            {history.length > 0 ? (
+              <div className={styles.historyList}>
+                {history.map((item) => {
+                  const isActive = Boolean(
+                    answer &&
+                    answer.answer === item.answer.answer &&
+                    answer.symbol === item.answer.symbol
+                  );
+                  return (
+                    <div
+                      key={item.id}
+                      className={`${styles.historyItem} ${isActive ? styles.historyItemActive : ""}`}
+                      onClick={() => handleSelectHistoryItem(item)}
+                      title={item.question}
+                    >
+                      <span className={styles.historyBadge}>{item.symbol}</span>
+                      <div className={styles.historyContent}>
+                        <span className={styles.historyQuestionText}>{item.question}</span>
+                        <span className={styles.historyTimeText}>{formatHistoryTime(item.timestamp)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.historyDeleteBtn}
+                        onClick={(e) => handleDeleteHistoryItem(e, item.id)}
+                        title="Xóa mục này"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className={styles.historyEmpty}>
+                <span>Chưa có câu hỏi nào trong lịch sử. Khi bạn đặt câu hỏi và AI hoàn tất phân tích, kết quả sẽ tự động lưu vào đây để bạn bấm xem lại bất cứ lúc nào (kể cả khi chuyển trang).</span>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* 3. Bốn Gợi ý Phân tích Mẫu (4 Starter Prompts) Nổi bật khi màn hình chờ */}
         {!answer && !busy && (
@@ -539,11 +989,11 @@ function AIWorkspaceContent() {
 
         {/* 5. Thông báo lỗi nếu có */}
         {error && (
-          <div className={styles.resultCard} style={{ borderColor: "rgba(217, 48, 37, 0.25)" }}>
-            <div style={{ color: "#D93025", fontSize: "14px", fontWeight: 600 }}>
+          <div className={styles.resultCard} style={{ borderColor: "var(--negative-border)" }}>
+            <div style={{ color: "var(--negative)", fontSize: "14px", fontWeight: 600 }}>
               Không thể hoàn tất phân tích
             </div>
-            <p style={{ margin: 0, fontSize: "13.5px", color: "#6E6E73" }}>{error}</p>
+            <p style={{ margin: 0, fontSize: "13.5px", color: "var(--ink-secondary)" }}>{error}</p>
           </div>
         )}
 
@@ -636,23 +1086,29 @@ function AIWorkspaceContent() {
                     <div className={styles.claimsList}>
                       {answer.claims.map((claim, idx) => (
                         <div key={idx} className={styles.claimRow}>
-                          <div className={styles.claimContent}>
-                            <span className={styles.claimTypeBadge}>{claim.claim_type}</span>
-                            <p className={styles.claimText}>{claim.text}</p>
+                          <div className={styles.claimHeader}>
+                            <span
+                              className={`${styles.claimTypeBadge} ${
+                                claim.claim_type === "MODEL_OUTPUT" ? styles.claimTypeBadgeModel : ""
+                              }`}
+                            >
+                              {claim.claim_type}
+                            </span>
+                            {claim.citation_ids && claim.citation_ids.length > 0 && (
+                              <div className={styles.claimPills}>
+                                {claim.citation_ids.map((id) => (
+                                  <AppleCitationPill
+                                    key={id}
+                                    id={id}
+                                    citation={answer.citations?.find(
+                                      (c) => c.id.toUpperCase() === id.toUpperCase()
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          {claim.citation_ids && claim.citation_ids.length > 0 && (
-                            <div className={styles.claimPills}>
-                              {claim.citation_ids.map((id) => (
-                                <AppleCitationPill
-                                  key={id}
-                                  id={id}
-                                  citation={answer.citations?.find(
-                                    (c) => c.id.toUpperCase() === id.toUpperCase()
-                                  )}
-                                />
-                              ))}
-                            </div>
-                          )}
+                          <p className={styles.claimText}>{claim.text}</p>
                         </div>
                       ))}
                     </div>
@@ -766,7 +1222,7 @@ function AIWorkspaceContent() {
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#86868B",
+                  color: "var(--ink-muted)",
                   cursor: "pointer",
                   fontSize: "13px",
                   marginLeft: "4px",

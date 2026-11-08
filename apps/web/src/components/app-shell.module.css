@@ -631,4 +631,21 @@
     color: var(--ink);
     font-weight: 600;
   }
+
+  .drawerThemeSection {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .drawerSectionLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
 }

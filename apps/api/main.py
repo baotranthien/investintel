@@ -22,6 +22,14 @@ async def lifespan(app: FastAPI):
     from services.auth.security import is_auth_enabled, validate_jwt_secret_configuration
     if is_auth_enabled():
         validate_jwt_secret_configuration()
+
+    # Auto-ensure Ollama background daemon on local development
+    if not is_pytest and not is_cloud:
+        try:
+            from services.ai.providers import ensure_ollama_server
+            ensure_ollama_server()
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Ollama daemon check: %s", exc)
     
     allow_db_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
     if enable_in_process and allow_db_write:
@@ -59,6 +67,19 @@ async def lifespan(app: FastAPI):
                 logging.getLogger(__name__).warning("Scanner pre-warm: %s", exc)
 
         asyncio.create_task(_prewarm_opportunity_cache())
+
+        async def _prewarm_ai_model():
+            try:
+                await asyncio.sleep(2)
+                from services.ai.gateway import AIGateway
+                gateway = AIGateway()
+                if hasattr(gateway.provider, "prewarm"):
+                    loop = asyncio.get_running_loop()
+                    await loop.run_in_executor(None, gateway.provider.prewarm)
+            except Exception as exc:
+                logging.getLogger(__name__).warning("AI model pre-warm: %s", exc)
+
+        asyncio.create_task(_prewarm_ai_model())
 
     try:
         yield
