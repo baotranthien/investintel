@@ -133,10 +133,12 @@ export default function Home(): JSX.Element {
 
   // Lineage / Connection Status
   const isLineageLoading = providersResource.isLoading && !providersResource.data;
-  const isLineageError = Boolean(providersResource.error);
+  const isLineageError = Boolean(providersResource.error && !providersResource.data);
   const connectionStatus = isLineageLoading
     ? "CHECKING"
     : isLineageError
+    ? "OFFLINE"
+    : providersResource.error
     ? "PARTIAL"
     : "API RESPONDED";
 
@@ -196,6 +198,22 @@ export default function Home(): JSX.Element {
         {marketResource.isLoading && !marketResource.data ? (
           <div className={styles.pulseBarSkeleton}>
             <Skeleton height={52} radius={14} />
+          </div>
+        ) : marketResource.error && !marketResource.data ? (
+          <div className={styles.pulseBar} style={{ justifyContent: "space-between", background: "var(--surface-muted, #f8fafc)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <StatusBadge status="WARNING" label="Không thể kết nối máy chủ" />
+              <span style={{ fontSize: "12px", color: "var(--ink-muted, #64748b)" }}>
+                {marketResource.error}
+              </span>
+            </div>
+            <button
+              type="button"
+              className={styles.refreshButton}
+              onClick={() => marketResource.reload()}
+            >
+              ↻ <span>Thử lại</span>
+            </button>
           </div>
         ) : (
           <div className={styles.pulseBar}>
@@ -272,6 +290,21 @@ export default function Home(): JSX.Element {
           <div className={styles.cardBody}>
             {opportunitiesResource.isLoading && !opportunitiesResource.data ? (
               <SkeletonCard height={150} />
+            ) : opportunitiesResource.error && !opportunitiesResource.data ? (
+              <div style={{ padding: "24px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                <StatusBadge status="ERROR" label="Lỗi tải dữ liệu" />
+                <p className={styles.emptyStateText} style={{ margin: 0 }}>
+                  Không thể tải danh sách cơ hội ({opportunitiesResource.error})
+                </p>
+                <button
+                  type="button"
+                  className={styles.refreshButton}
+                  onClick={() => opportunitiesResource.reload()}
+                  style={{ marginTop: "4px" }}
+                >
+                  ↻ <span>Thử lại</span>
+                </button>
+              </div>
             ) : topOpportunities.length === 0 ? (
               <p className={styles.emptyStateText}>
                 Chưa có dữ liệu cơ hội phù hợp từ mô hình sàng lọc VN100.
@@ -479,14 +512,23 @@ export default function Home(): JSX.Element {
       <section className={styles.telemetryStrip} aria-label="Kiểm định chất lượng dữ liệu">
         <div className={styles.telemetryLeft}>
           <StatusBadge
-            status={connectionStatus}
-            label={`DATA QUALITY & LINEAGE: ${connectionStatus}`}
+            status={isLineageError ? "ERROR" : connectionStatus}
+            label={
+              isLineageError
+                ? "DATA QUALITY & LINEAGE: OFFLINE / KHÔNG KHẢ DỤNG"
+                : `DATA QUALITY & LINEAGE: ${connectionStatus}`
+            }
           />
           <span className={styles.telemetrySummary}>
-            {totalCanonicalCount > 0
-              ? `${totalCanonicalCount.toLocaleString("vi-VN")} tài sản chuẩn hóa canonical`
-              : "1.600+ mã HOSE/HNX/UPCOM"}{" "}
-            · Chuẩn mốc EOD · BCTC Kiểm toán đối soát
+            {isLineageError ? (
+              <span style={{ color: "var(--negative, #b91c1c)" }}>
+                Không thể kết nối Backend API. Vui lòng kiểm tra dịch vụ dữ liệu hoặc live endpoint.
+              </span>
+            ) : totalCanonicalCount > 0 ? (
+              `${totalCanonicalCount.toLocaleString("vi-VN")} tài sản chuẩn hóa canonical · Chuẩn mốc EOD · BCTC Kiểm toán đối soát`
+            ) : (
+              "1.600+ mã HOSE/HNX/UPCOM · Chuẩn mốc EOD · BCTC Kiểm toán đối soát"
+            )}
           </span>
         </div>
 

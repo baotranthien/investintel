@@ -1,51 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { type JSX } from "react";
 import { getDataProviders, type DataProvider } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { useCachedResource } from "@/lib/use-cached-resource";
 import styles from "./page.module.css";
 
-export default function DataCenter() {
-  const [providers, setProviders] = useState<DataProvider[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function DataCenter(): JSX.Element {
+  const resource = useCachedResource<DataProvider[]>(
+    "data-center:providers",
+    (signal) => getDataProviders(signal),
+    { maxAgeMs: 60_000 }
+  );
 
-  useEffect(() => {
-    const controller = new AbortController();
-    getDataProviders(controller.signal)
-      .then((data) => {
-        setProviders(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          console.error("Failed to fetch providers", err);
-          setLoading(false);
-        }
-      });
-    return () => controller.abort();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className={styles.page}>
-        <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Hạ tầng dữ liệu · Nguồn gốc & kiểm chứng</p>
-            <h1 className={styles.title}>Chất lượng dữ liệu & nguồn gốc</h1>
-            <p className={styles.subTitle}>
-              Giám sát độ tươi, tính liên tục và lịch sử cập nhật của các cổng dữ liệu định lượng.
-            </p>
-          </div>
-        </header>
-        <div className={styles.grid}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonCard key={i} height={200} />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const providers = resource.data ?? [];
+  const loading = resource.isLoading && !resource.data;
+  const error = resource.error && !resource.data;
 
   return (
     <div className={styles.page}>
@@ -59,9 +30,45 @@ export default function DataCenter() {
         </div>
       </header>
 
-      <div className={styles.grid}>
-        {providers.map((p) => {
-          return (
+      {loading ? (
+        <div className={styles.grid}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} height={200} />
+          ))}
+        </div>
+      ) : error ? (
+        <div className={styles.grid}>
+          <div className={styles.errorBox}>
+            <StatusBadge status="ERROR" label="Không thể tải cổng dữ liệu" />
+            <p className={styles.errorText}>
+              Đã xảy ra lỗi khi kết nối máy chủ: {resource.error}
+            </p>
+            <button
+              type="button"
+              className={styles.retryBtn}
+              onClick={() => resource.reload()}
+            >
+              ↻ Tải lại danh sách
+            </button>
+          </div>
+        </div>
+      ) : providers.length === 0 ? (
+        <div className={styles.grid}>
+          <div className={styles.errorBox}>
+            <StatusBadge status="WARNING" label="Chưa có dữ liệu" />
+            <p className={styles.errorText}>Không tìm thấy thông tin nhà cung cấp dữ liệu nào.</p>
+            <button
+              type="button"
+              className={styles.retryBtn}
+              onClick={() => resource.reload()}
+            >
+              ↻ Tải lại danh sách
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className={styles.grid}>
+          {providers.map((p) => (
             <article key={p.provider} className={styles.card}>
               <div className={styles.cardHeader}>
                 <span className={styles.providerName}>{p.provider}</span>
@@ -106,9 +113,9 @@ export default function DataCenter() {
                 Kích hoạt đồng bộ ngay
               </button>
             </article>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

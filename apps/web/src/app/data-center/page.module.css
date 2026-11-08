@@ -156,6 +156,47 @@
   font-size: 12px;
 }
 
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  border-radius: 12px;
+  background: var(--surface-panel);
+  border: 1px dashed var(--line);
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.errorText {
+  color: var(--negative, #b91c1c);
+  font-size: 13px;
+  margin: 0;
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.retryBtn:hover {
+  background: var(--surface-card-hover);
+  border-color: var(--accent-apple);
+  color: var(--accent-apple);
+}
+
 @keyframes enter {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }

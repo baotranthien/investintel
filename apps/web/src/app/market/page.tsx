@@ -309,7 +309,7 @@ export default function MarketPage() {
         <div className={styles.indexGrid} aria-label="Các chỉ số thị trường chính">
           {market ? (
             market.indexes.map((item) => <IndexCard item={item} key={item.symbol} />)
-          ) : (
+          ) : marketRes.isLoading ? (
             <>
               <div className={styles.indexSkeletonCard}>
                 <Skeleton width="40%" height={16} radius={6} />
@@ -327,6 +327,18 @@ export default function MarketPage() {
                 <Skeleton width="50%" height={12} radius={4} />
               </div>
             </>
+          ) : (
+            <div className={styles.emptyBox} style={{ gridColumn: "1 / -1" }}>
+              <StatusBadge status="ERROR" label="Lỗi tải chỉ số" />
+              <p>{marketRes.error || "Không thể tải dữ liệu chỉ số thị trường."}</p>
+              <button
+                type="button"
+                className={styles.refresh}
+                onClick={() => marketRes.reload()}
+              >
+                ↻ Thử lại
+              </button>
+            </div>
           )}
         </div>
 
@@ -339,13 +351,25 @@ export default function MarketPage() {
               <MetricCard title="Động lượng Xu hướng (Momentum)" metric={market.momentum} />
               <MetricCard title="Giao dịch Khối ngoại (Foreign Flow)" metric={market.foreign_flow} />
             </>
-          ) : (
+          ) : marketRes.isLoading ? (
             <>
               <SkeletonCard height={130} />
               <SkeletonCard height={130} />
               <SkeletonCard height={130} />
               <SkeletonCard height={130} />
             </>
+          ) : (
+            <div className={styles.emptyBox} style={{ gridColumn: "1 / -1" }}>
+              <StatusBadge status="ERROR" label="Lỗi tải chỉ báo" />
+              <p>{marketRes.error || "Không thể tải dữ liệu độ rộng và thanh khoản."}</p>
+              <button
+                type="button"
+                className={styles.refresh}
+                onClick={() => marketRes.reload()}
+              >
+                ↻ Thử lại
+              </button>
+            </div>
           )}
         </div>
       </section>
@@ -377,10 +401,15 @@ export default function MarketPage() {
             regime={market.market_regime}
             breadth={market.breadth}
           />
-        ) : (
+        ) : marketRes.isLoading ? (
           <div className={styles.radarSkeleton}>
             <Skeleton width="30%" height={20} radius={6} />
             <Skeleton width="60%" height={14} radius={4} />
+          </div>
+        ) : (
+          <div className={styles.emptyBox}>
+            <StatusBadge status="WARNING" label="Radar không khả dụng" />
+            <p>Không có dữ liệu radar thị trường.</p>
           </div>
         )}
 
@@ -392,7 +421,11 @@ export default function MarketPage() {
               <div>
                 <p className={styles.subEyebrow}>MÔ HÌNH PHÂN LOẠI CHU KỲ</p>
                 <h3 className={styles.regimeTitle}>
-                  {market ? formatRegimeName(market.market_regime.regime) : "Đang tính toán..."}
+                  {market
+                    ? formatRegimeName(market.market_regime.regime)
+                    : marketRes.isLoading
+                    ? "Đang tính toán..."
+                    : "Không thể xác định"}
                 </h3>
               </div>
               {market && (
@@ -467,9 +500,21 @@ export default function MarketPage() {
                   </div>
                 )}
               </>
-            ) : (
+            ) : marketRes.isLoading ? (
               <div className={styles.panelSkeleton}>
                 <SkeletonText lines={4} gap={10} />
+              </div>
+            ) : (
+              <div className={styles.emptyBox}>
+                <StatusBadge status="ERROR" label="Lỗi mô hình Regime" />
+                <p>{marketRes.error || "Không thể tải dữ liệu trạng thái thị trường."}</p>
+                <button
+                  type="button"
+                  className={styles.refresh}
+                  onClick={() => marketRes.reload()}
+                >
+                  ↻ Thử lại
+                </button>
               </div>
             )}
           </article>
@@ -533,10 +578,22 @@ export default function MarketPage() {
                   </Link>
                 </div>
               </div>
-            ) : (
+            ) : oppsRes.isLoading ? (
               <div className={styles.panelSkeleton}>
                 <SkeletonText lines={3} gap={10} />
                 <Skeleton height={36} radius={8} />
+              </div>
+            ) : (
+              <div className={styles.emptyBox}>
+                <StatusBadge status="ERROR" label="Lỗi tải cơ hội" />
+                <p>{oppsRes.error || "Không thể tải dữ liệu sàng lọc cơ hội."}</p>
+                <button
+                  type="button"
+                  className={styles.refresh}
+                  onClick={() => oppsRes.reload()}
+                >
+                  ↻ Thử lại
+                </button>
               </div>
             )}
           </article>
@@ -604,12 +661,24 @@ export default function MarketPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : macroRes.isLoading ? (
               <div className={styles.macroSeriesGrid}>
                 <SkeletonCard height={120} />
                 <SkeletonCard height={120} />
                 <SkeletonCard height={120} />
                 <SkeletonCard height={120} />
+              </div>
+            ) : (
+              <div className={styles.emptyBox}>
+                <StatusBadge status="ERROR" label="Lỗi tải vĩ mô" />
+                <p>{macroRes.error || "Không thể tải dữ liệu chỉ báo vĩ mô."}</p>
+                <button
+                  type="button"
+                  className={styles.refresh}
+                  onClick={() => macroRes.reload()}
+                >
+                  ↻ Thử lại
+                </button>
               </div>
             )}
           </article>
@@ -664,10 +733,22 @@ export default function MarketPage() {
                   <p>Không có sự kiện bất thường hoặc biến động chính sách đặc biệt trong phiên.</p>
                 </div>
               )
-            ) : (
+            ) : marketRes.isLoading ? (
               <div className={styles.eventSkeletonList}>
                 <SkeletonCard height={100} />
                 <SkeletonCard height={100} />
+              </div>
+            ) : (
+              <div className={styles.emptyBox}>
+                <StatusBadge status="ERROR" label="Lỗi tải sự kiện" />
+                <p>{marketRes.error || "Không thể tải dữ liệu sự kiện trọng yếu."}</p>
+                <button
+                  type="button"
+                  className={styles.refresh}
+                  onClick={() => marketRes.reload()}
+                >
+                  ↻ Thử lại
+                </button>
               </div>
             )}
           </article>

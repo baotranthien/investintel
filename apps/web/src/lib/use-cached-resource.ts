@@ -60,6 +60,11 @@ export function formatUpdatedAt(updatedAt: number | null): string {
   return `Cập nhật ${timeStr}`;
 }
 
+export type UseCachedResourceOptions<T = unknown> = {
+  maxAgeMs?: number;
+  timeoutMs?: number;
+};
+
 type InternalState<T> = {
   key: string | null;
   data: T | undefined;
@@ -72,9 +77,10 @@ type InternalState<T> = {
 export function useCachedResource<T>(
   key: string | null,
   fetcher: (signal: AbortSignal) => Promise<T>,
-  options?: { maxAgeMs?: number }
+  options?: UseCachedResourceOptions<T>
 ): CachedResource<T> {
   const maxAge = options?.maxAgeMs ?? 60_000;
+  const timeoutMs = options?.timeoutMs ?? 10_000;
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
   const [state, setState] = useState<InternalState<T>>(() => {
@@ -119,6 +125,8 @@ export function useCachedResource<T>(
 
     let active = true;
     const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let isTimedOut = false;
 
     async function execute() {
       if (!key) return;
@@ -165,6 +173,11 @@ export function useCachedResource<T>(
       }
 
       try {
+        timeoutId = setTimeout(() => {
+          isTimedOut = true;
+          controller.abort(new Error("Hết thời gian chờ phản hồi từ máy chủ (Timeout)"));
+        }, timeoutMs);
+
         let fetchPromise = inflightRequests.get(key) as Promise<T> | undefined;
         if (!fetchPromise) {
           fetchPromise = fetcherRef.current(controller.signal);
@@ -172,6 +185,10 @@ export function useCachedResource<T>(
         }
 
         const freshData = await fetchPromise;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         const now = Date.now();
 
         // Update memory
@@ -201,12 +218,20 @@ export function useCachedResource<T>(
           });
         }
       } catch (err: unknown) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         if (!active) return;
-        if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        if (!isTimedOut && (controller.signal.aborted || (err instanceof Error && err.name === "AbortError"))) {
           return;
         }
 
-        const errorMessage = err instanceof Error ? err.message : String(err);
+        const errorMessage = isTimedOut
+          ? "Hết thời gian chờ phản hồi từ máy chủ (Timeout)"
+          : err instanceof Error
+          ? err.message
+          : String(err);
         setState((prev) => ({
           ...prev,
           error: errorMessage,
@@ -214,6 +239,10 @@ export function useCachedResource<T>(
           isRevalidating: false,
         }));
       } finally {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         inflightRequests.delete(key);
       }
     }
@@ -222,9 +251,13 @@ export function useCachedResource<T>(
 
     return () => {
       active = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       controller.abort();
     };
-  }, [key, maxAge, reloadTrigger]);
+  }, [key, maxAge, timeoutMs, reloadTrigger]);
 
   return {
     data: state.data,
