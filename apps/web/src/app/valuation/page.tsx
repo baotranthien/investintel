@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export default function ValuationDashboard() {
   const [symbol, setSymbol] = useState("FPT");
@@ -39,9 +41,14 @@ export default function ValuationDashboard() {
   return (
     <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h1 style={{ fontSize: "1.8rem", color: "var(--text-primary)" }}>
-          Intelligence Engine — Phase 3
-        </h1>
+        <div>
+          <p style={{ margin: "0 0 4px 0", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-muted)" }}>
+            Mô hình định lượng · Phân tích cơ bản
+          </p>
+          <h1 style={{ fontSize: "1.8rem", color: "var(--text-primary)", margin: 0 }}>
+            Mô hình định giá & phân tích nhân tố
+          </h1>
+        </div>
         <div>
           <select 
             value={symbol}
@@ -63,30 +70,33 @@ export default function ValuationDashboard() {
       {error && <div className="text-danger" style={{ marginBottom: "20px" }}>{error}</div>}
       
       {loading ? (
-        <div>Đang phân tích dữ liệu...</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <SkeletonCard height={320} />
+          <SkeletonCard height={320} />
+        </div>
       ) : valuationData && factorData ? (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
           
           {/* VALUATION PANEL */}
           <div className="card">
-            <h2 className="card-title">Valuation / Định giá (VND)</h2>
+            <h2 className="card-title">Định giá cổ phiếu (VND)</h2>
             <div style={{ marginBottom: "15px", fontSize: "1.2rem" }}>
-              Current Price: <strong>{valuationData.price_as_of.toLocaleString()}</strong>
+              Thị giá hiện tại: <strong>{valuationData.price_as_of.toLocaleString()}</strong>
             </div>
             
             <div style={{ marginBottom: "20px" }}>
-              <div style={{ marginBottom: "5px", color: "var(--text-secondary)" }}>Fair Value Range:</div>
+              <div style={{ marginBottom: "5px", color: "var(--text-secondary)" }}>Khoảng giá trị hợp lý:</div>
               <div style={{ display: "flex", justifyContent: "space-between", background: "var(--bg-secondary)", padding: "10px", borderRadius: "6px" }}>
                 <div>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Bear</div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Kịch bản thận trọng (Bear)</div>
                   <strong className="text-danger">{Math.round(valuationData.composite_fair_value.range.bear).toLocaleString()}</strong>
                 </div>
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Base</div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Kịch bản cơ sở (Base)</div>
                   <strong>{Math.round(valuationData.composite_fair_value.range.base).toLocaleString()}</strong>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Bull</div>
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Kịch bản khả quan (Bull)</div>
                   <strong className="text-success">{Math.round(valuationData.composite_fair_value.range.bull).toLocaleString()}</strong>
                 </div>
               </div>
@@ -94,22 +104,22 @@ export default function ValuationDashboard() {
 
             <div style={{ marginBottom: "15px" }}>
               <div style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-                Confidence: <strong style={{ color: "var(--text-primary)" }}>{valuationData.composite_fair_value.confidence}</strong>
+                Độ tin cậy: <strong style={{ color: "var(--text-primary)" }}>{valuationData.composite_fair_value.confidence === "HIGH" ? "Cao" : valuationData.composite_fair_value.confidence === "MODERATE" ? "Khá" : valuationData.composite_fair_value.confidence}</strong>
               </div>
               {valuationData.composite_fair_value.method_disagreement && (
                 <div className="text-danger" style={{ fontSize: "0.85rem", marginTop: "4px" }}>
-                  Disagreement: {valuationData.composite_fair_value.disagreement_reason}
+                  Độ lệch phương pháp: {valuationData.composite_fair_value.disagreement_reason}
                 </div>
               )}
             </div>
 
-            <h3 style={{ fontSize: "1.1rem", marginBottom: "10px", marginTop: "20px", color: "var(--text-primary)" }}>Method Breakdown</h3>
+            <h3 style={{ fontSize: "1.1rem", marginBottom: "10px", marginTop: "20px", color: "var(--text-primary)" }}>Chi tiết từng phương pháp</h3>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-color)", textAlign: "left" }}>
-                  <th style={{ padding: "8px 0" }}>Method</th>
-                  <th style={{ padding: "8px 0" }}>Fair Value (Base)</th>
-                  <th style={{ padding: "8px 0" }}>Weight</th>
+                  <th style={{ padding: "8px 0" }}>Phương pháp</th>
+                  <th style={{ padding: "8px 0" }}>Giá trị hợp lý (Cơ sở)</th>
+                  <th style={{ padding: "8px 0" }}>Tỷ trọng</th>
                 </tr>
               </thead>
               <tbody>
@@ -126,7 +136,7 @@ export default function ValuationDashboard() {
 
           {/* FACTOR PANEL */}
           <div className="card">
-            <h2 className="card-title">Factor Profile / Hồ sơ Yếu tố</h2>
+            <h2 className="card-title">Hồ sơ nhân tố đầu tư</h2>
             
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }}>
               {[
@@ -155,7 +165,7 @@ export default function ValuationDashboard() {
 
             {factorData.conflicts.length > 0 && (
               <div style={{ background: "rgba(239, 68, 68, 0.1)", padding: "10px", borderRadius: "6px", border: "1px solid #ef4444" }}>
-                <strong style={{ color: "#ef4444", fontSize: "0.9rem" }}>Factor Conflicts:</strong>
+                <strong style={{ color: "#ef4444", fontSize: "0.9rem" }}>Xung đột giữa các nhân tố:</strong>
                 <ul style={{ margin: "5px 0 0 20px", padding: 0, fontSize: "0.85rem", color: "var(--text-primary)" }}>
                   {factorData.conflicts.map((c: string, i: number) => (
                     <li key={i}>{c}</li>

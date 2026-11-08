@@ -1,10 +1,10 @@
-/* InvestIntel — Apple Daylight Neutral Minimalist Design
-   Overview / Home Page Stylesheet */
+/* InvestIntel — Apple Warm Neutral Minimalist Design
+   Overview / Home Workstation Stylesheet */
 
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xl);
+  gap: var(--space-xl);
   max-width: 1440px;
   margin: 0 auto;
   width: 100%;
@@ -16,55 +16,46 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 1. Confident Whitespace Hero with Dedicated 3D Spatial Stage */
-.heroSection {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 460px);
-  align-items: center;
-  gap: 36px;
-  padding: var(--space-xl) 0 var(--space-xl);
-  border-bottom: 1px solid var(--line);
-}
-
-.heroContent {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  max-width: 680px;
-}
-
-.eyebrow {
-  margin: 0;
-  color: var(--ink-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.heroTitle {
-  margin: 0;
-  font-size: 38px;
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-}
-
-.heroLede {
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: 15px;
-  line-height: var(--leading-prose);
-  max-width: 620px;
-}
-
-.heroActions {
+/* Page Header Enhancements */
+.headerMeta {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.engineBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--ink-muted);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-subtle);
+  letter-spacing: 0.04em;
+}
+
+.engineDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--positive);
+}
+
+.updatedTime {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .refreshButton {
@@ -72,11 +63,11 @@
   min-height: 36px;
   align-items: center;
   gap: 8px;
-  padding: 0 18px;
-  border: none;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: var(--accent);
-  color: #FFFFFF;
+  background: var(--surface);
+  color: var(--ink);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 12.5px;
@@ -87,7 +78,8 @@
 }
 
 .refreshButton:hover {
-  background: var(--accent-hover);
+  background: var(--surface-muted);
+  border-color: var(--ink);
   transform: translateY(-1px);
 }
 
@@ -95,453 +87,539 @@
   transform: scale(0.985);
 }
 
-.engineBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 650;
-  color: var(--ink-muted);
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-subtle);
-  letter-spacing: 0.03em;
-}
+/* ==========================================================================
+   TẦNG 1: Thanh Nhịp đập Thị trường (Market Pulse Bar)
+   ========================================================================== */
 
-.engineDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--positive);
-}
-
-/* Dedicated 3D Spatial Frame: physically decoupled from text and sidebar */
-.heroVisualStage {
-  position: relative;
+.pulseBarSkeleton {
   width: 100%;
-  height: 360px;
-  border-radius: 20px;
-  overflow: hidden;
 }
 
-@media (max-width: 1100px) {
-  .heroSection {
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: 24px;
-  }
-  .heroVisualStage {
-    height: 320px;
-  }
-}
-
-@media (max-width: 860px) {
-  .heroSection {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 24px;
-  }
-  .heroVisualStage {
-    height: 280px;
-  }
-}
-
-/* 2. System Telemetry Ribbon */
-.telemetryRibbon {
+.pulseBar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: var(--space-lg);
-  padding: 14px 20px;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 20px;
   border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
 }
 
-.ribbonLeft {
+.pulseGroup {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.ribbonLabel {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--ink-muted);
+.pulseItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.ribbonValue {
+.pulseLabel {
   font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 750;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--positive-soft);
-  color: var(--positive);
-  border: 1px solid var(--positive-border);
-  letter-spacing: 0.03em;
-}
-
-.ribbonRight {
-  font-size: 12px;
-  color: var(--ink-secondary);
-  text-align: right;
-  line-height: 1.4;
-}
-
-/* 3. Research Workflow Pathways */
-.pathwaysSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.sectionHeaderRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-bottom: 4px;
-}
-
-.sectionTitle {
-  margin: 4px 0 0;
-  font-size: 20px;
   font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.015em;
-}
-
-.workflowTag {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 650;
   letter-spacing: 0.04em;
   color: var(--ink-muted);
+  text-transform: uppercase;
 }
 
-.pathwayCards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 1080px) {
-  .pathwayCards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .pathwayCards {
-    grid-template-columns: 1fr;
-  }
-}
-
-.pathwayCard {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 180px;
-  padding: 22px 20px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  transition: all var(--duration-fast) var(--ease-spring);
-}
-
-.pathwayCard:hover {
-  background: var(--surface);
-  border-color: rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.pathwayHighlight {
-  border-color: var(--line-strong);
-  background: var(--surface);
-}
-
-.pathwayHighlight:hover {
-  border-color: var(--ink);
-}
-
-.cardStepNumber {
+.pulseValue {
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--ink-muted);
-  letter-spacing: 0.04em;
-  margin-bottom: 12px;
-}
-
-.cardTitle {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-  margin-bottom: 6px;
-}
-
-.cardDesc {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-secondary);
-}
-
-.cardArrow {
   font-size: 14px;
-  color: var(--ink-muted);
-  align-self: flex-end;
-  margin-top: 16px;
-  transition: transform var(--duration-fast) var(--ease-spring), color var(--duration-fast) ease;
-}
-
-.pathwayCard:hover .cardArrow {
-  transform: translateX(4px);
+  font-weight: 750;
   color: var(--ink);
 }
 
-/* 4. Infrastructure & Data Foundations */
-.infrastructureGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+.pulseDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--line);
 }
 
-@media (max-width: 960px) {
-  .infrastructureGrid {
-    grid-template-columns: 1fr;
-  }
+.pulseBreadth {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
-.dataPanel,
-.universePanel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 24px;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
-}
-
-.panelHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.panelTitle {
-  margin: 2px 0 0;
-  font-size: 16px;
+.breadthAdvancing {
+  color: var(--positive);
   font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.01em;
 }
 
-.panelLink {
+.breadthDeclining {
+  color: #D9381E;
+  font-weight: 700;
+}
+
+.breadthUnchanged {
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
+.pulseLink {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-secondary);
   text-decoration: none;
-  font-family: var(--font-sans);
+  white-space: nowrap;
   transition: color var(--duration-fast) ease;
 }
 
-.panelLink:hover {
+.pulseLink:hover {
   color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-/* Provider List */
-.providerList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* ==========================================================================
+   TẦNG 2: Lưới Bento 4 Widget Dữ liệu Sống (Live Actionable Cards)
+   ========================================================================== */
+
+.bentoGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
 }
 
-.providerRow {
+@media (max-width: 960px) {
+  .bentoGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bentoCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  min-height: 250px;
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+.bentoCard:hover {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
+}
+
+.cardHeader {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.cardTitleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cardEyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+.cardHeaderLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--duration-fast) ease;
+}
+
+.cardHeaderLink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.cardFooterLink {
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  text-decoration: none;
+  align-self: flex-start;
+  transition: color var(--duration-fast) ease;
+}
+
+.cardFooterLink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Widget 1: Top Opportunities */
+.oppList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.oppRow {
+  display: flex;
   align-items: center;
-  padding: 12px 14px;
+  justify-content: space-between;
+  padding: 10px 14px;
   border-radius: 10px;
   background: var(--surface-muted);
   border: 1px solid var(--line-subtle);
-  transition: border-color var(--duration-fast) ease;
+  text-decoration: none;
+  transition: all var(--duration-fast) var(--ease-spring);
 }
 
-.providerRow:hover {
-  border-color: var(--line);
+.oppRow:hover {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
 }
 
-.providerIdentity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.statusMark {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--ink-muted);
-}
-
-.statusKnown {
-  background: var(--positive);
-}
-
-.providerNameBlock {
+.oppIdentity {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.providerTitle {
-  font-size: 13px;
-  font-weight: 700;
+.oppSymbolRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.oppSymbol {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 800;
   color: var(--ink);
 }
 
-.providerReason {
+.oppSector {
   font-size: 11.5px;
   color: var(--ink-muted);
 }
 
-.providerStatus {
+.oppMetrics {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.oppScoreBadge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 750;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.emptyStateText {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+}
+
+/* Widget 2: Portfolio & Strategy */
+.allocationSection {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
+  gap: 10px;
 }
 
-.providerBadge {
+.allocationBar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-muted);
+}
+
+.allocGrowth {
+  width: 45%;
+  background: #1D1D1F;
+}
+
+.allocDefense {
+  width: 35%;
+  background: #1E8E3E;
+}
+
+.allocCash {
+  width: 20%;
+  background: #C7C7CC;
+}
+
+.allocLegend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.strategyStats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.statLabel {
+  color: var(--ink-muted);
+}
+
+.statValue {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* Widget 3: Watchlist & Alerts */
+.watchList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.watchRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-size: 12px;
+}
+
+.watchLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.watchSymbol {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 13px;
   font-weight: 750;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--positive-soft);
-  color: var(--positive);
-  border: 1px solid var(--positive-border);
-  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 
-.providerDate {
+.watchNote {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.alertNotice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  border-left: 3px solid var(--ink);
+  font-size: 11.5px;
+  color: var(--ink-secondary);
+}
+
+/* Widget 4: AI Quick Query */
+.aiLede {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  line-height: 1.45;
+}
+
+.aiForm {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.aiInput {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-muted);
+  font-size: 12.5px;
+  color: var(--ink);
+  transition: all var(--duration-fast) ease;
+}
+
+.aiInput:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--ink);
+}
+
+.aiSubmitBtn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #FFFFFF;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) ease;
+}
+
+.aiSubmitBtn:hover:not(:disabled) {
+  background: #333336;
+  transform: translateY(-1px);
+}
+
+.aiSubmitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.promptSuggestions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.promptLabel {
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--ink-muted);
 }
 
-/* Asset Container & Universe Stats */
-.assetContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.assetCountHero {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 12px;
+.promptPill {
+  padding: 4px 10px;
+  border-radius: 999px;
   background: var(--surface-muted);
   border: 1px solid var(--line-subtle);
-}
-
-.assetTotalNum {
-  font-family: var(--font-mono);
-  font-size: 32px;
-  font-weight: 750;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.assetTotalLabel {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
 }
 
-.assetTypesGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+.promptPill:hover {
+  background: var(--surface);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
-.assetTypeCard {
+/* ==========================================================================
+   TẦNG 3: System Lineage & Data Telemetry Strip
+   ========================================================================== */
+
+.telemetryStrip {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--surface-muted);
-  border: 1px solid var(--line-subtle);
+  gap: 16px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
 }
 
-.assetTypeKey {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink-muted);
-  text-transform: capitalize;
+.telemetryLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.assetTypeVal {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  font-weight: 750;
-  color: var(--ink);
-}
-
-.coverageNote {
-  margin: 0;
+.telemetrySummary {
   font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 
+.telemetryLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--duration-fast) ease;
+}
+
+.telemetryLink:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Footer */
 .footerNote {
   text-align: center;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ink-muted);
   line-height: 1.6;
-  padding: var(--space-lg) 0;
-}
-
-/* States */
-.stateMessage {
-  margin: 0;
-  padding: 24px;
-  text-align: center;
-  color: var(--ink-muted);
-  font-size: 13px;
-}
-
-.errorState {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: var(--negative-soft);
-  border: 1px solid var(--negative-border);
-  color: var(--negative);
-  font-size: 12.5px;
+  padding: var(--space-md) 0 var(--space-lg);
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { runBacktest, type BacktestResult } from "@/lib/api";
+import { StatusBadge } from "@/components/ui/status-badge";
 import styles from "./page.module.css";
 
 const POPULAR_TICKERS = ["FPT", "MWG", "VCB", "HPG", "MBB", "TCB", "VHM", "BSR"];
@@ -88,11 +89,11 @@ export default function ResearchAnalyst() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>RESEARCH DESK · BÀN NGHIÊN CỨU & KIỂM THỬ</p>
-          <h1>Nghiên cứu & Mô phỏng Đầu tư (Research & PIT Backtest)</h1>
+          <p className={styles.eyebrow}>Bàn nghiên cứu & kiểm thử</p>
+          <h1>Nghiên cứu & mô phỏng đầu tư</h1>
           <p className={styles.subTitle}>
             Không gian phân tích chứng cứ điểm-thời-gian (Point-in-Time), kiểm thử lịch sử không rò rỉ dữ liệu tương lai
-            (No Look-Ahead bias), và tổng hợp phân tích từ AI Analyst.
+            (no look-ahead bias), và tổng hợp phân tích từ AI Analyst.
           </p>
         </div>
       </header>
@@ -104,21 +105,21 @@ export default function ResearchAnalyst() {
           onClick={() => setActiveTab("stock")}
           className={`${styles.tabBtn} ${activeTab === "stock" ? styles.tabActive : ""}`}
         >
-          Phân tích Cổ phiếu (Stock Research)
+          Phân tích cổ phiếu
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("daily")}
           className={`${styles.tabBtn} ${activeTab === "daily" ? styles.tabActive : ""}`}
         >
-          Bản tin Thị trường Hàng ngày (Daily Brief)
+          Bản tin thị trường hàng ngày
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("backtest")}
           className={`${styles.tabBtn} ${activeTab === "backtest" ? styles.tabActive : ""}`}
         >
-          Kiểm thử Lịch sử (PIT Backtest)
+          Kiểm thử lịch sử (Backtest)
         </button>
       </nav>
 
@@ -146,7 +147,7 @@ export default function ResearchAnalyst() {
               className={styles.actionBtn}
               style={{ background: "var(--ink)", textDecoration: "none" }}
             >
-              Xem Không gian Nghiên cứu Workspace →
+              Xem không gian nghiên cứu chi tiết →
             </Link>
           </div>
 
@@ -168,7 +169,7 @@ export default function ResearchAnalyst() {
           {analysis && (
             <div className={styles.resultBox}>
               <strong style={{ display: "block", marginBottom: "8px", color: "var(--positive)" }}>
-                KẾT QUẢ PHÂN TÍCH TỔNG HỢP ({symbol}):
+                Kết quả phân tích tổng hợp ({symbol}):
               </strong>
               {analysis}
             </div>
@@ -186,14 +187,14 @@ export default function ResearchAnalyst() {
               disabled={loading}
               className={styles.actionBtn}
             >
-              {loading ? "Đang tổng hợp dữ liệu..." : "✦ Tạo Báo cáo Vĩ mô & Thị trường Hôm nay"}
+              {loading ? "Đang tổng hợp dữ liệu..." : "✦ Tạo báo cáo vĩ mô & thị trường hôm nay"}
             </button>
           </div>
 
           {dailyBrief && (
             <div className={styles.resultBox}>
               <strong style={{ display: "block", marginBottom: "8px", color: "var(--positive)" }}>
-                BẢN TIN VĨ MÔ & THỊ TRƯỜNG:
+                Bản tin vĩ mô & thị trường:
               </strong>
               {dailyBrief}
             </div>
@@ -206,7 +207,7 @@ export default function ResearchAnalyst() {
         <section className={styles.panel}>
           <div className={styles.backtestGrid}>
             <div className={styles.field}>
-              <label>Vũ trụ đầu tư (Universe Symbols)</label>
+              <label>Vũ trụ đầu tư</label>
               <input
                 type="text"
                 value={universe}
@@ -215,24 +216,24 @@ export default function ResearchAnalyst() {
               />
             </div>
             <div className={styles.field}>
-              <label>Từ ngày (Start date)</label>
+              <label>Từ ngày</label>
               <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div className={styles.field}>
-              <label>Đến ngày (End date)</label>
+              <label>Đến ngày</label>
               <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
             <div className={styles.field}>
-              <label>Kỳ tái cân bằng (Horizon)</label>
+              <label>Kỳ tái cân bằng</label>
               <select value={horizon} onChange={(e) => setHorizon(e.target.value)}>
-                <option value="1M">1 Tháng (1M / ~21 phiên)</option>
-                <option value="3M">3 Tháng (3M / ~63 phiên)</option>
-                <option value="6M">6 Tháng (6M / ~126 phiên)</option>
-                <option value="1Y">1 Năm (1Y / ~252 phiên)</option>
+                <option value="1M">1 tháng (~21 phiên)</option>
+                <option value="3M">3 tháng (~63 phiên)</option>
+                <option value="6M">6 tháng (~126 phiên)</option>
+                <option value="1Y">1 năm (~252 phiên)</option>
               </select>
             </div>
             <div className={styles.field}>
-              <label>Vốn ban đầu (Initial Capital - VND)</label>
+              <label>Vốn ban đầu (VND)</label>
               <input
                 type="number"
                 value={initialCapital}
@@ -248,7 +249,7 @@ export default function ResearchAnalyst() {
               disabled={loading}
               className={styles.actionBtn}
             >
-              {loading ? "Đang chạy mô phỏng..." : "▶ Chạy Kiểm thử PIT Replay"}
+              {loading ? "Đang chạy mô phỏng..." : "▶ Chạy kiểm thử lịch sử"}
             </button>
             <span style={{ fontSize: "12px", color: "var(--ink-muted)" }}>
               Chi phí giả định: 0.15% phí giao dịch, 0.10% thuế chuyển nhượng, 0.10% trượt giá (slippage).
@@ -260,19 +261,19 @@ export default function ResearchAnalyst() {
           {backtestResult && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div className={styles.backtestStatus}>
-                <span>
-                  Trạng thái Toàn vẹn Dữ liệu (PIT Integrity):{" "}
-                  <strong>{String(backtestResult.look_ahead_audit.status)}</strong>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                  Trạng thái toàn vẹn dữ liệu:{" "}
+                  <StatusBadge status={String(backtestResult.look_ahead_audit.status)} />
                 </span>
                 <span>
-                  Số lỗi rò rỉ tương lai (Look-ahead violations):{" "}
+                  Lỗi rò rỉ tương lai:{" "}
                   <strong>{Number(backtestResult.look_ahead_audit.violations)}</strong>
                 </span>
               </div>
 
               <div className={styles.kpiGrid}>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Tổng lợi nhuận ròng (Total Return)</span>
+                  <span className={styles.kpiLabel}>Tổng lợi nhuận ròng</span>
                   <span
                     className={`${styles.kpiValue} ${
                       backtestResult.total_return >= 0 ? styles.kpiGreen : styles.kpiRed
@@ -282,13 +283,13 @@ export default function ResearchAnalyst() {
                   </span>
                 </div>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Lợi nhuận Benchmark (VN-Index)</span>
+                  <span className={styles.kpiLabel}>Lợi nhuận VN-Index</span>
                   <span className={styles.kpiValue}>
                     {(backtestResult.benchmark_return * 100).toFixed(2)}%
                   </span>
                 </div>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Alpha (Chênh lệch vs Benchmark)</span>
+                  <span className={styles.kpiLabel}>Alpha (vượt trội thị trường)</span>
                   <span
                     className={`${styles.kpiValue} ${
                       backtestResult.alpha >= 0 ? styles.kpiGreen : styles.kpiRed
@@ -298,17 +299,17 @@ export default function ResearchAnalyst() {
                   </span>
                 </div>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Mức sụt giảm tối đa (Max Drawdown)</span>
+                  <span className={styles.kpiLabel}>Mức sụt giảm tối đa (MDD)</span>
                   <span className={`${styles.kpiValue} ${styles.kpiRed}`}>
                     {(backtestResult.max_drawdown * 100).toFixed(2)}%
                   </span>
                 </div>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Hệ số Sharpe (Sharpe Ratio)</span>
+                  <span className={styles.kpiLabel}>Hệ số Sharpe</span>
                   <span className={styles.kpiValue}>{backtestResult.sharpe_ratio.toFixed(2)}</span>
                 </div>
                 <div className={styles.kpiCard}>
-                  <span className={styles.kpiLabel}>Tổng lệnh & Chi phí (Trades & Fees)</span>
+                  <span className={styles.kpiLabel}>Tổng số lệnh & chi phí</span>
                   <span className={styles.kpiValue} style={{ fontSize: "16px" }}>
                     {backtestResult.total_trades} lệnh |{" "}
                     {Math.round(backtestResult.total_fees + backtestResult.total_taxes).toLocaleString(
@@ -322,19 +323,19 @@ export default function ResearchAnalyst() {
               {backtestResult.trades.length > 0 && (
                 <div>
                   <h3 style={{ fontSize: "14px", marginBottom: "8px", color: "var(--ink)" }}>
-                    Nhật ký Giao dịch Tái cân bằng (Rebalance Ledger)
+                    Nhật ký giao dịch tái cân bằng
                   </h3>
                   <div className={styles.tableWrap}>
                     <table className={styles.dataTable}>
                       <thead>
                         <tr>
-                          <th>Ngày (Date)</th>
-                          <th>Mã (Symbol)</th>
-                          <th>Lệnh (Action)</th>
-                          <th>Số lượng (Shares)</th>
-                          <th>Giá khớp (Price)</th>
-                          <th>Giá trị (Value)</th>
-                          <th>Phí + Thuế (Costs)</th>
+                          <th>Ngày</th>
+                          <th>Mã CP</th>
+                          <th>Loại lệnh</th>
+                          <th>Khối lượng</th>
+                          <th>Giá khớp</th>
+                          <th>Giá trị</th>
+                          <th>Phí & thuế</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -350,7 +351,7 @@ export default function ResearchAnalyst() {
                                 fontWeight: 700,
                               }}
                             >
-                              {t.action === "BUY" ? "MUA (BUY)" : "BÁN (SELL)"}
+                              {t.action === "BUY" ? "Mua" : "Bán"}
                             </td>
                             <td>{t.shares.toLocaleString("vi-VN")}</td>
                             <td>{t.price.toLocaleString("vi-VN")} VND</td>

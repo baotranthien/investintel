@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getDataProviders, type DataProvider } from "@/lib/api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import styles from "./page.module.css";
 
 export default function DataCenter() {
@@ -26,8 +28,21 @@ export default function DataCenter() {
 
   if (loading) {
     return (
-      <div className={styles.loadingState} role="status">
-        Đang kiểm tra kết nối nguồn dữ liệu định lượng...
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.eyebrow}>Hạ tầng dữ liệu · Nguồn gốc & kiểm chứng</p>
+            <h1 className={styles.title}>Chất lượng dữ liệu & nguồn gốc</h1>
+            <p className={styles.subTitle}>
+              Giám sát độ tươi, tính liên tục và lịch sử cập nhật của các cổng dữ liệu định lượng.
+            </p>
+          </div>
+        </header>
+        <div className={styles.grid}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} height={200} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -36,10 +51,8 @@ export default function DataCenter() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>DATA INFRASTRUCTURE · SOURCE PROVENANCE</p>
-          <h1 className={styles.title}>
-            Chất lượng Dữ liệu <span>/ Data Center</span>
-          </h1>
+          <p className={styles.eyebrow}>Hạ tầng dữ liệu · Nguồn gốc & kiểm chứng</p>
+          <h1 className={styles.title}>Chất lượng dữ liệu & nguồn gốc</h1>
           <p className={styles.subTitle}>
             Giám sát độ tươi, tính liên tục và lịch sử cập nhật của các cổng dữ liệu định lượng.
           </p>
@@ -48,18 +61,11 @@ export default function DataCenter() {
 
       <div className={styles.grid}>
         {providers.map((p) => {
-          const isGood = p.status === "IMPLEMENTED" || p.status === "AVAILABLE";
           return (
             <article key={p.provider} className={styles.card}>
               <div className={styles.cardHeader}>
                 <span className={styles.providerName}>{p.provider}</span>
-                <span
-                  className={`${styles.statusBadge} ${
-                    isGood ? styles.statusGood : styles.statusWarn
-                  }`}
-                >
-                  {p.status}
-                </span>
+                <StatusBadge status={p.status} />
               </div>
 
               <div className={styles.metaList}>
@@ -80,7 +86,7 @@ export default function DataCenter() {
                 </div>
 
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Độ tươi (Freshness):</span>
+                  <span className={styles.metaLabel}>Độ tươi dữ liệu:</span>
                   <span className={styles.metaValue}>{p.data_freshness}</span>
                 </div>
 
@@ -97,7 +103,7 @@ export default function DataCenter() {
                 className={styles.actionButton}
                 onClick={() => alert("Tính năng kích hoạt thủ công chỉ khả dụng trong quyền quản trị nội bộ.")}
               >
-                Kích hoạt đồng bộ / Run Now
+                Kích hoạt đồng bộ ngay
               </button>
             </article>
           );

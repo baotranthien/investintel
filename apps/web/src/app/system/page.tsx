@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getSystemDiagnostics, triggerAutomationPipeline, type SystemDiagnostics } from "@/lib/api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import styles from "./page.module.css";
 
 export default function SystemObservabilityPage() {
@@ -45,8 +47,21 @@ export default function SystemObservabilityPage() {
 
   if (loading && !diag) {
     return (
-      <div className={styles.loadingState} role="status">
-        Đang thu thập dữ liệu chẩn đoán hệ thống và phần cứng...
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.eyebrow}>Giám sát nền tảng cục bộ · Trạng thái vận hành</p>
+            <h1 className={styles.title}>Hệ thống & tự phục hồi</h1>
+            <p className={styles.subTitle}>
+              Giám sát thời gian thực tài nguyên GPU RTX 3050, mô hình Qwen3.5 9B, chu kỳ tự động hóa và độ bền cơ sở dữ liệu SQLite.
+            </p>
+          </div>
+        </header>
+        <div className={styles.grid}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} height={220} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -62,10 +77,8 @@ export default function SystemObservabilityPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>LOCAL PLATFORM OBSERVABILITY · OPERATIONAL READINESS</p>
-          <h1 className={styles.title}>
-            Hệ thống & Tự phục hồi <span>/ System Observability</span>
-          </h1>
+          <p className={styles.eyebrow}>Giám sát nền tảng cục bộ · Trạng thái vận hành</p>
+          <h1 className={styles.title}>Hệ thống & tự phục hồi</h1>
           <p className={styles.subTitle}>
             Giám sát thời gian thực tài nguyên GPU RTX 3050, mô hình Qwen3.5 9B, chu kỳ tự động hóa và độ bền cơ sở dữ liệu SQLite.
           </p>
@@ -79,7 +92,7 @@ export default function SystemObservabilityPage() {
             onClick={handleRunPipeline}
             disabled={triggering || scheduler?.is_busy}
           >
-            {triggering ? "Đang xử lý..." : "Chạy Pipeline Tự động"}
+            {triggering ? "Đang xử lý..." : "Chạy quy trình tự động"}
           </button>
         </div>
       </header>
@@ -95,30 +108,28 @@ export default function SystemObservabilityPage() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Local AI Analyst (Ollama)</h2>
-            <span className={`${styles.badge} ${ollama?.ollama_listening ? styles.badgeHealthy : styles.badgeOffline}`}>
-              {ollama?.ollama_listening ? "HEALTHY" : "OFFLINE"}
-            </span>
+            <StatusBadge status={ollama?.ollama_listening ? "HEALTHY" : "OFFLINE"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Primary Model</span>
+              <span className={styles.metricLabel}>Mô hình AI chính</span>
               <span className={styles.metricValue}>{ollama?.primary_model || "qwen3.5:9b-q4_K_M"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Warm TTFT (Latency)</span>
+              <span className={styles.metricLabel}>Độ trễ phản hồi (TTFT)</span>
               <span className={styles.metricValue}>{telemetry?.median_ttft_sec ? `${telemetry.median_ttft_sec}s` : "< 0.5s"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Generation Throughput</span>
+              <span className={styles.metricLabel}>Tốc độ tạo phản hồi</span>
               <span className={styles.metricValue}>{telemetry?.median_generation_tps ? `${telemetry.median_generation_tps} tok/s` : "~5.5 tok/s"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Context Budget</span>
+              <span className={styles.metricLabel}>Dung lượng ngữ cảnh</span>
               <span className={styles.metricValue}>4096 tokens</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Inferences Logged</span>
-              <span className={styles.metricValue}>{telemetry?.total_logged || 0} calls</span>
+              <span className={styles.metricLabel}>Lượt xử lý đã ghi nhận</span>
+              <span className={styles.metricValue}>{telemetry?.total_logged || 0} lượt</span>
             </div>
           </div>
         </div>
@@ -126,33 +137,31 @@ export default function SystemObservabilityPage() {
         {/* Card 2: Hardware Telemetry */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Phần cứng & GPU Telemetry</h2>
-            <span className={`${styles.badge} ${gpu?.status === "ACTIVE" ? styles.badgeHealthy : styles.badgeDegraded}`}>
-              {gpu?.status || "UNKNOWN"}
-            </span>
+            <h2 className={styles.cardTitle}>Phần cứng & GPU</h2>
+            <StatusBadge status={gpu?.status === "ACTIVE" ? "HEALTHY" : gpu?.status ?? "UNKNOWN"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>GPU Detected</span>
+              <span className={styles.metricLabel}>GPU nhận diện</span>
               <span className={styles.metricValue}>{gpu?.name || "NVIDIA RTX 3050 Laptop"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>VRAM Used / Total</span>
+              <span className={styles.metricLabel}>VRAM đang dùng / Tổng</span>
               <span className={styles.metricValue}>
                 {gpu?.vram_used_mb ? `${gpu.vram_used_mb} MB / ${gpu.vram_total_mb} MB` : "N/A"}
               </span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>VRAM Free Headroom</span>
+              <span className={styles.metricLabel}>VRAM khả dụng</span>
               <span className={styles.metricValue}>{gpu?.vram_free_mb ? `${gpu.vram_free_mb} MB` : "N/A"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>NVIDIA Temperature</span>
+              <span className={styles.metricLabel}>Nhiệt độ GPU</span>
               <span className={styles.metricValue}>{gpu?.temperature_c ? `${gpu.temperature_c} °C` : "N/A"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>System RAM Used</span>
-              <span className={styles.metricValue}>{ram?.used_pct ? `${ram.used_pct}% (${ram.available_mb} MB free)` : "N/A"}</span>
+              <span className={styles.metricLabel}>RAM hệ thống đang dùng</span>
+              <span className={styles.metricValue}>{ram?.used_pct ? `${ram.used_pct}% (${ram.available_mb} MB trống)` : "N/A"}</span>
             </div>
           </div>
         </div>
@@ -160,31 +169,29 @@ export default function SystemObservabilityPage() {
         {/* Card 3: Database & Durability */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Cơ sở Dữ liệu & Sao lưu</h2>
-            <span className={`${styles.badge} ${db?.connected ? styles.badgeHealthy : styles.badgeOffline}`}>
-              {db?.connected ? "HEALTHY" : "OFFLINE"}
-            </span>
+            <h2 className={styles.cardTitle}>Cơ sở dữ liệu & sao lưu</h2>
+            <StatusBadge status={db?.connected ? "HEALTHY" : "OFFLINE"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Storage Engine</span>
+              <span className={styles.metricLabel}>Công cụ lưu trữ</span>
               <span className={styles.metricValue}>Local SQLite (data/trading.db)</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Production Write Guard</span>
-              <span className={styles.metricValue} style={{ color: "#137333" }}>LOCKED (false)</span>
+              <span className={styles.metricLabel}>Khóa bảo vệ ghi dữ liệu</span>
+              <span className={styles.metricValue} style={{ color: "#137333" }}>Khóa an toàn</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Integrity Check</span>
-              <span className={styles.metricValue}>PASS (PRAGMA ok)</span>
+              <span className={styles.metricLabel}>Kiểm tra toàn vẹn</span>
+              <span className={styles.metricValue}>Đạt chuẩn (PRAGMA ok)</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Hot Backup Engine</span>
-              <span className={styles.metricValue}>Active (SHA-256 Manifest)</span>
+              <span className={styles.metricLabel}>Cơ chế sao lưu nóng</span>
+              <span className={styles.metricValue}>Đang bật (SHA-256 Manifest)</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Retention Policy</span>
-              <span className={styles.metricValue}>7 Daily / 4 Wk / 6 Mo</span>
+              <span className={styles.metricLabel}>Chính sách lưu trữ</span>
+              <span className={styles.metricValue}>7 ngày / 4 tuần / 6 tháng</span>
             </div>
           </div>
         </div>
@@ -192,31 +199,29 @@ export default function SystemObservabilityPage() {
         {/* Card 4: Background Automation */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Bộ lập lịch & Tự động hóa</h2>
-            <span className={`${styles.badge} ${scheduler?.scheduler_paused ? styles.badgeDegraded : styles.badgeHealthy}`}>
-              {scheduler?.scheduler_paused ? "PAUSED" : "ACTIVE"}
-            </span>
+            <h2 className={styles.cardTitle}>Bộ lập lịch & tự động hóa</h2>
+            <StatusBadge status={scheduler?.scheduler_paused ? "DEGRADED" : "HEALTHY"} label={scheduler?.scheduler_paused ? "Tạm dừng" : "Hoạt động"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Timezone</span>
+              <span className={styles.metricLabel}>Múi giờ</span>
               <span className={styles.metricValue}>{scheduler?.timezone || "Asia/Ho_Chi_Minh"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Pipeline Busy State</span>
-              <span className={styles.metricValue}>{scheduler?.is_busy ? "EXECUTING..." : "IDLE"}</span>
+              <span className={styles.metricLabel}>Trạng thái quy trình</span>
+              <span className={styles.metricValue}>{scheduler?.is_busy ? "Đang xử lý..." : "Chờ lệnh"}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Ingestion Schedule</span>
-              <span className={styles.metricValue}>Daily 16:00 ICT</span>
+              <span className={styles.metricLabel}>Lịch nạp dữ liệu</span>
+              <span className={styles.metricValue}>Hàng ngày 16:00 ICT</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Opportunity Scanner</span>
-              <span className={styles.metricValue}>Post-Ingestion Trigger</span>
+              <span className={styles.metricLabel}>Sàng lọc cơ hội</span>
+              <span className={styles.metricValue}>Kích hoạt sau nạp dữ liệu</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>Alert Evaluation</span>
-              <span className={styles.metricValue}>Deduplicated / Idempotent</span>
+              <span className={styles.metricLabel}>Đánh giá cảnh báo</span>
+              <span className={styles.metricValue}>Khử trùng lặp & chuẩn hóa</span>
             </div>
           </div>
         </div>
@@ -225,7 +230,7 @@ export default function SystemObservabilityPage() {
       {/* Operational Self-Recovery Runbooks */}
       <div className={styles.fullCard}>
         <h2 className={styles.cardTitle} style={{ fontSize: "20px", marginBottom: "8px" }}>
-          Sổ tay Tự phục hồi Vận hành Cục bộ / Local Recovery Runbooks
+          Sổ tay vận hành & tự phục hồi sự cố
         </h2>
         <p style={{ fontSize: "14px", color: "#6b7280", margin: "0 0 16px 0" }}>
           Hướng dẫn xử lý chuẩn khi gặp sự cố ngoại lệ trên môi trường Windows máy trạm:
@@ -234,9 +239,9 @@ export default function SystemObservabilityPage() {
         <table className={styles.runbookTable}>
           <thead>
             <tr>
-              <th>Hiện tượng Sự cố</th>
-              <th>Nguyên nhân Tiềm ẩn</th>
-              <th>Thao tác Khắc phục Chuẩn</th>
+              <th>Hiện tượng sự cố</th>
+              <th>Nguyên nhân tiềm ẩn</th>
+              <th>Thao tác khắc phục chuẩn</th>
             </tr>
           </thead>
           <tbody>

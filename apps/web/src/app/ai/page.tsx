@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, startTransition, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import React, { FormEvent, startTransition, useEffect, useMemo, useRef, useState, Suspense, type JSX } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   getAIStatus,
@@ -14,6 +14,10 @@ import {
 import AppleCitationPill from "@/components/apple-citation-pill";
 import AppleSmartFallback from "@/components/apple-smart-fallback";
 import { normalizeTicker, buildOpportunityQuestion } from "@/lib/ai-handoff";
+import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { useCachedResource } from "@/lib/use-cached-resource";
 import styles from "./page.module.css";
 
 const toolOptions: Array<{ name: AIToolName; label: string }> = [
@@ -34,6 +38,88 @@ const toolOptions: Array<{ name: AIToolName; label: string }> = [
 ];
 
 const popularTickers = ["FPT", "MWG", "VCB", "MBB", "TCB", "PLX", "HPG", "VNM", "BSR", "SSI"];
+
+type StarterPromptItem = {
+  icon: string;
+  tag: string;
+  symbol: string;
+  title: string;
+  query: string;
+  desc: string;
+};
+
+const defaultStarterPrompts: StarterPromptItem[] = [
+  {
+    icon: "🎯",
+    tag: "Chất lượng lợi nhuận",
+    symbol: "FPT",
+    title: "Chất lượng LN & Dòng tiền FPT",
+    query: "Phân tích chất lượng lợi nhuận và dòng tiền HĐKD của FPT quý gần nhất",
+    desc: "Đối soát LNTT so với Dòng tiền thuần từ HĐKD (OCF) và các khoản phải thu",
+  },
+  {
+    icon: "⚖️",
+    tag: "Đối sánh ngành thép",
+    symbol: "HPG",
+    title: "Biên LN & Nợ vay HPG vs HSG",
+    query: "So sánh biên lợi nhuận và cấu trúc nợ vay giữa HPG và HSG",
+    desc: "So sánh biên gộp, tỷ lệ nợ vay trên vốn chủ sở hữu (D/E) và chi phí lãi vay",
+  },
+  {
+    icon: "⚠️",
+    tag: "Tầm soát rủi ro BCTC",
+    symbol: "NVL",
+    title: "Tầm soát rủi ro Bảng CĐKT NVL",
+    query: "Tầm soát các dấu hiệu rủi ro trên Bảng cân đối kế toán của NVL",
+    desc: "Kiểm tra áp lực nợ vay ngắn hạn, áp lực trái phiếu và tính thanh khoản tài sản",
+  },
+  {
+    icon: "📊",
+    tag: "Định giá lịch sử 5 năm",
+    symbol: "VCB",
+    title: "Định giá P/E & P/B 5 năm VCB",
+    query: "Đánh giá định giá P/E và P/B hiện tại của VCB so với trung bình 5 năm",
+    desc: "Đo lường độ lệch chuẩn định giá P/E, P/B và biên độ an toàn theo dữ liệu lịch sử",
+  },
+];
+
+function getTickerStarterPrompts(sym: string): StarterPromptItem[] {
+  const symbol = sym.toUpperCase().trim();
+  return [
+    {
+      icon: "🎯",
+      tag: "Chất lượng lợi nhuận",
+      symbol,
+      title: `Chất lượng LN & Dòng tiền ${symbol}`,
+      query: `Phân tích chất lượng lợi nhuận và dòng tiền HĐKD của ${symbol} quý gần nhất`,
+      desc: `Kiểm tra tương quan OCF với LNTT và chất lượng các khoản phải thu của ${symbol}`,
+    },
+    {
+      icon: "⚖️",
+      tag: "Biên LN & Cấu trúc nợ",
+      symbol,
+      title: `Biên LN & Cấu trúc nợ ${symbol}`,
+      query: `So sánh biên lợi nhuận và cấu trúc nợ vay giữa ${symbol} và doanh nghiệp cùng ngành`,
+      desc: `Phân tích cơ cấu nguồn vốn, tỷ lệ D/E và biên lợi nhuận hoạt động của ${symbol}`,
+    },
+    {
+      icon: "⚠️",
+      tag: "Tầm soát rủi ro BCTC",
+      symbol,
+      title: `Tầm soát rủi ro Bảng CĐKT ${symbol}`,
+      query: `Tầm soát các dấu hiệu rủi ro trên Bảng cân đối kế toán của ${symbol}`,
+      desc: `Rà soát các khoản nợ ngắn hạn, hàng tồn kho và các khoản mục bất thường`,
+    },
+    {
+      icon: "📊",
+      tag: "Định giá lịch sử 5 năm",
+      symbol,
+      title: `Định giá P/E & P/B 5 năm ${symbol}`,
+      query: `Đánh giá định giá P/E và P/B hiện tại của ${symbol} so với trung bình 5 năm`,
+      desc: `Xác định định giá P/E, P/B hiện tại đang cao hơn hay thấp hơn trung bình 5 năm`,
+    },
+  ];
+}
 
 const defaultMarketPrompts = [
   { label: "📈 Toàn cảnh thị trường & dòng tiền", query: "Thị trường hôm nay thế nào và xu hướng dòng tiền ra sao?" },
@@ -69,8 +155,6 @@ function getStockPrompts(symbol: string) {
     },
   ];
 }
-
-type StatusResource = { state: "loading" } | { state: "ready"; value: AIStatus } | { state: "error"; message: string };
 
 function usageValue(value: unknown, divisor = 1) {
   return typeof value === "number" ? (value / divisor).toFixed(divisor === 1 ? 0 : 2) : "N/A";
@@ -133,17 +217,24 @@ function AIWorkspaceContent() {
 
   const [activeSymbol, setActiveSymbol] = useState<string>(initialValidTicker ?? "");
   const [question, setQuestion] = useState<string>(initialQuestion);
-  const [asOf, setAsOf] = useState("");
+  const [asOf] = useState("");
   const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((t) => t.name));
   const [busy, setBusy] = useState(false);
-  const [streamStep, setStreamStep] = useState<AIStreamStep | null>(null);
+  const [, setStreamStep] = useState<AIStreamStep | null>(null);
   const [streamMessage, setStreamMessage] = useState("");
   const [answer, setAnswer] = useState<AIChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [health, setHealth] = useState<StatusResource>({ state: "loading" });
+
+  // Background fetch of AI Model Status via SWR Cache without blocking UI
+  const { data: aiStatus, isLoading: isStatusLoading } = useCachedResource<AIStatus>(
+    "ai-status",
+    () => getAIStatus(),
+    { maxAgeMs: 60_000 }
+  );
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const answerSectionRef = useRef<HTMLElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Navigation tracking ref to ensure idempotency and prevent overwriting user edits
   const lastHandledKeyRef = useRef<string>(
@@ -151,20 +242,6 @@ function AIWorkspaceContent() {
       ? `${symbolParam ?? ""}|${qParam ?? ""}|${sourceParam ?? ""}`
       : ""
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    getAIStatus()
-      .then((data) => {
-        if (!cancelled) setHealth({ state: "ready", value: data });
-      })
-      .catch((err) => {
-        if (!cancelled) setHealth({ state: "error", message: err.message || "Failed to load status" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Handle client-side navigation transitions (e.g. clicking different opportunities)
   useEffect(() => {
@@ -200,6 +277,10 @@ function AIWorkspaceContent() {
     }
   }, [symbolParam, qParam, sourceParam]);
 
+  const currentStarterPrompts = useMemo(() => {
+    return activeSymbol ? getTickerStarterPrompts(activeSymbol) : defaultStarterPrompts;
+  }, [activeSymbol]);
+
   const currentPrompts = useMemo(() => {
     return activeSymbol ? getStockPrompts(activeSymbol) : defaultMarketPrompts;
   }, [activeSymbol]);
@@ -209,6 +290,14 @@ function AIWorkspaceContent() {
     setActiveSymbol(nextTicker);
     setQuestion("");
     setAnswer(null);
+  }
+
+  function handleSelectStarterPrompt(p: StarterPromptItem) {
+    if (p.symbol && (!activeSymbol || activeSymbol !== p.symbol)) {
+      setActiveSymbol(p.symbol);
+    }
+    setQuestion(p.query);
+    textareaRef.current?.focus();
   }
 
   function toggleTool(name: AIToolName) {
@@ -223,6 +312,13 @@ function AIWorkspaceContent() {
     setBusy(false);
     setStreamStep(null);
     setStreamMessage("");
+  }
+
+  function handleResetQuestion() {
+    setAnswer(null);
+    setError(null);
+    setQuestion("");
+    textareaRef.current?.focus();
   }
 
   async function ask(event: FormEvent) {
@@ -283,36 +379,55 @@ function AIWorkspaceContent() {
 
   return (
     <div className={styles.pageWrapper}>
-      <div className={styles.centerContainer}>
-        {/* 1. Header giới thiệu (Centered Hero) */}
-        <section className={styles.heroSection}>
-          <div className={styles.heroBadge}>
-            <span className={styles.pulseDot} />
-            <span>AI INVESTMENT RESEARCH · LOCAL FIRST</span>
-            {health.state === "ready" && (
-              <span style={{ opacity: 0.7 }}>· {health.value.configured_models?.primary ?? "qwen3.5:9b-q4_K_M"}</span>
+      <div className={`${styles.centerContainer} ${answer ? styles.wideContainer : ""}`}>
+        {/* 1. Header trang chuẩn mực PageHeader */}
+        <PageHeader
+          title="Trợ lý Nghiên cứu & Thẩm định Tài chính"
+          description="Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin."
+          meta={
+            isStatusLoading ? (
+              <span className={styles.statusBadgeWrapper}>
+                <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
+              </span>
+            ) : aiStatus ? (
+              <span className={styles.statusBadgeWrapper}>
+                <StatusBadge
+                  status={aiStatus.status}
+                  label={aiStatus.configured_models?.primary || "Mô hình sẵn sàng"}
+                  title={`Trạng thái: ${aiStatus.status}`}
+                />
+              </span>
+            ) : (
+              <span className={styles.statusBadgeWrapper}>
+                <StatusBadge status="AVAILABLE" label="Local-First Model" />
+              </span>
+            )
+          }
+        />
+
+        {/* 2. Dải chọn mã cổ phiếu & Gợi ý nhanh */}
+        <section className={styles.suggestionsSection}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <span className={styles.suggestionsLabel}>Mã cổ phiếu tiêu biểu</span>
+            {activeSymbol && (
+              <button
+                type="button"
+                className={styles.resetQuestionBtn}
+                onClick={() => {
+                  setActiveSymbol("");
+                  setQuestion("");
+                }}
+              >
+                Xóa bộ lọc mã ({activeSymbol})
+              </button>
             )}
           </div>
-          <h1 className={styles.heroTitle}>Trợ lý Nghiên cứu &amp; Thẩm định Tài chính</h1>
-          <p className={styles.heroSubtitle}>
-            Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin.
-          </p>
-        </section>
-
-        {/* 2. Dải chọn mã cổ phiếu & Câu hỏi gợi ý (Horizontal Pills) */}
-        <section className={styles.suggestionsSection}>
-          <span className={styles.suggestionsLabel}>Mã cổ phiếu tiêu biểu</span>
           <div className={styles.suggestionPills}>
             {popularTickers.map((t) => (
               <button
                 key={t}
                 type="button"
-                className={styles.suggestionPill}
-                style={
-                  activeSymbol === t
-                    ? { backgroundColor: "#1D1D1F", color: "#FFFFFF", borderColor: "#1D1D1F" }
-                    : undefined
-                }
+                className={`${styles.suggestionPill} ${activeSymbol === t ? styles.suggestionPillActive : ""}`}
                 onClick={() => handleSelectTicker(t)}
               >
                 {t}
@@ -321,39 +436,74 @@ function AIWorkspaceContent() {
             {activeSymbol && !popularTickers.includes(activeSymbol) && (
               <button
                 type="button"
-                className={styles.suggestionPill}
-                style={{ backgroundColor: "#1D1D1F", color: "#FFFFFF", borderColor: "#1D1D1F" }}
+                className={`${styles.suggestionPill} ${styles.suggestionPillActive}`}
                 onClick={() => handleSelectTicker(activeSymbol)}
               >
                 {activeSymbol}
               </button>
             )}
           </div>
-
-          <span className={styles.suggestionsLabel}>
-            {activeSymbol ? `Gợi ý câu hỏi cho ${activeSymbol}` : "Gợi ý phân tích nhanh"}
-          </span>
-          <div className={styles.suggestionPills}>
-            {currentPrompts.map((item, idx) => (
-              <button
-                key={idx}
-                type="button"
-                className={styles.suggestionPill}
-                onClick={() => setQuestion(item.query)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
         </section>
 
-        {/* 3. Khung Phạm vi công cụ (Collapsible / Clean White Card) */}
+        {/* 3. Bốn Gợi ý Phân tích Mẫu (4 Starter Prompts) Nổi bật khi màn hình chờ */}
+        {!answer && !busy && (
+          <section className={styles.starterSection}>
+            <div className={styles.starterHeader}>
+              <span className={styles.starterTitleLabel}>
+                {activeSymbol ? `Gợi ý phân tích chuyên sâu cho ${activeSymbol}` : "Gợi ý phân tích mẫu nổi bật"}
+              </span>
+            </div>
+            <div className={styles.starterGrid}>
+              {currentStarterPrompts.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={styles.starterCard}
+                  onClick={() => handleSelectStarterPrompt(item)}
+                >
+                  <div className={styles.starterCardTop}>
+                    <span className={styles.starterIcon}>{item.icon}</span>
+                    <span className={styles.starterTag}>{item.tag}</span>
+                    <span className={styles.starterSymbolBadge}>{item.symbol}</span>
+                  </div>
+                  <div className={styles.starterTitle}>{item.title}</div>
+                  <div className={styles.starterQuery}>"{item.query}"</div>
+                  <div className={styles.starterDesc}>{item.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Câu hỏi gợi ý bổ sung */}
+            <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span className={styles.suggestionsLabel}>
+                {activeSymbol ? `Chủ đề khác liên quan đến ${activeSymbol}` : "Chủ đề phân tích thị trường"}
+              </span>
+              <div className={styles.suggestionPills}>
+                {currentPrompts.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className={styles.suggestionPill}
+                    onClick={() => {
+                      setQuestion(item.query);
+                      textareaRef.current?.focus();
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 4. Khung Phạm vi công cụ (Collapsible Tool Scope) */}
         <section className={styles.scopeCard}>
           <div className={styles.scopeHeader}>
             <span className={styles.scopeTitle}>
               Phạm vi công cụ phân tích ({selectedTools.length}/{toolOptions.length})
             </span>
-            <div style={{ display: "flex", gap: "6px" }}>
+            <div className={styles.scopeActions}>
               <button
                 type="button"
                 className={styles.suggestionPill}
@@ -387,7 +537,7 @@ function AIWorkspaceContent() {
           </div>
         </section>
 
-        {/* 4. Khu vực Hiển thị Kết quả AI (Editorial Reading Canvas) */}
+        {/* 5. Thông báo lỗi nếu có */}
         {error && (
           <div className={styles.resultCard} style={{ borderColor: "rgba(217, 48, 37, 0.25)" }}>
             <div style={{ color: "#D93025", fontSize: "14px", fontWeight: 600 }}>
@@ -397,91 +547,215 @@ function AIWorkspaceContent() {
           </div>
         )}
 
-        {answer && (
-          <article ref={answerSectionRef} className={styles.resultCard}>
-            <header className={styles.resultHeader}>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-                <span className={styles.statusBadge}>
-                  {answer.symbol ? `MÃ: ${answer.symbol}` : "TOÀN CẢNH"}
-                </span>
-                <span className={styles.statusBadge}>
-                  {answer.status?.replace(/_/g, " ") || "HOÀN TẤT"}
-                </span>
-                {Boolean(answer.metadata_flags?.ias33_adjusted) && (
-                  <span className={styles.iasWarningBadge}>⚠️ IAS 33 ADJUSTED</span>
-                )}
-                {Boolean(answer.symbol === "VNINDEX" || answer.citations?.some((c) => c.note?.includes("Proxy") || c.note?.includes("đại diện"))) && (
-                  <span className={styles.iasWarningBadge} style={{ background: "rgba(255, 149, 0, 0.12)", color: "#c96500", border: "1px solid rgba(255, 149, 0, 0.3)" }}>
-                    ⚠️ BỐI CẢNH ĐẠI DIỆN / PROXY CONTEXT (VN100)
-                  </span>
-                )}
+        {/* 6. Trạng thái Loading lúc đang gửi yêu cầu (Skeleton Feedback) */}
+        {busy && !answer && (
+          <div className={styles.loadingAnswerCard}>
+            <div className={styles.loadingHeader}>
+              <div className={styles.loadingHeaderInfo}>
+                <div className={styles.pulseDot} />
+                <span>{streamMessage || "AI đang tổng hợp và đối soát dữ liệu BCTC..."}</span>
               </div>
-              <div style={{ fontSize: "12px", color: "#6E6E73", display: "flex", gap: "10px", alignItems: "center" }}>
-                <span>{answer.model || "qwen3.5:9b-q4_K_M"}</span>
-                {answer.usage?.total_duration ? (
-                  <span>· {usageValue(answer.usage.total_duration, 1e9)}s</span>
-                ) : null}
-              </div>
-            </header>
-
-            <div className={styles.answerProse}>
-              {renderAnswerWithCitations(answer.answer, answer.citations || [])}
+              <button type="button" onClick={handleCancelStream} className={styles.cancelBtn}>
+                ✕ Hủy phân tích
+              </button>
             </div>
+            <SkeletonCard />
+            <div style={{ marginTop: "12px" }}>
+              <SkeletonText lines={4} lastLineWidth="65%" />
+            </div>
+          </div>
+        )}
 
-            {(answer.status === "PARTIAL_DATA_ONLY" || answer.structured_data_summary) && (
-              <AppleSmartFallback
-                summary={answer.structured_data_summary}
-                metadataFlags={answer.metadata_flags}
-                isFallbackMode={answer.status === "PARTIAL_DATA_ONLY"}
-              />
-            )}
-
-            {answer.claims && answer.claims.length > 0 && (
-              <div className={styles.claimsSection}>
-                <span className={styles.suggestionsLabel}>MỆNH ĐỀ PHÂN TÍCH ĐÃ ĐỐI SOÁT ({answer.claims.length})</span>
-                {answer.claims.map((claim, idx) => (
-                  <div key={idx} className={styles.claimRow}>
-                    <div>
-                      <strong style={{ fontSize: "11px", color: "#6E6E73", textTransform: "uppercase", display: "block", marginBottom: "2px" }}>
-                        {claim.claim_type}
-                      </strong>
-                      <span>{claim.text}</span>
-                    </div>
-                    {claim.citation_ids && claim.citation_ids.length > 0 && (
-                      <div style={{ display: "inline-flex", gap: "4px", flexShrink: 0 }}>
-                        {claim.citation_ids.map((id) => (
-                          <AppleCitationPill
-                            key={id}
-                            id={id}
-                            citation={answer.citations?.find((c) => c.id.toUpperCase() === id.toUpperCase())}
-                          />
-                        ))}
-                      </div>
+        {/* 7. Bố cục 2 Cột Desktop (Chat 60% + Evidence 40% Split View) */}
+        {answer && (
+          <div className={styles.splitLayout}>
+            {/* Cột Trái (60%): Phân tích AI, Mệnh đề đối soát, Trích dẫn inline */}
+            <section className={styles.leftColumn}>
+              <article ref={answerSectionRef} className={styles.resultCard}>
+                <header className={styles.resultHeader}>
+                  <div className={styles.resultHeaderLeft}>
+                    <StatusBadge
+                      status={answer.status}
+                      label={answer.symbol ? `MÃ: ${answer.symbol}` : "TOÀN CẢNH"}
+                    />
+                    <StatusBadge status={answer.status} />
+                    {Boolean(answer.metadata_flags?.ias33_adjusted) && (
+                      <span className={styles.iasWarningBadge}>⚠️ IAS 33 ADJUSTED</span>
+                    )}
+                    {Boolean(
+                      answer.symbol === "VNINDEX" ||
+                        answer.citations?.some(
+                          (c) => c.note?.includes("Proxy") || c.note?.includes("đại diện")
+                        )
+                    ) && (
+                      <span className={styles.proxyBadge}>
+                        ⚠️ BỐI CẢNH ĐẠI DIỆN / PROXY CONTEXT (VN100)
+                      </span>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className={styles.resultHeaderRight}>
+                    <span>{answer.model || "qwen3.5:9b-q4_K_M"}</span>
+                    {answer.usage?.total_duration ? (
+                      <span>· {usageValue(answer.usage.total_duration, 1e9)}s</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={styles.resetQuestionBtn}
+                      onClick={handleResetQuestion}
+                      title="Đặt câu hỏi mới"
+                    >
+                      + Câu hỏi mới
+                    </button>
+                  </div>
+                </header>
 
-            {answer.uncertainty && answer.uncertainty.length > 0 && (
-              <div className={styles.uncertaintySection}>
-                <span className={styles.suggestionsLabel}>LƯU Ý DỮ LIỆU & RỦI RO ({answer.uncertainty.length})</span>
-                <ul className={styles.uncertaintyList}>
-                  {answer.uncertainty.map((item, idx) => (
-                    <li key={idx} className={styles.uncertaintyItem}>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                {/* Banner tiến trình SSE nếu đang chạy */}
+                {busy && (
+                  <div className={styles.streamProgressBanner}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className={styles.pulseDot} />
+                      <span>{streamMessage || "AI đang tiến hành phân tích và đối soát..."}</span>
+                    </div>
+                    <button type="button" onClick={handleCancelStream} className={styles.cancelButton}>
+                      ✕ Hủy
+                    </button>
+                  </div>
+                )}
+
+                {/* Nội dung phản hồi AI với Citation Pills */}
+                <div className={styles.answerProse}>
+                  {renderAnswerWithCitations(answer.answer, answer.citations || [])}
+                </div>
+
+                {/* Danh sách mệnh đề đối soát (Claims Section) */}
+                {answer.claims && answer.claims.length > 0 && (
+                  <div className={styles.claimsSection}>
+                    <span className={styles.sectionTitle}>
+                      Mệnh đề phân tích đã đối soát ({answer.claims.length})
+                    </span>
+                    <div className={styles.claimsList}>
+                      {answer.claims.map((claim, idx) => (
+                        <div key={idx} className={styles.claimRow}>
+                          <div className={styles.claimContent}>
+                            <span className={styles.claimTypeBadge}>{claim.claim_type}</span>
+                            <p className={styles.claimText}>{claim.text}</p>
+                          </div>
+                          {claim.citation_ids && claim.citation_ids.length > 0 && (
+                            <div className={styles.claimPills}>
+                              {claim.citation_ids.map((id) => (
+                                <AppleCitationPill
+                                  key={id}
+                                  id={id}
+                                  citation={answer.citations?.find(
+                                    (c) => c.id.toUpperCase() === id.toUpperCase()
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lưu ý dữ liệu & Rủi ro */}
+                {answer.uncertainty && answer.uncertainty.length > 0 && (
+                  <div className={styles.uncertaintySection}>
+                    <span className={styles.sectionTitle}>
+                      Lưu ý dữ liệu & Rủi ro ({answer.uncertainty.length})
+                    </span>
+                    <ul className={styles.uncertaintyList}>
+                      {answer.uncertainty.map((item, idx) => (
+                        <li key={idx} className={styles.uncertaintyItem}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </article>
+            </section>
+
+            {/* Cột Phải (40%): Bằng chứng kiểm định & BCTC đối chứng */}
+            <aside className={styles.rightColumn}>
+              {/* Header Cột Phải */}
+              <div className={styles.evidenceHeaderCard}>
+                <div className={styles.evidenceHeaderTop}>
+                  <span className={styles.evidenceIcon}>📋</span>
+                  <div>
+                    <h2 className={styles.evidenceTitle}>Bằng chứng &amp; Số liệu Đối chứng</h2>
+                    <p className={styles.evidenceSubtitle}>
+                      Kiểm định trực tiếp từ BCTC &amp; Nguồn dữ liệu số hóa
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.evidenceMetaTags}>
+                  <span className={styles.evidenceCountBadge}>
+                    {answer.citations?.length || 0} Bằng chứng
+                  </span>
+                  {Boolean(answer.metadata_flags?.ias33_adjusted) && (
+                    <span className={styles.iasEvidenceBadge}>⚠️ IAS 33 Adjusted</span>
+                  )}
+                  {Boolean(answer.metadata_flags?.eps_is_estimate) && (
+                    <span className={styles.iasEvidenceBadge}>ⓘ EPS ước lượng (IAS 33)</span>
+                  )}
+                </div>
               </div>
-            )}
-          </article>
+
+              {/* Bảng số liệu BCTC & Fallback Thông minh */}
+              {(answer.status === "PARTIAL_DATA_ONLY" || answer.structured_data_summary) && (
+                <AppleSmartFallback
+                  summary={answer.structured_data_summary}
+                  metadataFlags={answer.metadata_flags}
+                  isFallbackMode={answer.status === "PARTIAL_DATA_ONLY"}
+                />
+              )}
+
+              {/* Danh sách Bằng chứng / Citations đối soát chi tiết */}
+              {answer.citations && answer.citations.length > 0 ? (
+                <div className={styles.evidenceList}>
+                  <span className={styles.sectionTitle}>
+                    Nguồn trích dẫn BCTC &amp; Hồ sơ ({answer.citations.length})
+                  </span>
+                  {answer.citations.map((c) => (
+                    <div key={c.id} className={styles.evidenceCard}>
+                      <div className={styles.evidenceCardHeader}>
+                        <span className={styles.evidenceIdBadge}>{c.id}</span>
+                        <span className={styles.evidenceModule}>{c.responsible_module}</span>
+                        {c.freshness && (
+                          <span className={styles.evidenceFreshness}>{c.freshness}</span>
+                        )}
+                      </div>
+                      {c.note && <p className={styles.evidenceNote}>{c.note}</p>}
+                      <div className={styles.evidenceFooter}>
+                        {c.source && (
+                          <span className={styles.evidenceSource}>
+                            Nguồn: <strong>{c.source}</strong>
+                          </span>
+                        )}
+                        {c.publication_date && (
+                          <span className={styles.evidenceDate}>
+                            Kỳ/Ngày: {c.publication_date}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.evidenceEmpty}>
+                  <span>Chưa có trích dẫn BCTC riêng lẻ</span>
+                </div>
+              )}
+            </aside>
+          </div>
         )}
       </div>
 
-      {/* 5. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */}
+      {/* 8. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */}
       <div className={styles.bottomDock}>
-        <div className={styles.dockInner}>
+        <div className={`${styles.dockInner} ${answer ? styles.dockInnerWide : ""}`}>
           {busy && (
             <div className={styles.sseStatusPill}>
               <div className={styles.pulseDot} />
@@ -520,6 +794,7 @@ function AIWorkspaceContent() {
             />
 
             <textarea
+              ref={textareaRef}
               className={styles.promptTextarea}
               rows={1}
               placeholder={
@@ -558,17 +833,76 @@ function AIWorkspaceContent() {
   );
 }
 
+/**
+ * Fallback App Shell tĩnh hiển thị ngay lập tức khi hydration/SSR khởi tạo
+ * Loại bỏ hoàn toàn màn hình trắng "Đang chuẩn bị không gian làm việc..."
+ */
+function AIShellFallback(): JSX.Element {
+  return (
+    <div className={styles.pageWrapper}>
+      <div className={styles.centerContainer}>
+        <PageHeader
+          title="Trợ lý Nghiên cứu & Thẩm định Tài chính"
+          description="Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin."
+          meta={
+            <span className={styles.statusBadgeWrapper}>
+              <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
+            </span>
+          }
+        />
+
+        <section className={styles.starterSection}>
+          <div className={styles.starterHeader}>
+            <span className={styles.starterTitleLabel}>Gợi ý phân tích mẫu nổi bật</span>
+          </div>
+          <div className={styles.starterGrid}>
+            {defaultStarterPrompts.map((item, idx) => (
+              <div key={idx} className={styles.starterCard}>
+                <div className={styles.starterCardTop}>
+                  <span className={styles.starterIcon}>{item.icon}</span>
+                  <span className={styles.starterTag}>{item.tag}</span>
+                  <span className={styles.starterSymbolBadge}>{item.symbol}</span>
+                </div>
+                <div className={styles.starterTitle}>{item.title}</div>
+                <div className={styles.starterQuery}>"{item.query}"</div>
+                <div className={styles.starterDesc}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className={styles.bottomDock}>
+        <div className={styles.dockInner}>
+          <div className={styles.promptBox}>
+            <input
+              type="text"
+              className={styles.tickerInput}
+              placeholder="MÃ CP"
+              readOnly
+            />
+            <textarea
+              className={styles.promptTextarea}
+              rows={1}
+              placeholder="Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô..."
+              readOnly
+            />
+            <button type="button" className={styles.submitBtn} disabled>
+              Gửi câu hỏi
+            </button>
+          </div>
+          <p className={styles.disclaimerText}>
+            Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AIResearchPage() {
   return (
-    <Suspense
-      fallback={
-        <div className={styles.pageWrapper}>
-          <div className={styles.centerContainer}>
-            <p className={styles.heroSubtitle}>Đang chuẩn bị không gian làm việc...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<AIShellFallback />}>
       <AIWorkspaceContent />
     </Suspense>
   );

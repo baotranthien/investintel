@@ -6,16 +6,16 @@ export type AppNavigationItem = {
 };
 
 export const appNavigation: AppNavigationItem[] = [
-  { href: "/", label: "Tổng quan", shortLabel: "Home", group: "workspace" },
-  { href: "/market", label: "Thị trường", shortLabel: "Market", group: "workspace" },
+  { href: "/", label: "Tổng quan", shortLabel: "Tổng quan", group: "workspace" },
+  { href: "/market", label: "Thị trường", shortLabel: "Thị trường", group: "workspace" },
   { href: "/opportunities", label: "Cơ hội", shortLabel: "Cơ hội", group: "workspace" },
   { href: "/portfolio", label: "Danh mục", shortLabel: "Danh mục", group: "workspace" },
   { href: "/watchlist", label: "Theo dõi", shortLabel: "Theo dõi", group: "workspace" },
-  { href: "/research", label: "Nghiên cứu", shortLabel: "Research", group: "research" },
-  { href: "/screener", label: "Bộ lọc cổ phiếu", shortLabel: "Screener", group: "research" },
+  { href: "/research", label: "Nghiên cứu", shortLabel: "Nghiên cứu", group: "research" },
+  { href: "/screener", label: "Bộ lọc cổ phiếu", shortLabel: "Bộ lọc", group: "research" },
   { href: "/ai", label: "AI Analyst", shortLabel: "AI", group: "research" },
   { href: "/data-center", label: "Chất lượng dữ liệu", shortLabel: "Dữ liệu", group: "system" },
-  { href: "/system", label: "Hệ thống & Tự phục hồi", shortLabel: "Hệ thống", group: "system" },
+  { href: "/system", label: "Hệ thống & tự phục hồi", shortLabel: "Hệ thống", group: "system" },
   { href: "/settings", label: "Cài đặt", shortLabel: "Cài đặt", group: "system" },
 ];
 
@@ -29,3 +29,43 @@ export const sectionDescriptions: Record<string, { title: string; english: strin
   system: { title: "Hệ thống & Tự phục hồi", english: "System Observability", milestone: "6F" },
   settings: { title: "Cài đặt", english: "Settings", milestone: "6A" },
 };
+
+export type MobileNavItem = {
+  href: string;
+  label: string;
+  matches: string[];
+  subTabs?: { href: string; label: string }[];
+};
+
+export const mobilePrimaryNav: MobileNavItem[] = [
+  { href: "/", label: "Tổng quan", matches: ["/"] },
+  { href: "/market", label: "Thị trường", matches: ["/market"] },
+  {
+    href: "/opportunities",
+    label: "Sàng lọc",
+    matches: ["/opportunities", "/screener"],
+    subTabs: [
+      { href: "/opportunities", label: "Cơ hội" },
+      { href: "/screener", label: "Bộ lọc" },
+    ],
+  },
+  {
+    href: "/portfolio",
+    label: "Danh mục",
+    matches: ["/portfolio", "/watchlist"],
+    subTabs: [
+      { href: "/portfolio", label: "Danh mục" },
+      { href: "/watchlist", label: "Theo dõi" },
+    ],
+  },
+  { href: "/ai", label: "AI", matches: ["/ai"] },
+];
+
+export const mobileDrawerNav: { href: string; label: string }[] = [
+  { href: "/research", label: "Nghiên cứu" },
+  { href: "/screener", label: "Bộ lọc cổ phiếu" },
+  { href: "/watchlist", label: "Theo dõi" },
+  { href: "/data-center", label: "Chất lượng dữ liệu" },
+  { href: "/system", label: "Hệ thống & tự phục hồi" },
+  { href: "/settings", label: "Cài đặt" },
+];

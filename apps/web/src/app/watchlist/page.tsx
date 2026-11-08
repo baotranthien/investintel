@@ -14,6 +14,8 @@ import {
   type DecisionContext,
   type WatchlistItem,
 } from "@/lib/api";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import styles from "./page.module.css";
 
 type Resource = { state: "loading" } | { state: "ready"; rows: WatchlistItem[] } | { state: "error"; message: string };
@@ -23,8 +25,7 @@ function displayDate(value: string | null) {
   return value ? new Date(value).toLocaleDateString("vi-VN") : "N/A";
 }
 function Status({ value }: { value: string }) {
-  const kind = value === "AVAILABLE" || value === "HIGH" ? styles.good : value === "STALE" || value === "PARTIAL" ? styles.warn : styles.missing;
-  return <span className={`${styles.status} ${kind}`}>{value.replaceAll("_", " ")}</span>;
+  return <StatusBadge status={value} />;
 }
 
 function present(value: unknown) {
@@ -52,7 +53,7 @@ function DecisionBrief({ symbol }: { symbol: string }) {
     try {
       setResource({ state: "ready", data: await getDecisionContext(symbol, asOf || undefined) });
     } catch (caught) {
-      setResource({ state: "error", message: caught instanceof Error ? caught.message : "Decision API unavailable" });
+      setResource({ state: "error", message: caught instanceof Error ? caught.message : "Không thể kết nối bối cảnh quyết định." });
     }
   }
 
@@ -61,10 +62,10 @@ function DecisionBrief({ symbol }: { symbol: string }) {
     setNotice("");
     try {
       const receipt = await captureDecisionSnapshot(symbol, asOf || undefined);
-      setNotice(`Snapshot ${receipt.id} saved for ${receipt.as_of_date}.`);
+      setNotice(`Đã lưu snapshot ${receipt.id} cho ngày ${receipt.as_of_date}.`);
       await loadContext();
     } catch (caught) {
-      setResource({ state: "error", message: caught instanceof Error ? caught.message : "Snapshot capture failed" });
+      setResource({ state: "error", message: caught instanceof Error ? caught.message : "Lưu snapshot thất bại." });
     } finally {
       setBusy(false);
     }
@@ -81,44 +82,44 @@ function DecisionBrief({ symbol }: { symbol: string }) {
 
   return <div className={styles.decisionWrap}>
     <button className={styles.decisionToggle} type="button" aria-expanded={open} onClick={toggle}>
-      {open ? "Ẩn / Hide brief" : "Bản phân tích / Decision brief"}
+      {open ? "Ẩn bối cảnh quyết định" : "Xem bối cảnh quyết định"}
     </button>
     {open && <section className={styles.decisionBrief} aria-label={`${symbol} decision brief`}>
       <header className={styles.decisionHeader}>
-        <div><h3>Bối cảnh quyết định / Decision context</h3><p>Evidence-linked view; not a trade instruction.</p></div>
+        <div><h3>Bối cảnh quyết định</h3><p>Góc nhìn gắn liền với dữ liệu kiểm chứng; không phải khuyến nghị giao dịch.</p></div>
         {resource.state === "ready" && <div className={styles.decisionActions}>
-          <label>As-of date<input aria-label="As-of date" type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
+          <label>Ngày dữ liệu<input aria-label="Ngày dữ liệu" type="date" value={asOf} onChange={(event) => setAsOf(event.target.value)} /></label>
           <Status value={resource.data.decision_state} />
-          <button type="button" disabled={busy} onClick={() => void loadContext()}>Làm mới / Refresh</button>
-          <button type="button" disabled={busy} onClick={() => void captureSnapshot()}>{busy ? "Đang lưu..." : "Chụp snapshot / Capture"}</button>
+          <button type="button" disabled={busy} onClick={() => void loadContext()}>Làm mới</button>
+          <button type="button" disabled={busy} onClick={() => void captureSnapshot()}>{busy ? "Đang lưu..." : "Lưu snapshot"}</button>
         </div>}
       </header>
       {notice && <p className={styles.decisionNotice} role="status">{notice}</p>}
-      {resource.state === "loading" && <p className={styles.empty} role="status">Loading decision context...</p>}
-      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Decision context unavailable</strong><span>{resource.message}</span></div>}
+      {resource.state === "loading" && <p className={styles.empty} role="status">Đang tải bối cảnh quyết định...</p>}
+      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Không thể kết nối bối cảnh quyết định</strong><span>{resource.message}</span></div>}
       {resource.state === "ready" && <>
-        <p className={styles.decisionAsOf}>As of {displayDate(resource.data.as_of_date)}; evidence status <Status value={resource.data.decision_state} /></p>
+        <p className={styles.decisionAsOf}>Tính đến {displayDate(resource.data.as_of_date)} · Trạng thái dữ liệu <Status value={resource.data.decision_state} /></p>
         <div className={styles.decisionSection}>
-          <h4>Thay đổi / What changed</h4>
+          <h4>Biến động gần nhất</h4>
           {resource.data.what_changed.map((change, index) => <div className={styles.decisionChange} key={`${change.metric ?? "change"}-${index}`}>
-            <div><strong>{change.metric ?? "Snapshot comparison"}</strong><Status value={change.claim_type} /></div>
+            <div><strong>{change.metric ?? "So sánh mốc quan sát"}</strong><Status value={change.claim_type} /></div>
             <p>{present(change.before)} <span aria-hidden="true">-&gt;</span> {present(change.after)}</p>
-            <small>{change.date} | {change.responsible_module} | {change.source ?? "source unavailable"}{change.magnitude ? ` | delta ${change.magnitude.absolute}${change.magnitude.relative_pct === null ? "" : ` (${change.magnitude.relative_pct.toFixed(2)}%)`}` : ""}</small>
+            <small>{change.date} | {change.responsible_module} | {change.source ?? "nguồn không khả dụng"}{change.magnitude ? ` | chênh lệch ${change.magnitude.absolute}${change.magnitude.relative_pct === null ? "" : ` (${change.magnitude.relative_pct.toFixed(2)}%)`}` : ""}</small>
           </div>)}
         </div>
         <div className={styles.decisionGrid}>
-          <div className={styles.decisionSection}><h4>Vì sao lúc này / Why now</h4>{resource.data.why_now.map((claim, index) => <p key={`now-${index}`}><Status value={String(claim.claim_type ?? "UNCERTAINTY")} /> {String(claim.text ?? "No supported driver.")} <small>{String(claim.source ?? "")}</small></p>)}</div>
-          <div className={styles.decisionSection}><h4>Vì sao chưa / Why not now</h4>{resource.data.why_not_now.map((claim, index) => <p key={`not-${index}`}><Status value={String(claim.claim_type ?? "UNCERTAINTY")} /> {String(claim.text ?? "No supported blocker.")} <small>{String(claim.source ?? "")}</small></p>)}</div>
-          <div className={styles.decisionSection}><h4>Điều gì làm luận điểm sai / What would make me wrong</h4>{resource.data.what_would_make_me_wrong.length ? resource.data.what_would_make_me_wrong.map((item, index) => <p key={`wrong-${index}`}><Status value={String(item.type ?? "USER_DEFINED")} /> {String(item.condition ?? "Condition unavailable.")}</p>) : <p>No user-defined invalidation condition is recorded.</p>}</div>
-          <div className={styles.decisionSection}><h4>Kịch bản / Scenario</h4>{Object.entries(resource.data.scenario).map(([name, scenario]) => <p key={name}><strong>{name.toUpperCase()}</strong> <Status value={scenario.status} /> {scenario.uncertainty ?? "No supported scenario range."}</p>)}</div>
+          <div className={styles.decisionSection}><h4>Động lực thúc đẩy</h4>{resource.data.why_now.map((claim, index) => <p key={`now-${index}`}><Status value={String(claim.claim_type ?? "UNCERTAINTY")} /> {String(claim.text ?? "Chưa có động lực hỗ trợ.")} <small>{String(claim.source ?? "")}</small></p>)}</div>
+          <div className={styles.decisionSection}><h4>Rủi ro & rào cản</h4>{resource.data.why_not_now.map((claim, index) => <p key={`not-${index}`}><Status value={String(claim.claim_type ?? "UNCERTAINTY")} /> {String(claim.text ?? "Chưa có rào cản ghi nhận.")} <small>{String(claim.source ?? "")}</small></p>)}</div>
+          <div className={styles.decisionSection}><h4>Điều kiện vô hiệu hóa luận điểm</h4>{resource.data.what_would_make_me_wrong.length ? resource.data.what_would_make_me_wrong.map((item, index) => <p key={`wrong-${index}`}><Status value={String(item.type ?? "USER_DEFINED")} /> {String(item.condition ?? "Điều kiện không khả dụng.")}</p>) : <p>Chưa thiết lập điều kiện vô hiệu hóa luận điểm.</p>}</div>
+          <div className={styles.decisionSection}><h4>Kịch bản dự báo</h4>{Object.entries(resource.data.scenario).map(([name, scenario]) => <p key={name}><strong>{name.toUpperCase()}</strong> <Status value={scenario.status} /> {scenario.uncertainty ?? "Chưa có khoảng kịch bản hỗ trợ."}</p>)}</div>
         </div>
         <div className={styles.decisionSection}>
-          <h4>Đóng góp riêng biệt / Explainability</h4>
+          <h4>Đóng góp từ các nhân tố</h4>
           <div className={styles.contributionList}>{Object.entries(resource.data.explainability).map(([name, contribution]) => <div key={name}><strong>{name.replaceAll("_", " ")}</strong><Status value={contribution.status} /><span>{present(contribution.value)}</span></div>)}</div>
         </div>
         <details className={styles.decisionEvidence}>
-          <summary>Sổ bằng chứng / Evidence register ({resource.data.evidence.length})</summary>
-          {resource.data.evidence.length ? resource.data.evidence.map((item, index) => <p key={`evidence-${index}`}><Status value={String(item.claim_type ?? "UNCERTAINTY")} /><strong>{String(item.responsible_module ?? "source")}</strong> | {String(item.source ?? "source unavailable")} | observation {String(item.observation_date ?? "unavailable")} | publication {String(item.publication_date ?? "unavailable")} | freshness {String(item.freshness ?? "unavailable")} | {String(item.data_origin ?? "origin unavailable")}</p>) : <p>No evidence records are available.</p>}
+          <summary>Nhật ký dữ liệu kiểm chứng ({resource.data.evidence.length})</summary>
+          {resource.data.evidence.length ? resource.data.evidence.map((item, index) => <p key={`evidence-${index}`}><Status value={String(item.claim_type ?? "UNCERTAINTY")} /><strong>{String(item.responsible_module ?? "source")}</strong> | {String(item.source ?? "nguồn không khả dụng")} | quan sát {String(item.observation_date ?? "—")} | công bố {String(item.publication_date ?? "—")} | độ trễ {String(item.freshness ?? "—")} | {String(item.data_origin ?? "—")}</p>) : <p>Không có bản ghi dữ liệu kiểm chứng nào.</p>}
         </details>
       </>}
     </section>}
@@ -184,50 +185,55 @@ export default function WatchlistPage() {
   }
 
   return <div className={styles.page}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>LOCAL RESEARCH TRACKER</p><h1>Theo dõi <span>/ Watchlist</span></h1><p>Nghiên cứu cá nhân dựa trên dữ liệu có nguồn.</p></div><button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>↻ <span>Làm mới</span></button></header>
-    {notice && <p className={styles.notice} role="status">{notice}</p>}{error && <div className={styles.error} role="alert"><strong>API operation failed</strong><span>{error}</span></div>}
+    <header className={styles.header}><div><p className={styles.eyebrow}>Nghiên cứu & theo dõi cá nhân</p><h1>Danh sách theo dõi</h1><p>Nghiên cứu cá nhân dựa trên dữ liệu có nguồn kiểm chứng.</p></div><button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>↻ <span>Làm mới</span></button></header>
+    {notice && <p className={styles.notice} role="status">{notice}</p>}{error && <div className={styles.error} role="alert"><strong>Thao tác không thành công</strong><span>{error}</span></div>}
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>LUẬN ĐIỂM ĐẦU TƯ (THESIS TRACKING)</p><h2>Thêm vào danh sách theo dõi (Add to Watchlist)</h2></div></header>
+      <header><div><p className={styles.eyebrow}>Luận điểm đầu tư</p><h2>Thêm cổ phiếu vào danh sách theo dõi</h2></div></header>
       <form className={styles.addForm} onSubmit={addItem}>
-        <label>Mã CK (Symbol)<input name="symbol" required maxLength={20} placeholder="VD: FPT" /></label>
-        <label>Thời hạn (Horizon)<select name="horizon" defaultValue=""><option value="">Chưa đặt (Not set)</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
-        <label>Luận điểm (Thesis)<input name="thesis" maxLength={4000} placeholder="Luận điểm đầu tư chính..." /></label>
-        <label>Điều kiện vô hiệu (Invalidation)<input name="invalidation" maxLength={4000} placeholder="Điều kiện gì khiến bạn từ bỏ luận điểm?" /></label>
+        <label>Mã cổ phiếu<input name="symbol" required maxLength={20} placeholder="VD: FPT" /></label>
+        <label>Khung thời gian<select name="horizon" defaultValue=""><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
+        <label>Luận điểm đầu tư<input name="thesis" maxLength={4000} placeholder="Luận điểm đầu tư chính..." /></label>
+        <label>Điều kiện vô hiệu hóa<input name="invalidation" maxLength={4000} placeholder="Điều kiện gì khiến bạn từ bỏ luận điểm?" /></label>
         <button disabled={busyId === "create"} type="submit">+ Thêm cổ phiếu</button>
       </form>
     </section>
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>DỮ LIỆU TÀI SẢN (CANONICAL ASSET DATA)</p><h2>Danh sách Theo dõi (Watchlist Entries)</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
+      <header><div><p className={styles.eyebrow}>Dữ liệu theo dõi</p><h2>Các cổ phiếu đang theo dõi</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
       <div className={styles.filters}>
-        <label>Tìm kiếm (Search)<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Mã hoặc tên công ty..." /></label>
-        <label>Thời hạn (Horizon)<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">Tất cả thời hạn</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
-        <label>Trạng thái dữ liệu<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option><option value="AVAILABLE">Khả dụng (AVAILABLE)</option><option value="PARTIAL">Một phần (PARTIAL)</option><option value="INSUFFICIENT_DATA">Chưa có dữ liệu</option></select></label>
-        <label>Sắp xếp (Sort)<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="changed">Thay đổi gần nhất</option><option value="symbol">Mã cổ phiếu (A-Z)</option><option value="opportunity">Điểm cơ hội (Cao-Thấp)</option></select></label>
+        <label>Tìm kiếm<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Mã hoặc tên công ty..." /></label>
+        <label>Khung thời gian<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">Tất cả khung thời gian</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
+        <label>Trạng thái dữ liệu<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option><option value="AVAILABLE">Khả dụng</option><option value="PARTIAL">Một phần</option><option value="INSUFFICIENT_DATA">Chưa có dữ liệu</option></select></label>
+        <label>Sắp xếp<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="changed">Thay đổi gần nhất</option><option value="symbol">Mã cổ phiếu (A-Z)</option><option value="opportunity">Điểm cơ hội (cao-thấp)</option></select></label>
       </div>
-      {resource.state === "loading" && <p className={styles.empty} role="status">Đang tải danh sách theo dõi từ hệ thống...</p>}
-      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Không thể kết nối API Theo dõi</strong><span>{resource.message}</span></div>}
+      {resource.state === "loading" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", margin: "16px 0" }}>
+          <SkeletonCard height={160} />
+          <SkeletonCard height={160} />
+        </div>
+      )}
+      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Không thể kết nối API theo dõi</strong><span>{resource.message}</span></div>}
       {resource.state === "ready" && rows.length === 0 && <p className={styles.empty}>{resource.rows.length ? "Không có mã nào phù hợp với bộ lọc." : "Danh sách theo dõi hiện đang trống. Hãy thêm mã đầu tiên ở biểu mẫu phía trên."}</p>}
       {resource.state === "ready" && rows.map((item) => <article className={styles.watchItem} key={item.id}>
         <header className={styles.itemHeader}><div><p className={styles.symbolLine}><Link href={`/research/${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link><Status value={item.data_status} /></p><strong>{item.name}</strong><small>{item.sector ?? "Chưa phân ngành"} / {item.horizon === "MEDIUM_TERM" ? "Trung hạn" : item.horizon === "LONG_TERM" ? "Dài hạn" : "Chưa đặt thời hạn"}</small></div><div className={styles.actions}><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => reviewWatchlistItem(item.id), "Đã cập nhật ngày xem xét.")}>Đã xem xét</button><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => captureWatchlistSnapshot(item.id), "Đã lưu snapshot mốc quan sát.")}>Lưu snapshot</button><button className={styles.remove} disabled={busyId === item.id} onClick={() => void perform(item.id, () => deleteWatchlistItem(item.id), `Đã xóa ${item.symbol}.`)}>Xóa</button></div></header>
-        <div className={styles.metrics}><div><span>Điểm Cơ hội (Opportunity)</span><b>{item.opportunity ?? "—"}</b></div><div><span>Độ tin cậy (Confidence)</span><b>{item.confidence}</b></div><div><span>Rủi ro (Risk)</span><b>{item.risk ?? "—"}</b></div><div><span>Định giá P/E</span><b>{item.valuation?.pe?.value ?? "—"}</b></div><div><span>Cập nhật giá (Freshness)</span><b><Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}</b></div></div>
+        <div className={styles.metrics}><div><span>Điểm cơ hội</span><b>{item.opportunity ?? "—"}</b></div><div><span>Độ tin cậy</span><b>{item.confidence === "HIGH" ? "Cao" : item.confidence === "MODERATE" ? "Khá" : item.confidence === "LOW" ? "Thấp" : item.confidence}</b></div><div><span>Điểm rủi ro</span><b>{item.risk ?? "—"}</b></div><div><span>Định giá P/E</span><b>{item.valuation?.pe?.value ?? "—"}</b></div><div><span>Độ trễ dữ liệu</span><b><Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}</b></div></div>
         <div className={styles.thesisGrid}>
-          <div><h3>Luận điểm / Thesis</h3><p>{item.thesis || "Chưa có luận điểm."}</p></div>
-          <div><h3>Vì sao lúc này / Why now</h3><p>{item.why_now.length ? item.why_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "INSUFFICIENT_DATA / Chưa có luận cứ tích cực được hỗ trợ."}</p></div>
-          <div><h3>Vì sao chưa / Why not now</h3><p>{item.why_not_now.length ? item.why_not_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "Chưa có luận cứ được hỗ trợ."}</p></div>
-          <div><h3>Điều kiện vô hiệu / Invalidation</h3><p>{item.invalidation || "Chưa đặt điều kiện vô hiệu."}</p></div>
+          <div><h3>Luận điểm đầu tư</h3><p>{item.thesis || "Chưa có luận điểm."}</p></div>
+          <div><h3>Động lực thúc đẩy</h3><p>{item.why_now.length ? item.why_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "Chưa có luận cứ tích cực được ghi nhận."}</p></div>
+          <div><h3>Rủi ro & rào cản</h3><p>{item.why_not_now.length ? item.why_not_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "Chưa có luận cứ được ghi nhận."}</p></div>
+          <div><h3>Điều kiện vô hiệu hóa</h3><p>{item.invalidation || "Chưa đặt điều kiện vô hiệu."}</p></div>
         </div>
-        {item.changes.length > 0 && <div className={styles.changes}><h3>Before / After</h3>{item.changes.map((change, index) => <p key={`${String(change.type)}-${index}`}><Status value={String(change.materiality)} /><b>{String(change.type)}</b> / {String(change.before ?? "N/A")} -&gt; {String(change.after ?? "N/A")} / source {String((change.evidence as Record<string, unknown> | undefined)?.source ?? "unavailable")}</p>)}</div>}
+        {item.changes.length > 0 && <div className={styles.changes}><h3>Biến động trước / sau</h3>{item.changes.map((change, index) => <p key={`${String(change.type)}-${index}`}><Status value={String(change.materiality)} /><b>{String(change.type)}</b> / {String(change.before ?? "N/A")} -&gt; {String(change.after ?? "N/A")} / nguồn {String((change.evidence as Record<string, unknown> | undefined)?.source ?? "không khả dụng")}</p>)}</div>}
         <DecisionBrief symbol={item.symbol} />
-        <details className={styles.editDetails}><summary>Edit thesis / rationale required</summary><form className={styles.editForm} onSubmit={(event) => void editThesis(event, item)}>
-          <label>Thesis<textarea name="thesis" defaultValue={item.thesis ?? ""} maxLength={4000} /></label>
-          <label>Horizon<select name="horizon" defaultValue={item.horizon ?? ""}><option value="">Not set</option><option value="MEDIUM_TERM">1 to 12 months</option><option value="LONG_TERM">3 to 10 years</option></select></label>
-          <label>Invalidation<textarea name="invalidation" defaultValue={item.invalidation ?? ""} maxLength={4000} /></label>
-          <label>Reason for change<input name="change_reason" required placeholder="Evidence or reason for the revision" /></label>
-          <button disabled={busyId === item.id} type="submit">Save revision</button>
+        <details className={styles.editDetails}><summary>Chỉnh sửa luận điểm (bắt buộc nêu lý do)</summary><form className={styles.editForm} onSubmit={(event) => void editThesis(event, item)}>
+          <label>Luận điểm đầu tư<textarea name="thesis" defaultValue={item.thesis ?? ""} maxLength={4000} /></label>
+          <label>Khung thời gian<select name="horizon" defaultValue={item.horizon ?? ""}><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">1 đến 12 tháng (Trung hạn)</option><option value="LONG_TERM">3 đến 10 năm (Dài hạn)</option></select></label>
+          <label>Điều kiện vô hiệu hóa<textarea name="invalidation" defaultValue={item.invalidation ?? ""} maxLength={4000} /></label>
+          <label>Lý do điều chỉnh (bắt buộc)<input name="change_reason" required placeholder="Căn cứ hoặc lý do điều chỉnh..." /></label>
+          <button disabled={busyId === item.id} type="submit">Lưu cập nhật</button>
         </form></details>
-        <footer>Last reviewed {displayDate(item.last_reviewed_at)} / Last changed {displayDate(item.last_changed_at)} / source {item.data_freshness.source ?? "unavailable"}</footer>
+        <footer>Xem xét gần nhất: {displayDate(item.last_reviewed_at)} · Thay đổi gần nhất: {displayDate(item.last_changed_at)} · Nguồn: {item.data_freshness.source ?? "Không khả dụng"}</footer>
       </article>)}
     </section>
   </div>;

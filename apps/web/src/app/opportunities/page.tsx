@@ -9,6 +9,8 @@ import {
   type OpportunityScanner,
 } from "@/lib/api";
 import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import styles from "./page.module.css";
 
 const defaultFilters: OpportunityFilters = {
@@ -134,13 +136,11 @@ export default function OpportunitiesPage() {
       {/* Header */}
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>QUANTITATIVE MODEL · OPPORTUNITY ENGINE</p>
-          <h1>
-            Cơ hội Đầu tư<span>/ Opportunity Scanner</span>
-          </h1>
+          <p className={styles.eyebrow}>Mô hình định lượng · Sàng lọc cơ hội đầu tư</p>
+          <h1>Sàng lọc cơ hội đầu tư</h1>
           <p className={styles.subTitle}>
-            Bộ lọc phát hiện cơ hội đầu tư dựa trên mô hình định lượng đa nhân tố (Định giá, Nền tảng tài chính ROE /
-            Tăng trưởng, Vĩ mô và Quản trị rủi ro). Mọi kết luận đều gắn liền với bằng chứng thực tế và nguồn dữ liệu.
+            Bộ lọc phát hiện cơ hội đầu tư dựa trên mô hình định lượng đa nhân tố (định giá, chất lượng tài chính ROE /
+            tăng trưởng, vĩ mô và quản trị rủi ro). Mọi kết luận đều gắn liền với bằng chứng thực tế và nguồn dữ liệu.
           </p>
         </div>
         <div className={styles.headerActions}>
@@ -212,14 +212,14 @@ export default function OpportunitiesPage() {
               className={`${styles.chip} ${activeChip === "banking" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("banking")}
             >
-              Ngành Ngân hàng
+              Ngành ngân hàng
             </button>
             <button
               type="button"
               className={`${styles.chip} ${activeChip === "technology" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("technology")}
             >
-              Ngành Công nghệ
+              Ngành công nghệ
             </button>
           </div>
 
@@ -239,7 +239,7 @@ export default function OpportunitiesPage() {
 
         <div className={styles.filterControls}>
           <div className={styles.filterField}>
-            <label>Vũ trụ (Universe)</label>
+            <label>Vũ trụ đầu tư</label>
             <select
               value={filters.universe}
               onChange={(e) => handleFilterChange("universe", e.target.value as OpportunityFilters["universe"])}
@@ -251,7 +251,7 @@ export default function OpportunitiesPage() {
           </div>
 
           <div className={styles.filterField}>
-            <label>Ngành nghề (Sector)</label>
+            <label>Ngành nghề</label>
             <select value={filters.sector} onChange={(e) => handleFilterChange("sector", e.target.value)}>
               <option value="">Tất cả các ngành</option>
               {data?.sector_options?.map((sector) => (
@@ -263,7 +263,7 @@ export default function OpportunitiesPage() {
           </div>
 
           <div className={styles.filterField}>
-            <label>Thời hạn (Horizon)</label>
+            <label>Khung thời gian</label>
             <select
               value={filters.horizon}
               onChange={(e) => handleFilterChange("horizon", e.target.value as OpportunityFilters["horizon"])}
@@ -289,19 +289,19 @@ export default function OpportunitiesPage() {
             <label>Độ tin cậy</label>
             <select value={filters.confidence} onChange={(e) => handleFilterChange("confidence", e.target.value)}>
               <option value="">Tất cả</option>
-              <option value="HIGH">HIGH (Cao)</option>
-              <option value="MODERATE">MODERATE (Khá)</option>
-              <option value="LOW">LOW (Thấp)</option>
-              <option value="INSUFFICIENT">INSUFFICIENT (Chưa đủ)</option>
+              <option value="HIGH">Cao</option>
+              <option value="MODERATE">Khá</option>
+              <option value="LOW">Thấp</option>
+              <option value="INSUFFICIENT">Chưa đủ dữ liệu</option>
             </select>
           </div>
 
           <div className={styles.filterField}>
             <label>Sắp xếp theo</label>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="score_desc">Điểm cơ hội (Cao → Thấp)</option>
-              <option value="score_asc">Điểm cơ hội (Thấp → Cao)</option>
-              <option value="roe_desc">ROE (Cao → Thấp)</option>
+              <option value="score_desc">Điểm cơ hội (cao → thấp)</option>
+              <option value="score_asc">Điểm cơ hội (thấp → cao)</option>
+              <option value="roe_desc">ROE (cao → thấp)</option>
               <option value="symbol_asc">Mã cổ phiếu (A → Z)</option>
             </select>
           </div>
@@ -334,8 +334,10 @@ export default function OpportunitiesPage() {
 
       {/* Content Area */}
       {loading ? (
-        <div className={styles.loadingState}>
-          <p>Đang quét và tính toán điểm số từ dữ liệu thực tế…</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", padding: "16px 0" }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} height={260} />
+          ))}
         </div>
       ) : error ? (
         <div className={styles.errorState}>
@@ -374,15 +376,15 @@ export default function OpportunitiesPage() {
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                <th>Mã (Symbol)</th>
-                <th>Doanh nghiệp (Company)</th>
-                <th>Ngành (Sector)</th>
-                <th>Điểm Cơ hội (Score)</th>
-                <th>Độ tin cậy (Confidence)</th>
-                <th>Rủi ro (Risk)</th>
-                <th>Định giá (Valuation)</th>
-                <th>ROE (Lợi nhuận/Vốn)</th>
-                <th>Luận điểm chính (Why now)</th>
+                <th>Mã CP</th>
+                <th>Doanh nghiệp</th>
+                <th>Ngành</th>
+                <th>Điểm cơ hội</th>
+                <th>Độ tin cậy</th>
+                <th>Điểm rủi ro</th>
+                <th>Trạng thái định giá</th>
+                <th>ROE</th>
+                <th>Luận điểm chính</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -410,23 +412,17 @@ export default function OpportunitiesPage() {
                       }`}
                     >
                       {item.confidence === "MODERATE"
-                        ? "Khá (MODERATE)"
+                        ? "Khá"
                         : item.confidence === "HIGH"
-                        ? "Cao (HIGH)"
+                        ? "Cao"
                         : item.confidence === "LOW"
-                        ? "Thấp (LOW)"
+                        ? "Thấp"
                         : "Chưa đủ"}
                     </span>
                   </td>
                   <td>{item.risk_score !== null ? item.risk_score.toFixed(1) : "—"}</td>
                   <td>
-                    <span
-                      className={`${styles.pill} ${
-                        item.valuation_status === "AVAILABLE" ? styles.pillGood : styles.pillNeutral
-                      }`}
-                    >
-                      {item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Chưa đủ"}
-                    </span>
+                    <StatusBadge status={item.valuation_status} />
                   </td>
                   <td>
                     {item.factor_summary?.roe !== undefined && item.factor_summary?.roe !== null
@@ -481,22 +477,22 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
 
         <div className={`${styles.scoreBadge} ${scoreClass}`}>
           <span className={styles.scoreValue}>{score !== null ? score.toFixed(1) : "—"}</span>
-          <span className={styles.scoreLabel}>Score</span>
+          <span className={styles.scoreLabel}>Điểm</span>
         </div>
       </div>
 
       {/* Metrics Row */}
       <div className={styles.metricsGrid}>
         <div className={styles.metricItem}>
-          <span>ROE (Lợi nhuận/Vốn)</span>
+          <span>ROE</span>
           <strong>{roe !== undefined && roe !== null ? `${roe.toFixed(1)}%` : "—"}</strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Định giá (Valuation)</span>
+          <span>Định giá</span>
           <strong>{item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Chưa đủ"}</strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Rủi ro (Risk)</span>
+          <span>Điểm rủi ro</span>
           <strong>{item.risk_score !== null ? item.risk_score.toFixed(0) : "50"}</strong>
         </div>
       </div>
@@ -508,15 +504,9 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
             item.confidence === "HIGH" || item.confidence === "MODERATE" ? styles.pillGood : styles.pillNeutral
           }`}
         >
-          Tin cậy: {item.confidence}
+          Độ tin cậy: {item.confidence === "HIGH" ? "Cao" : item.confidence === "MODERATE" ? "Khá" : item.confidence === "LOW" ? "Thấp" : "Chưa đủ"}
         </span>
-        <span
-          className={`${styles.pill} ${
-            item.data_freshness.status === "AVAILABLE" ? styles.pillGood : styles.pillNeutral
-          }`}
-        >
-          Nguồn: {item.data_freshness.source ?? "LOTUSMARKET"}
-        </span>
+        <StatusBadge status={item.data_freshness.status} label={`Nguồn: ${item.data_freshness.source ?? "LOTUSMARKET"}`} />
       </div>
 
       {/* Claims / Why Now */}
@@ -524,7 +514,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         {item.why_now && item.why_now.length > 0 && (
           <div>
             <div className={styles.whyNowTitle}>
-              <span aria-hidden="true">✔</span> Luận điểm đầu tư (Why now)
+              <span aria-hidden="true">✔</span> Luận điểm đầu tư chính
             </div>
             <div className={styles.whyNowItem}>{item.why_now.map((w) => w.description).join(" ")}</div>
           </div>
