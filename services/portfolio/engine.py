@@ -146,9 +146,10 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
             if item["weight"] > sector_limit:
                 warnings.append({"code": "SECTOR_CONCENTRATION", "sector": item["sector"], "weight": item["weight"], "limit": sector_limit})
 
+    latest_holding_date = max((h["price_as_of"] for h in holdings if h["price_as_of"] is not None), default=as_of)
     return {
         "portfolio_id": PORTFOLIO_ID,
-        "as_of_date": as_of,
+        "as_of_date": latest_holding_date,
         "status": "EMPTY" if not holdings else "AVAILABLE" if all_prices_available and not any_stale else "PARTIAL",
         "summary": {
             "holdings_count": len(holdings),

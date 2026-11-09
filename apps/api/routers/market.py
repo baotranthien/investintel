@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from services.market.dashboard import MarketDashboard, build_market_dashboard
 from services.ingestion.reconciliation import MarketDataReconciliationEngine
+from services.market.trading_hours import get_effective_trading_date
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/api/v1/market", tags=["market"])
 def get_market_dashboard(session: Session = Depends(get_db)) -> MarketDashboard:
     """Return market values and evidence from canonical database records only."""
     try:
-        return build_market_dashboard(session, date.today())
+        return build_market_dashboard(session, get_effective_trading_date())
     except Exception as exc:
         logger.exception("Failed to build market dashboard: %s", exc)
         raise HTTPException(

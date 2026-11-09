@@ -4,6 +4,7 @@
   gap: 20px;
   width: 100%;
   animation: fadeIn 220ms var(--ease-apple) forwards;
+  padding-bottom: 56px;
 }
 
 @keyframes fadeIn {

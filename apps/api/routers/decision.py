@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
+from services.market.trading_hours import get_effective_trading_date
 from services.decision.engine import (
     build_decision_context,
     build_portfolio_decision_view,
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/api/v1", tags=["decision"])
 @router.get("/decision/{symbol}", response_model=DecisionContextResponse)
 def get_asset_decision_context(
     symbol: str,
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ):
     return build_decision_context(session, symbol, as_of)
@@ -26,7 +27,7 @@ def get_asset_decision_context(
 @router.post("/decision/{symbol}/snapshot", status_code=201, response_model=DecisionSnapshotResponse)
 def create_asset_decision_snapshot(
     symbol: str,
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ):
     snapshot = capture_asset_decision_snapshot(session, symbol, as_of)
@@ -43,7 +44,7 @@ def create_asset_decision_snapshot(
 
 @router.get("/portfolio/decision", response_model=PortfolioDecisionResponse)
 def get_portfolio_decision_context(
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ):
     return build_portfolio_decision_view(session, as_of)

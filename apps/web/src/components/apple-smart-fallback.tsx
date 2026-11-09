@@ -25,18 +25,74 @@ interface PearsonComparison {
   correlation: number | null;
 }
 
+const BANK_TICKERS = new Set([
+  "VCB", "BID", "CTG", "TCB", "MBB", "VPB", "ACB", "HDB", "STB", "SHB",
+  "LPB", "VIB", "TPB", "MSB", "OCB", "SSB", "NAB", "BAB", "BVB", "KLB",
+  "NVB", "PGB", "SGB", "VBB"
+]);
+
+function formatMetricKey(key: string, isBank: boolean = false): string {
+  const kUpper = key.replace(/_/g, " ").toUpperCase();
+  if (isBank) {
+    if (kUpper === "REVENUE") return "TỔNG THU NHẬP HĐ (TOI)";
+    if (kUpper === "REVENUE YOY") return "TOI YOY (TĂNG TRƯỞNG THU NHẬP HĐ)";
+    if (kUpper === "REVENUE CAGR 3Y") return "TOI CAGR 3Y";
+    if (kUpper === "REVENUE CAGR 5Y") return "TOI CAGR 5Y";
+    if (kUpper === "GROSS MARGIN") return "NIM (Net Interest Margin)";
+    if (kUpper === "DEBT TO ASSETS" || kUpper === "DE RATIO") return "ĐÒN BẨY TÀI SẢN";
+  }
+  return kUpper;
+}
+
 function formatMetricValue(val: number | null | undefined, metric: string): string {
   if (val === null || val === undefined || isNaN(val)) return "N/A";
   const mLower = metric.toLowerCase();
-  if (mLower.includes("nim") || mLower.includes("casa") || mLower.includes("npl") || mLower.includes("growth") || mLower.includes("margin") || mLower.includes("tăng trưởng")) {
-    return `${(val * 100).toFixed(2)}%`;
+
+  // Price & Fair Value formatting
+  if (mLower === "price" || mLower.includes("fair_value") || mLower.includes("dcf")) {
+    return `${val.toLocaleString("vi-VN")} VND`;
   }
-  if (mLower.includes("pe") || mLower.includes("pb") || mLower.includes("p/e") || mLower.includes("p/b")) {
+
+  // Growth, Margins & Percentage ratios
+  if (
+    mLower.includes("yoy") ||
+    mLower.includes("cagr") ||
+    mLower.includes("growth") ||
+    mLower.includes("margin") ||
+    mLower.includes("roe") ||
+    mLower.includes("roa") ||
+    mLower.includes("roic") ||
+    mLower.includes("nim") ||
+    mLower.includes("casa") ||
+    mLower.includes("npl") ||
+    mLower.includes("llr") ||
+    mLower.includes("tăng trưởng") ||
+    mLower.includes("pct")
+  ) {
+    if (Math.abs(val) <= 1.0 && val !== 0) {
+      return `${(val * 100).toFixed(2)}%`;
+    }
+    return `${val > 0 && (mLower.includes("yoy") || mLower.includes("cagr") || mLower.includes("growth")) ? "+" : ""}${val.toFixed(2)}%`;
+  }
+
+  // Valuation Multiples (P/E, P/B, EV/EBITDA, D/E)
+  if (
+    mLower.includes("pe") ||
+    mLower.includes("pb") ||
+    mLower.includes("p/e") ||
+    mLower.includes("p/b") ||
+    mLower.includes("de_ratio") ||
+    mLower.includes("coverage")
+  ) {
     return `${val.toFixed(2)}x`;
   }
+
+  // Large values (billions VND)
   if (Math.abs(val) >= 1_000_000_000) {
-    return `${(val / 1_000_000_000).toFixed(2)}B`;
+    return `${(val / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ VND`;
   }
+
+  // Default number formatting
   return val.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 }
 
@@ -217,6 +273,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
               const allMetrics = { ...(data.metrics || {}), ...(data.calculated_indicators || {}) };
               const metricEntries = Object.entries(allMetrics);
               if (metricEntries.length === 0) return null;
+              const isBank = BANK_TICKERS.has(sym.toUpperCase());
 
               return (
                 <div key={sym} className={styles.bentoCard}>
@@ -231,7 +288,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                     {metricEntries.map(([k, v]) => (
                       <div key={k} className={styles.metricRow}>
                         <span className={styles.metricKey}>
-                          {k.replace(/_/g, " ").toUpperCase()}
+                          {formatMetricKey(k, isBank)}
                         </span>
                         <span className={`${styles.metricVal} tabular-nums`}>
                           {typeof v === "number"

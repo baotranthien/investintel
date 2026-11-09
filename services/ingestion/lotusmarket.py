@@ -30,6 +30,7 @@ import httpx
 from .base import BaseProvider, MarketDataPoint, MacroDataPoint
 from .pipeline import IngestionPipeline
 from .http_client import ProviderUnavailableError, RateLimitedError
+from services.market.trading_hours import get_effective_trading_date, is_market_open
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,8 @@ class LotusMarketProvider(BaseProvider):
                         return []
 
                     results: List[Dict[str, Any]] = []
-                    today_str = datetime.now(tz=_VN_TZ).date().isoformat()
+                    eff_date = get_effective_trading_date()
+                    today_str = eff_date.isoformat()
 
                     for item in raw:
                         if not isinstance(item, dict):
@@ -333,17 +335,17 @@ class LotusMarketProvider(BaseProvider):
 
         records.sort(key=lambda r: r["observation_date"])
 
-        # Fallback check: if today's date is within range and missing from history, fetch VPS (stocks only)
-        today = datetime.now(tz=_VN_TZ).date()
-        if not is_index and start_date <= today <= end_date:
+        # Fallback check: only query intraday VPS if market is currently active/open or has completed today
+        eff_date = get_effective_trading_date()
+        if not is_index and start_date <= eff_date <= end_date:
             dates_in_history = {r["observation_date"] for r in records}
-            if today not in dates_in_history:
+            if eff_date not in dates_in_history and is_market_open():
                 try:
                     quote = self.fetch_single_quote(norm_sym)
                     if quote and quote["close"] > 0:
                         records.append({
                             "symbol": norm_sym,
-                            "observation_date": today,
+                            "observation_date": eff_date,
                             "open": quote["open"],
                             "high": quote["high"],
                             "low": quote["low"],

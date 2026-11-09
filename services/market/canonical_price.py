@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from database.models import Asset, Price
+from services.market.trading_hours import get_effective_trading_date
 
 
 @dataclass
@@ -67,7 +68,7 @@ class CanonicalPriceResolver:
         """
         Resolves canonical price for a single symbol at a given as_of date.
         """
-        as_of = as_of or date.today()
+        as_of = as_of or get_effective_trading_date()
         sym = symbol.strip().upper()
         asset = session.query(Asset).filter(Asset.symbol == sym).first()
         if not asset:
@@ -97,8 +98,9 @@ class CanonicalPriceResolver:
             .first()
         )
 
+        eff_date = get_effective_trading_date()
         # If resolving for current date and DB price is older than as_of or missing, resolve live
-        if as_of >= date.today() and (p is None or p.observation_date < as_of):
+        if as_of >= eff_date and (p is None or p.observation_date < as_of):
             try:
                 from services.market.realtime_sync import RealtimePriceCache, RealtimeMarketSyncEngine
                 cached = RealtimePriceCache.get_latest_quote(sym)
@@ -147,7 +149,7 @@ class CanonicalPriceResolver:
         """
         Batch resolves canonical prices for multiple symbols in a single SQL query.
         """
-        as_of = as_of or date.today()
+        as_of = as_of or get_effective_trading_date()
         asset_query = session.query(Asset).filter(Asset.status == "ACTIVE")
         if symbols:
             upper_syms = [s.strip().upper() for s in symbols]
@@ -190,9 +192,10 @@ class CanonicalPriceResolver:
         price_by_aid = {pr.asset_id: pr for pr in price_rows}
         results: Dict[str, CanonicalPrice] = {}
 
+        eff_date = get_effective_trading_date()
         for asset in assets:
             pr = price_by_aid.get(asset.id)
-            if as_of >= date.today() and (pr is None or pr.observation_date < as_of):
+            if as_of >= eff_date and (pr is None or pr.observation_date < as_of):
                 try:
                     from services.market.realtime_sync import RealtimePriceCache
                     cached = RealtimePriceCache.get_latest_quote(asset.symbol)

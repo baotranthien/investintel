@@ -7,21 +7,22 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from database.connection import get_db
 from services.macro.engine import MacroEngine, MarketRegimeEngine
 from services.macro.observations import MacroLatestResponse, get_latest_macro_series
+from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/macro", tags=["macro", "regime"])
 
 @router.get("/dashboard")
 def get_macro_dashboard():
     """Returns the consolidated Macro Dashboard with regime states and variables."""
-    return MacroEngine.get_dashboard(date.today())
+    return MacroEngine.get_dashboard(get_effective_trading_date())
 
 @router.get("/market-regime")
 def get_market_regime():
     """Returns the current market regime (e.g. EXPANSION, RISK_OFF)."""
-    return MarketRegimeEngine.determine_regime(date.today())
+    return MarketRegimeEngine.determine_regime(get_effective_trading_date())
 
 
 @router.get("/observations/latest", response_model=MacroLatestResponse)
 def get_latest_macro_observations(session: Session = Depends(get_db)) -> MacroLatestResponse:
     """Return the latest published canonical observation for each registered macro series."""
-    return get_latest_macro_series(session, date.today())
+    return get_latest_macro_series(session, get_effective_trading_date())

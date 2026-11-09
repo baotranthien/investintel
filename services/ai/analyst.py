@@ -65,6 +65,42 @@ def _extract_claim_number_tokens(text: str) -> list[set[Decimal]]:
     return tokens
 
 
+BANK_SYMBOLS = {
+    "VCB", "BID", "CTG", "TCB", "MBB", "VPB", "ACB", "HDB", "STB", "SHB",
+    "LPB", "VIB", "TPB", "MSB", "OCB", "SSB", "NAB", "BAB", "BVB", "KLB",
+    "NVB", "PGB", "SGB", "VBB"
+}
+
+
+def _sanitize_text(text: str, symbols: list[str] | None = None) -> str:
+    """Removes OCR/LLM hallucinated symbol typos and invalid metric suffixes."""
+    if not text:
+        return ""
+    # 1. Clean OCR / pipe / space ticker errors like 'I IDB' -> 'HDB', '| |DB' -> 'HDB', 'IIDB' -> 'HDB'
+    text = re.sub(r"(?:\bI\s*IDB\b|\|\s*\|DB\b|\bIIDB\b|\bH\s+DB\b)", "HDB", text)
+    if symbols:
+        for s in symbols:
+            if len(s) >= 3:
+                spaced = r"\b" + r"\s+".join(list(s)) + r"\b"
+                text = re.sub(spaced, s, text, flags=re.IGNORECASE)
+
+    # 2. Prevent Hallucination: Margin of Safety must NEVER have YoY attached to it
+    # e.g. "biên an toàn hấp dẫn (+57.26% YoY)" -> "biên an toàn hấp dẫn (+57.26%)"
+    text = re.sub(
+        r"((?:biên\s*an\s*toàn|margin\s*of\s*safety)[^\.\,\;\)]*?\([\+\-]?\d+(?:\.\d+)?%?)\s*YoY\b",
+        r"\1",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"((?:biên\s*an\s*toàn|margin\s*of\s*safety)[^\.\,\;]*?[\+\-]?\d+(?:\.\d+)?%)\s*YoY\b",
+        r"\1",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text
+
+
 def _numeric_values(value: str) -> set[Decimal]:
     found = set()
     cleaned_value = re.sub(r"(\d+\.\d+)\.(\d+)", r"\1\2", str(value))
@@ -653,7 +689,10 @@ class AIAnalyst:
             if rev_item and rev_item.get("value") is not None:
                 r_val = float(rev_item["value"])
                 r_str = f"{r_val / 1e9:,.1f} tỷ VND" if abs(r_val) >= 1e9 else f"{r_val:,.0f} VND"
-                fund_parts.append(f"doanh thu đạt {r_str}")
+                if sym in BANK_SYMBOLS:
+                    fund_parts.append(f"tổng thu nhập hoạt động (TOI) đạt {r_str}")
+                else:
+                    fund_parts.append(f"doanh thu đạt {r_str}")
                 if rev_item.get("citation_id") and rev_item["citation_id"] in evidence_by_id:
                     fund_cids.append(rev_item["citation_id"])
             if ni_item and ni_item.get("value") is not None:
@@ -1386,8 +1425,9 @@ class AIAnalyst:
         task_type: TaskType = "USER_CHAT",
     ) -> AsyncGenerator[str, None]:
         from services.universe.registry import UniverseRegistry
+        from services.market.trading_hours import get_effective_trading_date
 
-        requested_date = as_of or date.today()
+        requested_date = as_of or get_effective_trading_date()
 
         # Step 1: Status fetching_data
         yield f"data: {json.dumps({'type': 'status', 'step': 'fetching_data', 'message': 'Đang trích xuất BCTC và chuỗi giá...'}, ensure_ascii=False)}\n\n"
@@ -1587,6 +1627,9 @@ class AIAnalyst:
 
                 claims_body = "\n\n".join(c.text for c in fallback_claims)
                 full_answer = f"{answer_text}\n\n{claims_body}" if claims_body else answer_text
+                full_answer = _sanitize_text(full_answer, extracted_symbols)
+                for claim in fallback_claims:
+                    claim.text = _sanitize_text(claim.text, extracted_symbols)
                 res = AIChatResponse(
                     status=status_to_use,
                     symbol=", ".join(extracted_symbols) if len(extracted_symbols) > 1 else (canonical_symbol or symbol),
@@ -1816,6 +1859,9 @@ class AIAnalyst:
 
                     claims_body = "\n\n".join(c.text for c in fallback_claims)
                     full_answer = f"{answer_text}\n\n{claims_body}" if claims_body else answer_text
+                    full_answer = _sanitize_text(full_answer, extracted_symbols)
+                    for claim in fallback_claims:
+                        claim.text = _sanitize_text(claim.text, extracted_symbols)
                     res = AIChatResponse(
                         status=status_to_use,
                         symbol=", ".join(extracted_symbols) if len(extracted_symbols) > 1 else (canonical_symbol or symbol),
@@ -1941,10 +1987,16 @@ class AIAnalyst:
                 cited_claims.extend(verdict_claims)
                 referenced_ids.update(verdict_cids)
 
+        # Post-processing text sanitization: ticker typo guard + Margin of Safety non-YoY guard
+        for claim in cited_claims:
+            claim.text = _sanitize_text(claim.text, extracted_symbols)
+
         grounded_answer = "\n\n".join(
             f"{claim.text} [Evidence: {', '.join(claim.citation_ids)}]" if claim.citation_ids else claim.text
             for claim in cited_claims
         )
+        grounded_answer = _sanitize_text(grounded_answer, extracted_symbols)
+
         returned_citations = [item for item in citations if item.id in referenced_ids]
         if not returned_citations and any(self._has_verifiable_evidence([c]) for c in citations):
             returned_citations = [c for c in citations if self._has_verifiable_evidence([c])][:15]

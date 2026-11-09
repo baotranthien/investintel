@@ -17,6 +17,7 @@ from database.models import (
     PortfolioHolding,
     PortfolioTarget,
 )
+from services.market.trading_hours import get_effective_trading_date
 from services.portfolio.engine import (
     DEFAULT_CORE_PCT,
     DEFAULT_DCA_AMOUNT,
@@ -263,7 +264,7 @@ def get_portfolio_allocation(session: Session = Depends(get_db)):
             "status": "AVAILABLE" if current_weight is not None else "INSUFFICIENT_DATA",
         })
     return {
-        "as_of_date": date.today(),
+        "as_of_date": dashboard["as_of_date"],
         "status": dashboard["allocation"]["status"],
         "current": dashboard["allocation"],
         "target": targets,

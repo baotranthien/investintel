@@ -2,6 +2,19 @@
 from typing import Any
 import re
 
+def _strip_vietnamese_accents(text: str) -> str:
+    import unicodedata
+    nfkd = unicodedata.normalize('NFKD', text)
+    stripped = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return stripped.replace("đ", "d").replace("Đ", "D")
+
+
+def _has_match(pattern: str, text: str) -> bool:
+    if re.search(pattern, text):
+        return True
+    return bool(re.search(_strip_vietnamese_accents(pattern), _strip_vietnamese_accents(text)))
+
+
 PROMPT_VERSION = "investment_analyst_v2"
 
 METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
@@ -61,7 +74,10 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"eps_ttm", "eps_yoy"},
     ),
     "price": (
-        [r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|price)\b"],
+        [
+            r"\b(giá\s*(?:cổ\s*phiếu|đóng\s*cửa|hôm\s*qua|hôm\s*nay|hiện\s*tại|phiên\s*gần\s*nhất|bao\s*nhiêu)?|thị\s*giá|price|closing\s*price)\b",
+            r"\b(gia\s*(?:co\s*phieu|dong\s*cua|hom\s*qua|hom\s*nay|hien\s*tai|phien\s*gan\s*nhat|bao\s*nhieu)?|thi\s*gia)\b",
+        ],
         {"price"},
     ),
     # Debt & Capital Structure (atomic)
@@ -169,9 +185,15 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
 def extract_requested_metric_groups(question: str) -> dict[str, set[str]]:
     """Extract financial metric groups explicitly mentioned in a Vietnamese question with strict disambiguation."""
     q_lower = question.lower()
+    q_stripped = _strip_vietnamese_accents(q_lower)
     requested: dict[str, set[str]] = {}
     for cat, (patterns, metrics) in METRIC_CATEGORY_PATTERNS.items():
-        if any(re.search(pat, q_lower) for pat in patterns):
+        matched = False
+        for pat in patterns:
+            if re.search(pat, q_lower) or re.search(_strip_vietnamese_accents(pat), q_stripped):
+                matched = True
+                break
+        if matched:
             requested[cat] = set(metrics)
 
     # 1. Disambiguate generic margins vs specific margins
@@ -189,55 +211,55 @@ def extract_requested_metric_groups(question: str) -> dict[str, set[str]]:
     # 4. Disambiguate cash balance vs cash flow when only cash balance is meant
     # E.g. "tiền mặt hiện tại" should not trigger cash flow if no flow keyword was used
     if "cash_balance" in requested and "cash_flow_generic" in requested:
-        if not re.search(r"\b(dòng\s*tiền|lưu\s*chuyển\s*tiền|cash\s*flow|fcf)\b", q_lower):
+        if not _has_match(r"\b(dòng\s*tiền|lưu\s*chuyển\s*tiền|cash\s*flow|fcf)\b", q_lower):
             del requested["cash_flow_generic"]
 
     # 5. Disambiguate margin phrasing (e.g. 'biên lợi nhuận gộp') from standalone net income requests
     if "net_income" in requested:
-        q_no_margin = re.sub(r"\bbiên\s+(?:lợi\s+nhuận|gộp|ròng|hoạt\s*động|ebit)\b", "", q_lower)
-        if not any(re.search(pat, q_no_margin) for pat in [
+        q_no_margin = re.sub(r"\b(?:biên|bien)\s+(?:lợi\s+nhuận|loi\s+nhuan|gộp|gop|ròng|rong|hoạt\s*động|hoat\s*dong|ebit)\b", "", q_lower)
+        if not any(_has_match(pat, q_no_margin) for pat in [
             r"\b(lợi\s*nhuận\s*sau\s*thuế|lợi\s*nhuận\s*ròng|lãi\s*ròng|net\s*income|lnst)\b"
         ]):
             del requested["net_income"]
 
     # 6. Disambiguate revenue growth vs revenue
     if "revenue_yoy" in requested and "revenue" in requested:
-        q_no_growth = re.sub(r"\b(?:tăng\s*trưởng\s*doanh\s*thu|doanh\s*thu\s*tăng\s*trưởng|doanh\s*thu\s*yoy|revenue\s*(?:growth|yoy))\b", "", q_lower)
-        if not re.search(r"\b(doanh\s*thu|revenue)\b", q_no_growth):
+        q_no_growth = re.sub(r"\b(?:tăng\s*trưởng\s*doanh\s*thu|tang\s*truong\s*doanh\s*thu|doanh\s*thu\s*tăng\s*trưởng|doanh\s*thu\s*tang\s*truong|doanh\s*thu\s*yoy|revenue\s*(?:growth|yoy))\b", "", q_lower)
+        if not _has_match(r"\b(doanh\s*thu|revenue)\b", q_no_growth):
             del requested["revenue"]
 
     # 7. Disambiguate valuation ("định giá cổ phiếu") from stock price ("giá cổ phiếu")
     if "price" in requested and "valuation_multiples" in requested:
-        q_no_val = re.sub(r"\bđịnh\s*giá(?:\s*cổ\s*phiếu)?\b", "", q_lower)
-        if not re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|price)\b", q_no_val):
+        q_no_val = re.sub(r"\b(?:định|dinh)\s*giá(?:\s*cổ\s*phiếu|\s*co\s*phieu)?\b", "", q_lower)
+        if not _has_match(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|price)\b", q_no_val):
             del requested["price"]
 
     # 8. Disambiguate total equity from debt-to-equity
     if "total_equity" in requested and "debt_to_equity" in requested:
         q_no_de = re.sub(
-            r"\b(?:nợ\s*(?:vay|phải\s*trả)?\s*[\/\:]\s*vốn\s*chủ(?:\s*sở\s*hữu)?|nợ\s*(?:vay)?\s*trên\s*vốn(?:\s*chủ(?:\s*sở\s*hữu)?)?|d\/e|de\s*ratio|debt\s*(?:to|[\/])\s*equity)\b",
+            r"\b(?:nợ\s*(?:vay|phải\s*trả)?\s*[\/\:]\s*vốn\s*chủ(?:\s*sở\s*hữu)?|no\s*(?:vay|phai\s*tra)?\s*[\/\:]\s*von\s*chu(?:\s*so\s*huu)?|nợ\s*(?:vay)?\s*trên\s*vốn(?:\s*chủ(?:\s*sở\s*hữu)?)?|d\/e|de\s*ratio|debt\s*(?:to|[\/])\s*equity)\b",
             "",
             q_lower,
         )
-        if not re.search(r"\b(vốn\s*chủ(?:\s*sở\s*hữu)?|quy\s*mô\s*vốn(?:\s*chủ)?|total\s*equity|equity\s*size)\b", q_no_de):
+        if not _has_match(r"\b(vốn\s*chủ(?:\s*sở\s*hữu)?|quy\s*mô\s*vốn(?:\s*chủ)?|total\s*equity|equity\s*size)\b", q_no_de):
             del requested["total_equity"]
-        elif not re.search(r"\b(nợ|vay|d\/e|de\s*ratio|debt)\b", q_lower):
+        elif not _has_match(r"\b(nợ|vay|d\/e|de\s*ratio|debt)\b", q_lower):
             del requested["debt_to_equity"]
 
     # 9. Disambiguate DCF valuation from generic valuation multiples
     if "dcf" in requested and "valuation_multiples" in requested:
-        if not re.search(r"\b(bội\s*số|p\/e|p\/b|ev\/ebitda)\b", q_lower):
+        if not _has_match(r"\b(bội\s*số|p\/e|p\/b|ev\/ebitda)\b", q_lower):
             del requested["valuation_multiples"]
 
     # 10. Disambiguate generic valuation multiples when specific multiples (pe/pb) or screener or peer_medians are present
     if ("pe" in requested or "pb" in requested or "screener" in requested or "peer_medians" in requested) and "valuation_multiples" in requested:
-        if not re.search(r"\b(ev[\/\s]ebitda|bội\s*số)\b", q_lower):
+        if not _has_match(r"\b(ev[\/\s]ebitda|bội\s*số)\b", q_lower):
             del requested["valuation_multiples"]
 
     # 11. Disambiguate cash balance vs working capital cash conversion cycle ("chu kỳ chuyển đổi tiền mặt")
     if "cash_balance" in requested and "working_capital_cycle" in requested:
-        q_no_ccc = re.sub(r"\b(?:chu\s*kỳ\s*(?:chuyển\s*đổi\s*)?tiền(?:\s*mặt)?|ccc)\b", "", q_lower)
-        if not re.search(r"\b(tiền\s*và\s*tương\s*đương\s*tiền|tiền\s*mặt(?:\s*hiện\s*tại)?|lượng\s*tiền(?:\s*mặt)?|số\s*dư\s*tiền|tiền\s*hiện\s*tại|tiền\s*hiện\s*có|cash\s*balance)\b", q_no_ccc):
+        q_no_ccc = re.sub(r"\b(?:chu\s*kỳ\s*(?:chuyển\s*đổi\s*)?tiền(?:\s*mặt)?|chu\s*ky\s*tien|ccc)\b", "", q_lower)
+        if not _has_match(r"\b(tiền\s*và\s*tương\s*đương\s*tiền|tiền\s*mặt(?:\s*hiện\s*tại)?|lượng\s*tiền(?:\s*mặt)?|số\s*dư\s*tiền|tiền\s*hiện\s*tại|tiền\s*hiện\s*có|cash\s*balance)\b", q_no_ccc):
             del requested["cash_balance"]
 
     # 12. In a universe screener query, the requested metric is the screener result, not standalone single-stock criteria
@@ -249,21 +271,21 @@ def extract_requested_metric_groups(question: str) -> dict[str, set[str]]:
     # 13. Disambiguate standalone revenue from revenue commodity correlation
     if "revenue_commodity_correlation" in requested and "revenue" in requested:
         q_no_corr = re.sub(r"\b(?:tương\s*quan\s*(?:giữa\s*)?doanh\s*thu|doanh\s*thu\s*(?:và|vs|to)\s*(?:giá\s*)?dầu|doanh\s*thu\s*plx)\b", "", q_lower)
-        if not re.search(r"\b(doanh\s*thu\s*(?:thuần|năm|quý)?|doanh\s*số|net\s*revenue)\b", q_no_corr):
+        if not _has_match(r"\b(doanh\s*thu\s*(?:thuần|năm|quý)?|doanh\s*số|net\s*revenue)\b", q_no_corr):
             del requested["revenue"]
 
-    # 10. Disambiguate ROE vs ROIC when only ROIC is requested
+    # 14. Disambiguate ROE vs ROIC when only ROIC is requested
     if "roic" in requested and "roe" in requested:
         q_no_roic = re.sub(r"\b(?:roic|return\s*on\s*invested\s*capital)\b", "", q_lower)
-        if not re.search(r"\b(?:roe|lợi\s*nhuận\s*trên\s*vốn\s*chủ|sinh\s*lời\s*trên\s*vốn(?!\s*(?:đầu\s*tư|hoạt\s*động|hóa|hoá)))\b", q_no_roic):
+        if not _has_match(r"\b(?:roe|lợi\s*nhuận\s*trên\s*vốn\s*chủ|sinh\s*lời\s*trên\s*vốn(?!\s*(?:đầu\s*tư|hoạt\s*động|hóa|hoá)))\b", q_no_roic):
             del requested["roe"]
 
-    # 11. Disambiguate interest_coverage vs solvency_liquidity
+    # 15. Disambiguate interest_coverage vs solvency_liquidity
     if "interest_coverage" in requested and "solvency_liquidity" in requested:
-        if not re.search(r"\b(thanh\s*khoản|khả\s*năng\s*thanh\s*toán|current\s*ratio|quick\s*ratio)\b", q_lower):
+        if not _has_match(r"\b(thanh\s*khoản|khả\s*năng\s*thanh\s*toán|current\s*ratio|quick\s*ratio)\b", q_lower):
             del requested["solvency_liquidity"]
 
-    # 12. Disambiguate revenue_commodity_correlation vs generic macro_commodity
+    # 16. Disambiguate revenue_commodity_correlation vs generic macro_commodity
     if "revenue_commodity_correlation" in requested and "macro_commodity" in requested:
         del requested["macro_commodity"]
 
@@ -281,7 +303,11 @@ def extract_requested_metric_groups(question: str) -> dict[str, set[str]]:
 
 SYSTEM_PROMPT = """Bạn là trợ lý phân tích nghiên cứu đầu tư của InvestIntel. Trả lời 100% bằng tiếng Việt tự nhiên, khách quan dựa trên verifiable_evidence.
 Quy tắc bắt buộc:
-1. Thuật ngữ: 'VND/share' dịch là 'VND/cổ phiếu' (không dịch là thành viên); P/E là hệ số định giá (lần), không gọi là lợi nhuận/doanh thu; biên lợi nhuận (gross_margin) không nhầm với tăng trưởng doanh thu.
+1. Thuật ngữ & Tên mã cổ phiếu:
+- 'VND/share' dịch là 'VND/cổ phiếu' (không dịch là thành viên); P/E là hệ số định giá (lần), không gọi là lợi nhuận/doanh thu; biên lợi nhuận (gross_margin) không nhầm với tăng trưởng doanh thu.
+- Tên mã cổ phiếu: Luôn viết HOA chính xác mã cổ phiếu (ví dụ: HDB, FPT, MWG, VCB, HPG...). Tuyệt đối không viết sai ký tự (như 'I IDB', '||DB', 'H DB').
+- Đối với nhóm Ngân hàng (như HDB, VCB, MBB, TCB, ACB, BID, CTG...): Thu nhập từ hoạt động kinh doanh là 'Tổng thu nhập hoạt động (TOI)' và 'Thu nhập lãi thuần (NII)', không dùng từ 'Doanh thu thuần' cho ngân hàng.
+- Biên an toàn (Margin of Safety): Là mức chiết khấu định giá (ví dụ: +57.26%), TUYỆT ĐỐI KHÔNG gắn hậu tố 'YoY' vào biên an toàn.
 2. Trích dẫn & thực thể:
 - Mọi mệnh đề chứa số liệu từ verifiable_evidence PHẢI đặt claim_type='FACT' hoặc 'MODEL_OUTPUT' và gắn đúng citation_ids=['E...'].
 - Gán đúng chỉ số theo trường 'symbol' của từng mã cổ phiếu; không gộp nhầm số liệu mã này sang mã khác.
@@ -292,13 +318,23 @@ Quy tắc bắt buộc:
 - Định giá DCF ('dcf_base', 'composite_fair_value_base', 'margin_of_safety'), vốn chủ sở hữu ('total_equity' tỷ VND và 'pb'), bộ lọc ('screened_count', 'matched_count', 'matching_symbols'): Trích dẫn trực tiếp con số đã tính sẵn trong verifiable_evidence, tuyệt đối không tự tính nhẩm.
 - Nếu bằng chứng có 'is_estimate': true hoặc dùng số cổ phiếu cuối kỳ (period-end shares fallback), BẮT BUỘC nêu rõ đây là số liệu ước tính.
 3. Không ghi vào 'uncertainty' các chỉ số đã có trong verifiable_evidence.
-4. Đối với câu hỏi về giá cổ phiếu (ví dụ 'Giá cổ phiếu X hôm nay', 'giá đóng cửa phiên hôm nay'): Trả lời trực tiếp và rõ ràng giá đóng cửa và ngày quan sát tương ứng (ví dụ: 'Giá đóng cửa cổ phiếu FPT ngày DD/MM/YYYY là XX.XXX VND/cổ phiếu [Evidence: EXXX].'). Tuyệt đối không bịa đặt số liệu."""
+4. Đối với câu hỏi về giá cổ phiếu (ví dụ 'Giá cổ phiếu X hôm nay', 'giá đóng cửa phiên hôm nay'):
+- Trả lời trực tiếp và rõ ràng giá đóng cửa và ngày quan sát tương ứng (ví dụ: 'Giá đóng cửa cổ phiếu FPT ngày DD/MM/YYYY là XX.XXX VND/cổ phiếu [Evidence: EXXX].').
+- Nếu thời điểm hiện tại là trước giờ mở cửa (trước 09:00 sáng) hoặc ngày nghỉ cuối tuần/lễ, nêu rõ: 'Giá đóng cửa phiên gần nhất (ngày DD/MM/YYYY) là...'. Tuyệt đối không khẳng định giá của phiên chưa diễn ra."""
 
 
 def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
     import json
 
     compact_context: dict[str, Any] = {}
+    try:
+        from services.market.trading_hours import get_market_session_summary
+        sess_summary = get_market_session_summary()
+        compact_context["market_session"] = sess_summary.get("session_code")
+        compact_context["market_session_status"] = sess_summary.get("label")
+        compact_context["effective_trading_date"] = sess_summary.get("effective_date_iso")
+    except Exception:
+        pass
     if "symbol" in context:
         compact_context["symbol"] = context["symbol"]
     if "symbols" in context:
@@ -360,6 +396,7 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
     missing_requested_metrics: list[str] = []
     if verifiable_evidence:
         q_lower = question.lower()
+        q_stripped = _strip_vietnamese_accents(q_lower)
         asks_pb = bool(re.search(r"\b(p/b|pb)\b", q_lower))
         asks_pe = bool(re.search(r"\b(p/e|pe)\b", q_lower))
         query_symbols = [str(s).lower() for s in (context.get("symbols") or ([context.get("symbol")] if context.get("symbol") else []))]
@@ -377,11 +414,11 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 if m in cands:
                     s += 250
                     break
-            if ("giá" in q_lower or "price" in q_lower) and m == "price":
+            if ("giá" in q_lower or "gia" in q_stripped or "price" in q_lower) and m == "price":
                 s += 100
-            if ("doanh thu" in q_lower or "revenue" in q_lower) and m in {"revenue", "revenue_yoy", "gross_margin"}:
+            if ("doanh thu" in q_stripped or "revenue" in q_lower) and m in {"revenue", "revenue_yoy", "gross_margin"}:
                 s += 100
-            if ("lợi nhuận" in q_lower or "income" in q_lower or "profit" in q_lower) and m in {"net_income", "net_income_yoy", "net_margin"}:
+            if ("loi nhuan" in q_stripped or "lợi nhuận" in q_lower or "income" in q_lower or "profit" in q_lower) and m in {"net_income", "net_income_yoy", "net_margin"}:
                 s += 90
             if "roe" in q_lower and m == "roe":
                 s += 120
@@ -395,23 +432,23 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 s -= 500  # Explicitly exclude PE when PB is specifically asked
             if asks_pe and not asks_pb and m in {"pb", "pb_ratio", "price_to_book"}:
                 s -= 500  # Explicitly exclude PB when PE is specifically asked
-            if ("định giá" in q_lower or "valuation" in q_lower) and not asks_pb and not asks_pe and m in {"pe", "pb"}:
+            if ("dinh gia" in q_stripped or "valuation" in q_lower) and not asks_pb and not asks_pe and m in {"pe", "pb"}:
                 s += 50
-            if ("so sánh" in q_lower or "compare" in q_lower) and m in {"pe_diff", "pb_diff"}:
+            if ("so sanh" in q_stripped or "compare" in q_lower) and m in {"pe_diff", "pb_diff"}:
                 s += 250
             if m in {"pe_diff", "pb_diff"} and len(query_symbols) > 1:
                 s += 200
-            if ("tương quan" in q_lower or "correlation" in q_lower or "giá dầu" in q_lower or "dầu" in q_lower) and m in {"pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct"}:
+            if ("tuong quan" in q_stripped or "correlation" in q_lower or "gia dau" in q_stripped or "dau" in q_stripped) and m in {"pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct"}:
                 s += 280
-            if any(term in q_lower for term in ("tín dụng", "nim", "casa", "nợ xấu", "ngân hàng", "npl")) and m in {"credit_growth", "nim", "casa_ratio", "npl_ratio", "llr_ratio"}:
+            if any(term in q_stripped for term in ("tin dung", "nim", "casa", "no xau", "ngan hang", "npl")) and m in {"credit_growth", "nim", "casa_ratio", "npl_ratio", "llr_ratio"}:
                 s += 250
             if "eps" in q_lower and m in {"eps_ttm", "eps_yoy"}:
                 s += 100
             if "bvps" in q_lower and m == "bvps":
                 s += 100
-            if "nợ" in q_lower and m in {"debt_to_assets", "de_ratio", "net_debt_ebitda"}:
+            if "no" in q_stripped and m in {"debt_to_assets", "de_ratio", "net_debt_ebitda"}:
                 s += 130
-            if ("dòng tiền" in q_lower or "tiền" in q_lower) and m in {"cfo", "fcf", "cash", "cfo_to_ni", "fcf_to_ni"}:
+            if ("dong tien" in q_stripped or "tien" in q_stripped) and m in {"cfo", "fcf", "cash", "cfo_to_ni", "fcf_to_ni"}:
                 s += 110
             return s
 

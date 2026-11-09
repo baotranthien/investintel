@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from database.models import AnalystAlert
 from services.alerts.engine import AlertRuleResult, InvestmentAlertsEngine
+from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
 
@@ -49,7 +50,7 @@ def list_investment_alerts(
 @router.get("/{symbol}", response_model=List[AlertRuleResult])
 def evaluate_symbol_alerts(
     symbol: str,
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ) -> List[AlertRuleResult]:
     """Evaluate and return live alerts for a specific company."""
@@ -60,7 +61,7 @@ def evaluate_symbol_alerts(
 @router.post("/scan", response_model=List[AlertRuleResult])
 def run_alert_scan(
     limit: int = Query(20, ge=1, le=50),
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ) -> List[AlertRuleResult]:
     """Run cross-asset alert evaluation across active universe."""

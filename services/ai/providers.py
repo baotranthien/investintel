@@ -315,7 +315,7 @@ class OllamaProvider:
                 except Exception:
                     pass
             return {
-                "status": "HEALTHY",
+                "status": "HEALTHY" if loaded else "DEGRADED",
                 "available": True,
                 "model_state": "LOADED" if loaded else "STANDBY",
                 "provider": "ollama",

@@ -325,10 +325,9 @@ def test_ai_gateway_provider_priority_order():
         cfg = GatewayConfig.from_env()
         assert cfg.provider_priority == ("ollama",)
 
-    # Legacy or unsupported providers are ignored in favor of Ollama
-    with patch.dict(os.environ, {"AI_PROVIDER_ORDER": "gemini,groq,openrouter,ollama"}):
+    with patch.dict(os.environ, {"AI_PROVIDER_ORDER": "groq,gemini,ollama"}):
         cfg = GatewayConfig.from_env()
-        assert cfg.provider_priority == ("ollama",)
+        assert cfg.provider_priority == ("groq", "gemini", "ollama")
 
 
 

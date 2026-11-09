@@ -15,6 +15,7 @@ from services.opportunity.scanner import (
     build_opportunity_scanner,
 )
 from services.common.cache import opportunity_cache
+from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/opportunities", tags=["opportunity"])
 
@@ -40,7 +41,7 @@ def get_opportunity_scanner(
     try:
         res = build_opportunity_scanner(
             session=session,
-            as_of=date.today(),
+            as_of=get_effective_trading_date(),
             universe=universe,
             sector=sector,
             horizon=horizon,
@@ -65,7 +66,7 @@ def get_opportunity(symbol: str, session: Session = Depends(get_db)) -> ScannerI
     """Return one scanner item; numeric outputs remain null while inputs are insufficient."""
     response = build_opportunity_scanner(
         session=session,
-        as_of=date.today(),
+        as_of=get_effective_trading_date(),
         universe="ALL",
         symbol=symbol,
     )

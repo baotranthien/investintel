@@ -84,7 +84,25 @@ class AIGateway:
 
     def status(self) -> dict[str, Any]:
         """Observability status across all three providers with active failover priority."""
-        ollama_st = self._ollama.status()
+        cloud_ollama_disabled = (
+            is_cloud_mode()
+            and os.getenv("OLLAMA_ENABLED", "false").lower() not in ("1", "true", "yes")
+        )
+
+        if cloud_ollama_disabled:
+            ollama_st = {
+                "status": "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD",
+                "available": False,
+                "provider": "ollama",
+                "reason": "Local Ollama is not accessible from the cloud environment.",
+                "models": [],
+                "configured_model_installed": False,
+                "running_models": [],
+                "gpu": {"available": False, "name": None, "memory_total_mib": None, "memory_used_mib": None},
+            }
+        else:
+            ollama_st = self._ollama.status()
+
         ollama_avail = bool(ollama_st.get("available", False))
         gemini_avail = bool(self._gemini and self._gemini.is_available())
         groq_avail = bool(self._groq and self._groq.is_available())
@@ -111,9 +129,14 @@ class AIGateway:
         active = active_priority[0] if active_priority else "none"
 
         base_status = dict(ollama_st)
+        if active == "none" and cloud_ollama_disabled:
+            base_status["status"] = "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"
+            base_status["available"] = False
+            base_status["provider"] = "ollama"
+
         base_status.update({
             "active_provider": active,
-            "provider": active,
+            "provider": active if active != "none" else ("ollama" if cloud_ollama_disabled else base_status.get("provider", "ollama")),
             "provider_priority": active_priority,
             "fallback_enabled": len(active_priority) > 1,
             "groq": self._groq.status() if self._groq else None,

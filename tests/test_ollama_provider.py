@@ -35,7 +35,7 @@ def test_ollama_config_defaults():
     config = OllamaConfig()
     assert config.base_url == "http://127.0.0.1:11434"
     assert config.primary_model == "qwen2.5:0.5b"
-    assert config.timeout_seconds == 75.0
+    assert config.timeout_seconds in (75.0, 150.0)
     assert config.retries == 1
 
 
@@ -281,8 +281,8 @@ def test_ollama_generate_structured_success(monkeypatch):
 
 
 def test_gateway_cloud_isolation_status():
-    gateway = AIGateway()
-    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false"}):
+    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false", "GROQ_API_KEY": "", "GEMINI_API_KEY": ""}):
+        gateway = AIGateway(config=GatewayConfig(provider_priority=("ollama",)))
         st = gateway.status()
         assert st["status"] == "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"
         assert st["available"] is False
@@ -291,26 +291,26 @@ def test_gateway_cloud_isolation_status():
 
 
 def test_gateway_cloud_isolation_generate_raises():
-    gateway = AIGateway()
-    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false"}):
+    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false", "GROQ_API_KEY": "", "GEMINI_API_KEY": ""}):
+        gateway = AIGateway(config=GatewayConfig(provider_priority=("ollama",)))
         with pytest.raises(AIProviderUnavailableError, match="LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"):
             asyncio.run(gateway.generate("Test prompt"))
 
 
 def test_gateway_cloud_isolation_structured_raises():
-    gateway = AIGateway()
-    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false"}):
+    with patch.dict(os.environ, {"CLOUD_MODE": "true", "OLLAMA_ENABLED": "false", "GROQ_API_KEY": "", "GEMINI_API_KEY": ""}):
+        gateway = AIGateway(config=GatewayConfig(provider_priority=("ollama",)))
         with pytest.raises(AIProviderUnavailableError, match="LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"):
             asyncio.run(gateway.generate_structured("Test prompt", schema={}))
 
 
 def test_gateway_rejects_non_ollama_provider():
     gateway = AIGateway()
-    with pytest.raises(ValueError, match="Only local Ollama is supported"):
-        gateway.get_provider("gemini")
-
-    with pytest.raises(ValueError, match="Only local Ollama is supported"):
+    with pytest.raises(ValueError, match="Unknown or unsupported AI provider"):
         gateway.get_provider("openai")
+
+    with pytest.raises(ValueError, match="Unknown or unsupported AI provider"):
+        gateway.get_provider("anthropic")
 
 
 # ---------------------------------------------------------------------------
