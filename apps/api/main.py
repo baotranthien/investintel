@@ -12,6 +12,7 @@ async def lifespan(app: FastAPI):
     stop_event = asyncio.Event()
     scheduler_task = None
     analyst_task = None
+    realtime_task = None
     
     # In cloud mode and pytest, in-process loops are disabled; cron-job.org triggers idempotent jobs on cloud
     is_pytest = "PYTEST_CURRENT_TEST" in os.environ
@@ -31,7 +32,11 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logging.getLogger(__name__).warning("Ollama daemon check: %s", exc)
     
-    allow_db_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
+    allow_market_sync = os.getenv("ALLOW_MARKET_DATA_SYNC", "true").lower() in {"1", "true", "yes"}
+    allow_db_write = (
+        os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
+        or allow_market_sync
+    )
     if enable_in_process and allow_db_write:
         if os.getenv("INGESTION_SCHEDULER_ENABLED", "true").lower() in {"1", "true", "yes"}:
             from services.ingestion.scheduler import scheduled_ingestion_loop
@@ -39,6 +44,13 @@ async def lifespan(app: FastAPI):
         if os.getenv("ANALYST_AUTOMATION_ENABLED", "false").lower() in {"1", "true", "yes"}:
             from services.ai.scheduler import scheduled_analyst_automation_loop
             analyst_task = asyncio.create_task(scheduled_analyst_automation_loop(stop_event))
+
+    # Real-time continuous market sync background worker
+    if not is_pytest and not is_cloud:
+        if os.getenv("ENABLE_REALTIME_MARKET_SYNC", "true").lower() in {"1", "true", "yes"}:
+            from services.market.realtime_sync import start_realtime_sync_loop
+            realtime_task = asyncio.create_task(start_realtime_sync_loop(stop_event))
+
     # Idempotent reference data bootstrap check on startup (only when DB writes are explicitly enabled)
     if allow_db_write and not is_pytest:
         try:
@@ -85,7 +97,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         stop_event.set()
-        tasks = [t for t in (scheduler_task, analyst_task) if t is not None]
+        tasks = [t for t in (scheduler_task, analyst_task, realtime_task) if t is not None]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 

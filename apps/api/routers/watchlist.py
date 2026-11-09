@@ -9,6 +9,7 @@ from database.models import Asset, PersonalPortfolio, WatchlistItem, WatchlistSn
 from services.portfolio.engine import PORTFOLIO_ID, canonical_asset
 from services.portfolio.schemas import WatchlistCreate, WatchlistItemView, WatchlistPatch
 from services.research.workspace import ResearchWorkspace, build_research_workspace
+from services.common.cache import watchlist_cache
 
 router = APIRouter(prefix="/api/v1/watchlist", tags=["watchlist"])
 
@@ -140,10 +141,17 @@ def get_watchlist(
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_db),
 ):
+    cache_key = f"watchlist_{limit}_{offset}"
+    cached_val = watchlist_cache.get(cache_key)
+    if cached_val is not None:
+        return cached_val
+
     rows = session.query(WatchlistItem, Asset).join(Asset, WatchlistItem.asset_id == Asset.id).order_by(
         WatchlistItem.last_changed_at.desc(), Asset.symbol
     ).offset(offset).limit(limit).all()
-    return [_item_view(session, item, asset, date.today()) for item, asset in rows]
+    res = [_item_view(session, item, asset, date.today()) for item, asset in rows]
+    watchlist_cache.set(cache_key, res)
+    return res
 
 
 @router.post("", status_code=201, response_model=WatchlistItemView)
@@ -157,6 +165,7 @@ def add_watchlist_item(payload: WatchlistCreate, session: Session = Depends(get_
     item = WatchlistItem(asset_id=asset.id, thesis=payload.thesis, horizon=payload.horizon, invalidation=payload.invalidation)
     session.add(item)
     session.commit()
+    watchlist_cache.clear()
     return _item_view(session, item, asset, date.today())
 
 
@@ -192,6 +201,7 @@ def patch_watchlist_item(item_id: int, payload: WatchlistPatch, session: Session
     if updates:
         item.last_changed_at = datetime.now(timezone.utc)
     session.commit()
+    watchlist_cache.clear()
     asset = session.query(Asset).filter(Asset.id == item.asset_id).one()
     return _item_view(session, item, asset, date.today())
 
@@ -203,6 +213,7 @@ def delete_watchlist_item(item_id: int, session: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Watchlist item not found.")
     session.delete(item)
     session.commit()
+    watchlist_cache.clear()
     return Response(status_code=204)
 
 

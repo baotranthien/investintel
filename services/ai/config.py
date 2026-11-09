@@ -91,6 +91,7 @@ def redact_secrets(text: str) -> str:
     # Redact generic authorization or key patterns
     text = re.sub(r"(AIza[0-9A-Za-z-_]{30,})", "[REDACTED_API_KEY]", text)
     text = re.sub(r"(AQ\.[0-9A-Za-z-_]{15,})", "[REDACTED_API_KEY]", text)
+    text = re.sub(r"(gsk_[0-9A-Za-z]{20,})", "[REDACTED_API_KEY]", text)
     text = re.sub(r"(sk-[0-9A-Za-z-_]{20,})", "[REDACTED_API_KEY]", text)
     text = re.sub(r"(bearer\s+)[0-9A-Za-z-_\.]+", r"\1[REDACTED_TOKEN]", text, flags=re.IGNORECASE)
     text = re.sub(r"(api[_-]?key[\"'\s:=]+)[0-9A-Za-z-_\.]+", r"\1[REDACTED_KEY]", text, flags=re.IGNORECASE)
@@ -111,12 +112,24 @@ class GatewayConfig:
             providers = tuple(
                 p.strip().lower()
                 for p in order_env.split(",")
-                if p.strip() and p.strip().lower() == "ollama"
+                if p.strip() and p.strip().lower() in ("groq", "gemini", "ollama")
             )
             if not providers:
-                providers = ("ollama",)
+                default_list = []
+                if os.getenv("GROQ_API_KEY"):
+                    default_list.append("groq")
+                if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+                    default_list.append("gemini")
+                default_list.append("ollama")
+                providers = tuple(default_list)
         else:
-            providers = ("ollama",)
+            default_list = []
+            if os.getenv("GROQ_API_KEY"):
+                default_list.append("groq")
+            if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
+                default_list.append("gemini")
+            default_list.append("ollama")
+            providers = tuple(default_list)
         max_attempts = int(os.getenv("AI_GATEWAY_MAX_UPSTREAM_ATTEMPTS", "2"))
         return cls(
             provider_priority=providers,

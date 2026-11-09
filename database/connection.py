@@ -177,10 +177,23 @@ ALLOW_PRODUCTION_DB_WRITE = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lowe
 
 @event.listens_for(SessionLocal, "before_flush")
 def _enforce_canonical_sqlite_write_guard(session, flush_context, instances):
-    """Strictly prevent any accidental writes to canonical data/trading.db when ALLOW_PRODUCTION_DB_WRITE=false."""
+    """Strictly prevent any accidental writes to canonical data/trading.db when ALLOW_PRODUCTION_DB_WRITE=false,
+    while permitting live market price and lineage synchronization when ALLOW_MARKET_DATA_SYNC=true."""
     allow_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in ("1", "true", "yes")
     if allow_write:
         return
+
+    allow_market_sync = os.getenv("ALLOW_MARKET_DATA_SYNC", "true").lower() in ("1", "true", "yes")
+    if allow_market_sync:
+        try:
+            from database.models import Price, DataRun, DataLineage, DataSource, StagingRecord, Document, DocumentChunk
+            market_models = (Price, DataRun, DataLineage, DataSource, StagingRecord, Document, DocumentChunk)
+            mutations = list(session.new) + list(session.dirty) + list(session.deleted)
+            if mutations and all(isinstance(obj, market_models) for obj in mutations):
+                return
+        except Exception:
+            pass
+
     try:
         bind = session.get_bind()
         url_str = str(getattr(bind, "url", "")).replace("\\", "/")

@@ -97,6 +97,42 @@ class CanonicalPriceResolver:
             .first()
         )
 
+        # If resolving for current date and DB price is older than as_of or missing, resolve live
+        if as_of >= date.today() and (p is None or p.observation_date < as_of):
+            try:
+                from services.market.realtime_sync import RealtimePriceCache, RealtimeMarketSyncEngine
+                cached = RealtimePriceCache.get_latest_quote(sym)
+                if not cached:
+                    engine = RealtimeMarketSyncEngine()
+                    is_idx = sym in {"VN100", "VN30", "VNINDEX", "VNX50", "VN300"}
+                    cached = engine.fetch_live_candle(sym, is_index=is_idx)
+                    if cached:
+                        try:
+                            engine.persist_candle(session, cached)
+                        except Exception:
+                            session.rollback()
+
+                if cached and cached.get("observation_date") and (p is None or cached["observation_date"] >= p.observation_date):
+                    raw_c = float(cached["close"])
+                    adj_c = float(cached.get("adjusted_close") or cached["close"])
+                    eff_p = adj_c if price_basis == "ADJUSTED" else raw_c
+                    return CanonicalPrice(
+                        symbol=asset.symbol,
+                        asset_id=asset.id,
+                        observation_date=cached["observation_date"],
+                        price=eff_p,
+                        adjusted_close=adj_c,
+                        raw_close=raw_c,
+                        adjustment_factor=1.0,
+                        volume=float(cached.get("volume", 0.0)),
+                        status="AVAILABLE",
+                        source="DNSE_REALTIME",
+                        is_stale=False,
+                        data_origin="REALTIME_MARKET_FEED",
+                    )
+            except Exception:
+                pass
+
         return cls._build_canonical_price(asset.symbol, asset.id, p, as_of, price_basis)
 
     @classmethod
@@ -156,6 +192,31 @@ class CanonicalPriceResolver:
 
         for asset in assets:
             pr = price_by_aid.get(asset.id)
+            if as_of >= date.today() and (pr is None or pr.observation_date < as_of):
+                try:
+                    from services.market.realtime_sync import RealtimePriceCache
+                    cached = RealtimePriceCache.get_latest_quote(asset.symbol)
+                    if cached and cached.get("observation_date") and (pr is None or cached["observation_date"] >= pr.observation_date):
+                        raw_c = float(cached["close"])
+                        adj_c = float(cached.get("adjusted_close") or cached["close"])
+                        eff_p = adj_c if price_basis == "ADJUSTED" else raw_c
+                        results[asset.symbol] = CanonicalPrice(
+                            symbol=asset.symbol,
+                            asset_id=asset.id,
+                            observation_date=cached["observation_date"],
+                            price=eff_p,
+                            adjusted_close=adj_c,
+                            raw_close=raw_c,
+                            adjustment_factor=1.0,
+                            volume=float(cached.get("volume", 0.0)),
+                            status="AVAILABLE",
+                            source="DNSE_REALTIME",
+                            is_stale=False,
+                            data_origin="REALTIME_MARKET_FEED",
+                        )
+                        continue
+                except Exception:
+                    pass
             results[asset.symbol] = cls._build_canonical_price(asset.symbol, asset.id, pr, as_of, price_basis)
 
         return results

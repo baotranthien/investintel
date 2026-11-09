@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 import json
 import logging
 import re
-from typing import Any, AsyncGenerator, Literal
+from typing import Any, AsyncGenerator, Literal, Optional
 
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
@@ -41,6 +41,14 @@ def _extract_token_interpretations(token_match: str) -> set[Decimal]:
     if cleaned.count(",") == 1:
         try:
             interpretations.add(Decimal(cleaned.replace(",", ".")).normalize())
+        except (InvalidOperation, ValueError):
+            pass
+    # 3. As Vietnamese thousands dot (e.g. 51.000 -> 51000, 142.773 -> 142773)
+    if "." in cleaned:
+        try:
+            parts = cleaned.split(".")
+            if len(parts) > 1 and all(len(p) == 3 for p in parts[1:]):
+                interpretations.add(Decimal("".join(parts)).normalize())
         except (InvalidOperation, ValueError):
             pass
     return interpretations
@@ -592,6 +600,7 @@ class AIAnalyst:
         citations: list[AICitation],
         structured_summary: dict[str, Any],
         extracted_symbols: list[str],
+        question: Optional[str] = None,
     ) -> list[AIClaim]:
         fallback_claims: list[AIClaim] = []
         sym_summaries = structured_summary.get("symbols", {})
@@ -837,14 +846,25 @@ class AIAnalyst:
                     citation_ids=[c.id] if c.id in evidence_by_id else [],
                 ))
 
-        # Always add an honest notice
-        verdict_claims, _ = self._build_investment_verdict_claims(
-            citations=citations,
-            structured_summary=structured_summary,
-            extracted_symbols=extracted_symbols,
-            existing_claims=fallback_claims,
+        # Add investment verdict only if not a pinpoint price/metric question
+        q_lower = (question or "").lower()
+        is_advice_query = any(w in q_lower for w in (
+            "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
+            "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
+            "tốt không", "triển vọng"
+        ))
+        asks_pinpoint_price = bool(
+            re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
+            and not is_advice_query
         )
-        fallback_claims.extend(verdict_claims)
+        if not asks_pinpoint_price:
+            verdict_claims, _ = self._build_investment_verdict_claims(
+                citations=citations,
+                structured_summary=structured_summary,
+                extracted_symbols=extracted_symbols,
+                existing_claims=fallback_claims,
+            )
+            fallback_claims.extend(verdict_claims)
         fallback_claims.append(AIClaim(
             claim_type="UNCERTAINTY",
             text="Lưu ý: Mô hình AI chưa tạo được kết luận văn bản vượt qua lớp kiểm định chống Hallucination. Bảng số liệu trên được trích xuất trực tiếp từ CSDL kiểm chứng của InvestIntel.",
@@ -1743,19 +1763,30 @@ class AIAnalyst:
                 reason = suppressed_reasons[0] if suppressed_reasons else "The model did not return any structured claims that can be safely displayed."
                 # Smart fallback: If verifiable citations exist, return AVAILABLE (in prod Ollama) or PARTIAL_DATA_ONLY
                 if any(self._has_verifiable_evidence([c]) for c in citations):
-                    fallback_claims = self._build_fallback_claims(citations, structured_summary, extracted_symbols)
-                    verdict_claims, verdict_cids = self._build_investment_verdict_claims(
-                        citations=citations,
-                        structured_summary=structured_summary,
-                        extracted_symbols=extracted_symbols,
-                        existing_claims=fallback_claims,
+                    q_lower = question.lower()
+                    is_advice_query = any(w in q_lower for w in (
+                        "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
+                        "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
+                        "tốt không", "triển vọng"
+                    ))
+                    asks_pinpoint_price = bool(
+                        re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
+                        and not is_advice_query
                     )
-                    if verdict_claims:
-                        existing_texts_set = {c.text for c in fallback_claims}
-                        for vc in verdict_claims:
-                            if vc.text not in existing_texts_set:
-                                fallback_claims.append(vc)
-                                existing_texts_set.add(vc.text)
+                    fallback_claims = self._build_fallback_claims(citations, structured_summary, extracted_symbols, question=question)
+                    if not asks_pinpoint_price:
+                        verdict_claims, verdict_cids = self._build_investment_verdict_claims(
+                            citations=citations,
+                            structured_summary=structured_summary,
+                            extracted_symbols=extracted_symbols,
+                            existing_claims=fallback_claims,
+                        )
+                        if verdict_claims:
+                            existing_texts_set = {c.text for c in fallback_claims}
+                            for vc in verdict_claims:
+                                if vc.text not in existing_texts_set:
+                                    fallback_claims.append(vc)
+                                    existing_texts_set.add(vc.text)
 
                     verifiable_cits = [c for c in citations if self._has_verifiable_evidence([c])][:25]
 
@@ -1888,15 +1919,27 @@ class AIAnalyst:
         )
 
         # Enrich with deterministic investment thesis, fair value comparison & actionable recommendation ("Có nên đầu tư không?")
-        verdict_claims, verdict_cids = self._build_investment_verdict_claims(
-            citations=citations,
-            structured_summary=structured_summary,
-            extracted_symbols=extracted_symbols,
-            existing_claims=cited_claims,
+        # Skip unsolicited investment thesis when user specifically asks for pinpoint price/quote
+        q_lower = question.lower()
+        is_advice_query = any(w in q_lower for w in (
+            "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
+            "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
+            "tốt không", "triển vọng"
+        ))
+        asks_pinpoint_price = bool(
+            re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
+            and not is_advice_query
         )
-        if verdict_claims:
-            cited_claims.extend(verdict_claims)
-            referenced_ids.update(verdict_cids)
+        if not asks_pinpoint_price:
+            verdict_claims, verdict_cids = self._build_investment_verdict_claims(
+                citations=citations,
+                structured_summary=structured_summary,
+                extracted_symbols=extracted_symbols,
+                existing_claims=cited_claims,
+            )
+            if verdict_claims:
+                cited_claims.extend(verdict_claims)
+                referenced_ids.update(verdict_cids)
 
         grounded_answer = "\n\n".join(
             f"{claim.text} [Evidence: {', '.join(claim.citation_ids)}]" if claim.citation_ids else claim.text

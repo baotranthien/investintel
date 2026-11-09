@@ -291,7 +291,8 @@ Quy tắc bắt buộc:
 - Trung vị ngành ('peer_median_pe', 'peer_median_pb', 'peer_median_roe' của *_PEERS): Không dùng chỉ số riêng của mã cổ phiếu thay cho trung vị ngành.
 - Định giá DCF ('dcf_base', 'composite_fair_value_base', 'margin_of_safety'), vốn chủ sở hữu ('total_equity' tỷ VND và 'pb'), bộ lọc ('screened_count', 'matched_count', 'matching_symbols'): Trích dẫn trực tiếp con số đã tính sẵn trong verifiable_evidence, tuyệt đối không tự tính nhẩm.
 - Nếu bằng chứng có 'is_estimate': true hoặc dùng số cổ phiếu cuối kỳ (period-end shares fallback), BẮT BUỘC nêu rõ đây là số liệu ước tính.
-3. Không ghi vào 'uncertainty' các chỉ số đã có trong verifiable_evidence."""
+3. Không ghi vào 'uncertainty' các chỉ số đã có trong verifiable_evidence.
+4. Đối với câu hỏi về giá cổ phiếu (ví dụ 'Giá cổ phiếu X hôm nay', 'giá đóng cửa phiên hôm nay'): Trả lời trực tiếp và rõ ràng giá đóng cửa và ngày quan sát tương ứng (ví dụ: 'Giá đóng cửa cổ phiếu FPT ngày DD/MM/YYYY là XX.XXX VND/cổ phiếu [Evidence: EXXX].'). Tuyệt đối không bịa đặt số liệu."""
 
 
 def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
@@ -339,11 +340,13 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 "id": item_id,
                 "metric": metric,
                 "value": val,
-                "unit": item.get("unit"),
+                "unit": item.get("unit") or ("VND/cổ phiếu" if metric == "price" else None),
                 "source": source,
             }
             if item.get("symbol"):
                 entry["symbol"] = item.get("symbol")
+            if item.get("observation_date"):
+                entry["observation_date"] = str(item.get("observation_date"))
             if item.get("is_estimate"):
                 entry["is_estimate"] = True
             if item.get("diagnostic_reason"):
@@ -454,6 +457,8 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                         }
                         if item.get("symbol"):
                             ev_entry["symbol"] = item.get("symbol")
+                        if item.get("observation_date"):
+                            ev_entry["observation_date"] = str(item.get("observation_date"))
                         if item.get("is_estimate"):
                             ev_entry["is_estimate"] = True
                         if item.get("diagnostic_reason"):
@@ -489,6 +494,8 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             }
             if item.get("symbol"):
                 ev_entry["symbol"] = item.get("symbol")
+            if item.get("observation_date"):
+                ev_entry["observation_date"] = str(item.get("observation_date"))
             if item.get("is_estimate"):
                 ev_entry["is_estimate"] = True
             if item.get("diagnostic_reason"):

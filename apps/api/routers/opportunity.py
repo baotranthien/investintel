@@ -14,6 +14,7 @@ from services.opportunity.scanner import (
     ScannerItem,
     build_opportunity_scanner,
 )
+from services.common.cache import opportunity_cache
 
 router = APIRouter(prefix="/api/v1/opportunities", tags=["opportunity"])
 
@@ -31,8 +32,13 @@ def get_opportunity_scanner(
     session: Session = Depends(get_db),
 ) -> OpportunityScannerResponse:
     """Return canonical assets with engine-derived values only when inputs support them."""
+    cache_key = f"{universe}_{sector}_{horizon}_{score_min}_{score_max}_{risk_max}_{confidence}_{factor}_{valuation_status}"
+    cached_res = opportunity_cache.get(cache_key)
+    if cached_res is not None:
+        return cached_res
+
     try:
-        return build_opportunity_scanner(
+        res = build_opportunity_scanner(
             session=session,
             as_of=date.today(),
             universe=universe,
@@ -45,6 +51,8 @@ def get_opportunity_scanner(
             factor=factor,
             valuation_status=valuation_status,
         )
+        opportunity_cache.set(cache_key, res)
+        return res
     except Exception as exc:
         import traceback
         err_msg = f"Scanner error: {exc}\n{traceback.format_exc()}"
