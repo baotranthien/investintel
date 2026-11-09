@@ -39,7 +39,10 @@ export default function RootLayout({
       </head>
       <body>
         <AppShell>{children}</AppShell>
-      </body>
+      {/* impeccable-live-start */}
+<script src="http://localhost:8400/live.js?token=ed9aae1b-fe34-4177-9d08-4b742b8dbfb3"></script>
+{/* impeccable-live-end */}
+</body>
     </html>
   );
 }

@@ -28,6 +28,7 @@ import {
 } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { PortfolioTorus3D } from "@/components/three/portfolio-torus-3d";
 import styles from "./page.module.css";
 
 
@@ -263,7 +264,10 @@ export default function PortfolioPage() {
 
   return <div className={styles.page}>
     <header className={styles.header}>
-      <div><p className={styles.eyebrow}>Không gian cá nhân · Quản lý danh mục</p><h1>Quản lý danh mục đầu tư</h1><p>Theo dõi danh mục thủ công · Không liên kết tài khoản chứng khoán · Không đặt lệnh.</p></div>
+      <div>
+        <h1>Quản lý danh mục đầu tư</h1>
+        <p>Theo dõi danh mục thủ công · Không liên kết tài khoản chứng khoán · Không đặt lệnh.</p>
+      </div>
       <button className={styles.refresh} onClick={() => setReload((value) => value + 1)} type="button">↻ <span>Làm mới</span></button>
     </header>
 
@@ -285,19 +289,52 @@ export default function PortfolioPage() {
         <div><span>Tổng giá trị danh mục</span><strong>{dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.total_value)}</strong><Status value={dashboardData.summary.holdings_count === 0 ? "EMPTY" : dashboardData.summary.value_status} /></div>
         <div><span>Tổng giá vốn đầu tư</span><strong>{money(dashboardData.summary.cost_basis)}</strong><small>{dashboardData.summary.holdings_count} vị thế nắm giữ · {dashboardData.summary.currency}</small></div>
         <div><span>Lãi / lỗ chưa thực hiện</span><strong className={dashboardData.summary.unrealized_pnl !== null && dashboardData.summary.unrealized_pnl >= 0 ? styles.positive : styles.negative}>{dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.unrealized_pnl)}</strong><small>{dashboardData.summary.holdings_count === 0 ? "Chưa có vị thế" : "Chỉ tính khi mọi holding có giá"}</small></div>
-        <div><span>Chất lượng dữ liệu</span><strong>{dashboardData.status === "EMPTY" ? "Trống (chưa có vị thế)" : dashboardData.status}</strong><small>Tính đến {dateLabel(dashboardData.as_of_date)}</small></div>
+        <div>
+          <span>Chất lượng dữ liệu</span>
+          <strong>
+            {dashboardData.status === "AVAILABLE"
+              ? "Sẵn sàng"
+              : dashboardData.status === "PARTIAL"
+              ? "Dữ liệu một phần"
+              : "Chưa có vị thế"}
+          </strong>
+          <small>Tính đến {dateLabel(dashboardData.as_of_date)}</small>
+        </div>
       </section>
 
-      {dashboardData.concentration.warnings.map((warning, index) => <p className={styles.warning} key={`${String(warning.code)}-${index}`}>{String(warning.code).replaceAll("_", " ")} · {String(warning.message ?? warning.symbol ?? warning.sector ?? "Cảnh báo vượt hạn mức")}</p>)}
+      {dashboardData.concentration.warnings
+        .filter((w) => !String(w.code).endsWith("_LIMIT_UNSET"))
+        .map((warning, index) => {
+          const code = String(warning.code);
+          let text = String(warning.message ?? "Cảnh báo danh mục");
+          if (code === "SINGLE_NAME_CONCENTRATION") {
+            text = `Cảnh báo tỷ trọng: Cổ phiếu ${warning.symbol} chiếm ${(Number(warning.weight) * 100).toFixed(1)}% danh mục (vượt hạn mức ${(Number(warning.limit) * 100).toFixed(0)}%).`;
+          } else if (code === "SECTOR_CONCENTRATION") {
+            text = `Cảnh báo tập trung ngành: Ngành ${warning.sector} chiếm ${(Number(warning.weight) * 100).toFixed(1)}% danh mục (vượt hạn mức ${(Number(warning.limit) * 100).toFixed(0)}%).`;
+          } else if (code === "MISSING_PRICE") {
+            text = "Một số vị thế chưa có giá thị trường canonical.";
+          } else if (code === "STALE_PRICE") {
+            text = "Dữ liệu giá của một số vị thế đã cũ hơn 7 ngày.";
+          }
+          return (
+            <p className={styles.warning} key={`${code}-${index}`}>
+              ⚠️ {text}
+            </p>
+          );
+        })}
 
       <section className={styles.section}>
-        <header><div><p className={styles.eyebrow}>Vị thế nắm giữ</p><h2>Danh sách cổ phiếu</h2></div><span>{dashboardData.holdings.length} vị thế</span></header>
+        <header><div><h2>Danh sách cổ phiếu</h2></div><span>{dashboardData.holdings.length} vị thế</span></header>
         {dashboardData.holdings.length === 0 ? <p className={styles.empty}>Danh mục hiện chưa có cổ phiếu nào. Nhập thông tin vị thế mua bên dưới để bắt đầu theo dõi tỷ trọng, lãi/lỗ và rủi ro (ghi nhận thủ công, không đồng bộ tài khoản chứng khoán).</p> : <>
           <div className={styles.tableWrap}><table><thead><tr><th>Mã CP</th><th>Vai trò</th><th>Khối lượng</th><th>Giá vốn bình quân</th><th>Thị giá</th><th>Giá trị thị trường</th><th>Lãi / Lỗ</th><th>Tỷ trọng</th><th>Ngày cập nhật giá</th><th></th></tr></thead><tbody>{dashboardData.holdings.map((holding) => <tr key={holding.id}>
             <td><strong>{holding.symbol}</strong><small>{holding.name} · {holding.sector ?? "Chưa phân ngành"}</small></td>
             <td><select aria-label={`${holding.symbol} role`} value={holding.role} disabled={busy} onChange={(event) => void mutate(() => patchPortfolioHolding(holding.id, { role: event.target.value }), "Đã cập nhật vai trò vị thế.")}><option value="UNASSIGNED">Chưa phân loại</option><option value="CORE">Cốt lõi</option><option value="SATELLITE">Vệ tinh</option></select></td>
             <td>{holding.quantity}</td><td>{money(holding.average_cost)}</td><td>{holding.current_price === null ? "—" : money(holding.current_price)} <Status value={holding.price_status} /></td>
-            <td>{money(holding.market_value)}</td><td>{money(holding.unrealized_pnl)}</td><td>{pct(holding.current_weight)}</td><td>{dateLabel(holding.price_as_of)}</td>
+            <td>{money(holding.market_value)}</td>
+            <td className={holding.unrealized_pnl !== null && holding.unrealized_pnl > 0 ? styles.positive : holding.unrealized_pnl !== null && holding.unrealized_pnl < 0 ? styles.negative : undefined}>
+              {money(holding.unrealized_pnl)}
+            </td>
+            <td>{pct(holding.current_weight)}</td><td>{dateLabel(holding.price_as_of)}</td>
             <td><button className={styles.iconButton} title={`Xóa ${holding.symbol}`} aria-label={`Xóa ${holding.symbol}`} onClick={() => void mutate(() => deletePortfolioHolding(holding.id), `Đã xóa ${holding.symbol}.`)}>×</button></td>
           </tr>)}</tbody></table></div>
           <div className={styles.mobileHoldings}>{dashboardData.holdings.map((holding) => <article key={holding.id}><header><div><strong>{holding.symbol}</strong><small>{holding.name}</small></div><Status value={holding.price_status} /></header><div className={styles.mobileGrid}><span>Vai trò <b>{holding.role}</b></span><span>Khối lượng <b>{holding.quantity}</b></span><span>Giá vốn <b>{money(holding.average_cost)}</b></span><span>Giá trị TT <b>{money(holding.market_value)}</b></span><span>Tỷ trọng <b>{pct(holding.current_weight)}</b></span><span>Ngày giá <b>{dateLabel(holding.price_as_of)}</b></span></div><button onClick={() => void mutate(() => deletePortfolioHolding(holding.id), `Đã xóa ${holding.symbol}.`)}>Xóa vị thế</button></article>)}</div>
@@ -317,26 +354,54 @@ export default function PortfolioPage() {
       </section>
 
       <div className={styles.twoColumn}>
-        <section className={styles.section}>
-          <header><div><p className={styles.eyebrow}>Phân bổ danh mục</p><h2>Tỷ trọng hiện tại</h2></div><Status value={dashboardData.allocation.status} /></header>
-          <h3>Theo nhóm ngành</h3>
-          {dashboardData.allocation.sector.length ? dashboardData.allocation.sector.map((item) => <div className={styles.barRow} key={item.sector}><span>{item.sector}</span><div><i style={{ width: `${Math.max(0, Math.min(100, item.weight * 100))}%` }} /></div><b>{pct(item.weight)}</b></div>) : <p className={styles.empty}>Chưa có vị thế để phân bổ theo ngành.</p>}
-          <h3>Cốt lõi / Vệ tinh</h3>
-          {dashboardData.allocation.core_satellite.length ? dashboardData.allocation.core_satellite.map((item) => <div className={styles.barRow} key={item.role}><span>{item.role === "CORE" ? "Cốt lõi" : item.role === "SATELLITE" ? "Vệ tinh" : "Chưa phân loại"}</span><div><i style={{ width: `${Math.max(0, Math.min(100, item.weight * 100))}%` }} /></div><b>{pct(item.weight)}</b></div>) : <p className={styles.empty}>Chưa có dữ liệu phân bổ vai trò.</p>}
-          <p className={styles.sectionNote}>Độ phơi nhiễm rủi ro / nhân tố: {dashboardData.risk_exposure.status} · {dashboardData.factor_exposure.status}.</p>
-        </section>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}><h3>Tỷ trọng hiện tại</h3><Status value={dashboardData.allocation.status} /></div>
+          <div className={styles.allocationCardGrid}>
+            <div className={styles.allocationTorusWrapper}>
+              <PortfolioTorus3D
+                size={185}
+                data={dashboardData.allocation.sector.length > 0 ? dashboardData.allocation.sector.map((s, idx) => ({
+                  id: s.sector,
+                  label: s.sector,
+                  value: Math.round(s.weight * 100),
+                  color: ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#06b6d4"][idx % 6],
+                })) : undefined}
+              />
+            </div>
+            <div className={styles.allocationBarsWrapper}>
+              <h3 style={{ margin: "0 0 4px" }}>Theo nhóm ngành</h3>
+              {dashboardData.allocation.sector.length ? dashboardData.allocation.sector.map((item) => (
+                <div className={styles.barRow} key={item.sector}>
+                  <span>{item.sector}</span>
+                  <div><i style={{ width: `${Math.max(0, Math.min(100, item.weight * 100))}%` }} /></div>
+                  <b>{pct(item.weight)}</b>
+                </div>
+              )) : <p className={styles.empty}>Chưa có vị thế để phân bổ theo ngành.</p>}
 
-        <section className={styles.section}>
-          <header><div><p className={styles.eyebrow}>Mức độ phù hợp</p><h2>Đánh giá từng vị thế</h2></div>{fit.state === "ready" && <Status value={fit.data.status} />}</header>
+              <h3 style={{ margin: "10px 0 4px" }}>Cốt lõi / Vệ tinh</h3>
+              {dashboardData.allocation.core_satellite.length ? dashboardData.allocation.core_satellite.map((item) => (
+                <div className={styles.barRow} key={item.role}>
+                  <span>{item.role === "CORE" ? "Cốt lõi" : item.role === "SATELLITE" ? "Vệ tinh" : "Chưa phân loại"}</span>
+                  <div><i style={{ width: `${Math.max(0, Math.min(100, item.weight * 100))}%` }} /></div>
+                  <b>{pct(item.weight)}</b>
+                </div>
+              )) : <p className={styles.empty}>Chưa có dữ liệu phân bổ vai trò.</p>}
+            </div>
+          </div>
+          <p className={styles.sectionNote}>Độ phơi nhiễm rủi ro / nhân tố: {dashboardData.risk_exposure.status} · {dashboardData.factor_exposure.status}.</p>
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardHeader}><h3>Đánh giá từng vị thế</h3>{fit.state === "ready" && <Status value={fit.data.status} />}</div>
           {fit.state === "loading" && <p className={styles.state}>Đang tính toán mức độ phù hợp…</p>}{fit.state === "error" && <ErrorState message={fit.message} />}
           {fit.state === "ready" && fit.data.items.length === 0 && <p className={styles.empty}>Thêm vị thế vào danh mục để hệ thống đánh giá mức độ phù hợp.</p>}
           {fit.state === "ready" && fit.data.items.map((item) => <article className={styles.fitRow} key={item.symbol}><header><strong>{item.symbol}</strong><Status value={item.status} /></header><p>Vai trò {item.portfolio_role} · Hiện tại {pct(item.current_weight)} · Mục tiêu {pct(item.target_weight)}</p><p>Cơ hội {item.opportunity_score ?? "—"} · Độ tin cậy {item.confidence} · Rủi ro {item.risk_score ?? "—"}</p><small>{item.note}</small></article>)}
-        </section>
+        </div>
       </div>
 
       <div className={styles.twoColumn}>
-        <section className={styles.section}>
-          <header><div><p className={styles.eyebrow}>Phân bổ mục tiêu</p><h2>Mục tiêu & hạn mức</h2></div>{targets.state === "ready" && <Status value={targets.data.status} />}</header>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}><h3>Mục tiêu & hạn mức</h3>{targets.state === "ready" && <Status value={targets.data.status} />}</div>
           {targets.state === "error" && <ErrorState message={targets.message} />}
           {targets.state === "ready" && <>
             {targetDraft.map((target, index) => <div className={styles.targetRow} key={`${target.symbol}-${index}`}><input aria-label={`Mã mục tiêu ${index + 1}`} value={target.symbol} placeholder="Mã CK" onChange={(event) => setTargetDraft((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, symbol: event.target.value.toUpperCase() } : row))} /><input aria-label={`Tỷ trọng mục tiêu ${index + 1}`} type="number" min="0" max="100" step="0.01" value={(target.target_weight * 100).toFixed(2)} onChange={(event) => setTargetDraft((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, target_weight: Number(event.target.value) / 100 } : row))} /><span>%</span><button className={styles.iconButton} aria-label={`Xóa mục tiêu ${target.symbol}`} onClick={() => setTargetDraft((rows) => rows.filter((_, rowIndex) => rowIndex !== index))}>×</button></div>)}
@@ -351,10 +416,10 @@ export default function PortfolioPage() {
             <label>Ngưỡng cảnh báo biến động (%)<input type="number" min="0" max="100" step="0.1" value={changeThreshold} onChange={(event) => setChangeThreshold(event.target.value)} placeholder="Chưa cấu hình (VD: 10)" /></label>
             <button disabled={busy} type="submit">Lưu cấu hình hạn mức</button>
           </form>
-        </section>
+        </div>
 
-        <section className={styles.section}>
-          <header><div><p className={styles.eyebrow}>Tích lũy định kỳ</p><h2>Kế hoạch tích lũy hàng tháng (DCA)</h2></div>{dca.state === "ready" && <Status value={dca.data.status} />}</header>
+        <div className={styles.card}>
+          <div className={styles.cardHeader}><h3>Kế hoạch tích lũy hàng tháng (DCA)</h3>{dca.state === "ready" && <Status value={dca.data.status} />}</div>
           {dca.state === "error" && <ErrorState message={dca.message} />}
           <form className={styles.dcaForm} onSubmit={saveDca}>
             <label>Số tiền tích lũy hàng tháng (VND)<input type="number" min="300000" max="400000" step="10000" value={dcaAmount} onChange={(event) => setDcaAmount(Number(event.target.value))} required /></label>
@@ -365,11 +430,11 @@ export default function PortfolioPage() {
           {dca.state === "ready" && <div className={styles.dcaResult}><p>Cốt lõi: {pct(dca.data.core_pct)} · Vệ tinh: {pct(dca.data.satellite_pct)} · Dự phòng: {pct(dca.data.reserve_pct)}</p><strong>Chưa phân bổ / Dự phòng: {money(dca.data.unused_or_satellite_reserve)}</strong>{dca.data.routes.map((route) => <p key={route.symbol}>{route.symbol} · {money(route.amount)} · mục tiêu {pct(route.target_weight)} · {route.status}</p>)}<small>{dca.data.note}</small></div>}
           {dca.state === "error" && <p className={styles.sectionNote}>Số tiền ban đầu là cấu hình mẫu; hãy bấm Lưu để ghi nhận vĩnh viễn.</p>}
           <button className={styles.secondaryButton} disabled={busy} onClick={() => void mutate(() => createPortfolioSnapshot(), "Đã lưu snapshot phân bổ danh mục.")}>Lưu mốc quan sát phân bổ (Snapshot)</button>
-        </section>
+        </div>
       </div>
 
       <section className={styles.section}>
-        <header><div><p className={styles.eyebrow}>Sổ nhật ký giao dịch</p><h2>Lịch sử giao dịch</h2></div><span>Ghi nhận thủ công · Không đồng bộ tài khoản chứng khoán</span></header>
+        <header><div><h2>Lịch sử giao dịch</h2></div><span>Ghi nhận thủ công · Không đồng bộ tài khoản chứng khoán</span></header>
         <form className={styles.form} onSubmit={addTransaction}>
           <label>Mã cổ phiếu<input name="symbol" required placeholder="VD: FPT" /></label><label>Loại giao dịch<select name="transaction_type"><option value="BUY">Mua</option><option value="SELL">Bán</option><option value="DIVIDEND">Cổ tức</option><option value="FEE">Phí</option></select></label>
           <label>Khối lượng<input name="quantity" required type="number" min="0.00000001" step="0.00000001" placeholder="VD: 500" /></label><label>Đơn giá (VND)<input name="unit_price" required type="number" min="0.000001" step="0.000001" placeholder="VD: 130000" /></label>

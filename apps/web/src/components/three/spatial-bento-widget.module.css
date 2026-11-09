@@ -1,0 +1,38 @@
+.tiltRoot {
+  position: relative;
+  border-radius: 16px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: box-shadow var(--duration-fast, 180ms) var(--ease-apple, cubic-bezier(0.2, 0.8, 0.2, 1));
+}
+
+.tiltViewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+
+.spotlightOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 2;
+}
+
+.tiltRoot:hover .spotlightOverlay {
+  opacity: 1;
+}
+
+.tiltContent {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
+

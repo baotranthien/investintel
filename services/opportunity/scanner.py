@@ -289,8 +289,26 @@ def _item_for_asset(
             for ev in engine_result.why_not_now
         ]
 
-        factor_summary = {"roe": round(roe_val, 2)} if roe_val is not None else None
-        factor_status = "AVAILABLE" if roe_val is not None else "INSUFFICIENT_DATA"
+        factor_summary = {}
+        if roe_val is not None:
+            factor_summary["roe"] = round(roe_val, 2)
+            factor_summary["quality"] = round(min(1.0, max(0.0, roe_val / 30.0)), 2)
+        if "pe" in val_data and val_data["pe"] is not None:
+            pe_val = float(val_data["pe"])
+            factor_summary["pe"] = round(pe_val, 2)
+            factor_summary["value"] = round(min(1.0, max(0.0, (30.0 - pe_val) / 25.0)), 2)
+        elif "margin_of_safety" in val_data and val_data["margin_of_safety"] is not None:
+            mos = float(val_data["margin_of_safety"])
+            factor_summary["margin_of_safety"] = round(mos * 100.0, 1)
+            factor_summary["value"] = round(min(1.0, max(0.0, (mos + 0.5) / 1.0)), 2)
+        if "price_momentum_score" in fund_data and fund_data["price_momentum_score"] is not None:
+            mom_score = float(fund_data["price_momentum_score"])
+            factor_summary["momentum_score"] = round(mom_score, 2)
+            factor_summary["momentum"] = round((mom_score + 10.0) / 20.0, 2)
+        if not factor_summary:
+            factor_summary = None
+
+        factor_status = "AVAILABLE" if factor_summary is not None else "INSUFFICIENT_DATA"
 
         return ScannerItem(
             symbol=asset.symbol,

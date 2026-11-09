@@ -148,8 +148,8 @@
 }
 
 .askAiBtn:hover {
-  background: var(--accent, #1d1d1f);
-  color: #ffffff;
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .aiItem {

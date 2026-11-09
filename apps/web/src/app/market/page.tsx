@@ -298,7 +298,6 @@ export default function MarketPage() {
       {/* ========================================================================= */}
       <section className={styles.pillarSection} aria-label="Trụ cột 1: Chỉ số và Độ rộng dòng tiền">
         <header className={styles.pillarHeader}>
-          <p className={styles.eyebrow}>TRỤ CỘT 1 · MARKET INDICES & LIQUIDITY BREADTH</p>
           <div className={styles.pillarTitleRow}>
             <h2>Chỉ số & Độ rộng Dòng tiền</h2>
             {market && <StatusBadge status={market.status} />}
@@ -379,7 +378,6 @@ export default function MarketPage() {
       {/* ========================================================================= */}
       <section className={styles.pillarSection} aria-label="Trụ cột 2: Trạng thái Thị trường">
         <header className={styles.pillarHeader}>
-          <p className={styles.eyebrow}>TRỤ CỘT 2 · REGIME ENGINE & DIMENSIONAL RADAR</p>
           <div className={styles.pillarTitleRow}>
             <h2>Trạng thái Thị trường & Cơ hội</h2>
             {market && (
@@ -419,7 +417,6 @@ export default function MarketPage() {
           <article className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.subEyebrow}>MÔ HÌNH PHÂN LOẠI CHU KỲ</p>
                 <h3 className={styles.regimeTitle}>
                   {market
                     ? formatRegimeName(market.market_regime.regime)
@@ -523,7 +520,6 @@ export default function MarketPage() {
           <article className={`${styles.panel} ${styles.opportunityCard}`}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.subEyebrow}>OPPORTUNITY ENGINE · DÒNG TIỀN</p>
                 <h3 className={styles.regimeTitle}>Top ngành hút dòng tiền hôm nay</h3>
               </div>
               <StatusBadge status={opps?.status ?? (oppsRes.isLoading ? "LOADING" : "AVAILABLE")} />
@@ -605,7 +601,6 @@ export default function MarketPage() {
       {/* ========================================================================= */}
       <section className={styles.pillarSection} aria-label="Trụ cột 3: Vĩ mô và Sự kiện">
         <header className={styles.pillarHeader}>
-          <p className={styles.eyebrow}>TRỤ CỘT 3 · MACRO INDICATORS & CANONICAL EVENTS</p>
           <div className={styles.pillarTitleRow}>
             <h2>Chỉ báo Vĩ mô & Sự kiện Trọng yếu</h2>
             {macro && <StatusBadge status={macro.status} />}
@@ -617,7 +612,6 @@ export default function MarketPage() {
           <article className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.subEyebrow}>KINH TẾ VĨ MÔ CHÍNH THỨC</p>
                 <h3 className={styles.regimeTitle}>Chỉ báo Vĩ mô Trọng yếu</h3>
               </div>
               {macro && <StatusBadge status={macro.status} />}
@@ -687,7 +681,6 @@ export default function MarketPage() {
           <article className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.subEyebrow}>LỊCH SỰ KIỆN & CHÍNH SÁCH</p>
                 <h3 className={styles.regimeTitle}>Sự kiện Thị trường Trọng yếu</h3>
               </div>
               {market && <StatusBadge status={market.events_status} />}

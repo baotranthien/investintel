@@ -83,28 +83,25 @@ export function useCachedResource<T>(
   const timeoutMs = options?.timeoutMs ?? 25_000;
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
-  const [state, setState] = useState<InternalState<T>>(() => {
-    const cached = key ? (memoryCache.get(key) as CacheEntry<T> | undefined) : undefined;
-    return {
-      key,
-      data: cached ? cached.data : undefined,
-      updatedAt: cached ? cached.updatedAt : null,
-      error: null,
-      isLoading: key !== null && !cached,
-      isRevalidating: false,
-    };
+  // Khởi tạo state đồng nhất giữa SSR và Client để triệt tiêu 100% Hydration Mismatch
+  const [state, setState] = useState<InternalState<T>>({
+    key,
+    data: undefined,
+    updatedAt: null,
+    error: null,
+    isLoading: key !== null,
+    isRevalidating: false,
   });
 
   const [prevKey, setPrevKey] = useState(key);
   if (prevKey !== key) {
     setPrevKey(key);
-    const cached = key ? (memoryCache.get(key) as CacheEntry<T> | undefined) : undefined;
     setState({
       key,
-      data: cached ? cached.data : undefined,
-      updatedAt: cached ? cached.updatedAt : null,
+      data: undefined,
+      updatedAt: null,
       error: null,
-      isLoading: key !== null && !cached,
+      isLoading: key !== null,
       isRevalidating: false,
     });
   }
@@ -115,8 +112,11 @@ export function useCachedResource<T>(
   }, [fetcher]);
 
   const reload = useCallback(() => {
+    if (key) {
+      inflightRequests.delete(key);
+    }
     setReloadTrigger((prev) => prev + 1);
-  }, []);
+  }, [key]);
 
   useEffect(() => {
     if (key === null) {
@@ -124,31 +124,30 @@ export function useCachedResource<T>(
     }
 
     let active = true;
-    const controller = new AbortController();
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let isTimedOut = false;
+    let retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    async function execute() {
-      if (!key) return;
+    async function execute(retryCount = 0) {
+      if (!key || !active) return;
 
-      // 1. Try resolving from localStorage if memory is empty
+      // 1. Kiểm tra cache (memoryCache trước, localStorage sau)
       let currentEntry = memoryCache.get(key) as CacheEntry<T> | undefined;
       if (!currentEntry) {
         const stored = readCachedValue<T>(key);
         if (stored) {
           currentEntry = stored;
-          if (active) {
-            setState((prev) => ({
-              ...prev,
-              data: stored.data,
-              updatedAt: stored.updatedAt,
-              isLoading: false,
-            }));
-          }
         }
       }
 
-      // 2. Check freshness
+      if (currentEntry && active) {
+        setState((prev) => ({
+          ...prev,
+          data: currentEntry.data,
+          updatedAt: currentEntry.updatedAt,
+          isLoading: false,
+        }));
+      }
+
+      // 2. Kiểm tra độ tươi của dữ liệu
       const isForce = reloadTrigger > 0;
       const isStale = !currentEntry || Date.now() - currentEntry.updatedAt > maxAge;
 
@@ -163,7 +162,7 @@ export function useCachedResource<T>(
         return;
       }
 
-      // 3. Revalidate / Fetch
+      // 3. Đánh dấu trạng thái loading / revalidating
       if (active) {
         setState((prev) => ({
           ...prev,
@@ -173,29 +172,28 @@ export function useCachedResource<T>(
       }
 
       try {
-        timeoutId = setTimeout(() => {
-          isTimedOut = true;
-          controller.abort(new Error("Hết thời gian chờ phản hồi từ máy chủ (Timeout)"));
-        }, timeoutMs);
-
+        // Tạo request độc lập với timeout riêng, không bị React StrictMode abort làm chết request
         let fetchPromise = inflightRequests.get(key) as Promise<T> | undefined;
         if (!fetchPromise) {
-          fetchPromise = fetcherRef.current(controller.signal);
+          const reqController = new AbortController();
+          const reqTimeout = setTimeout(() => {
+            reqController.abort(new Error("Hết thời gian chờ phản hồi từ máy chủ (Timeout)"));
+          }, timeoutMs);
+
+          fetchPromise = fetcherRef.current(reqController.signal)
+            .finally(() => {
+              clearTimeout(reqTimeout);
+              inflightRequests.delete(key);
+            });
           inflightRequests.set(key, fetchPromise as Promise<unknown>);
         }
 
         const freshData = await fetchPromise;
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        const now = Date.now();
 
-        // Update memory
+        const now = Date.now();
         const freshEntry: CacheEntry<T> = { data: freshData, updatedAt: now };
         memoryCache.set(key, freshEntry as CacheEntry<unknown>);
 
-        // Update localStorage
         if (typeof window !== "undefined") {
           try {
             const serialized = JSON.stringify({ t: now, v: freshData });
@@ -203,7 +201,7 @@ export function useCachedResource<T>(
               window.localStorage.setItem(`investintel:cache:v2:${key}`, serialized);
             }
           } catch {
-            // Ignore quota or serialization errors
+            // Ignore storage errors
           }
         }
 
@@ -218,32 +216,35 @@ export function useCachedResource<T>(
           });
         }
       } catch (err: unknown) {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
+        inflightRequests.delete(key);
+
         if (!active) return;
-        if (!isTimedOut && (controller.signal.aborted || (err instanceof Error && err.name === "AbortError"))) {
+
+        // Nếu lỗi kết nối (Backend đang khởi động): tự động thử lại sau 1s (tối đa 2 lần)
+        const isNetworkError =
+          err instanceof TypeError &&
+          (err.message.includes("fetch") || err.message.includes("network") || err.message.includes("Failed to fetch"));
+        if (isNetworkError && retryCount < 2) {
+          retryTimeoutId = setTimeout(() => {
+            if (active) {
+              void execute(retryCount + 1);
+            }
+          }, 800 * (retryCount + 1));
           return;
         }
 
-        const errorMessage = isTimedOut
-          ? "Hết thời gian chờ phản hồi từ máy chủ (Timeout)"
-          : err instanceof Error
-          ? err.message
-          : String(err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : String(err);
+
+        // TUYỆT ĐỐI KHÔNG ĐỂ isLoading: true TREO VÔ HẠN
         setState((prev) => ({
           ...prev,
           error: errorMessage,
           isLoading: false,
           isRevalidating: false,
         }));
-      } finally {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        inflightRequests.delete(key);
       }
     }
 
@@ -251,11 +252,10 @@ export function useCachedResource<T>(
 
     return () => {
       active = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = null;
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId);
+        retryTimeoutId = null;
       }
-      controller.abort();
     };
   }, [key, maxAge, timeoutMs, reloadTrigger]);
 

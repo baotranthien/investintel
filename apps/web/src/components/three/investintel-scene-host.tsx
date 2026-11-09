@@ -29,7 +29,8 @@ export default function InvestIntelSceneHost() {
 
   const mouseNormRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const aiStateRef = useRef<AIBridgeState>(aiSceneBridge.getState());
-  const clockRef = useRef<THREE.Clock>(new THREE.Clock());
+  const lastTimeRef = useRef<number>(typeof performance !== "undefined" ? performance.now() : 0);
+  const startTimeRef = useRef<number>(typeof performance !== "undefined" ? performance.now() : 0);
 
   // 1. Subscribe to performance metrics & AI bridge
   useEffect(() => {
@@ -163,8 +164,9 @@ export default function InvestIntelSceneHost() {
           return;
         }
 
-        const delta = clockRef.current.getDelta();
-        const elapsed = clockRef.current.getElapsedTime();
+        const delta = Math.min((now - lastTimeRef.current) / 1000, 0.1);
+        lastTimeRef.current = now;
+        const elapsed = (now - startTimeRef.current) / 1000;
 
         const contextState: SceneContextState = {
           activeRoute: pathname,

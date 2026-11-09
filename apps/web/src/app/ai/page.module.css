@@ -310,8 +310,18 @@
 
 @media (min-width: 1024px) {
   .splitLayout {
-    grid-template-columns: minmax(0, 6fr) minmax(0, 4fr); /* 60% / 40% Split */
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    /* 65% / 35% Split */
     align-items: start;
+    gap: 28px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .splitLayout {
+    grid-template-columns: minmax(0, 68fr) minmax(0, 32fr);
+    /* 68% / 32% Desktop */
+    gap: 32px;
   }
 }
 
@@ -347,6 +357,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -484,16 +495,30 @@
 .claimRow {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 16px 18px;
   background-color: var(--surface-muted);
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  transition: border-color var(--duration-fast) var(--ease-apple);
+  transition: border-color var(--duration-fast) var(--ease-apple), box-shadow var(--duration-fast) var(--ease-apple);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .claimRow:hover {
   border-color: var(--line-focus);
+}
+
+.claimRowModelOutput {
+  background-color: var(--surface-secondary);
+  border-color: var(--line-strong);
+}
+
+.claimRowVerdict {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-secondary) 100%);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
 }
 
 .claimHeader {
@@ -503,6 +528,12 @@
   flex-wrap: wrap;
   gap: 8px;
   width: 100%;
+}
+
+.claimBadgeGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .claimTypeBadge {
@@ -525,12 +556,47 @@
   background-color: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
+.claimBodyWrapper {
+  width: 100%;
+}
+
 .claimText {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--ink);
   margin: 0;
   width: 100%;
+  text-align: left;
+}
+
+/* Kiểu hiển thị phân đoạn ngang cho kết luận khuyến nghị đầu tư (Model Output Verdict) */
+.verdictContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.verdictTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+.verdictParagraph {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  margin: 0;
+  width: 100%;
+  text-align: left;
+}
+
+.verdictLead {
+  font-weight: 650;
+  color: var(--ink-secondary);
 }
 
 .claimPills {
@@ -665,7 +731,7 @@
 }
 
 .evidenceModule {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--ink-secondary);
   text-transform: uppercase;
@@ -673,7 +739,7 @@
 }
 
 .evidenceFreshness {
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--positive);
   background-color: var(--positive-soft);
@@ -721,12 +787,13 @@
 /* 9. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */
 .bottomDock {
   position: fixed;
-  bottom: 0;
-  left: 260px; /* Trừ chiều rộng Sidebar trái */
+  bottom: 28px;
+  left: 260px;
+  /* Trừ chiều rộng Sidebar trái */
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, var(--canvas) 35%, var(--canvas) 100%);
-  padding: 24px 24px 20px 24px;
-  z-index: 40;
+  background: linear-gradient(180deg, transparent 0%, var(--canvas) 40%, var(--canvas) 100%);
+  padding: 16px 24px 18px 24px;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -777,8 +844,17 @@
 }
 
 @keyframes pulseAnim {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.85); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
 }
 
 /* Hộp nhập câu hỏi chuẩn Apple / ChatGPT */
@@ -817,6 +893,11 @@
   flex-shrink: 0;
 }
 
+.tickerInput::placeholder {
+  color: var(--ink-secondary);
+  opacity: 1;
+}
+
 .tickerInput:focus {
   background-color: var(--surface);
   border-color: var(--accent);
@@ -838,7 +919,8 @@
 }
 
 .promptTextarea::placeholder {
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
+  opacity: 0.9;
 }
 
 .submitBtn {
@@ -909,7 +991,7 @@
   color: var(--ink-secondary);
   padding: 2px 8px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
 }
 
@@ -965,9 +1047,9 @@
 
 .historyBadge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 6px;
   background-color: var(--ink);
   color: var(--canvas);
@@ -1026,11 +1108,9 @@
 .historyEmpty {
   font-size: 12.5px;
   color: var(--ink-muted);
-  background-color: var(--surface-muted);
-  border-radius: 12px;
-  padding: 12px 16px;
+  background: transparent;
+  padding: 12px 4px;
   line-height: 1.5;
-  border: 1px dashed var(--line-strong);
   display: flex;
   align-items: center;
   gap: 8px;

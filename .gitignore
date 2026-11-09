@@ -48,5 +48,8 @@ scratch_fs_probe.json
 scratch/
 
 # Agent local tooling
+.playwright-mcp/
+apps/web/.impeccable/
+*.png
 .agents/
 skills-lock.json

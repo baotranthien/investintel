@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   getStockScreener,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/api";
 import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonTableRows } from "@/components/ui/skeleton";
+import { MultiFactorCube3D } from "@/components/three/multi-factor-cube-3d";
 import styles from "./page.module.css";
 
 const defaultFilters: ScreenerFilterParams = {
@@ -91,11 +93,13 @@ function formatMultiple(value: number | null) {
 }
 
 export default function StockScreenerPage() {
+  const router = useRouter();
   const [filters, setFilters] = useState<ScreenerFilterParams>(defaultFilters);
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
   const [result, setResult] = useState<ScreenerResult | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "cube">("table");
 
   const fetchResults = useCallback(async (params: ScreenerFilterParams) => {
     setLoading(true);
@@ -386,100 +390,160 @@ export default function StockScreenerPage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      {/* 4. RESULTS TABLE (ALWAYS STRUCTURED, SKELETON ROWS WHILE LOADING) */}
-      <div className={styles.tableCard}>
-        <div className={styles.tableScroll}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Mã CP</th>
-                <th>Ngành</th>
-                <th>Giá hiện tại</th>
-                <th>Vốn hóa (Tỷ)</th>
-                <th>P/E</th>
-                <th>P/B</th>
-                <th>ROE</th>
-                <th>Biên Gộp</th>
-                <th>Biên Ròng</th>
-                <th>D/E</th>
-                <th>Thanh toán HH</th>
-                <th>Biên an toàn</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <SkeletonTableRows rows={8} columns={13} />
-              ) : result && result.matches.length > 0 ? (
-                result.matches.map((stock: ScreenedStock) => (
-                  <tr key={stock.symbol}>
-                    <td className={styles.tickerCell}>
-                      <Link href={`/ai?symbol=${encodeURIComponent(stock.symbol)}`}>
-                        <strong>{stock.symbol}</strong>
-                      </Link>
-                      <span>{stock.name}</span>
-                    </td>
-                    <td>
-                      <span className={styles.badge}>{stock.sector}</span>
-                    </td>
-                    <td>{formatMoney(stock.current_price)}</td>
-                    <td>
-                      {stock.market_cap_billion_vnd
-                        ? `${stock.market_cap_billion_vnd.toLocaleString("vi-VN")} Tỷ`
-                        : "—"}
-                    </td>
-                    <td>{formatMultiple(stock.pe)}</td>
-                    <td>{formatMultiple(stock.pb)}</td>
-                    <td>
-                      <strong>{formatPercent(stock.roe)}</strong>
-                    </td>
-                    <td>{formatPercent(stock.gross_margin)}</td>
-                    <td>{formatPercent(stock.net_margin)}</td>
-                    <td>{formatMultiple(stock.de_ratio)}</td>
-                    <td>{formatMultiple(stock.current_ratio)}</td>
-                    <td>
-                      {stock.margin_of_safety_pct !== null ? (
-                        <span
-                          className={`${styles.badge} ${
-                            stock.margin_of_safety_pct >= 0 ? styles.goodBadge : ""
-                          }`}
-                        >
-                          {stock.margin_of_safety_pct >= 0 ? "+" : ""}
-                          {stock.margin_of_safety_pct}%
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td>
-                      <Link
-                        className={styles.aiLink}
-                        href={`/ai?symbol=${stock.symbol}&q=${encodeURIComponent(
-                          `Phân tích định giá và sức khỏe tài chính của ${stock.symbol}?`
-                        )}`}
-                      >
-                        ✦ Phân tích AI
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={13} className={styles.emptyTd}>
-                    <div className={styles.emptyState}>
-                      <h3>Không tìm thấy cổ phiếu nào</h3>
-                      <p>
-                        Không có mã cổ phiếu nào đáp ứng đồng thời tất cả các tiêu chí lọc đã chọn.
-                        Hãy thử nới lỏng các ngưỡng sàng lọc hoặc bấm vào một trong các chiến lược mẫu phía trên.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* 4. RESULTS VIEW SWITCHER & CONTENT */}
+      <div className={styles.viewBar}>
+        <div className={styles.resultSummary}>
+          <span className={styles.resultCount}>
+            Tìm thấy <strong>{result?.matches.length ?? 0}</strong> mã thỏa mãn tiêu chí
+          </span>
+          {result?.as_of_date && (
+            <span className={styles.resultDate}>· Kỳ số liệu: {result.as_of_date}</span>
+          )}
+        </div>
+        <div className={styles.viewToggleGroup}>
+          <button
+            type="button"
+            className={`${styles.viewToggleBtn} ${viewMode === "table" ? styles.viewToggleBtnActive : ""}`}
+            onClick={() => setViewMode("table")}
+          >
+            ☰ Bảng dữ liệu ({result?.matches.length ?? 0})
+          </button>
+          <button
+            type="button"
+            className={`${styles.viewToggleBtn} ${viewMode === "cube" ? styles.viewToggleBtnActive : ""}`}
+            onClick={() => setViewMode("cube")}
+            disabled={!result || result.matches.length === 0}
+          >
+            🧊 Không gian 3D
+          </button>
         </div>
       </div>
+
+      {viewMode === "cube" && result && result.matches.length > 0 ? (
+        <div className={styles.cubeContainer}>
+          <div className={styles.cubeHeader}>
+            <div className={styles.cubeTitleGroup}>
+              <h3 className={styles.cubeTitle}>Không gian Đa nhân tố 3D (Multi-Factor Scatter)</h3>
+              <p className={styles.cubeSubtitle}>
+                Trục X: Định giá P/E · Trục Y: Chất lượng ROE · Trục Z: Động lượng RS
+              </p>
+            </div>
+            <span className={styles.cubeHint}>
+              Kéo chuột để xoay 3D · Hover để xem chỉ số · Nhấp điểm để tra cứu AI Analyst
+            </span>
+          </div>
+          <MultiFactorCube3D
+            variant="full"
+            height={440}
+            style={{ width: "100%" }}
+            data={result.matches.slice(0, 45).map((s) => ({
+              symbol: s.symbol,
+              name: s.name,
+              pe: s.pe ? Math.max(-0.85, Math.min(0.85, (16 - s.pe) / 12)) : 0,
+              roe: s.roe ? Math.max(-0.85, Math.min(0.85, (s.roe - 15) / 15)) : 0,
+              rs: s.margin_of_safety_pct ? Math.max(-0.85, Math.min(0.85, s.margin_of_safety_pct / 50)) : 0.2,
+              score: Math.round(s.roe ? Math.min(95, Math.max(50, s.roe * 2.5 + 30)) : 70),
+              sector: s.sector,
+            }))}
+            onSelectStock={(sym) => router.push(`/ai?symbol=${encodeURIComponent(sym)}`)}
+          />
+        </div>
+      ) : (
+        /* RESULTS TABLE */
+        <div className={styles.tableCard}>
+          <div className={styles.tableScroll}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Mã CP</th>
+                  <th>Ngành</th>
+                  <th>Giá hiện tại</th>
+                  <th>Vốn hóa (Tỷ)</th>
+                  <th>P/E</th>
+                  <th>P/B</th>
+                  <th>ROE</th>
+                  <th>Biên Gộp</th>
+                  <th>Biên Ròng</th>
+                  <th>D/E</th>
+                  <th>Thanh toán HH</th>
+                  <th>Biên an toàn</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <SkeletonTableRows rows={8} columns={13} />
+                ) : result && result.matches.length > 0 ? (
+                  result.matches.map((stock: ScreenedStock) => (
+                    <tr key={stock.symbol}>
+                      <td className={styles.tickerCell}>
+                        <Link href={`/ai?symbol=${encodeURIComponent(stock.symbol)}`}>
+                          <strong>{stock.symbol}</strong>
+                        </Link>
+                        <span>{stock.name}</span>
+                      </td>
+                      <td>
+                        <span className={styles.badge}>{stock.sector}</span>
+                      </td>
+                      <td>{formatMoney(stock.current_price)}</td>
+                      <td>
+                        {stock.market_cap_billion_vnd
+                          ? `${stock.market_cap_billion_vnd.toLocaleString("vi-VN")} Tỷ`
+                          : "—"}
+                      </td>
+                      <td>{formatMultiple(stock.pe)}</td>
+                      <td>{formatMultiple(stock.pb)}</td>
+                      <td>
+                        <strong>{formatPercent(stock.roe)}</strong>
+                      </td>
+                      <td>{formatPercent(stock.gross_margin)}</td>
+                      <td>{formatPercent(stock.net_margin)}</td>
+                      <td>{formatMultiple(stock.de_ratio)}</td>
+                      <td>{formatMultiple(stock.current_ratio)}</td>
+                      <td>
+                        {stock.margin_of_safety_pct !== null ? (
+                          <span
+                            className={`${styles.badge} ${
+                              stock.margin_of_safety_pct >= 0 ? styles.goodBadge : ""
+                            }`}
+                          >
+                            {stock.margin_of_safety_pct >= 0 ? "+" : ""}
+                            {stock.margin_of_safety_pct}%
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>
+                        <Link
+                          className={styles.aiLink}
+                          href={`/ai?symbol=${stock.symbol}&q=${encodeURIComponent(
+                            `Phân tích định giá và sức khỏe tài chính của ${stock.symbol}?`
+                          )}`}
+                        >
+                          ✦ Phân tích AI
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={13} className={styles.emptyTd}>
+                      <div className={styles.emptyState}>
+                        <h3>Không tìm thấy cổ phiếu nào</h3>
+                        <p>
+                          Không có mã cổ phiếu nào đáp ứng đồng thời tất cả các tiêu chí lọc đã chọn.
+                          Hãy thử nới lỏng các ngưỡng sàng lọc hoặc bấm vào một trong các chiến lược mẫu phía trên.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   getAIStatus,
   streamAIChat,
   type AIChatResponse,
+  type AIClaim,
   type AICitation,
   type AIStatus,
   type AIStreamStep,
@@ -17,6 +18,7 @@ import { normalizeTicker, buildOpportunityQuestion } from "@/lib/ai-handoff";
 import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
+import { QuantCoreOrb3D } from "@/components/three/quant-core-orb-3d";
 import { useCachedResource } from "@/lib/use-cached-resource";
 import styles from "./page.module.css";
 
@@ -188,6 +190,69 @@ function renderAnswerWithCitations(text: string, citations: AICitation[]) {
   }
 
   return parts;
+}
+
+function renderClaimText(claim: AIClaim) {
+  const text = claim.text;
+
+  // 1. Phân tích kết luận khuyến nghị đầu tư (KẾT LUẬN & KHUYẾN NGHỊ ĐẦU TƯ)
+  if (text.includes("KẾT LUẬN & KHUYẾN NGHỊ") || text.includes("KHUYẾN NGHỊ ĐẦU TƯ")) {
+    const basisIdx = text.indexOf("Cơ sở định lượng:");
+    const strategyIdx = text.indexOf("Chiến lược hành động:");
+
+    let titlePart = text;
+    let basisPart = "";
+    let strategyPart = "";
+
+    if (basisIdx !== -1) {
+      titlePart = text.slice(0, basisIdx).trim().replace(/\.$/, "");
+      if (strategyIdx !== -1) {
+        basisPart = text.slice(basisIdx, strategyIdx).trim().replace(/\.$/, "");
+        strategyPart = text.slice(strategyIdx).trim();
+      } else {
+        basisPart = text.slice(basisIdx).trim();
+      }
+    } else if (strategyIdx !== -1) {
+      titlePart = text.slice(0, strategyIdx).trim().replace(/\.$/, "");
+      strategyPart = text.slice(strategyIdx).trim();
+    }
+
+    return (
+      <div className={styles.verdictContent}>
+        <div className={styles.verdictTitle}>{titlePart}</div>
+        {basisPart && (
+          <p className={styles.verdictParagraph}>
+            <span className={styles.verdictLead}>Cơ sở định lượng:</span>{" "}
+            {basisPart.replace(/^Cơ sở định lượng:\s*/i, "")}
+          </p>
+        )}
+        {strategyPart && (
+          <p className={styles.verdictParagraph}>
+            <span className={styles.verdictLead}>Chiến lược hành động:</span>{" "}
+            {strategyPart.replace(/^Chiến lược hành động:\s*/i, "")}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // 2. Phân tích lựa chọn ưu tiên so sánh đa mã (🏆 LỰA CHỌN ƯU TIÊN)
+  if (text.includes("🏆 LỰA CHỌN ƯU TIÊN")) {
+    const colonIdx = text.indexOf(":");
+    if (colonIdx !== -1) {
+      const title = text.slice(0, colonIdx + 1).trim();
+      const body = text.slice(colonIdx + 1).trim();
+      return (
+        <div className={styles.verdictContent}>
+          <div className={styles.verdictTitle}>{title}</div>
+          <p className={styles.verdictParagraph}>{body}</p>
+        </div>
+      );
+    }
+  }
+
+  // 3. Các claim thông thường (FACT / MODEL_OUTPUT khác): Trình bày thành đoạn văn nằm ngang full width
+  return <p className={styles.claimText}>{text}</p>;
 }
 
 export type AIHistoryItem = {
@@ -743,11 +808,16 @@ function AIWorkspaceContent() {
           title="Trợ lý Nghiên cứu & Thẩm định Tài chính"
           description="Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin."
           meta={
-            isStatusLoading ? (
-              <span className={styles.statusBadgeWrapper}>
-                <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
-              </span>
-            ) : aiStatus ? (
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <QuantCoreOrb3D
+                status={busy ? "streaming" : isStatusLoading ? "checking" : aiStatus?.available ? "ready" : "idle"}
+                size={26}
+              />
+              {isStatusLoading ? (
+                <span className={styles.statusBadgeWrapper}>
+                  <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
+                </span>
+              ) : aiStatus ? (
               <span className={styles.statusBadgeWrapper}>
                 {(() => {
                   const modelName = aiStatus.configured_models?.primary || "qwen3.5:9b-q4_K_M";
@@ -791,7 +861,8 @@ function AIWorkspaceContent() {
               <span className={styles.statusBadgeWrapper}>
                 <StatusBadge status="AVAILABLE" label="Local-First Model" />
               </span>
-            )
+            )}
+            </div>
           }
         />
 
@@ -1084,33 +1155,49 @@ function AIWorkspaceContent() {
                       Mệnh đề phân tích đã đối soát ({answer.claims.length})
                     </span>
                     <div className={styles.claimsList}>
-                      {answer.claims.map((claim, idx) => (
-                        <div key={idx} className={styles.claimRow}>
-                          <div className={styles.claimHeader}>
-                            <span
-                              className={`${styles.claimTypeBadge} ${
-                                claim.claim_type === "MODEL_OUTPUT" ? styles.claimTypeBadgeModel : ""
-                              }`}
-                            >
-                              {claim.claim_type}
-                            </span>
-                            {claim.citation_ids && claim.citation_ids.length > 0 && (
-                              <div className={styles.claimPills}>
-                                {claim.citation_ids.map((id) => (
-                                  <AppleCitationPill
-                                    key={id}
-                                    id={id}
-                                    citation={answer.citations?.find(
-                                      (c) => c.id.toUpperCase() === id.toUpperCase()
-                                    )}
-                                  />
-                                ))}
+                      {answer.claims.map((claim, idx) => {
+                        const isVerdict =
+                          claim.claim_type === "MODEL_OUTPUT" &&
+                          (claim.text.includes("KẾT LUẬN & KHUYẾN NGHỊ") ||
+                            claim.text.includes("KHUYẾN NGHỊ ĐẦU TƯ") ||
+                            claim.text.includes("LỰA CHỌN ƯU TIÊN"));
+                        return (
+                          <div
+                            key={idx}
+                            className={`${styles.claimRow} ${
+                              claim.claim_type === "MODEL_OUTPUT" ? styles.claimRowModelOutput : ""
+                            } ${isVerdict ? styles.claimRowVerdict : ""}`}
+                          >
+                            <div className={styles.claimHeader}>
+                              <div className={styles.claimBadgeGroup}>
+                                <span
+                                  className={`${styles.claimTypeBadge} ${
+                                    claim.claim_type === "MODEL_OUTPUT" ? styles.claimTypeBadgeModel : ""
+                                  }`}
+                                >
+                                  {claim.claim_type}
+                                </span>
                               </div>
-                            )}
+                              {claim.citation_ids && claim.citation_ids.length > 0 && (
+                                <div className={styles.claimPills}>
+                                  {claim.citation_ids.map((id) => (
+                                    <AppleCitationPill
+                                      key={id}
+                                      id={id}
+                                      citation={answer.citations?.find(
+                                        (c) => c.id.toUpperCase() === id.toUpperCase()
+                                      )}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className={styles.claimBodyWrapper}>
+                              {renderClaimText(claim)}
+                            </div>
                           </div>
-                          <p className={styles.claimText}>{claim.text}</p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}

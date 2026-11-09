@@ -234,3 +234,4 @@ async def start_realtime_sync_loop(stop_event: asyncio.Event, interval_seconds: 
             await asyncio.wait_for(stop_event.wait(), timeout=interval_seconds)
         except asyncio.TimeoutError:
             continue
+

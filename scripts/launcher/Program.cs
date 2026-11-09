@@ -515,21 +515,35 @@ namespace InvestIntelLauncher
         {
             try
             {
+                string buildIdPath = Path.Combine(projectRoot, "apps", "web", ".next", "BUILD_ID");
+                bool hasProductionBuild = File.Exists(buildIdPath);
+
+                string cmdArgs = hasProductionBuild
+                    ? "/c \"npm --prefix apps\\web run start\""
+                    : "/c \"npm --prefix apps\\web run dev\"";
+
+                string modeText = hasProductionBuild
+                    ? "Production Pre-compiled (Sẵn sàng 100%, chuyển trang tức thì 0s)"
+                    : "Development (JIT Compiling)";
+                PrintColor(string.Format("    -> Chế độ Frontend: {0}", modeText), ConsoleColor.Cyan);
+
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c \"npm --prefix apps\\web run dev\"",
+                    Arguments = cmdArgs,
                     WorkingDirectory = projectRoot,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = false,
                     RedirectStandardError = false
                 };
+                psi.EnvironmentVariables["INTERNAL_BACKEND_URL"] = "http://127.0.0.1:8000";
+                psi.EnvironmentVariables["NEXT_PUBLIC_API_URL"] = "http://127.0.0.1:8000";
 
                 s_frontendProcess = Process.Start(psi);
                 BindToJob(s_frontendProcess);
                 WritePidFile(projectRoot, "frontend.pid", s_frontendProcess.Id);
-                WriteSupervisorLog(projectRoot, "INFO", string.Format("Frontend started (PID {0})", s_frontendProcess.Id));
+                WriteSupervisorLog(projectRoot, "INFO", string.Format("Frontend started (PID {0}) in {1}", s_frontendProcess.Id, hasProductionBuild ? "start" : "dev"));
                 PrintColor(string.Format("    -> Frontend khởi chạy thành công (PID {0})", s_frontendProcess.Id), ConsoleColor.DarkGreen);
                 return true;
             }

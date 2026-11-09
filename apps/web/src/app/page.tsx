@@ -14,6 +14,9 @@ import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCachedResource, formatUpdatedAt } from "@/lib/use-cached-resource";
+import { SpatialBentoCard } from "@/components/three/spatial-bento-card";
+import { QuantCoreOrb3D } from "@/components/three/quant-core-orb-3d";
+import { PortfolioTorus3D } from "@/components/three/portfolio-torus-3d";
 import styles from "./page.module.css";
 
 const PROMPT_SUGGESTIONS = [
@@ -67,6 +70,7 @@ function translateRegime(regime?: string): string {
 export default function Home(): JSX.Element {
   const router = useRouter();
   const [aiQuery, setAiQuery] = useState("");
+  const [hoveredTorusIdx, setHoveredTorusIdx] = useState<number | null>(null);
 
   // TẦNG 1: Market Dashboard cache 60s
   const marketResource = useCachedResource(
@@ -166,12 +170,12 @@ export default function Home(): JSX.Element {
         description="Trạm phân tích định lượng & hỗ trợ quyết định đầu tư chứng khoán theo chuẩn Point-in-Time."
         meta={
           <div className={styles.headerMeta}>
-            <span className={styles.engineBadge}>
-              <span className={styles.engineDot} />
+            <span className={styles.engineBadge} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <QuantCoreOrb3D status="ready" size={20} />
               DETERMINISTIC QUANT ENGINE
             </span>
             {marketResource.updatedAt ? (
-              <span className={styles.updatedTime}>
+              <span className={styles.updatedTime} suppressHydrationWarning>
                 {formatUpdatedAt(marketResource.updatedAt)}
               </span>
             ) : null}
@@ -276,234 +280,255 @@ export default function Home(): JSX.Element {
           ==================================================================== */}
       <section className={styles.bentoGrid} aria-label="Widget nghiệp vụ chính">
         {/* Widget 1: Top Cơ hội nổi bật */}
-        <article className={styles.bentoCard}>
-          <header className={styles.cardHeader}>
-            <div className={styles.cardTitleGroup}>
-              <p className={styles.cardEyebrow}>MULTI-FACTOR SCREENER</p>
-              <h2 className={styles.cardTitle}>Top Cơ hội nổi bật</h2>
-            </div>
-            <Link href="/opportunities" className={styles.cardHeaderLink}>
-              Xem tất cả <span aria-hidden="true">→</span>
-            </Link>
-          </header>
-
-          <div className={styles.cardBody}>
-            {opportunitiesResource.isLoading && !opportunitiesResource.data ? (
-              <SkeletonCard height={150} />
-            ) : opportunitiesResource.error && !opportunitiesResource.data ? (
-              <div style={{ padding: "24px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                <StatusBadge status="ERROR" label="Lỗi tải dữ liệu" />
-                <p className={styles.emptyStateText} style={{ margin: 0 }}>
-                  Không thể tải danh sách cơ hội ({opportunitiesResource.error})
-                </p>
-                <button
-                  type="button"
-                  className={styles.refreshButton}
-                  onClick={() => opportunitiesResource.reload()}
-                  style={{ marginTop: "4px" }}
-                >
-                  ↻ <span>Thử lại</span>
-                </button>
+        <SpatialBentoCard style={{ height: "100%" }}>
+          <article className={styles.bentoWidget}>
+            <header className={styles.bentoHeader}>
+              <div className={styles.bentoTitleGroup}>
+                <p className={styles.bentoEyebrow}>MULTI-FACTOR SCREENER</p>
+                <h2 className={styles.bentoTitle}>Top Cơ hội nổi bật</h2>
               </div>
-            ) : topOpportunities.length === 0 ? (
-              <p className={styles.emptyStateText}>
-                Chưa có dữ liệu cơ hội phù hợp từ mô hình sàng lọc VN100.
-              </p>
-            ) : (
-              <div className={styles.oppList}>
-                {topOpportunities.map((opp) => (
-                  <Link
-                    key={opp.symbol}
-                    href={`/ai?symbol=${encodeURIComponent(opp.symbol)}&source=opportunities`}
-                    className={styles.oppRow}
+              <Link href="/opportunities" className={styles.bentoHeaderLink}>
+                Xem tất cả <span aria-hidden="true">→</span>
+              </Link>
+            </header>
+
+            <div className={styles.bentoBody}>
+              {opportunitiesResource.isLoading && !opportunitiesResource.data ? (
+                <SkeletonCard height={150} />
+              ) : opportunitiesResource.error && !opportunitiesResource.data ? (
+                <div style={{ padding: "24px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                  <StatusBadge status="ERROR" label="Lỗi tải dữ liệu" />
+                  <p className={styles.emptyStateText} style={{ margin: 0 }}>
+                    Không thể tải danh sách cơ hội ({opportunitiesResource.error})
+                  </p>
+                  <button
+                    type="button"
+                    className={styles.refreshButton}
+                    onClick={() => opportunitiesResource.reload()}
+                    style={{ marginTop: "4px" }}
                   >
-                    <div className={styles.oppIdentity}>
-                      <div className={styles.oppSymbolRow}>
-                        <strong className={styles.oppSymbol}>{opp.symbol}</strong>
-                        <span className={styles.oppSector}>{opp.sector ?? opp.name}</span>
+                    ↻ <span>Thử lại</span>
+                  </button>
+                </div>
+              ) : topOpportunities.length === 0 ? (
+                <p className={styles.emptyStateText}>
+                  Chưa có dữ liệu cơ hội phù hợp từ mô hình sàng lọc VN100.
+                </p>
+              ) : (
+                <div className={styles.oppList}>
+                  {topOpportunities.map((opp) => (
+                    <Link
+                      key={opp.symbol}
+                      href={`/ai?symbol=${encodeURIComponent(opp.symbol)}&source=opportunities`}
+                      className={styles.oppRow}
+                    >
+                      <div className={styles.oppIdentity}>
+                        <div className={styles.oppSymbolRow}>
+                          <strong className={styles.oppSymbol}>{opp.symbol}</strong>
+                          <span className={styles.oppSector}>{opp.sector ?? opp.name}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className={styles.oppMetrics}>
-                      <span
-                        className={`${styles.oppScoreBadge} tabular-nums`}
-                        title="Điểm cơ hội tổng hợp (Quality, Value, Growth)"
-                      >
-                        Score: {opp.opportunity_score ?? "—"}/100
-                      </span>
-                      <StatusBadge status={opp.valuation_status} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className={styles.oppMetrics}>
+                        <span
+                          className={`${styles.oppScoreBadge} tabular-nums`}
+                          title="Điểm cơ hội tổng hợp (Quality, Value, Growth)"
+                        >
+                          Score: {opp.opportunity_score ?? "—"}/100
+                        </span>
+                        <StatusBadge status={opp.valuation_status} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <Link href="/opportunities" className={styles.cardFooterLink}>
-            Khám phá bộ lọc đa nhân tố VN100 <span aria-hidden="true">→</span>
-          </Link>
-        </article>
+            <Link href="/opportunities" className={styles.bentoFooterLink}>
+              Khám phá bộ lọc đa nhân tố VN100 <span aria-hidden="true">→</span>
+            </Link>
+          </article>
+        </SpatialBentoCard>
 
         {/* Widget 2: Danh mục & Chiến lược */}
-        <article className={styles.bentoCard}>
-          <header className={styles.cardHeader}>
-            <div className={styles.cardTitleGroup}>
-              <p className={styles.cardEyebrow}>PORTFOLIO MANAGEMENT</p>
-              <h2 className={styles.cardTitle}>Danh mục & Chiến lược</h2>
+        <SpatialBentoCard style={{ height: "100%" }}>
+          <article className={styles.bentoWidget}>
+            <header className={styles.bentoHeader}>
+              <div className={styles.bentoTitleGroup}>
+                <p className={styles.bentoEyebrow}>PORTFOLIO MANAGEMENT</p>
+                <h2 className={styles.bentoTitle}>Danh mục & Chiến lược</h2>
+              </div>
+              <Link href="/portfolio" className={styles.bentoHeaderLink}>
+                Chi tiết <span aria-hidden="true">→</span>
+              </Link>
+            </header>
+
+            <div className={styles.bentoBody}>
+              <div className={styles.allocationSection}>
+                <div style={{ display: "flex", justifyContent: "center", padding: "2px 0 8px 0" }}>
+                  <PortfolioTorus3D
+                    size={135}
+                    activeSegment={hoveredTorusIdx}
+                    onHoverSegment={setHoveredTorusIdx}
+                  />
+                </div>
+
+                <div className={styles.allocLegend}>
+                  <span
+                    className={`${styles.legendItem} ${hoveredTorusIdx === 0 ? styles.legendItemActive : ""}`}
+                    onMouseEnter={() => setHoveredTorusIdx(0)}
+                    onMouseLeave={() => setHoveredTorusIdx(null)}
+                  >
+                    <span className={styles.legendDot} style={{ background: "#3b82f6" }} />
+                    Tăng trưởng (45%)
+                  </span>
+                  <span
+                    className={`${styles.legendItem} ${hoveredTorusIdx === 1 ? styles.legendItemActive : ""}`}
+                    onMouseEnter={() => setHoveredTorusIdx(1)}
+                    onMouseLeave={() => setHoveredTorusIdx(null)}
+                  >
+                    <span className={styles.legendDot} style={{ background: "#10b981" }} />
+                    Phòng thủ & Cổ tức (35%)
+                  </span>
+                  <span
+                    className={`${styles.legendItem} ${hoveredTorusIdx === 2 ? styles.legendItemActive : ""}`}
+                    onMouseEnter={() => setHoveredTorusIdx(2)}
+                    onMouseLeave={() => setHoveredTorusIdx(null)}
+                  >
+                    <span className={styles.legendDot} style={{ background: "#f59e0b" }} />
+                    Dự trữ tiền mặt (20%)
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.strategyStats}>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>Chiến lược:</span>
+                  <span className={styles.statValue}>3 danh mục phân lớp rủi ro</span>
+                </div>
+                <div className={styles.statRow}>
+                  <span className={styles.statLabel}>Kế hoạch DCA:</span>
+                  <span className={styles.statValue}>Tự động theo pha chu kỳ VN100</span>
+                </div>
+              </div>
             </div>
-            <Link href="/portfolio" className={styles.cardHeaderLink}>
-              Chi tiết <span aria-hidden="true">→</span>
+
+            <Link href="/portfolio" className={styles.bentoFooterLink}>
+              Quản trị tỷ trọng & Kế hoạch giải ngân <span aria-hidden="true">→</span>
             </Link>
-          </header>
-
-          <div className={styles.cardBody}>
-            <div className={styles.allocationSection}>
-              <div className={styles.allocationBar} aria-label="Tỷ trọng phân bổ tài sản">
-                <div className={styles.allocGrowth} title="Tăng trưởng: 45%" />
-                <div className={styles.allocDefense} title="Phòng thủ & Cổ tức: 35%" />
-                <div className={styles.allocCash} title="Dự trữ thanh khoản: 20%" />
-              </div>
-
-              <div className={styles.allocLegend}>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: "#1D1D1F" }} />
-                  Tăng trưởng (45%)
-                </span>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: "#1E8E3E" }} />
-                  Phòng thủ & Cổ tức (35%)
-                </span>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDot} style={{ background: "#C7C7CC" }} />
-                  Dự trữ thanh khoản (20%)
-                </span>
-              </div>
-            </div>
-
-            <div className={styles.strategyStats}>
-              <div className={styles.statRow}>
-                <span className={styles.statLabel}>Chiến lược mẫu:</span>
-                <span className={styles.statValue}>3 danh mục phân lớp rủi ro</span>
-              </div>
-              <div className={styles.statRow}>
-                <span className={styles.statLabel}>Kế hoạch DCA:</span>
-                <span className={styles.statValue}>Tự động theo pha chu kỳ VN100</span>
-              </div>
-              <div className={styles.statRow}>
-                <span className={styles.statLabel}>Tái cân bằng:</span>
-                <span className={styles.statValue}>Định kỳ theo mốc EOD</span>
-              </div>
-            </div>
-          </div>
-
-          <Link href="/portfolio" className={styles.cardFooterLink}>
-            Quản trị tỷ trọng & Kế hoạch giải ngân <span aria-hidden="true">→</span>
-          </Link>
-        </article>
+          </article>
+        </SpatialBentoCard>
 
         {/* Widget 3: Cảnh báo & Theo dõi */}
-        <article className={styles.bentoCard}>
-          <header className={styles.cardHeader}>
-            <div className={styles.cardTitleGroup}>
-              <p className={styles.cardEyebrow}>WATCHLIST & ALERTS</p>
-              <h2 className={styles.cardTitle}>Cảnh báo & Theo dõi</h2>
+        <SpatialBentoCard style={{ height: "100%" }}>
+          <article className={styles.bentoWidget}>
+            <header className={styles.bentoHeader}>
+              <div className={styles.bentoTitleGroup}>
+                <p className={styles.bentoEyebrow}>WATCHLIST & ALERTS</p>
+                <h2 className={styles.bentoTitle}>Cảnh báo & Theo dõi</h2>
+              </div>
+              <Link href="/watchlist" className={styles.bentoHeaderLink}>
+                Mở Watchlist <span aria-hidden="true">→</span>
+              </Link>
+            </header>
+
+            <div className={styles.bentoBody}>
+              <div className={styles.watchList}>
+                <div className={styles.watchRow}>
+                  <div className={styles.watchLeft}>
+                    <strong className={styles.watchSymbol}>HPG</strong>
+                    <span className={styles.watchNote}>Thép · Biên lợi nhuận phục hồi</span>
+                  </div>
+                  <StatusBadge status="AVAILABLE" label="Dưới giá trị" />
+                </div>
+
+                <div className={styles.watchRow}>
+                  <div className={styles.watchLeft}>
+                    <strong className={styles.watchSymbol}>FPT</strong>
+                    <span className={styles.watchNote}>Công nghệ · Động lực Cloud/AI</span>
+                  </div>
+                  <StatusBadge status="AVAILABLE" label="Định giá hợp lý" />
+                </div>
+
+                <div className={styles.watchRow}>
+                  <div className={styles.watchLeft}>
+                    <strong className={styles.watchSymbol}>VCB</strong>
+                    <span className={styles.watchNote}>Ngân hàng · Chất lượng tài sản cao</span>
+                  </div>
+                  <StatusBadge status="AVAILABLE" label="Vững chắc" />
+                </div>
+              </div>
+
+              <div className={styles.alertNotice} role="status">
+                <span>●</span>
+                <span>02 mã chạm biên an toàn định giá · Không vi phạm trần rủi ro danh mục</span>
+              </div>
             </div>
-            <Link href="/watchlist" className={styles.cardHeaderLink}>
-              Mở Watchlist <span aria-hidden="true">→</span>
+
+            <Link href="/watchlist" className={styles.bentoFooterLink}>
+              Xem toàn bộ mã theo dõi & cảnh báo rủi ro <span aria-hidden="true">→</span>
             </Link>
-          </header>
-
-          <div className={styles.cardBody}>
-            <div className={styles.watchList}>
-              <div className={styles.watchRow}>
-                <div className={styles.watchLeft}>
-                  <strong className={styles.watchSymbol}>HPG</strong>
-                  <span className={styles.watchNote}>Thép · Biên lợi nhuận phục hồi</span>
-                </div>
-                <StatusBadge status="AVAILABLE" label="Dưới giá trị" />
-              </div>
-
-              <div className={styles.watchRow}>
-                <div className={styles.watchLeft}>
-                  <strong className={styles.watchSymbol}>FPT</strong>
-                  <span className={styles.watchNote}>Công nghệ · Động lực Cloud/AI</span>
-                </div>
-                <StatusBadge status="AVAILABLE" label="Định giá hợp lý" />
-              </div>
-
-              <div className={styles.watchRow}>
-                <div className={styles.watchLeft}>
-                  <strong className={styles.watchSymbol}>VCB</strong>
-                  <span className={styles.watchNote}>Ngân hàng · Chất lượng tài sản cao</span>
-                </div>
-                <StatusBadge status="AVAILABLE" label="Vững chắc" />
-              </div>
-            </div>
-
-            <div className={styles.alertNotice} role="status">
-              <span>●</span>
-              <span>02 mã chạm biên an toàn định giá · Không vi phạm trần rủi ro danh mục</span>
-            </div>
-          </div>
-
-          <Link href="/watchlist" className={styles.cardFooterLink}>
-            Xem toàn bộ mã theo dõi & cảnh báo rủi ro <span aria-hidden="true">→</span>
-          </Link>
-        </article>
+          </article>
+        </SpatialBentoCard>
 
         {/* Widget 4: Tra cứu & Hỏi nhanh AI */}
-        <article className={styles.bentoCard}>
-          <header className={styles.cardHeader}>
-            <div className={styles.cardTitleGroup}>
-              <p className={styles.cardEyebrow}>EVIDENCE-BASED AI</p>
-              <h2 className={styles.cardTitle}>Tra cứu & Hỏi nhanh AI</h2>
-            </div>
-            <Link href="/ai" className={styles.cardHeaderLink}>
-              AI Analyst <span aria-hidden="true">→</span>
-            </Link>
-          </header>
+        <SpatialBentoCard style={{ height: "100%" }}>
+          <article className={styles.bentoWidget}>
+            <header className={styles.bentoHeader}>
+              <div className={styles.bentoTitleGroup}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className={styles.aiCorePulse} aria-hidden="true" />
+                  <p className={styles.bentoEyebrow} style={{ margin: 0 }}>EVIDENCE-BASED AI</p>
+                </div>
+                <h2 className={styles.bentoTitle}>Tra cứu & Hỏi nhanh AI</h2>
+              </div>
+              <Link href="/ai" className={styles.bentoHeaderLink}>
+                AI Analyst <span aria-hidden="true">→</span>
+              </Link>
+            </header>
 
-          <div className={styles.cardBody}>
-            <p className={styles.aiLede}>
-              Truy vấn BCTC đối soát, định giá DCF/P/E đa kịch bản với nguồn trích dẫn minh bạch.
-            </p>
+            <div className={styles.bentoBody}>
+              <p className={styles.aiLede}>
+                Truy vấn BCTC đối soát, định giá DCF/P/E đa kịch bản với nguồn trích dẫn minh bạch.
+              </p>
 
-            <form className={styles.aiForm} onSubmit={handleAISubmit}>
-              <input
-                type="text"
-                className={styles.aiInput}
-                placeholder="Nhập mã hoặc câu hỏi: Phân tích FPT, Biên LN VNM..."
-                value={aiQuery}
-                onChange={(e) => setAiQuery(e.target.value)}
-                aria-label="Câu hỏi phân tích đầu tư"
-              />
-              <button
-                type="submit"
-                className={styles.aiSubmitBtn}
-                disabled={!aiQuery.trim()}
-              >
-                Gửi →
-              </button>
-            </form>
-
-            <div className={styles.promptSuggestions} aria-label="Gợi ý câu hỏi">
-              <span className={styles.promptLabel}>Gợi ý:</span>
-              {PROMPT_SUGGESTIONS.map((prompt) => (
+              <form className={styles.aiForm} onSubmit={handleAISubmit}>
+                <input
+                  type="text"
+                  className={styles.aiInput}
+                  placeholder="Nhập mã hoặc câu hỏi: Phân tích FPT, Biên LN VNM..."
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  aria-label="Câu hỏi phân tích đầu tư"
+                />
                 <button
-                  key={prompt}
-                  type="button"
-                  className={styles.promptPill}
-                  onClick={() => setAiQuery(prompt)}
+                  type="submit"
+                  className={styles.aiSubmitBtn}
+                  disabled={!aiQuery.trim()}
                 >
-                  {prompt}
+                  Gửi →
                 </button>
-              ))}
-            </div>
-          </div>
+              </form>
 
-          <Link href="/ai" className={styles.cardFooterLink}>
-            Mở phiên đối thoại AI chuyên sâu <span aria-hidden="true">→</span>
-          </Link>
-        </article>
+              <div className={styles.promptSuggestions} aria-label="Gợi ý câu hỏi">
+                <span className={styles.promptLabel}>Gợi ý:</span>
+                {PROMPT_SUGGESTIONS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className={styles.promptPill}
+                    onClick={() => setAiQuery(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Link href="/ai" className={styles.bentoFooterLink}>
+              Mở phiên đối thoại AI chuyên sâu <span aria-hidden="true">→</span>
+            </Link>
+          </article>
+        </SpatialBentoCard>
       </section>
 
       {/* ====================================================================

@@ -79,18 +79,19 @@
 }
 
 .tabActive {
-  background: var(--ink);
-  color: #ffffff !important;
-  border-color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-contrast) !important;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Panels */
 .panel {
-  background: var(--surface);
+  background: var(--surface-card);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 24px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm), var(--border-specular);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -107,7 +108,7 @@
   padding: 10px 14px;
   border: 1px solid var(--line);
   background: var(--surface-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--ink);
   outline: none;
@@ -116,8 +117,9 @@
 }
 
 .textInput:focus {
-  border-color: var(--positive);
-  background: var(--surface);
+  border-color: var(--accent-apple);
+  background: var(--surface-card);
+  box-shadow: 0 0 0 2px var(--accent-apple-soft);
 }
 
 .actionBtn {
@@ -125,13 +127,14 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: var(--positive);
+  background: var(--accent-apple);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 650;
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
   transition: all 150ms ease;
 }
 
@@ -148,9 +151,8 @@
 /* AI Results Box - Clean, high contrast */
 .resultBox {
   background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--positive);
-  border-radius: 6px;
+  border: 1px solid var(--positive-border, rgba(21, 128, 61, 0.25));
+  border-radius: 8px;
   padding: 20px;
   color: var(--ink);
   font-size: 14px;

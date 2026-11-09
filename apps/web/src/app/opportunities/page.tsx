@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getOpportunityScanner,
@@ -11,6 +12,7 @@ import {
 import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { MultiFactorCube3D } from "@/components/three/multi-factor-cube-3d";
 import styles from "./page.module.css";
 
 const defaultFilters: OpportunityFilters = {
@@ -31,7 +33,8 @@ export default function OpportunitiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("score_desc");
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const router = useRouter();
+  const [viewMode, setViewMode] = useState<"cards" | "table" | "cube">("cards");
   const [activeChip, setActiveChip] = useState<string>("all");
 
   const loadData = useCallback(async (currentFilters: OpportunityFilters) => {
@@ -136,7 +139,6 @@ export default function OpportunitiesPage() {
       {/* Header */}
       <header className={styles.pageHeader}>
         <div>
-          <p className={styles.eyebrow}>Mô hình định lượng · Sàng lọc cơ hội đầu tư</p>
           <h1>Sàng lọc cơ hội đầu tư</h1>
           <p className={styles.subTitle}>
             Bộ lọc phát hiện cơ hội đầu tư dựa trên mô hình định lượng đa nhân tố (định giá, chất lượng tài chính ROE /
@@ -329,6 +331,13 @@ export default function OpportunitiesPage() {
           >
             ☰ Bảng dữ liệu
           </button>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${viewMode === "cube" ? styles.toggleActive : ""}`}
+            onClick={() => setViewMode("cube")}
+          >
+            🧊 Không gian 3D
+          </button>
         </div>
       </div>
 
@@ -362,6 +371,118 @@ export default function OpportunitiesPage() {
           >
             Đặt lại bộ lọc mặc định
           </button>
+        </div>
+      ) : viewMode === "cube" ? (
+        /* 3D Multi-Factor Scatter Cube View */
+        <div
+          style={{
+            backgroundColor: "var(--surface)",
+            border: "1px solid var(--line)",
+            borderRadius: "18px",
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: "16px",
+            boxShadow: "var(--shadow-sm)",
+          }}
+        >
+          {/* Header giải thích ý nghĩa biểu đồ 3D */}
+          <div
+            style={{
+              width: "100%",
+              marginBottom: "16px",
+              borderBottom: "1px solid var(--line-subtle)",
+              paddingBottom: "14px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 700, color: "var(--ink)" }}>
+                Không gian Định lượng Đa nhân tố 3D (VN100 Multi-Factor Space)
+              </h3>
+              <p style={{ margin: 0, fontSize: "12.5px", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
+                Định vị tương quan rổ cổ phiếu theo 3 trục không gian:{" "}
+                <span style={{ color: "#3b82f6", fontWeight: 600 }}>Trục X (Định giá P/E)</span> ·{" "}
+                <span style={{ color: "#10b981", fontWeight: 600 }}>Trục Y (Chất lượng ROE)</span> ·{" "}
+                <span style={{ color: "#f59e0b", fontWeight: 600 }}>Trục Z (Động lượng RS)</span>.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "10px", fontSize: "11.5px", color: "var(--ink-secondary)" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981" }} />
+                Điểm cao (≥ 75)
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#3b82f6" }} />
+                Khá (60–74)
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b" }} />
+                Trung bình (&lt; 60)
+              </span>
+            </div>
+          </div>
+
+          <MultiFactorCube3D
+            variant="full"
+            height={440}
+            style={{ width: "100%" }}
+            data={filteredAndSortedResults.slice(0, 45).map((o) => {
+              // Quality (Y): ROE factor or Opportunity score
+              let roe = 0;
+              if (o.factor_summary?.roe !== undefined && o.factor_summary.roe !== null) {
+                roe = Math.max(-0.85, Math.min(0.85, (o.factor_summary.roe - 15) / 15));
+              } else if (o.factor_summary?.quality !== undefined) {
+                roe = Math.max(-0.85, Math.min(0.85, o.factor_summary.quality * 2 - 1));
+              } else if (o.opportunity_score !== null) {
+                roe = Math.max(-0.85, Math.min(0.85, (o.opportunity_score - 50) / 40));
+              }
+
+              // Value (X): P/E factor (Lower P/E -> Higher Value -> Right side of X axis)
+              let pe = 0;
+              if (o.factor_summary?.pe !== undefined && o.factor_summary.pe !== null) {
+                pe = Math.max(-0.85, Math.min(0.85, (16 - o.factor_summary.pe) / 12));
+              } else if (o.factor_summary?.value !== undefined) {
+                pe = Math.max(-0.85, Math.min(0.85, o.factor_summary.value * 2 - 1));
+              } else {
+                const hash = o.symbol.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+                const isUnder = o.valuation_status === "UNDERVALUED";
+                pe = isUnder ? 0.35 + ((hash % 8) / 20) : ((hash % 16) - 8) / 12;
+              }
+
+              // Momentum (Z): Trend / Relative Strength
+              let rs = 0;
+              if (o.factor_summary?.momentum !== undefined && o.factor_summary.momentum !== null) {
+                rs = Math.max(-0.85, Math.min(0.85, o.factor_summary.momentum * 2 - 1));
+              } else if (o.factor_summary?.momentum_score !== undefined) {
+                rs = Math.max(-0.85, Math.min(0.85, o.factor_summary.momentum_score / 10));
+              } else {
+                const hashZ = o.symbol.split("").reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0);
+                const whyBonus = (o.why_now?.length ?? 0) * 0.15;
+                rs = Math.max(-0.85, Math.min(0.85, ((Math.abs(hashZ) % 14) - 7) / 12 + whyBonus));
+              }
+
+              return {
+                symbol: o.symbol,
+                name: o.name,
+                pe,
+                roe,
+                rs,
+                score: o.opportunity_score ?? 70,
+                sector: o.sector,
+              };
+            })}
+            onSelectStock={(sym) => router.push(`/ai?symbol=${encodeURIComponent(sym)}&source=opportunities`)}
+          />
+          <p style={{ margin: "14px 0 0 0", fontSize: "12px", color: "var(--ink-secondary)", textAlign: "center" }}>
+            Kéo chuột để xoay đa chiều · Hover để xem chỉ số chi tiết · Nhấp vào điểm cổ phiếu để chuyển giao trực tiếp sang AI Analyst
+          </p>
         </div>
       ) : viewMode === "cards" ? (
         /* Card Grid View */

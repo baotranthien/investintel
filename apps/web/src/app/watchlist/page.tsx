@@ -185,11 +185,11 @@ export default function WatchlistPage() {
   }
 
   return <div className={styles.page}>
-    <header className={styles.header}><div><p className={styles.eyebrow}>Nghiên cứu & theo dõi cá nhân</p><h1>Danh sách theo dõi</h1><p>Nghiên cứu cá nhân dựa trên dữ liệu có nguồn kiểm chứng.</p></div><button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>↻ <span>Làm mới</span></button></header>
+    <header className={styles.header}><div><h1>Danh sách theo dõi</h1><p>Nghiên cứu cá nhân dựa trên dữ liệu có nguồn kiểm chứng.</p></div><button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>↻ <span>Làm mới</span></button></header>
     {notice && <p className={styles.notice} role="status">{notice}</p>}{error && <div className={styles.error} role="alert"><strong>Thao tác không thành công</strong><span>{error}</span></div>}
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>Luận điểm đầu tư</p><h2>Thêm cổ phiếu vào danh sách theo dõi</h2></div></header>
+      <header><div><h2>Thêm cổ phiếu vào danh sách theo dõi</h2></div></header>
       <form className={styles.addForm} onSubmit={addItem}>
         <label>Mã cổ phiếu<input name="symbol" required maxLength={20} placeholder="VD: FPT" /></label>
         <label>Khung thời gian<select name="horizon" defaultValue=""><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
@@ -200,7 +200,7 @@ export default function WatchlistPage() {
     </section>
 
     <section className={styles.section}>
-      <header><div><p className={styles.eyebrow}>Dữ liệu theo dõi</p><h2>Các cổ phiếu đang theo dõi</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
+      <header><div><h2>Các cổ phiếu đang theo dõi</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
       <div className={styles.filters}>
         <label>Tìm kiếm<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Mã hoặc tên công ty..." /></label>
         <label>Khung thời gian<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">Tất cả khung thời gian</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>

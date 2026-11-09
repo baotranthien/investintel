@@ -57,3 +57,4 @@ def test_canonical_price_resolver_live_sync(db_session: Session):
     assert cp.price is not None and cp.price > 0
     assert cp.observation_date == date(2026, 11, 9)
     assert cp.status == "AVAILABLE"
+

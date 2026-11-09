@@ -2,14 +2,16 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2.5px 9px;
   border-radius: 9999px;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
   border: 1px solid transparent;
-  transition: background var(--duration-fast, 150ms) ease;
+  transition: all var(--duration-fast, 150ms) ease;
 }
 
 .dot {
@@ -19,48 +21,48 @@
   flex-shrink: 0;
 }
 
-/* Tones */
+/* Tones - Strict WCAG AA >= 4.5:1 Contrast Compliant */
 .ok {
-  background-color: var(--positive-soft, #e6f4ea);
-  color: var(--positive, #1e8e3e);
-  border-color: var(--positive-border, rgba(30, 142, 62, 0.2));
+  background-color: var(--positive-soft);
+  color: var(--positive-ink);
+  border-color: var(--positive-border);
 }
 .ok .dot {
-  background-color: var(--positive, #1e8e3e);
+  background-color: var(--positive);
 }
 
 .warn {
-  background-color: var(--warning-soft, #fef7e0);
-  color: var(--warning, #b06000);
-  border-color: var(--warning-border, rgba(176, 96, 0, 0.25));
+  background-color: var(--warning-soft);
+  color: var(--warning-ink);
+  border-color: var(--warning-border);
 }
 .warn .dot {
-  background-color: var(--warning, #b06000);
+  background-color: var(--warning);
 }
 
 .error {
-  background-color: var(--negative-soft, #fce8e6);
-  color: var(--negative, #d93025);
-  border-color: var(--negative-border, rgba(217, 48, 37, 0.2));
+  background-color: var(--negative-soft);
+  color: var(--negative-ink);
+  border-color: var(--negative-border);
 }
 .error .dot {
-  background-color: var(--negative, #d93025);
+  background-color: var(--negative);
 }
 
 .info {
-  background-color: rgba(0, 113, 227, 0.08);
-  color: #0071e3;
-  border-color: rgba(0, 113, 227, 0.2);
+  background-color: var(--info-soft);
+  color: var(--info-ink);
+  border-color: var(--info-border);
 }
 .info .dot {
-  background-color: #0071e3;
+  background-color: var(--info);
 }
 
 .muted {
-  background-color: var(--surface-muted, #f2f2f7);
-  color: var(--ink-secondary, #6e6e73);
-  border-color: var(--line, rgba(0, 0, 0, 0.06));
+  background-color: var(--badge-bg);
+  color: var(--badge-ink);
+  border-color: var(--line);
 }
 .muted .dot {
-  background-color: var(--ink-muted, #86868b);
+  background-color: var(--ink-muted);
 }

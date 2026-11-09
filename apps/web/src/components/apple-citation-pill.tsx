@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useId } from "react";
 import type { AICitation } from "@/lib/api";
 import styles from "./apple-citation-pill.module.css";
+
+const ACTIVE_CITATION_EVENT = "investintel:active-citation-popover";
 
 interface CitationPillProps {
   id: string;
@@ -11,35 +13,64 @@ interface CitationPillProps {
 
 export default function AppleCitationPill({ id, citation }: CitationPillProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const instanceId = useId();
   const containerRef = useRef<HTMLSpanElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Mở popover và thông báo để đóng tất cả các popover khác (Đảm bảo DUY NHẤT 1 popover mở)
+  const openPopover = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(ACTIVE_CITATION_EVENT, { detail: { activeId: instanceId } })
+      );
+    }
+    setIsOpen(true);
+  };
+
+  const closePopover = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsOpen(false);
+  };
+
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => setIsOpen(true), 120);
+    // Delay 220ms để tránh bão popover khi lướt chuột qua chuỗi pills
+    hoverTimeoutRef.current = setTimeout(openPopover, 220);
   };
 
   const handleMouseLeave = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => setIsOpen(false), 150);
+    hoverTimeoutRef.current = setTimeout(closePopover, 120);
   };
 
+  // Lắng nghe sự kiện toàn cục: Nếu có popover khác mở thì đóng popover này ngay
   useEffect(() => {
+    function handleActiveChange(e: Event) {
+      const customEvent = e as CustomEvent<{ activeId: string }>;
+      if (customEvent.detail?.activeId !== instanceId) {
+        setIsOpen(false);
+      }
+    }
+
+    window.addEventListener(ACTIVE_CITATION_EVENT, handleActiveChange);
     return () => {
+      window.removeEventListener(ACTIVE_CITATION_EVENT, handleActiveChange);
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     };
-  }, []);
+  }, [instanceId]);
 
+  // Click outside và Escape để đóng
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closePopover();
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closePopover();
       }
     }
 
@@ -55,6 +86,15 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
 
   const cleanId = id.toUpperCase().replace(/[\[\]]/g, "").trim();
 
+  const handleToggleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOpen) {
+      closePopover();
+    } else {
+      openPopover();
+    }
+  };
+
   return (
     <span
       className={styles.container}
@@ -65,7 +105,7 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
       <button
         type="button"
         className={`${styles.pill} ${isOpen ? styles.pillActive : ""}`}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleToggleClick}
         aria-expanded={isOpen}
         title="Xem nguồn dữ liệu kiểm chứng"
       >
@@ -74,7 +114,14 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
       </button>
 
       {isOpen && citation && (
-        <div className={styles.popover} role="tooltip">
+        <div
+          className={styles.popover}
+          role="tooltip"
+          onMouseEnter={() => {
+            if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+          }}
+          onMouseLeave={handleMouseLeave}
+        >
           <div className={styles.popoverHeader}>
             <div className={styles.titleGroup}>
               <span className={`${styles.citationBadge} tabular-nums`}>{citation.id}</span>

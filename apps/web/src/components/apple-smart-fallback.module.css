@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  animation: fadeIn 220ms var(--ease-spring) forwards;
+  animation: fadeIn 220ms var(--ease-apple) forwards;
 }
 
 @keyframes fadeIn {
@@ -271,7 +271,7 @@
 
 .cardMetricCount {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--ink-muted);
 }
 
