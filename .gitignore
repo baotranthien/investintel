@@ -20,6 +20,8 @@ __pycache__/
 
 # Node.js / Next.js
 node_modules/
+**/node_modules/
+apps/web/node_modules/
 .next/
 out/
 dist/
