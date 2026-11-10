@@ -244,6 +244,15 @@ def _item_for_asset(
             try:
                 from services.valuation.builder import ValuationSnapshotBuilder
                 val_builder = ValuationSnapshotBuilder(asset.symbol, resolved_sector)
+                prof_d = snap.get("profitability", {})
+                growth_d = snap.get("growth", {})
+                op_m_val = (
+                    (prof_d.get("operating_margin", {}) or {}).get("value")
+                    or (prof_d.get("ebit_margin", {}) or {}).get("value")
+                    or (prof_d.get("net_margin", {}) or {}).get("value")
+                )
+                rev_yoy_val = (growth_d.get("revenue_yoy", {}) or {}).get("value")
+                rev_cagr_val = (growth_d.get("revenue_cagr_3y", {}) or {}).get("value")
                 fund_for_val = {
                     "symbol": asset.symbol,
                     "sector": resolved_sector,
@@ -254,6 +263,10 @@ def _item_for_asset(
                     "net_income_ttm": snap.get("net_income_ttm") or (dataset["income_annual"][-1].get("net_income_parent") if dataset.get("income_annual") else None),
                     "net_debt": snap.get("balance_sheet", {}).get("net_debt", {}).get("value") if isinstance(snap.get("balance_sheet", {}).get("net_debt"), dict) else snap.get("balance_sheet", {}).get("net_debt"),
                     "roe": roe_val,
+                    "use_dynamic_assumptions": True,
+                    "operating_margin": op_m_val,
+                    "revenue_yoy": rev_yoy_val,
+                    "revenue_cagr_3y": rev_cagr_val,
                 }
                 val_snap = val_builder.build(fund_for_val, price_val, as_of)
                 if val_snap.margin_of_safety is not None:
@@ -270,11 +283,18 @@ def _item_for_asset(
                     val_data = {"pe": pe, "margin_of_safety": mos}
                     val_status = "AVAILABLE"
 
+        risk_profile = None
+        try:
+            from services.risk.engine import RiskEngine
+            risk_profile = RiskEngine.calculate_profile(asset.symbol, fund_data, val_data, as_of)
+        except Exception:
+            risk_profile = None
+
         engine_result = OpportunityEngine.calculate_medium_term(
             symbol=asset.symbol,
             fundamental_data=fund_data,
             valuation_data=val_data,
-            risk_data=None,
+            risk_data=risk_profile,
             macro_data=macro_data,
             events_data=[],
             as_of=as_of,

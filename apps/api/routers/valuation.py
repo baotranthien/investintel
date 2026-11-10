@@ -42,21 +42,38 @@ def _compute_beta_and_wacc(
     try:
         stock_asset = session.query(Asset).filter(Asset.symbol == sym).first()
         mkt_asset = session.query(Asset).filter(Asset.symbol == "VNINDEX").first()
-        if stock_asset and mkt_asset:
+        if stock_asset:
             stock_q = session.query(Price.observation_date, Price.raw_close).filter(
                 Price.asset_id == stock_asset.id,
                 Price.status == "VALID"
             )
-            mkt_q = session.query(Price.observation_date, Price.raw_close).filter(
-                Price.asset_id == mkt_asset.id,
-                Price.status == "VALID"
-            )
             if as_of_date:
                 stock_q = stock_q.filter(Price.observation_date <= as_of_date)
-                mkt_q = mkt_q.filter(Price.observation_date <= as_of_date)
-
             stock_prices = dict(stock_q.order_by(Price.observation_date.desc()).limit(252).all())
-            mkt_prices = dict(mkt_q.order_by(Price.observation_date.desc()).limit(252).all())
+
+            mkt_prices = {}
+            if mkt_asset:
+                mkt_q = session.query(Price.observation_date, Price.raw_close).filter(
+                    Price.asset_id == mkt_asset.id,
+                    Price.status == "VALID"
+                )
+                if as_of_date:
+                    mkt_q = mkt_q.filter(Price.observation_date <= as_of_date)
+                mkt_prices = dict(mkt_q.order_by(Price.observation_date.desc()).limit(252).all())
+
+            # Fallback to VN100 when VNINDEX has fewer than 120 sessions
+            if len(mkt_prices) < 120:
+                vn100_asset = session.query(Asset).filter(Asset.symbol == "VN100").first()
+                if vn100_asset:
+                    vn100_q = session.query(Price.observation_date, Price.raw_close).filter(
+                        Price.asset_id == vn100_asset.id,
+                        Price.status == "VALID"
+                    )
+                    if as_of_date:
+                        vn100_q = vn100_q.filter(Price.observation_date <= as_of_date)
+                    vn100_prices = dict(vn100_q.order_by(Price.observation_date.desc()).limit(252).all())
+                    if len(vn100_prices) > len(mkt_prices):
+                        mkt_prices = vn100_prices
 
             common_dates = sorted(set(stock_prices.keys()).intersection(set(mkt_prices.keys())))
             if len(common_dates) >= 30:
@@ -72,13 +89,15 @@ def _compute_beta_and_wacc(
 
                 if var_m > 1e-8:
                     raw_beta = cov / var_m
-                    beta = max(0.60, min(1.60, raw_beta))
+                    # Blume adjustment toward market mean (1.0) to stabilize historical beta
+                    blume_beta = 0.67 * raw_beta + 0.33 * 1.0
+                    beta = max(0.70, min(1.50, blume_beta))
     except Exception:
         beta = 1.0
 
-    rf = 0.045
-    erp = 0.065
-    cost_of_equity = max(0.09, min(0.16, rf + beta * erp))
+    rf = 0.048
+    erp = 0.070
+    cost_of_equity = max(0.110, min(0.160, rf + beta * erp))
 
     kd_after_tax = 0.085 * (1.0 - 0.20)
     norm_sector = (sector or "").upper()
@@ -89,7 +108,7 @@ def _compute_beta_and_wacc(
         d_weight = min(0.65, max(0.0, de / (1.0 + de)))
         e_weight = 1.0 - d_weight
         wacc_raw = (cost_of_equity * e_weight) + (kd_after_tax * d_weight)
-        wacc = max(0.085, min(0.155, wacc_raw))
+        wacc = max(0.100, min(0.155, wacc_raw))
 
     return round(beta, 3), round(cost_of_equity, 4), round(wacc, 4)
 

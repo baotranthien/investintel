@@ -43,7 +43,9 @@ class DCFEngine:
             
             for i in range(len(assumptions.revenue_growth_rates)):
                 growth = assumptions.revenue_growth_rates[i]
-                margin = assumptions.ebit_margins[i] + margin_adj
+                base_m_i = assumptions.ebit_margins[i]
+                scaled_adj = margin_adj * (base_m_i / 0.06) if base_m_i < 0.06 else margin_adj
+                margin = max(0.002, base_m_i + scaled_adj)
                 
                 current_rev *= (1 + growth)
                 ebit = current_rev * margin
@@ -182,8 +184,12 @@ class ResidualIncomeEngine:
                 current_bv *= (1 + adj_g)
                 
             # Terminal Value of RI
-            # Assuming RI fades over time or grows at a steady rate
-            tv_ri = ((adj_roe - adj_ke) * current_bv) / (adj_ke - adj_g) if adj_ke > adj_g else 0
+            # Apply competitive fade (0.65) and minimum terminal spread (5.5%) to prevent near-zero denominator explosion
+            if adj_ke > adj_g:
+                terminal_spread = max(0.055, adj_ke - adj_g)
+                tv_ri = ((adj_roe - adj_ke) * 0.65 * current_bv) / terminal_spread
+            else:
+                tv_ri = 0
             pv_tv_ri = tv_ri / ((1 + adj_ke) ** years)
             
             return bvps + pv_ri + pv_tv_ri

@@ -55,17 +55,20 @@ class ValuationSnapshotBuilder:
             if op_m is not None and abs(op_m) > 1.0:
                 op_m /= 100.0
             if op_m is not None:
-                base_m = max(0.06, min(0.42, op_m))
-                target_m = 0.18 if base_m > 0.18 else base_m
-                ebit_margins = [round(base_m - (base_m - target_m) * 0.15 * (i / 4.0), 4) for i in range(5)]
+                base_m = max(0.008, min(0.40, op_m))
+                target_m = 0.20 if base_m > 0.22 else base_m
+                ebit_margins = [round(base_m - (base_m - target_m) * 0.20 * (i / 4.0), 4) for i in range(5)]
             else:
-                ebit_margins = [0.20] * 5
+                base_m = 0.15
+                ebit_margins = [0.15] * 5
 
             dcf_wacc = float(fundamentals.get("wacc") or 0.12)
             cost_of_equity = float(fundamentals.get("cost_of_equity") or 0.12)
             capex_pct = fundamentals.get("capex_to_revenue")
             if capex_pct is not None and abs(capex_pct) > 1.0:
                 capex_pct = abs(capex_pct) / 100.0
+            if capex_pct is None:
+                capex_pct = round(max(0.003, min(0.06, base_m * 0.25)), 4)
         else:
             revenue_growth_rates = [0.10, 0.09, 0.08, 0.07, 0.06]
             ebit_margins = [0.20, 0.20, 0.20, 0.20, 0.20]
@@ -102,8 +105,8 @@ class ValuationSnapshotBuilder:
         if "Residual Income" in selection.primary_methods or "Residual Income" in selection.secondary_methods:
             real_roe = fundamentals.get("roe")
             roe_val = (real_roe / 100.0) if (real_roe is not None and real_roe > 0) else 0.18
-            ri_growth = min(0.065, max(0.035, roe_val * 0.30)) if use_dyn else 0.05
-            ri_coe = cost_of_equity if use_dyn else 0.12
+            ri_growth = min(0.045, max(0.030, roe_val * 0.20)) if use_dyn else 0.04
+            ri_coe = max(0.115, cost_of_equity) if use_dyn else 0.12
             out = ResidualIncomeEngine.calculate(bvps=bvps, roe=roe_val, cost_of_equity=ri_coe, growth=ri_growth)
             out.weight = (0.5 if "Residual Income" in selection.primary_methods else 0.2) if out.applicability != "NOT_APPLICABLE" else 0.0
             methods.append(out)

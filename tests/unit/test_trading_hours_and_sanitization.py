@@ -99,5 +99,69 @@ class TestUnaccentedMetricExtraction(unittest.TestCase):
         self.assertNotIn("margins_generic", groups)
 
 
+class TestDomainLogicAndValuationFixes(unittest.TestCase):
+    def test_thin_margin_dcf_not_inflated(self):
+        from services.valuation.builder import ValuationSnapshotBuilder
+        builder = ValuationSnapshotBuilder("PLX", "OIL_GAS")
+        snap = builder.build(
+            {
+                "symbol": "PLX",
+                "sector": "OIL_GAS",
+                "eps_ttm": 2500.0,
+                "bvps": 20000.0,
+                "shares_outstanding": 1_270_000_000,
+                "revenue_ttm": 400_000.0,
+                "net_income_ttm": 3_175.0,
+                "net_debt": -5_000.0,
+                "use_dynamic_assumptions": True,
+                "operating_margin": 1.12,
+                "revenue_yoy": 10.0,
+                "revenue_cagr_3y": 12.0,
+                "wacc": 0.105,
+                "cost_of_equity": 0.118,
+            },
+            current_price=32800.0,
+            as_of=date(2026, 11, 10),
+        )
+        dcf_method = next(m for m in snap.methods if m.method == "DCF")
+        # Fair value should be realistic (< 80,000 VND), never inflated 5x to ~480,000 VND
+        self.assertGreater(dcf_method.fair_value.base, 25000.0)
+        self.assertLess(dcf_method.fair_value.base, 80000.0)
+
+    def test_residual_income_terminal_spread_no_explosion(self):
+        from services.valuation.engine import ResidualIncomeEngine
+        # Even when Ke is close to growth in bull scenario, terminal spread guard prevents 200x explosion
+        res = ResidualIncomeEngine.calculate(
+            bvps=13866.0,
+            roe=0.2202,
+            cost_of_equity=0.115,
+            growth=0.044,
+        )
+        self.assertGreater(res.fair_value.base, 20000.0)
+        self.assertLess(res.fair_value.bull, 50000.0)
+
+    def test_bank_sector_normalization_in_fundamental_builder(self):
+        from services.fundamentals.snapshot import FundamentalSnapshotBuilder
+        builder = FundamentalSnapshotBuilder("HDB", "Banking")
+        self.assertEqual(builder.sector, "BANK")
+
+    def test_risk_engine_bank_vs_industrial_differentiation(self):
+        from services.risk.engine import RiskEngine
+        bank_prof = RiskEngine.calculate_profile(
+            "HDB",
+            {"sector": "BANK", "roe": 22.0, "npl_ratio": 1.5, "llr_coverage": 130.0, "beta": 0.95},
+            {"margin_of_safety": 0.10},
+            date(2026, 11, 10),
+        )
+        high_debt_ind = RiskEngine.calculate_profile(
+            "IND",
+            {"sector": "INDUSTRIAL", "roe": 6.0, "de_ratio": 3.5, "beta": 1.35},
+            {"margin_of_safety": -0.25},
+            date(2026, 11, 10),
+        )
+        self.assertLess(bank_prof.total_risk_score, high_debt_ind.total_risk_score)
+        self.assertNotEqual(bank_prof.total_risk_score, 50.0)
+
+
 if __name__ == "__main__":
     unittest.main()

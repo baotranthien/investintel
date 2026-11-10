@@ -131,7 +131,9 @@ class StockScreenerEngine:
                 if not dataset or not dataset.get("income_annual"):
                     continue
 
-                sec = asset.sector or dataset.get("sector") or "GENERAL"
+                from services.fundamentals.sector_models import get_sector_for_symbol
+                raw_sec = asset.sector or dataset.get("sector") or "GENERAL"
+                sec = get_sector_for_symbol(sym, raw_sec)
                 builder = FundamentalSnapshotBuilder(sym, sec)
                 snap = builder.build_snapshot(
                     income_quarters=dataset["income_quarters"],
@@ -152,6 +154,13 @@ class StockScreenerEngine:
 
                 gm = _mval(snap.get("profitability", {}), "gross_margin")
                 nm = _mval(snap.get("profitability", {}), "net_margin")
+                op_m = (
+                    _mval(snap.get("profitability", {}), "operating_margin")
+                    or _mval(snap.get("profitability", {}), "ebit_margin")
+                    or nm
+                )
+                rev_yoy = _mval(snap.get("growth", {}), "revenue_yoy")
+                rev_cagr_3y = _mval(snap.get("growth", {}), "revenue_cagr_3y")
                 roe = _mval(snap.get("profitability", {}), "roe")
                 de = _mval(snap.get("balance_sheet", {}), "de_ratio")
                 cr = _mval(snap.get("balance_sheet", {}), "current_ratio")
@@ -171,6 +180,10 @@ class StockScreenerEngine:
                             "net_income_ttm": snap.get("net_income_ttm") or (dataset["income_annual"][-1].get("net_income_parent") if dataset.get("income_annual") else None),
                             "net_debt": snap.get("balance_sheet", {}).get("net_debt", {}).get("value") if isinstance(snap.get("balance_sheet", {}).get("net_debt"), dict) else snap.get("balance_sheet", {}).get("net_debt"),
                             "roe": roe,
+                            "use_dynamic_assumptions": True,
+                            "operating_margin": op_m,
+                            "revenue_yoy": rev_yoy,
+                            "revenue_cagr_3y": rev_cagr_3y,
                         }
                         val_snap = ValuationSnapshotBuilder(sym, sec).build(fund_for_val, price, as_of)
                         if val_snap and val_snap.composite_fair_value:

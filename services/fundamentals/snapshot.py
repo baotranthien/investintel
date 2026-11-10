@@ -32,7 +32,7 @@ from .engine import (
 from .models import (
     MetricResult, DataStatus, TrendLabel, QualityFlagResult, FlagType,
 )
-from .sector_models import get_sector_model, get_sector_for_symbol
+from .sector_models import get_sector_model, get_sector_for_symbol, normalize_sector_name
 
 
 class FundamentalSnapshotBuilder:
@@ -46,8 +46,9 @@ class FundamentalSnapshotBuilder:
 
     def __init__(self, symbol: str, sector: Optional[str] = None):
         self.symbol = symbol.upper()
-        self.sector = sector or get_sector_for_symbol(self.symbol)
-        self._sector_model = get_sector_model(self.symbol, sector)
+        norm_sec = normalize_sector_name(sector) if sector else None
+        self.sector = norm_sec if (norm_sec and norm_sec != "GENERAL") else get_sector_for_symbol(self.symbol, sector)
+        self._sector_model = get_sector_model(self.symbol, self.sector)
 
     def build_snapshot(
         self,
