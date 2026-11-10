@@ -487,7 +487,7 @@ def build_research_workspace(
     valuation_metrics: dict[str, WorkspaceMetric] = {}
     eps_metric = fundamentals_metrics.get("eps_ttm")
     bvps_metric = fundamentals_metrics.get("bvps")
-    current_price = float(price.adjusted_close if price and price.adjusted_close is not None else price.raw_close) if price else None
+    current_price = round(float(price.adjusted_close if price and price.adjusted_close is not None else price.raw_close), 2) if price else None
 
     # Load stored authoritative provider metrics from FundamentalMetric for cross-check/fallback
     from database.models import FundamentalMetric

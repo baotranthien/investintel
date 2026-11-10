@@ -127,35 +127,17 @@ class RealtimeMarketSyncEngine:
                 status="VALID",
             )
             session.add(new_price)
+            session.flush()
+            session.add(DataLineage(
+                record_table="prices",
+                record_id=str(new_price.id),
+                raw_source="DNSE_REALTIME",
+                url=f"https://services.entrade.com.vn/chart-api/v2/ohlcs/stock?symbol={symbol}",
+            ))
             session.commit()
             return True
 
-    async def sync_symbols(
-        self,
-        symbols: List[str],
-        session_factory=SessionLocal,
-        max_concurrency: int = 5,
-    ) -> int:
-        """
-        Concurrently fetches live prices for target symbols and synchronizes to DB and cache.
-        """
-        sem = asyncio.Semaphore(max_concurrency)
-        INDEX_SYMBOLS = {"VN100", "VN30", "VNINDEX", "VNX50", "VN300"}
-
-        async def _sync_one(sym: str) -> Optional[Dict[str, Any]]:
-            async with sem:
-                is_idx = sym in INDEX_SYMBOLS
-                loop = asyncio.get_running_loop()
-                return await loop.run_in_executor(None, self.fetch_live_candle, sym, is_idx)
-
-        tasks = [_sync_one(s) for s in symbols]
-        candles = await asyncio.gather(*tasks, return_exceptions=True)
-
-        valid_candles = [c for c in candles if isinstance(c, dict) and c is not None]
-        if not valid_candles:
-            return 0
-
-        # Persist batch to DB
+    def _persist_candles_batch(self, valid_candles: List[Dict[str, Any]], session_factory=SessionLocal) -> int:
         updated_count = 0
         with session_factory() as session:
             for candle in valid_candles:
@@ -165,8 +147,35 @@ class RealtimeMarketSyncEngine:
                 except Exception as exc:
                     logger.warning("Could not persist realtime price for %s: %s", candle.get("symbol"), exc)
                     session.rollback()
-
         return updated_count
+
+    async def sync_symbols(
+        self,
+        symbols: List[str],
+        session_factory=SessionLocal,
+        max_concurrency: int = 4,
+    ) -> int:
+        """
+        Concurrently fetches live prices for target symbols and synchronizes to DB and cache.
+        """
+        sem = asyncio.Semaphore(max_concurrency)
+        INDEX_SYMBOLS = {"VN100", "VN30", "VNINDEX", "VNX50", "VN300"}
+        loop = asyncio.get_running_loop()
+
+        async def _sync_one(sym: str) -> Optional[Dict[str, Any]]:
+            async with sem:
+                is_idx = sym in INDEX_SYMBOLS
+                return await loop.run_in_executor(None, self.fetch_live_candle, sym, is_idx)
+
+        tasks = [_sync_one(s) for s in symbols]
+        candles = await asyncio.gather(*tasks, return_exceptions=True)
+
+        valid_candles = [c for c in candles if isinstance(c, dict) and c is not None]
+        if not valid_candles:
+            return 0
+
+        # Persist batch to DB in executor so event loop is never blocked
+        return await loop.run_in_executor(None, self._persist_candles_batch, valid_candles, session_factory)
 
     async def sync_universe(self, session_factory=SessionLocal) -> int:
         """

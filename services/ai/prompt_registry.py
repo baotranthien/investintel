@@ -80,6 +80,13 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         ],
         {"price"},
     ),
+    "price_change": (
+        [
+            r"\b(tăng\s*hay\s*giảm|biến\s*động\s*giá|thay\s*đổi\s*giá|so\s*với\s*hôm\s*qua|so\s*với\s*phiên\s*trước|giá.*?(?:tăng|giảm).*?(?:hôm\s*qua|phiên\s*trước))\b",
+            r"\b(tang\s*hay\s*giam|bien\s*dong\s*gia|thay\s*doi\s*gia|so\s*voi\s*hom\s*qua|so\s*voi\s*phien\s*truoc|gia.*?(?:tang|giam).*?(?:hom\s*qua|phien\s*truoc))\b",
+        ],
+        {"previous_close", "price_change_pct"},
+    ),
     # Debt & Capital Structure (atomic)
     "debt_to_assets": (
         [r"\b(nợ\s*(?:phải\s*trả)?\s*[\/\:]\s*(?:tổng\s*)?tài\s*sản|nợ\s*(?:phải\s*trả)?\s*trên\s*(?:tổng\s*)?tài\s*sản|debt\s*(?:to|[\/])\s*assets?)\b"],
@@ -390,6 +397,9 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             if item.get("note"):
                 entry["note"] = item.get("note")
             verifiable_evidence.append(entry)
+        elif metric and freshness == "NOT_MEANINGFUL":
+            note_txt = item.get("note") or "Không áp dụng cho đặc thù ngành (ví dụ: Ngân hàng không dùng Biên lợi nhuận gộp, Vòng quay tồn kho hay Hệ số thanh toán hiện hành)."
+            missing_indicators.append(f"{metric}: NOT_APPLICABLE_FOR_SECTOR ({note_txt})")
         elif metric and freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"}:
             missing_indicators.append(metric)
 
@@ -478,8 +488,8 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             if cat_items:
                 # Sort category items by preference (_score descending)
                 cat_items.sort(key=_score, reverse=True)
-                # Take up to 2 items for composite groups (like margins, revenue+growth), 1 for single metrics
-                take_count = 2 if cat_name in {"margins_generic", "revenue", "net_income"} else 1
+                # Take up to 2 items for composite groups (like margins, revenue+growth, price_change), 1 for single metrics
+                take_count = 2 if cat_name in {"margins_generic", "revenue", "net_income", "price_change"} else 1
                 for item in cat_items[:take_count]:
                     if item.get("id") not in selected_ids and len(selected_evidence) < max_evidence_items:
                         selected_ids.add(item.get("id"))

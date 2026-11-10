@@ -14,6 +14,7 @@ from .prompt_registry import (
     METRIC_CATEGORY_PATTERNS,
     PROMPT_VERSION,
     SYSTEM_PROMPT,
+    _strip_vietnamese_accents,
     build_chat_prompt,
     extract_requested_metric_groups,
 )
@@ -70,6 +71,88 @@ BANK_SYMBOLS = {
     "LPB", "VIB", "TPB", "MSB", "OCB", "SSB", "NAB", "BAB", "BVB", "KLB",
     "NVB", "PGB", "SGB", "VBB"
 }
+
+
+def _is_pinpoint_price_query(question: str | None) -> bool:
+    if not question:
+        return False
+    q_lower = question.lower()
+    q_norm = _strip_vietnamese_accents(q_lower)
+    advice_words = (
+        "nen ", "mua", "ban", "dau tu", "khuyen nghi", "phan tich", "danh gia", "nhan dinh",
+        "tiem nang", "target", "muc tieu", "dcf", "dinh gia", "fair value", "hanh dong",
+        "tot khong", "trien vong", "rui ro", "co hoi", "doanh thu", "loi nhuan", "roe",
+        "roa", "roic", "p/e", "p/b", "no xau", "nim", "casa", "co tuc", "dong tien", "d/e",
+    )
+    if any(w in q_norm for w in advice_words):
+        return False
+    return bool(
+        re.search(
+            r"\b(gia\s*co\s*phieu|gia\s*dong\s*cua|thi\s*gia|gia\s*hom\s*nay|gia\s*hom\s*qua|gia\s*hom\s*kia|gia\s*phien|gia\s*ngay|price|closing\s*price|gia\s*hien\s*tai|gia\s+la\s+bao\s+nhieu|gia\s+[a-z0-9]{3}\b)\b",
+            q_norm,
+        )
+    )
+
+
+def _resolve_query_date(question: str | None, explicit_as_of: date | None) -> date:
+    from datetime import timedelta
+    from services.market.trading_hours import get_effective_trading_date, get_previous_trading_day
+
+    if explicit_as_of is not None:
+        return explicit_as_of
+
+    base_date = get_effective_trading_date()
+    if not question:
+        return base_date
+
+    q_norm = _strip_vietnamese_accents(question.lower())
+
+    # 1. Explicit ISO date YYYY-MM-DD
+    m_iso = re.search(r"\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b", q_norm)
+    if m_iso:
+        try:
+            return date(int(m_iso.group(1)), int(m_iso.group(2)), int(m_iso.group(3)))
+        except ValueError:
+            pass
+
+    # 2. Explicit DD/MM/YYYY or DD-MM-YYYY
+    m_dmy = re.search(r"\b(0?[1-9]|[12]\d|3[01])[\/\-](0?[1-9]|1[0-2])[\/\-](20\d{2})\b", q_norm)
+    if m_dmy:
+        try:
+            return date(int(m_dmy.group(3)), int(m_dmy.group(2)), int(m_dmy.group(1)))
+        except ValueError:
+            pass
+
+    # 3. Contextual DD/MM (e.g. "ngay 5/11", "phien 06/11", "hom 9/11", "vao 5/11")
+    m_dm = re.search(
+        r"\b(?:ngay|phien|hom|vao|luc|date|on)\s+(0?[1-9]|[12]\d|3[01])[\/\-](0?[1-9]|1[0-2])\b",
+        q_norm,
+    )
+    if m_dm:
+        try:
+            cand = date(base_date.year, int(m_dm.group(2)), int(m_dm.group(1)))
+            if cand > base_date + timedelta(days=30):
+                cand = date(base_date.year - 1, int(m_dm.group(2)), int(m_dm.group(1)))
+            return cand
+        except ValueError:
+            pass
+
+    # 4. Relative yesterday / previous session ("hom qua", "phien truoc", "yesterday")
+    # Only shift base_date if NOT simultaneously asking to compare with "hom nay" / "today"
+    asks_today = bool(re.search(r"\b(hom\s*nay|today|hien\s*tai)\b", q_norm))
+    asks_yesterday = bool(
+        re.search(r"\b(hom\s*qua|yesterday|phien\s*hom\s*qua|phien\s*truoc|phien\s*lien\s*truoc)\b", q_norm)
+    )
+    asks_day_before = bool(re.search(r"\b(hom\s*kia|2\s*phien\s*truoc|hai\s*phien\s*truoc)\b", q_norm))
+
+    if asks_day_before and not asks_today:
+        prev1 = get_previous_trading_day(base_date)
+        return get_previous_trading_day(prev1)
+
+    if asks_yesterday and not asks_today:
+        return get_previous_trading_day(base_date)
+
+    return base_date
 
 
 def _sanitize_text(text: str, symbols: list[str] | None = None) -> str:
@@ -506,6 +589,8 @@ class AIAnalyst:
             }
 
         for c in citations:
+            if not c.symbol and c.responsible_module in ("macro", "regime") and target_symbols != ["MARKET"]:
+                continue
             sym = c.symbol or (target_symbols[0] if target_symbols else "MARKET")
             if sym not in symbols_summary:
                 symbols_summary[sym] = {"metrics": {}, "calculated_indicators": {}}
@@ -642,6 +727,12 @@ class AIAnalyst:
         sym_summaries = structured_summary.get("symbols", {})
         evidence_by_id = {c.id: c for c in citations}
 
+        asks_pinpoint_price = _is_pinpoint_price_query(question)
+        q_norm = _strip_vietnamese_accents((question or "").lower())
+        asks_price_change = bool(
+            re.search(r"\b(tang|giam|thay\s*doi|chenh\s*lech|bien\s*dong|so\s*voi\s*hom\s*qua|so\s*voi\s*phien\s*truoc)\b", q_norm)
+        )
+
         for sym, data in sym_summaries.items():
             metrics = data.get("metrics", {})
             # 1. Price claim
@@ -649,12 +740,37 @@ class AIAnalyst:
                 p_item = metrics["price"]
                 p_val = p_item["value"]
                 cid = p_item.get("citation_id")
+                cids = [cid] if cid and cid in evidence_by_id else []
                 date_str = f" tại ngày {p_item['observation_date']}" if p_item.get("observation_date") else ""
-                fallback_claims.append(AIClaim(
-                    claim_type="FACT",
-                    text=f"Giá đóng cửa của {sym}{date_str} ghi nhận ở mức {float(p_val):,.0f} VND.",
-                    citation_ids=[cid] if cid and cid in evidence_by_id else [],
-                ))
+                prev_item = metrics.get("previous_close")
+                chg_item = metrics.get("price_change_pct")
+                if prev_item and prev_item.get("value") is not None and (asks_price_change or asks_pinpoint_price):
+                    prev_val = float(prev_item["value"])
+                    diff_val = float(p_val) - prev_val
+                    pct_val = float(chg_item["value"]) if chg_item and chg_item.get("value") is not None else (diff_val / prev_val * 100.0 if prev_val else 0.0)
+                    prev_date = prev_item.get("observation_date") or "phiên trước"
+                    if prev_item.get("citation_id") and prev_item["citation_id"] in evidence_by_id:
+                        cids.append(prev_item["citation_id"])
+                    if chg_item and chg_item.get("citation_id") and chg_item["citation_id"] in evidence_by_id:
+                        cids.append(chg_item["citation_id"])
+                    dir_word = "tăng" if diff_val > 0 else ("giảm" if diff_val < 0 else "đứng giá")
+                    fallback_claims.append(AIClaim(
+                        claim_type="FACT",
+                        text=(
+                            f"Giá đóng cửa của {sym}{date_str} đạt {float(p_val):,.0f} VND/cổ phiếu "
+                            f"({dir_word} {abs(diff_val):,.0f} VND, tương đương {pct_val:+.2f}% so với mức {prev_val:,.0f} VND tại ngày {prev_date})."
+                        ),
+                        citation_ids=cids,
+                    ))
+                else:
+                    fallback_claims.append(AIClaim(
+                        claim_type="FACT",
+                        text=f"Giá đóng cửa của {sym}{date_str} ghi nhận ở mức {float(p_val):,.0f} VND.",
+                        citation_ids=cids,
+                    ))
+
+            if asks_pinpoint_price:
+                continue
 
             # 2. Valuation claims (P/E, P/B, EPS)
             pe_item = metrics.get("pe") or metrics.get("pe_ratio")
@@ -688,7 +804,13 @@ class AIAnalyst:
             fund_cids = []
             if rev_item and rev_item.get("value") is not None:
                 r_val = float(rev_item["value"])
-                r_str = f"{r_val / 1e9:,.1f} tỷ VND" if abs(r_val) >= 1e9 else f"{r_val:,.0f} VND"
+                r_unit = str(rev_item.get("unit") or "").upper()
+                if r_unit in ("BILLION_VND", "VND BILLION", "TỶ VND"):
+                    r_str = f"{r_val:,.1f} tỷ VND"
+                elif abs(r_val) >= 1e9:
+                    r_str = f"{r_val / 1e9:,.1f} tỷ VND"
+                else:
+                    r_str = f"{r_val:,.0f} VND"
                 if sym in BANK_SYMBOLS:
                     fund_parts.append(f"tổng thu nhập hoạt động (TOI) đạt {r_str}")
                 else:
@@ -697,7 +819,13 @@ class AIAnalyst:
                     fund_cids.append(rev_item["citation_id"])
             if ni_item and ni_item.get("value") is not None:
                 ni_val = float(ni_item["value"])
-                ni_str = f"{ni_val / 1e9:,.1f} tỷ VND" if abs(ni_val) >= 1e9 else f"{ni_val:,.0f} VND"
+                ni_unit = str(ni_item.get("unit") or "").upper()
+                if ni_unit in ("BILLION_VND", "VND BILLION", "TỶ VND"):
+                    ni_str = f"{ni_val:,.1f} tỷ VND"
+                elif abs(ni_val) >= 1e9:
+                    ni_str = f"{ni_val / 1e9:,.1f} tỷ VND"
+                else:
+                    ni_str = f"{ni_val:,.0f} VND"
                 fund_parts.append(f"lợi nhuận sau thuế đạt {ni_str}")
                 if ni_item.get("citation_id") and ni_item["citation_id"] in evidence_by_id:
                     fund_cids.append(ni_item["citation_id"])
@@ -757,7 +885,7 @@ class AIAnalyst:
                 ))
 
         # 5. Macro commodity & correlation claims
-        for c in citations:
+        for c in ([] if asks_pinpoint_price else citations):
             if c.metric == "brent_close" and c.value is not None:
                 fallback_claims.append(AIClaim(
                     claim_type="FACT",
@@ -886,16 +1014,7 @@ class AIAnalyst:
                 ))
 
         # Add investment verdict only if not a pinpoint price/metric question
-        q_lower = (question or "").lower()
-        is_advice_query = any(w in q_lower for w in (
-            "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
-            "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
-            "tốt không", "triển vọng"
-        ))
-        asks_pinpoint_price = bool(
-            re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
-            and not is_advice_query
-        )
+        asks_pinpoint_price = _is_pinpoint_price_query(question)
         if not asks_pinpoint_price:
             verdict_claims, _ = self._build_investment_verdict_claims(
                 citations=citations,
@@ -1425,9 +1544,8 @@ class AIAnalyst:
         task_type: TaskType = "USER_CHAT",
     ) -> AsyncGenerator[str, None]:
         from services.universe.registry import UniverseRegistry
-        from services.market.trading_hours import get_effective_trading_date
 
-        requested_date = as_of or get_effective_trading_date()
+        requested_date = _resolve_query_date(question, as_of)
 
         # Step 1: Status fetching_data
         yield f"data: {json.dumps({'type': 'status', 'step': 'fetching_data', 'message': 'Đang trích xuất BCTC và chuỗi giá...'}, ensure_ascii=False)}\n\n"
@@ -1585,19 +1703,21 @@ class AIAnalyst:
             structured_summary, metadata_flags = self._build_structured_data_summary(citations, context, extracted_symbols)
 
             if any(self._has_verifiable_evidence([c]) for c in citations):
-                fallback_claims = self._build_fallback_claims(citations, structured_summary, extracted_symbols)
-                verdict_claims, verdict_cids = self._build_investment_verdict_claims(
-                    citations=citations,
-                    structured_summary=structured_summary,
-                    extracted_symbols=extracted_symbols,
-                    existing_claims=fallback_claims,
-                )
-                if verdict_claims:
-                    existing_texts_set = {c.text for c in fallback_claims}
-                    for vc in verdict_claims:
-                        if vc.text not in existing_texts_set:
-                            fallback_claims.append(vc)
-                            existing_texts_set.add(vc.text)
+                asks_pinpoint_price = _is_pinpoint_price_query(question)
+                fallback_claims = self._build_fallback_claims(citations, structured_summary, extracted_symbols, question=question)
+                if not asks_pinpoint_price:
+                    verdict_claims, verdict_cids = self._build_investment_verdict_claims(
+                        citations=citations,
+                        structured_summary=structured_summary,
+                        extracted_symbols=extracted_symbols,
+                        existing_claims=fallback_claims,
+                    )
+                    if verdict_claims:
+                        existing_texts_set = {c.text for c in fallback_claims}
+                        for vc in verdict_claims:
+                            if vc.text not in existing_texts_set:
+                                fallback_claims.append(vc)
+                                existing_texts_set.add(vc.text)
 
                 verifiable_cits = [c for c in citations if self._has_verifiable_evidence([c])][:25]
 
@@ -1700,17 +1820,33 @@ class AIAnalyst:
                                         break
                     claim.citation_ids = list(dict.fromkeys(valid_ids))
             if claim.claim_type != "UNCERTAINTY" and not valid_ids:
-                suppressed_reasons.append("The model returned a factual or interpreted claim without a valid evidence citation.")
-                continue
+                c_lower_chk = claim.text.lower()
+                if not _extract_claim_number_tokens(claim.text) and any(
+                    kw in c_lower_chk
+                    for kw in (
+                        "không áp dụng", "không có ý nghĩa", "đặc thù ngành", "ngân hàng",
+                        "không sử dụng", "chưa có", "thiếu dữ liệu", "không khả dụng",
+                    )
+                ):
+                    claim.claim_type = "UNCERTAINTY"
+                    claim.citation_ids = []
+                else:
+                    suppressed_reasons.append("The model returned a factual or interpreted claim without a valid evidence citation.")
+                    continue
             if claim.claim_type != "UNCERTAINTY" and any(
                 evidence_by_id[citation_id].claim_type not in {"FACT", "MODEL_OUTPUT", "INTERPRETATION"}
                 or not evidence_by_id[citation_id].source
                 or evidence_by_id[citation_id].data_origin in {"SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED"}
-                or evidence_by_id[citation_id].freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED"}
+                or evidence_by_id[citation_id].freshness in {"STALE", "INSUFFICIENT_DATA", "NOT_CONFIGURED", "NOT_MEANINGFUL"}
                 for citation_id in valid_ids
             ):
-                suppressed_reasons.append("The selected citation is stale, untraced, or not a verifiable evidence source.")
-                continue
+                if all(evidence_by_id[cid].freshness == "NOT_MEANINGFUL" for cid in valid_ids) and not _extract_claim_number_tokens(claim.text):
+                    claim.claim_type = "UNCERTAINTY"
+                    claim.citation_ids = []
+                    valid_ids = []
+                else:
+                    suppressed_reasons.append("The selected citation is stale, untraced, or not a verifiable evidence source.")
+                    continue
 
             if claim.claim_type == "UNCERTAINTY":
                 valid_ids = []
@@ -1806,16 +1942,7 @@ class AIAnalyst:
                 reason = suppressed_reasons[0] if suppressed_reasons else "The model did not return any structured claims that can be safely displayed."
                 # Smart fallback: If verifiable citations exist, return AVAILABLE (in prod Ollama) or PARTIAL_DATA_ONLY
                 if any(self._has_verifiable_evidence([c]) for c in citations):
-                    q_lower = question.lower()
-                    is_advice_query = any(w in q_lower for w in (
-                        "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
-                        "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
-                        "tốt không", "triển vọng"
-                    ))
-                    asks_pinpoint_price = bool(
-                        re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
-                        and not is_advice_query
-                    )
+                    asks_pinpoint_price = _is_pinpoint_price_query(question)
                     fallback_claims = self._build_fallback_claims(citations, structured_summary, extracted_symbols, question=question)
                     if not asks_pinpoint_price:
                         verdict_claims, verdict_cids = self._build_investment_verdict_claims(
@@ -1966,16 +2093,7 @@ class AIAnalyst:
 
         # Enrich with deterministic investment thesis, fair value comparison & actionable recommendation ("Có nên đầu tư không?")
         # Skip unsolicited investment thesis when user specifically asks for pinpoint price/quote
-        q_lower = question.lower()
-        is_advice_query = any(w in q_lower for w in (
-            "nên", "mua", "bán", "đầu tư", "khuyến nghị", "phân tích", "đánh giá", "nhận định",
-            "tiềm năng", "target", "mục tiêu", "dcf", "định giá", "fair value", "hành động",
-            "tốt không", "triển vọng"
-        ))
-        asks_pinpoint_price = bool(
-            re.search(r"\b(giá\s*cổ\s*phiếu|giá\s*đóng\s*cửa|thị\s*giá|giá\s*hôm\s*nay|price|giá\s*hiện\s*tại)\b", q_lower)
-            and not is_advice_query
-        )
+        asks_pinpoint_price = _is_pinpoint_price_query(question)
         if not asks_pinpoint_price:
             verdict_claims, verdict_cids = self._build_investment_verdict_claims(
                 citations=citations,

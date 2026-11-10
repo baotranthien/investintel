@@ -163,5 +163,31 @@ class TestDomainLogicAndValuationFixes(unittest.TestCase):
         self.assertNotEqual(bank_prof.total_risk_score, 50.0)
 
 
+class TestTemporalQueryDateResolution(unittest.TestCase):
+    def test_explicit_dd_mm_yyyy_resolution(self):
+        from services.ai.analyst import _resolve_query_date
+        resolved = _resolve_query_date("Giá đóng cửa cổ phiếu FPT ngày 05/11/2026 là bao nhiêu?", None)
+        self.assertEqual(resolved, date(2026, 11, 5))
+
+    def test_relative_yesterday_resolution(self):
+        from services.ai.analyst import _resolve_query_date
+        eff_today = get_effective_trading_date()
+        expected_prev = get_previous_trading_day(eff_today)
+        resolved = _resolve_query_date("HDB gia hom qua la bao nhieu", None)
+        self.assertEqual(resolved, expected_prev)
+
+    def test_today_vs_yesterday_comparison_keeps_today_as_base(self):
+        from services.ai.analyst import _resolve_query_date
+        eff_today = get_effective_trading_date()
+        resolved = _resolve_query_date("Giá đóng cửa HDB hôm nay tăng hay giảm bao nhiêu so với hôm qua?", None)
+        self.assertEqual(resolved, eff_today)
+
+    def test_pinpoint_price_query_detection(self):
+        from services.ai.analyst import _is_pinpoint_price_query
+        self.assertTrue(_is_pinpoint_price_query("HDB gia hom qua la bao nhieu"))
+        self.assertTrue(_is_pinpoint_price_query("Giá đóng cửa FPT ngày 05/11/2026 là bao nhiêu?"))
+        self.assertFalse(_is_pinpoint_price_query("Định giá DCF và giá cổ phiếu PLX hiện tại có nên đầu tư không?"))
+
+
 if __name__ == "__main__":
     unittest.main()

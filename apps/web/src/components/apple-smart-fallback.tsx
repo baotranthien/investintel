@@ -44,44 +44,59 @@ function formatMetricKey(key: string, isBank: boolean = false): string {
   return kUpper;
 }
 
-function formatMetricValue(val: number | null | undefined, metric: string): string {
+function formatMetricValue(val: number | null | undefined, metric: string, unit?: string): string {
   if (val === null || val === undefined || isNaN(val)) return "N/A";
   const mLower = metric.toLowerCase();
+  const uUpper = (unit || "").toUpperCase();
+
+  // Explicit unit-based formatting for Billions VND
+  if (uUpper === "BILLION_VND" || uUpper === "VND BILLION" || uUpper === "TỶ VND") {
+    return `${val.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} tỷ VND`;
+  }
 
   // Price & Fair Value formatting
-  if (mLower === "price" || mLower.includes("fair_value") || mLower.includes("dcf")) {
-    return `${val.toLocaleString("vi-VN")} VND`;
+  if (
+    mLower === "price" ||
+    mLower === "previous_close" ||
+    mLower.includes("fair_value") ||
+    mLower.includes("dcf") ||
+    mLower === "eps" ||
+    mLower === "eps_ttm" ||
+    mLower === "bvps"
+  ) {
+    return `${val.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VND`;
   }
 
-  // Growth, Margins & Percentage ratios
+  // Growth, Margins & Percentage ratios (guard against raw level series > 1000 misnamed as growth)
   if (
-    mLower.includes("yoy") ||
-    mLower.includes("cagr") ||
-    mLower.includes("growth") ||
-    mLower.includes("margin") ||
-    mLower.includes("roe") ||
-    mLower.includes("roa") ||
-    mLower.includes("roic") ||
-    mLower.includes("nim") ||
-    mLower.includes("casa") ||
-    mLower.includes("npl") ||
-    mLower.includes("llr") ||
-    mLower.includes("tăng trưởng") ||
-    mLower.includes("pct")
+    (mLower.includes("yoy") ||
+      mLower.includes("cagr") ||
+      mLower.includes("growth") ||
+      mLower.includes("margin") ||
+      mLower.includes("roe") ||
+      mLower.includes("roa") ||
+      mLower.includes("roic") ||
+      mLower.includes("nim") ||
+      mLower.includes("casa") ||
+      mLower.includes("npl") ||
+      mLower.includes("llr") ||
+      mLower.includes("tăng trưởng") ||
+      mLower.includes("pct") ||
+      uUpper === "%" ||
+      uUpper === "PERCENT") &&
+    Math.abs(val) < 1000
   ) {
-    if (Math.abs(val) <= 1.0 && val !== 0) {
+    if (Math.abs(val) <= 1.0 && val !== 0 && !mLower.includes("pct") && uUpper !== "%") {
       return `${(val * 100).toFixed(2)}%`;
     }
-    return `${val > 0 && (mLower.includes("yoy") || mLower.includes("cagr") || mLower.includes("growth")) ? "+" : ""}${val.toFixed(2)}%`;
+    return `${val > 0 && (mLower.includes("yoy") || mLower.includes("cagr") || mLower.includes("growth") || mLower.includes("change")) ? "+" : ""}${val.toFixed(2)}%`;
   }
 
-  // Valuation Multiples (P/E, P/B, EV/EBITDA, D/E)
+  // Valuation Multiples (P/E, P/B, EV/EBITDA, D/E, Coverage) — use word boundary so 'operating' or 'capex' never match 'pe'
   if (
-    mLower.includes("pe") ||
-    mLower.includes("pb") ||
+    /(?:^|_)(?:pe|pb|ev_ebitda|de_ratio|net_debt_ebitda)(?:_|$)/.test(mLower) ||
     mLower.includes("p/e") ||
     mLower.includes("p/b") ||
-    mLower.includes("de_ratio") ||
     mLower.includes("coverage")
   ) {
     return `${val.toFixed(2)}x`;
@@ -294,7 +309,11 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                           {typeof v === "number"
                             ? formatMetricValue(v, k)
                             : typeof v === "object" && v !== null && "value" in v
-                            ? formatMetricValue((v as Record<string, unknown>).value as number, k)
+                            ? formatMetricValue(
+                                (v as Record<string, unknown>).value as number,
+                                k,
+                                (v as Record<string, unknown>).unit as string | undefined
+                              )
                             : String(v ?? "N/A")}
                         </span>
                       </div>

@@ -47,6 +47,56 @@ def _status(data: Any) -> str:
     return "AVAILABLE"
 
 
+def _get_price_change_evidence(db: Session, asset: Asset, as_of: date) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = []
+    if not asset:
+        return evidence
+    try:
+        rows = (
+            db.query(Price)
+            .filter(Price.asset_id == asset.id, Price.status == "VALID", Price.observation_date <= as_of)
+            .order_by(Price.observation_date.desc())
+            .limit(2)
+            .all()
+        )
+        if len(rows) >= 2:
+            curr, prev = rows[0], rows[1]
+            c_val = round(float(curr.adjusted_close if curr.adjusted_close is not None else curr.raw_close), 2)
+            p_val = round(float(prev.adjusted_close if prev.adjusted_close is not None else prev.raw_close), 2)
+            if p_val > 0:
+                chg_vnd = round(c_val - p_val, 2)
+                chg_pct = round((chg_vnd / p_val) * 100.0, 2)
+                evidence.append({
+                    "claim_type": "FACT",
+                    "responsible_module": "price",
+                    "metric": "previous_close",
+                    "symbol": asset.symbol,
+                    "value": p_val,
+                    "unit": "VND",
+                    "source": prev.source or "CANONICAL_DATABASE",
+                    "data_origin": "CANONICAL_DATABASE",
+                    "freshness": "AVAILABLE",
+                    "observation_date": prev.observation_date.isoformat(),
+                    "note": f"Giá đóng cửa phiên liền trước ({prev.observation_date}) của {asset.symbol}: {p_val:,.0f} VND/cổ phiếu.",
+                })
+                evidence.append({
+                    "claim_type": "MODEL_OUTPUT",
+                    "responsible_module": "price",
+                    "metric": "price_change_pct",
+                    "symbol": asset.symbol,
+                    "value": chg_pct,
+                    "unit": "%",
+                    "source": curr.source or "CANONICAL_DATABASE",
+                    "data_origin": "CANONICAL_DATABASE",
+                    "freshness": "AVAILABLE",
+                    "observation_date": curr.observation_date.isoformat(),
+                    "note": f"Biến động giá {asset.symbol} phiên {curr.observation_date} so với phiên liền trước ({prev.observation_date}): {chg_vnd:+,.0f} VND ({chg_pct:+.2f}%), từ {p_val:,.0f} VND sang {c_val:,.0f} VND.",
+                })
+    except Exception:
+        pass
+    return evidence
+
+
 def _get_bank_evidence(db: Session, asset: Asset, as_of: date) -> list[dict[str, Any]]:
     is_bank = (asset.sector and "BANK" in asset.sector.upper()) or asset.symbol in {
         "VCB", "MBB", "TCB", "BID", "CTG", "ACB", "VPB", "STB", "HDB", "TPB", "MSB", "SHB", "VIB", "LPB", "SSB", "EIB", "OCB"
@@ -528,16 +578,46 @@ def _get_dividend_evidence(db: Session, symbol: str, as_of: date) -> list[dict[s
     return evidence
 
 
-def _get_screener_evidence(db: Session, screener_spec: Any, as_of: date) -> list[dict[str, Any]]:
+def _get_screener_evidence(db: Session, screener_spec: Any, as_of: date, question: Optional[str] = None) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     try:
+        import re
         from services.screener.engine import StockScreenerEngine, ScreenerCriteria
         engine = StockScreenerEngine(db)
         pe_max = getattr(screener_spec, "pe_max", None)
         roe_min = getattr(screener_spec, "roe_min", None)
+        pb_max = getattr(screener_spec, "pb_max", None)
+        sector_filter = getattr(screener_spec, "sector", None)
+
+        if question:
+            q_low = question.lower()
+            if pe_max is None:
+                m_pe = re.search(r"\bp\/?e\s*(?:dưới|nhỏ\s*hơn|thấp\s*hơn|<|<=)\s*(\d+(?:[.,]\d+)?)", q_low)
+                if m_pe:
+                    pe_max = float(m_pe.group(1).replace(",", "."))
+            if roe_min is None:
+                m_roe = re.search(r"\broe\s*(?:trên|lớn\s*hơn|cao\s*hơn|>|>=)\s*(\d+(?:[.,]\d+)?)", q_low)
+                if m_roe:
+                    roe_min = float(m_roe.group(1).replace(",", "."))
+            if pb_max is None:
+                m_pb = re.search(r"\bp\/?b\s*(?:dưới|nhỏ\s*hơn|thấp\s*hơn|<|<=)\s*(\d+(?:[.,]\d+)?)", q_low)
+                if m_pb:
+                    pb_max = float(m_pb.group(1).replace(",", "."))
+            if sector_filter is None:
+                if "ngân hàng" in q_low or "bank" in q_low:
+                    sector_filter = "BANK"
+                elif "bán lẻ" in q_low or "retail" in q_low:
+                    sector_filter = "RETAIL"
+                elif "công nghệ" in q_low or "tech" in q_low:
+                    sector_filter = "TECHNOLOGY"
+                elif "thép" in q_low or "vật liệu" in q_low:
+                    sector_filter = "MATERIALS"
+
         crit = ScreenerCriteria(
             universe="ALL",
+            sector=sector_filter,
             pe_max=pe_max if pe_max is not None else 15.0,
+            pb_max=pb_max,
             roe_min=roe_min if roe_min is not None else 15.0,
             limit=100,
         )
@@ -595,7 +675,7 @@ def _get_screener_evidence(db: Session, screener_spec: Any, as_of: date) -> list
                 "data_origin": "CANONICAL_DATABASE",
                 "freshness": "AVAILABLE",
                 "observation_date": as_of.isoformat(),
-                "note": f"Mã {m.symbol}: P/E={m.pe} (nhỏ hơn 15), ROE={m.roe}% (lớn hơn 15%).",
+                "note": f"Mã {m.symbol}: P/E={m.pe} (nhỏ hơn {crit.pe_max}), ROE={m.roe}% (lớn hơn {crit.roe_min}%).",
             })
             evidence.append({
                 "claim_type": "FACT",
@@ -846,7 +926,8 @@ class AITools:
                             ev_copy["symbol"] = sym
                             combined_evidence.append(ev_copy)
 
-                        # Bank metrics expansion
+                        # Bank metrics & price change expansion
+                        combined_evidence.extend(_get_price_change_evidence(db, asset, as_of))
                         bank_ev = _get_bank_evidence(db, asset, as_of)
                         combined_evidence.extend(bank_ev)
 
@@ -936,8 +1017,9 @@ class AITools:
                 for ev in evidence:
                     ev.setdefault("symbol", normalized)
 
-            # Bank metrics expansion
+            # Bank metrics & price change expansion
             if asset:
+                evidence.extend(_get_price_change_evidence(db, asset, as_of))
                 bank_ev = _get_bank_evidence(db, asset, as_of)
                 evidence.extend(bank_ev)
 
@@ -967,7 +1049,7 @@ class AITools:
                 or (re.search(r"\bp\/e\b.*?\b(?:dưới|<|thấp\s*hơn)\b", q_lower_str) and re.search(r"\broe\b.*?\b(?:trên|>|cao\s*hơn)\b", q_lower_str))
             )
             if is_screener:
-                scr_ev = _get_screener_evidence(db, None, as_of)
+                scr_ev = _get_screener_evidence(db, None, as_of, question=question)
                 evidence.extend(scr_ev)
 
             # Market context & breadth expansion (Q8)
