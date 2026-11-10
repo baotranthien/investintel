@@ -104,7 +104,10 @@ class ValuationSnapshotBuilder:
             
         if "Residual Income" in selection.primary_methods or "Residual Income" in selection.secondary_methods:
             real_roe = fundamentals.get("roe")
-            roe_val = (real_roe / 100.0) if (real_roe is not None and real_roe > 0) else 0.18
+            if real_roe is not None and real_roe != 0:
+                roe_val = (real_roe / 100.0) if abs(real_roe) > 1.0 else float(real_roe)
+            else:
+                roe_val = 0.18
             ri_growth = min(0.045, max(0.030, roe_val * 0.20)) if use_dyn else 0.04
             ri_coe = max(0.115, cost_of_equity) if use_dyn else 0.12
             out = ResidualIncomeEngine.calculate(bvps=bvps, roe=roe_val, cost_of_equity=ri_coe, growth=ri_growth)

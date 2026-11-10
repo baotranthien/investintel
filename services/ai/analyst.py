@@ -3,6 +3,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 import json
 import logging
+import os
 import re
 from typing import Any, AsyncGenerator, Literal, Optional
 
@@ -27,6 +28,10 @@ from .tools import AITools
 logger = logging.getLogger(__name__)
 
 
+def _is_ollama_or_gateway_provider(provider: Any) -> bool:
+    return isinstance(provider, (OllamaProvider, AIGateway))
+
+
 _NUMBER = re.compile(r"(?<![A-Za-z0-9_])[-+]?\d[\d,]*(?:\.\d+)?%?")
 
 
@@ -44,11 +49,13 @@ def _extract_token_interpretations(token_match: str) -> set[Decimal]:
             interpretations.add(Decimal(cleaned.replace(",", ".")).normalize())
         except (InvalidOperation, ValueError):
             pass
-    # 3. As Vietnamese thousands dot (e.g. 51.000 -> 51000, 142.773 -> 142773)
+    # 3. As Vietnamese thousands dot (e.g. 51.000 -> 51000, 22.500 -> 22500, 1.000.000 -> 1000000)
     if "." in cleaned:
         try:
             parts = cleaned.split(".")
-            if len(parts) > 1 and all(len(p) == 3 for p in parts[1:]):
+            if len(parts) > 2 and all(len(p) == 3 for p in parts[1:]):
+                interpretations.add(Decimal("".join(parts)).normalize())
+            elif len(parts) == 2 and len(parts[1]) == 3 and parts[1] in ("000", "500"):
                 interpretations.add(Decimal("".join(parts)).normalize())
         except (InvalidOperation, ValueError):
             pass
@@ -226,6 +233,9 @@ def _is_number_grounded(num: Decimal, cited_numbers: set[Decimal]) -> bool:
         # Check relative tolerance (0.5%) for larger numbers
         if abs(c_f) > 1e-6 and abs(num_f - c_f) / abs(c_f) <= 0.005:
             return True
+    return False
+
+
 def _calculate_pearson(series_x: list[float] | None, series_y: list[float] | None) -> float | None:
     if not series_x or not series_y or len(series_x) != len(series_y) or len(series_x) < 3:
         return None
@@ -1724,7 +1734,7 @@ class AIAnalyst:
                 sym_label = ", ".join(extracted_symbols) if extracted_symbols else (canonical_symbol or symbol or "")
                 sym_str = f"cổ phiếu {sym_label} " if sym_label else ""
 
-                is_prod_ollama = isinstance(self.provider, OllamaProvider) and "PYTEST_CURRENT_TEST" not in os.environ
+                is_prod_ollama = _is_ollama_or_gateway_provider(self.provider) and "PYTEST_CURRENT_TEST" not in os.environ
                 if is_prod_ollama:
                     answer_text = (
                         f"Báo cáo phân tích định lượng và thẩm định cơ hội đầu tư {sym_str}"
@@ -1799,7 +1809,7 @@ class AIAnalyst:
             valid_ids = [citation_id for citation_id in claim.citation_ids if citation_id in evidence_by_id]
 
             # Citation auto-enrichment for Ollama provider: if LLM returned factual numbers from citations but missed citing them
-            if isinstance(self.provider, OllamaProvider) and claim.claim_type != "UNCERTAINTY":
+            if _is_ollama_or_gateway_provider(self.provider) and claim.claim_type != "UNCERTAINTY":
                 claim_tokens = _extract_claim_number_tokens(claim.text)
                 if claim_tokens:
                     current_cited_numbers = set().union(*(
@@ -1963,7 +1973,7 @@ class AIAnalyst:
                     sym_label = ", ".join(extracted_symbols) if extracted_symbols else (canonical_symbol or symbol or "")
                     sym_str = f"cổ phiếu {sym_label} " if sym_label else ""
 
-                    is_prod_ollama = isinstance(self.provider, OllamaProvider) and "PYTEST_CURRENT_TEST" not in os.environ
+                    is_prod_ollama = _is_ollama_or_gateway_provider(self.provider) and "PYTEST_CURRENT_TEST" not in os.environ
                     if is_prod_ollama:
                         answer_text = (
                             f"Báo cáo phân tích định lượng và thẩm định cơ hội đầu tư {sym_str}"

@@ -121,13 +121,24 @@ def ensure_ollama_server() -> bool:
         except Exception:
             pass
 
-    candidates = [
-        Path(r"C:\Users\baotr\AppData\Local\Microsoft\WinGet\Packages\Ollama.Ollama.Portable_Microsoft.Winget.Source_8wekyb3d8bbwe\ollama.exe"),
-        Path(os.path.expanduser("~")) / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
-    ]
+    candidates: list[Path] = []
     which_ollama = shutil.which("ollama")
     if which_ollama:
-        candidates.insert(0, Path(which_ollama))
+        candidates.append(Path(which_ollama))
+
+    local_app_data = os.getenv("LOCALAPPDATA") or str(Path(os.path.expanduser("~")) / "AppData" / "Local")
+    winget_packages = Path(local_app_data) / "Microsoft" / "WinGet" / "Packages"
+    if winget_packages.exists():
+        try:
+            for p in winget_packages.glob("*Ollama*"):
+                ollama_bin = p / "ollama.exe"
+                if ollama_bin.exists():
+                    candidates.append(ollama_bin)
+        except Exception:
+            pass
+
+    candidates.append(Path(local_app_data) / "Programs" / "Ollama" / "ollama.exe")
+    candidates.append(Path(os.path.expanduser("~")) / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe")
 
     for exe_path in candidates:
         if exe_path.exists():

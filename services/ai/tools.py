@@ -1,6 +1,7 @@
 from datetime import date
 from typing import Any, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
@@ -184,8 +185,8 @@ def _get_commodity_evidence_and_series(
             if target_asset:
                 # 1. Stock price vs Brent spot price series
                 stock_prices = (
-                    db.query(Price.observation_date, Price.raw_close)
-                    .filter(Price.asset_id == target_asset.id, Price.observation_date <= as_of)
+                    db.query(Price.observation_date, func.coalesce(Price.adjusted_close, Price.raw_close))
+                    .filter(Price.asset_id == target_asset.id, Price.observation_date <= as_of, Price.status == "VALID")
                     .order_by(Price.observation_date.asc())
                     .all()
                 )
@@ -346,7 +347,10 @@ def _get_valuation_dcf_evidence(db: Session, symbol: str, as_of: date) -> list[d
     if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL"):
         return evidence
     try:
-        from apps.api.routers.valuation import _load_fundamentals_for_valuation, _get_latest_price, _get_asset_sector
+        try:
+            from apps.api.routers.valuation import _load_fundamentals_for_valuation, _get_latest_price, _get_asset_sector
+        except ImportError:
+            from routers.valuation import _load_fundamentals_for_valuation, _get_latest_price, _get_asset_sector
         from services.fundamentals.sector_models import get_sector_for_symbol
         from services.valuation.builder import ValuationSnapshotBuilder
         funds = _load_fundamentals_for_valuation(symbol, as_of)
@@ -1109,7 +1113,7 @@ class AITools:
                 data = tool_data.get(name)
                 state = _status(data)
                 if name == "document_retrieval":
-                    state = "INSUFFICIENT_DATA"
+                    state = (data.get("status") if isinstance(data, dict) else _status(data)) or "INSUFFICIENT_DATA"
                 results.append({"name": name, "status": state, "data": data})
 
             return {

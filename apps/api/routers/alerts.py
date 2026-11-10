@@ -39,7 +39,7 @@ def list_investment_alerts(
             alert_type=r.kind,
             severity=payload.get("severity", "MEDIUM"),
             title=payload.get("title", f"Alert for {r.symbol}"),
-            description=payload.get("description", ""),
+            description=payload.get("description") or payload.get("summary", ""),
             metrics=payload.get("metrics", {}),
             triggered_at=r.created_at,
             status=r.status,

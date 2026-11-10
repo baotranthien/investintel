@@ -172,6 +172,8 @@ class InvestmentAlertsEngine:
         for a in alerts:
             alert_id = f"ALERT-{sym}-{a.alert_type}-{as_of.strftime('%Y%m')}"
             existing = self.session.query(AnalystAlert).filter(AnalystAlert.alert_id == alert_id).first()
+            if existing and existing.status == "DISMISSED":
+                continue
             if not existing:
                 new_alert = AnalystAlert(
                     alert_id=alert_id,
@@ -183,6 +185,7 @@ class InvestmentAlertsEngine:
                         "description": a.description,
                         "severity": a.severity,
                         "metrics": a.metrics,
+                        "summary": a.description,
                         "as_of_date": as_of.isoformat(),
                     },
                 )

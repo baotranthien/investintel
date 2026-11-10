@@ -16,7 +16,11 @@ class FactorEngine:
         # This is a structural demonstration.
         
         roe = fundamentals.get("roe", 0.15)
+        if roe is not None and abs(roe) > 1.0:
+            roe = roe / 100.0
         revenue_growth = fundamentals.get("revenue_growth", 0.10)
+        if revenue_growth is not None and abs(revenue_growth) > 1.0:
+            revenue_growth = revenue_growth / 100.0
         pe = fundamentals.get("pe", 15.0)
         div_yield = fundamentals.get("dividend_yield", 0.03)
         momentum_6m = fundamentals.get("momentum_6m", 0.05)

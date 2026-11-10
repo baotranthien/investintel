@@ -345,7 +345,7 @@ export default function PortfolioPage() {
           <label>Mã cổ phiếu<input name="symbol" required maxLength={20} placeholder="VD: FPT, MWG" /></label>
           <label>Khối lượng<input name="quantity" required type="number" min="0.00000001" step="0.00000001" placeholder="VD: 1000" /></label>
           <label>Giá vốn bình quân (VND)<input name="average_cost" required type="number" min="0.000001" step="0.000001" placeholder="VD: 125000" /></label>
-          <label>Ngày khớp lệnh<input name="acquisition_date" required type="date" max={new Date().toISOString().slice(0, 10)} /></label>
+          <label>Ngày khớp lệnh<input name="acquisition_date" required type="date" max={new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)} /></label>
           <label>Vai trò danh mục<select name="role" defaultValue="UNASSIGNED"><option value="UNASSIGNED">Chưa phân loại</option><option value="CORE">Cốt lõi</option><option value="SATELLITE">Vệ tinh</option></select></label>
           <label>Khung thời gian đầu tư<select name="horizon" defaultValue=""><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
           <label className={styles.notesField}>Ghi chú cá nhân<input name="notes" maxLength={2000} placeholder="Luận điểm hoặc ghi chú cá nhân..." /></label>
@@ -422,7 +422,7 @@ export default function PortfolioPage() {
           <div className={styles.cardHeader}><h3>Kế hoạch tích lũy hàng tháng (DCA)</h3>{dca.state === "ready" && <Status value={dca.data.status} />}</div>
           {dca.state === "error" && <ErrorState message={dca.message} />}
           <form className={styles.dcaForm} onSubmit={saveDca}>
-            <label>Số tiền tích lũy hàng tháng (VND)<input type="number" min="300000" max="400000" step="10000" value={dcaAmount} onChange={(event) => setDcaAmount(Number(event.target.value))} required /></label>
+            <label>Số tiền tích lũy hàng tháng (VND)<input type="number" min="100000" step="50000" value={dcaAmount} onChange={(event) => setDcaAmount(Number(event.target.value))} required /></label>
             <label>Tỷ trọng cốt lõi (%)<input type="number" min="0" max="100" step="1" value={Math.round(corePct * 100)} onChange={(event) => setCorePct(Number(event.target.value) / 100)} required /></label>
             <label>Tỷ trọng vệ tinh (%)<input type="number" min="0" max="100" step="1" value={Math.round(satellitePct * 100)} onChange={(event) => setSatellitePct(Number(event.target.value) / 100)} required /></label>
             <button disabled={busy} type="submit">Lưu kế hoạch DCA</button>
@@ -438,11 +438,11 @@ export default function PortfolioPage() {
         <form className={styles.form} onSubmit={addTransaction}>
           <label>Mã cổ phiếu<input name="symbol" required placeholder="VD: FPT" /></label><label>Loại giao dịch<select name="transaction_type"><option value="BUY">Mua</option><option value="SELL">Bán</option><option value="DIVIDEND">Cổ tức</option><option value="FEE">Phí</option></select></label>
           <label>Khối lượng<input name="quantity" required type="number" min="0.00000001" step="0.00000001" placeholder="VD: 500" /></label><label>Đơn giá (VND)<input name="unit_price" required type="number" min="0.000001" step="0.000001" placeholder="VD: 130000" /></label>
-          <label>Ngày giao dịch<input name="transaction_date" required type="date" max={new Date().toISOString().slice(0, 10)} /></label><label>Ghi chú<input name="notes" placeholder="Ghi chú giao dịch..." /></label><button disabled={busy} type="submit">+ Ghi nhận giao dịch</button>
+          <label>Ngày giao dịch<input name="transaction_date" required type="date" max={new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10)} /></label><label>Ghi chú<input name="notes" placeholder="Ghi chú giao dịch..." /></label><button disabled={busy} type="submit">+ Ghi nhận giao dịch</button>
         </form>
         {transactions.state === "error" && <ErrorState message={transactions.message} />}
         {transactions.state === "ready" && transactions.data.length === 0 && <p className={styles.empty}>Chưa có giao dịch thủ công nào được ghi nhận.</p>}
-        {transactions.state === "ready" && transactions.data.map((transaction, index) => <p className={styles.transactionRow} key={String(transaction.id ?? index)}>{String(transaction.transaction_date)} · {String(transaction.symbol)} · {String(transaction.transaction_type)} · {money(Number(transaction.unit_price))} · THỦ CÔNG</p>)}
+        {transactions.state === "ready" && transactions.data.map((transaction, index) => <p className={styles.transactionRow} key={String(transaction.id ?? index)}>{String(transaction.transaction_date)} · {String(transaction.symbol)} · {String(transaction.transaction_type)} · KL: {Number(transaction.quantity).toLocaleString("vi-VN")} CP · Đơn giá: {money(Number(transaction.unit_price))} · THỦ CÔNG</p>)}
       </section>
     </>}
   </div>;

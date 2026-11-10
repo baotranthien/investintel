@@ -101,6 +101,39 @@ def _build_snapshot_from_dataset(dataset: Dict[str, Any], as_of_date: Optional[d
     )
 
 
+@router.get("/formula-registry", summary="Danh mục công thức — Formula Registry")
+def get_formula_registry(scope: Optional[str] = None, sector: Optional[str] = None):
+    """Returns the formula registry for all financial metrics."""
+    specs = list_formulas(scope=scope, sector=sector)
+    return {
+        "count": len(specs),
+        "formulas": [
+            {
+                "metric_id": s.metric_id,
+                "name": s.name,
+                "name_vi": s.name_vi,
+                "formula": s.formula,
+                "version": s.version,
+                "unit": s.unit,
+                "scope": s.scope,
+                "sector": s.sector,
+                "description": s.description,
+                "caveats": s.caveats,
+            }
+            for s in specs
+        ],
+    }
+
+
+@router.get("/sector-map", summary="Bảng phân ngành — Sector Map")
+def get_sector_map():
+    """Returns the company-to-sector mapping."""
+    return {
+        "count": len(COMPANY_SECTOR_MAP),
+        "sector_map": COMPANY_SECTOR_MAP,
+    }
+
+
 @router.get("/{symbol}", summary="Tổng quan cơ bản — Company fundamental overview")
 def get_fundamental_overview(symbol: str, as_of: Optional[str] = Query(None, description="As-of date (YYYY-MM-DD)")):
     """
@@ -280,37 +313,4 @@ def get_segments(symbol: str):
         "message": "Segment data requires official notes disclosure. Not currently available in canonical pipeline.",
         "data": [],
         "provenance": dataset.get("provenance", {})
-    }
-
-
-@router.get("/formula-registry", summary="Danh mục công thức — Formula Registry")
-def get_formula_registry(scope: Optional[str] = None, sector: Optional[str] = None):
-    """Returns the formula registry for all financial metrics."""
-    specs = list_formulas(scope=scope, sector=sector)
-    return {
-        "count": len(specs),
-        "formulas": [
-            {
-                "metric_id": s.metric_id,
-                "name": s.name,
-                "name_vi": s.name_vi,
-                "formula": s.formula,
-                "version": s.version,
-                "unit": s.unit,
-                "scope": s.scope,
-                "sector": s.sector,
-                "description": s.description,
-                "caveats": s.caveats,
-            }
-            for s in specs
-        ],
-    }
-
-
-@router.get("/sector-map", summary="Bảng phân ngành — Sector Map")
-def get_sector_map():
-    """Returns the company-to-sector mapping."""
-    return {
-        "count": len(COMPANY_SECTOR_MAP),
-        "sector_map": COMPANY_SECTOR_MAP,
     }

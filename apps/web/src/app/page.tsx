@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, type FormEvent, type JSX } from "react";
+import React, { useState, useEffect, type FormEvent, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,7 +8,11 @@ import {
   getOpportunityScanner,
   getDataProviders,
   getAssets,
+  getPortfolio,
+  getWatchlist,
   type OpportunityFilters,
+  type PortfolioDashboard,
+  type WatchlistItem,
 } from "@/lib/api";
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -71,6 +75,27 @@ export default function Home(): JSX.Element {
   const router = useRouter();
   const [aiQuery, setAiQuery] = useState("");
   const [hoveredTorusIdx, setHoveredTorusIdx] = useState<number | null>(null);
+  const [portfolioData, setPortfolioData] = useState<PortfolioDashboard | null>(null);
+  const [watchlistData, setWatchlistData] = useState<WatchlistItem[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getPortfolio()
+      .then((data) => {
+        if (active) setPortfolioData(data);
+      })
+      .catch(() => {});
+
+    getWatchlist()
+      .then((items) => {
+        if (active) setWatchlistData(items);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // TẦNG 1: Market Dashboard cache 60s
   const marketResource = useCachedResource(
@@ -373,41 +398,75 @@ export default function Home(): JSX.Element {
                 </div>
 
                 <div className={styles.allocLegend}>
-                  <span
-                    className={`${styles.legendItem} ${hoveredTorusIdx === 0 ? styles.legendItemActive : ""}`}
-                    onMouseEnter={() => setHoveredTorusIdx(0)}
-                    onMouseLeave={() => setHoveredTorusIdx(null)}
-                  >
-                    <span className={styles.legendDot} style={{ background: "#3b82f6" }} />
-                    Tăng trưởng (45%)
-                  </span>
-                  <span
-                    className={`${styles.legendItem} ${hoveredTorusIdx === 1 ? styles.legendItemActive : ""}`}
-                    onMouseEnter={() => setHoveredTorusIdx(1)}
-                    onMouseLeave={() => setHoveredTorusIdx(null)}
-                  >
-                    <span className={styles.legendDot} style={{ background: "#10b981" }} />
-                    Phòng thủ & Cổ tức (35%)
-                  </span>
-                  <span
-                    className={`${styles.legendItem} ${hoveredTorusIdx === 2 ? styles.legendItemActive : ""}`}
-                    onMouseEnter={() => setHoveredTorusIdx(2)}
-                    onMouseLeave={() => setHoveredTorusIdx(null)}
-                  >
-                    <span className={styles.legendDot} style={{ background: "#f59e0b" }} />
-                    Dự trữ tiền mặt (20%)
-                  </span>
+                  {portfolioData && portfolioData.allocation?.core_satellite?.length > 0 ? (
+                    portfolioData.allocation.core_satellite.map((item, idx) => (
+                      <span
+                        key={item.role || idx}
+                        className={`${styles.legendItem} ${hoveredTorusIdx === idx ? styles.legendItemActive : ""}`}
+                        onMouseEnter={() => setHoveredTorusIdx(idx)}
+                        onMouseLeave={() => setHoveredTorusIdx(null)}
+                      >
+                        <span
+                          className={styles.legendDot}
+                          style={{
+                            background: idx === 0 ? "#3b82f6" : idx === 1 ? "#10b981" : "#f59e0b",
+                          }}
+                        />
+                        {item.role === "CORE"
+                          ? "Cốt lõi (Core)"
+                          : item.role === "SATELLITE"
+                          ? "Vệ tinh (Satellite)"
+                          : item.role}{" "}
+                        ({Math.round((item.weight ?? 0) * 100)}%)
+                      </span>
+                    ))
+                  ) : (
+                    <>
+                      <span
+                        className={`${styles.legendItem} ${hoveredTorusIdx === 0 ? styles.legendItemActive : ""}`}
+                        onMouseEnter={() => setHoveredTorusIdx(0)}
+                        onMouseLeave={() => setHoveredTorusIdx(null)}
+                      >
+                        <span className={styles.legendDot} style={{ background: "#3b82f6" }} />
+                        Tăng trưởng (45%)
+                      </span>
+                      <span
+                        className={`${styles.legendItem} ${hoveredTorusIdx === 1 ? styles.legendItemActive : ""}`}
+                        onMouseEnter={() => setHoveredTorusIdx(1)}
+                        onMouseLeave={() => setHoveredTorusIdx(null)}
+                      >
+                        <span className={styles.legendDot} style={{ background: "#10b981" }} />
+                        Phòng thủ & Cổ tức (35%)
+                      </span>
+                      <span
+                        className={`${styles.legendItem} ${hoveredTorusIdx === 2 ? styles.legendItemActive : ""}`}
+                        onMouseEnter={() => setHoveredTorusIdx(2)}
+                        onMouseLeave={() => setHoveredTorusIdx(null)}
+                      >
+                        <span className={styles.legendDot} style={{ background: "#f59e0b" }} />
+                        Dự trữ tiền mặt (20%)
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
               <div className={styles.strategyStats}>
                 <div className={styles.statRow}>
                   <span className={styles.statLabel}>Chiến lược:</span>
-                  <span className={styles.statValue}>3 danh mục phân lớp rủi ro</span>
+                  <span className={styles.statValue}>
+                    {portfolioData && portfolioData.holdings && portfolioData.holdings.length > 0
+                      ? `${portfolioData.holdings.length} vị thế nắm giữ · ${portfolioData.summary?.holdings_count ?? portfolioData.holdings.length} mã`
+                      : "3 danh mục phân lớp rủi ro"}
+                  </span>
                 </div>
                 <div className={styles.statRow}>
                   <span className={styles.statLabel}>Kế hoạch DCA:</span>
-                  <span className={styles.statValue}>Tự động theo pha chu kỳ VN100</span>
+                  <span className={styles.statValue}>
+                    {portfolioData && portfolioData.summary?.total_value
+                      ? `Tổng giá trị: ${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(portfolioData.summary.total_value)} VND`
+                      : "Tự động theo pha chu kỳ VN100"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -433,34 +492,65 @@ export default function Home(): JSX.Element {
 
             <div className={styles.bentoBody}>
               <div className={styles.watchList}>
-                <div className={styles.watchRow}>
-                  <div className={styles.watchLeft}>
-                    <strong className={styles.watchSymbol}>HPG</strong>
-                    <span className={styles.watchNote}>Thép · Biên lợi nhuận phục hồi</span>
-                  </div>
-                  <StatusBadge status="AVAILABLE" label="Dưới giá trị" />
-                </div>
+                {watchlistData && watchlistData.length > 0 ? (
+                  watchlistData.slice(0, 3).map((item) => (
+                    <div key={item.symbol} className={styles.watchRow}>
+                      <div className={styles.watchLeft}>
+                        <strong className={styles.watchSymbol}>{item.symbol}</strong>
+                        <span className={styles.watchNote}>
+                          {item.sector
+                            ? `${item.sector}${item.thesis ? ` · ${item.thesis}` : ""}`
+                            : item.thesis || "Theo dõi danh mục"}
+                        </span>
+                      </div>
+                      <StatusBadge
+                        status={item.data_status || "AVAILABLE"}
+                        label={
+                          item.confidence === "HIGH"
+                            ? "Độ tin cậy cao"
+                            : item.risk && item.risk > 70
+                            ? "Rủi ro cao"
+                            : "Đang theo dõi"
+                        }
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className={styles.watchRow}>
+                      <div className={styles.watchLeft}>
+                        <strong className={styles.watchSymbol}>HPG</strong>
+                        <span className={styles.watchNote}>Thép · Biên lợi nhuận phục hồi</span>
+                      </div>
+                      <StatusBadge status="AVAILABLE" label="Dưới giá trị" />
+                    </div>
 
-                <div className={styles.watchRow}>
-                  <div className={styles.watchLeft}>
-                    <strong className={styles.watchSymbol}>FPT</strong>
-                    <span className={styles.watchNote}>Công nghệ · Động lực Cloud/AI</span>
-                  </div>
-                  <StatusBadge status="AVAILABLE" label="Định giá hợp lý" />
-                </div>
+                    <div className={styles.watchRow}>
+                      <div className={styles.watchLeft}>
+                        <strong className={styles.watchSymbol}>FPT</strong>
+                        <span className={styles.watchNote}>Công nghệ · Động lực Cloud/AI</span>
+                      </div>
+                      <StatusBadge status="AVAILABLE" label="Định giá hợp lý" />
+                    </div>
 
-                <div className={styles.watchRow}>
-                  <div className={styles.watchLeft}>
-                    <strong className={styles.watchSymbol}>VCB</strong>
-                    <span className={styles.watchNote}>Ngân hàng · Chất lượng tài sản cao</span>
-                  </div>
-                  <StatusBadge status="AVAILABLE" label="Vững chắc" />
-                </div>
+                    <div className={styles.watchRow}>
+                      <div className={styles.watchLeft}>
+                        <strong className={styles.watchSymbol}>VCB</strong>
+                        <span className={styles.watchNote}>Ngân hàng · Chất lượng tài sản cao</span>
+                      </div>
+                      <StatusBadge status="AVAILABLE" label="Vững chắc" />
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className={styles.alertNotice} role="status">
                 <span>●</span>
-                <span>02 mã chạm biên an toàn định giá · Không vi phạm trần rủi ro danh mục</span>
+                <span>
+                  {watchlistData && watchlistData.length > 0
+                    ? `${watchlistData.length.toString().padStart(2, "0")} mã trong danh sách theo dõi · Quản trị định giá & rủi ro chủ động`
+                    : "02 mã chạm biên an toàn định giá · Không vi phạm trần rủi ro danh mục"}
+                </span>
               </div>
             </div>
 

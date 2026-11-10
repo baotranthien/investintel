@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database.connection import get_db
+from database.connection import SessionLocal, get_db
 from database.models import AnalystAlert, AnalystAutomationJob, AnalystBrief
 from services.ai.scheduler import run_analyst_automation_cycle
 from services.ai.schemas import (
@@ -205,7 +205,7 @@ async def trigger_cycle(
 ):
     """Trigger an analyst automation cycle manually."""
     results = await run_analyst_automation_cycle(
-        session_factory=lambda: session,
+        session_factory=SessionLocal,
         as_of=req.as_of_date,
     )
     return {"status": "SUCCESS", "results": results}

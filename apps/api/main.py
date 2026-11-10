@@ -32,11 +32,9 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logging.getLogger(__name__).warning("Ollama daemon check: %s", exc)
     
-    allow_market_sync = os.getenv("ALLOW_MARKET_DATA_SYNC", "true").lower() in {"1", "true", "yes"}
-    allow_db_write = (
-        os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
-        or allow_market_sync
-    )
+    allow_prod_write = os.getenv("ALLOW_PRODUCTION_DB_WRITE", "false").lower() in {"1", "true", "yes"}
+    allow_market_sync = os.getenv("ALLOW_MARKET_DATA_SYNC", "false" if is_cloud else "true").lower() in {"1", "true", "yes"}
+    allow_db_write = allow_prod_write or (not is_cloud and allow_market_sync)
     if enable_in_process and allow_db_write:
         if os.getenv("INGESTION_SCHEDULER_ENABLED", "true").lower() in {"1", "true", "yes"}:
             from services.ingestion.scheduler import scheduled_ingestion_loop
@@ -71,10 +69,17 @@ async def lifespan(app: FastAPI):
                 await asyncio.sleep(1)
                 from database.connection import SessionLocal
                 from services.opportunity.scanner import build_opportunity_scanner
-                from datetime import date
+                from services.common.cache import opportunity_cache
+                from services.market.trading_hours import get_effective_trading_date
+                eff_date = get_effective_trading_date()
                 with SessionLocal() as s:
-                    build_opportunity_scanner(s, date.today(), universe="VN100")
-                    build_opportunity_scanner(s, date.today(), universe="ALL")
+                    res_all = build_opportunity_scanner(s, eff_date, universe="ALL")
+                    cache_key_all = f"ALL_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
+                    opportunity_cache.set(cache_key_all, res_all)
+
+                    res_vn100 = build_opportunity_scanner(s, eff_date, universe="VN100")
+                    cache_key_vn100 = f"VN100_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
+                    opportunity_cache.set(cache_key_vn100, res_vn100)
             except Exception as exc:
                 logging.getLogger(__name__).warning("Scanner pre-warm: %s", exc)
 

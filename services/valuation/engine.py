@@ -80,10 +80,17 @@ class DCFEngine:
             
             if shares_outstanding == 0:
                 return 0.0
-            
-            # Assuming values are in billions, shares in millions -> value in thousands (VND)
-            # Scaling appropriately. Let's assume input is raw and output is raw per share.
-            return (equity_value * 1_000_000_000) / shares_outstanding
+
+            shares_raw = float(shares_outstanding)
+            if 0 < shares_raw < 100_000:
+                if shares_raw < 10_000:
+                    shares_raw *= 1_000_000_000
+                else:
+                    shares_raw *= 1_000_000
+
+            # Base revenue and net debt are in billion VND -> equity_value in billion VND
+            # Multiply by 10^9 to get VND, divide by raw share count to get VND/share
+            return (equity_value * 1_000_000_000) / shares_raw
 
         # Generate Scenarios (Flexing WACC, Terminal Growth, and Margins)
         base_value = _calc_dcf(0, 0, 0)

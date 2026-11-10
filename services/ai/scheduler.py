@@ -90,21 +90,28 @@ def _metric_snapshot(context: dict[str, Any]) -> dict[str, dict[str, Any]]:
     tools = {item.get("name"): item.get("data") for item in context.get("tools", [])}
     evidence = context.get("evidence", [])
     snapshot: dict[str, dict[str, Any]] = {}
-    for name, value_key in (("valuation", "score"), ("risk", "overall_score"), ("opportunity", "score")):
+    for name, candidate_keys in (
+        ("valuation", ("composite_fair_value_base", "margin_of_safety", "score")),
+        ("risk", ("overall_score", "score")),
+        ("opportunity", ("opportunity_score", "score")),
+    ):
         data = tools.get(name)
         if not isinstance(data, dict):
             continue
-        value = data.get(value_key)
-        if value is None and value_key != "score":
-            value = data.get("score")
+        value = None
+        for k in candidate_keys:
+            if data.get(k) is not None:
+                value = data[k]
+                break
         related = [
             item for item in evidence
             if str(item.get("responsible_module", "")).casefold() == name
             and AnalystAutomationService._is_evidence_usable(item)
         ]
         sources = sorted({item.get("source") for item in related if item.get("source")})
-        if value is not None and len(sources) == 1:
-            snapshot[name] = {"score": value, "source": sources[0]}
+        source_name = sources[0] if sources else "CANONICAL_DATABASE"
+        if value is not None:
+            snapshot[name] = {"score": value, "source": source_name}
     return snapshot
 
 

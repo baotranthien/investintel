@@ -638,8 +638,8 @@ function AIWorkspaceContent() {
         startTransition(() => {
           setAnswer(resp);
           setHistory(readHistory());
-          if (resp.symbol && !activeSymbol) {
-            setActiveSymbol(resp.symbol);
+          if (resp.symbol) {
+            setActiveSymbol((prev) => (prev ? prev : resp.symbol!));
           }
         });
         setTimeout(() => {
@@ -656,14 +656,18 @@ function AIWorkspaceContent() {
       setBusy(true);
       setStreamStep(currentStatus.step);
       setStreamMessage(currentStatus.message);
-      if (currentStatus.symbol) setActiveSymbol(currentStatus.symbol);
-      if (currentStatus.question) setQuestion(currentStatus.question);
+      if (currentStatus.symbol) {
+        setActiveSymbol((prev) => (prev ? prev : currentStatus.symbol));
+      }
+      if (currentStatus.question) {
+        setQuestion((prev) => (prev ? prev : currentStatus.question));
+      }
     }
 
     return () => {
       unsubscribe();
     };
-  }, [activeSymbol]);
+  }, []);
 
   // 3. Handle client-side navigation transitions (e.g. clicking different opportunities while page is open)
   useEffect(() => {
@@ -1116,8 +1120,8 @@ function AIWorkspaceContent() {
                   </div>
                   <div className={styles.resultHeaderRight}>
                     <span>{answer.model || "qwen3.5:9b-q4_K_M"}</span>
-                    {answer.usage?.total_duration ? (
-                      <span>· {usageValue(answer.usage.total_duration, 1e9)}s</span>
+                    {(answer.usage?.total_duration_ns ?? answer.usage?.total_duration) ? (
+                      <span>· {usageValue((answer.usage?.total_duration_ns ?? answer.usage?.total_duration) as number, 1e9)}s</span>
                     ) : null}
                     <button
                       type="button"

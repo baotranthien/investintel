@@ -10,7 +10,7 @@ import os
 import shutil
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -252,19 +252,62 @@ def apply_retention_policy(
     kept_files = {newest.get("backup_filename")}
     deleted_files = []
 
-    # Group by date strings
+    # Group by daily, weekly (ISO year-week), and monthly (YYYY-MM) buckets
     daily_buckets: Dict[str, Dict[str, Any]] = {}
+    weekly_buckets: Dict[str, Dict[str, Any]] = {}
+    monthly_buckets: Dict[str, Dict[str, Any]] = {}
+
     for b in backups:
         ts_str = b.get("timestamp_str", "")
         if not ts_str and "timestamp" in b:
             ts_str = b["timestamp"].replace("-", "").replace(":", "")[:8]
-        day_key = ts_str[:8] if len(ts_str) >= 8 else "unknown"
+
+        dt_val: Optional[date] = None
+        if len(ts_str) >= 8:
+            try:
+                dt_val = date(int(ts_str[:4]), int(ts_str[4:6]), int(ts_str[6:8]))
+            except ValueError:
+                pass
+        elif "timestamp" in b:
+            try:
+                dt_val = datetime.fromisoformat(b["timestamp"]).date()
+            except ValueError:
+                pass
+
+        if dt_val:
+            day_key = dt_val.isoformat()
+            iso_year, iso_week, _ = dt_val.isocalendar()
+            week_key = f"{iso_year}-W{iso_week:02d}"
+            month_key = f"{dt_val.year}-{dt_val.month:02d}"
+        else:
+            day_key = ts_str[:8] if len(ts_str) >= 8 else "unknown"
+            week_key = day_key
+            month_key = day_key[:6] if len(day_key) >= 6 else day_key
+
         if day_key not in daily_buckets:
             daily_buckets[day_key] = b
+        if week_key not in weekly_buckets:
+            weekly_buckets[week_key] = b
+        if month_key not in monthly_buckets:
+            monthly_buckets[month_key] = b
 
     sorted_days = sorted(daily_buckets.keys(), reverse=True)
     for d in sorted_days[:retain_daily]:
-        kept_files.add(daily_buckets[d].get("backup_filename"))
+        fn = daily_buckets[d].get("backup_filename")
+        if fn:
+            kept_files.add(fn)
+
+    sorted_weeks = sorted(weekly_buckets.keys(), reverse=True)
+    for w in sorted_weeks[:retain_weekly]:
+        fn = weekly_buckets[w].get("backup_filename")
+        if fn:
+            kept_files.add(fn)
+
+    sorted_months = sorted(monthly_buckets.keys(), reverse=True)
+    for m in sorted_months[:retain_monthly]:
+        fn = monthly_buckets[m].get("backup_filename")
+        if fn:
+            kept_files.add(fn)
 
     # Determine files to delete
     for b in backups:

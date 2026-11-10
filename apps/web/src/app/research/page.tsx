@@ -34,10 +34,16 @@ export default function ResearchAnalyst() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol: symbol.toUpperCase() }),
       });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const detail = errorData.detail || errorData.message || `Lỗi HTTP ${res.status}: ${res.statusText}`;
+        setAnalysis(`Lỗi phân tích: ${detail}`);
+        return;
+      }
       const data = await res.json();
       setAnalysis(data.content || "Chưa có phản hồi từ mô hình.");
-    } catch {
-      setAnalysis("Lỗi: Không thể kết nối tới Local AI Analyst.");
+    } catch (err: unknown) {
+      setAnalysis(`Lỗi: ${err instanceof Error ? err.message : "Không thể kết nối tới Local AI Analyst."}`);
     } finally {
       setLoading(false);
     }
@@ -48,10 +54,16 @@ export default function ResearchAnalyst() {
     setDailyBrief("");
     try {
       const res = await fetch("/api/v1/ai/daily-brief", { method: "POST" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const detail = errorData.detail || errorData.message || `Lỗi HTTP ${res.status}: ${res.statusText}`;
+        setDailyBrief(`Lỗi tạo bản tin: ${detail}`);
+        return;
+      }
       const data = await res.json();
       setDailyBrief(data.content || "Chưa có phản hồi từ mô hình.");
-    } catch {
-      setDailyBrief("Lỗi: Không thể kết nối tới Local AI Analyst.");
+    } catch (err: unknown) {
+      setDailyBrief(`Lỗi: ${err instanceof Error ? err.message : "Không thể kết nối tới Local AI Analyst."}`);
     } finally {
       setLoading(false);
     }

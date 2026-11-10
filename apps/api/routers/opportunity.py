@@ -17,6 +17,10 @@ from services.opportunity.scanner import (
 from services.common.cache import opportunity_cache
 from services.market.trading_hours import get_effective_trading_date
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/opportunities", tags=["opportunity"])
 
 @router.get("", response_model=OpportunityScannerResponse)
@@ -33,7 +37,8 @@ def get_opportunity_scanner(
     session: Session = Depends(get_db),
 ) -> OpportunityScannerResponse:
     """Return canonical assets with engine-derived values only when inputs support them."""
-    cache_key = f"{universe}_{sector}_{horizon}_{score_min}_{score_max}_{risk_max}_{confidence}_{factor}_{valuation_status}"
+    eff_date = get_effective_trading_date()
+    cache_key = f"{universe}_{sector}_{horizon}_{score_min}_{score_max}_{risk_max}_{confidence}_{factor}_{valuation_status}_{eff_date.isoformat()}"
     cached_res = opportunity_cache.get(cache_key)
     if cached_res is not None:
         return cached_res
@@ -41,7 +46,7 @@ def get_opportunity_scanner(
     try:
         res = build_opportunity_scanner(
             session=session,
-            as_of=get_effective_trading_date(),
+            as_of=eff_date,
             universe=universe,
             sector=sector,
             horizon=horizon,
@@ -55,10 +60,8 @@ def get_opportunity_scanner(
         opportunity_cache.set(cache_key, res)
         return res
     except Exception as exc:
-        import traceback
-        err_msg = f"Scanner error: {exc}\n{traceback.format_exc()}"
-        print(err_msg, flush=True)
-        raise HTTPException(status_code=500, detail=err_msg)
+        logger.exception("Internal error in opportunity scanner: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error while scanning opportunities.")
 
 
 @router.get("/{symbol}", response_model=ScannerItem)

@@ -121,6 +121,7 @@ export type OpportunityItem = {
   confidence: string;
   risk_score: number | null;
   valuation_status: string;
+  margin_of_safety?: number | null;
   factor_summary: Record<string, number> | null;
   factor_status: string;
   why_now: Array<{ category: string; description: string; direction: string }>;

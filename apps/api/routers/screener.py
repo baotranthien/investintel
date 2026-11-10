@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from services.screener.engine import ScreenerCriteria, ScreenerResult, StockScreenerEngine
+from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
 
@@ -30,7 +31,7 @@ def screen_stocks(
     margin_of_safety_min: Optional[float] = Query(None, description="Minimum Margin of Safety (%)"),
     market_cap_min_bil: Optional[float] = Query(None, description="Minimum Market Cap (Billion VND)"),
     limit: int = Query(50, ge=1, le=100),
-    as_of: date = Query(default_factory=date.today),
+    as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ) -> ScreenerResult:
     """Execute real-time multi-dimensional stock screening grounded in canonical database metrics."""

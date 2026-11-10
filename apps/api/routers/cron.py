@@ -12,6 +12,7 @@ from database.connection import SessionLocal
 from database.models import AnalystAutomationJob
 from services.ai.scheduler import run_analyst_automation_cycle
 from services.ingestion.scheduler import run_ingestion_cycle
+from services.market.trading_hours import get_effective_trading_date
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +63,7 @@ def _get_target_date(date_str: Optional[str]) -> datetime.date:
             return datetime.date.fromisoformat(date_str)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
-    # Vietnam timezone UTC+7
-    vn_tz = datetime.timezone(datetime.timedelta(hours=7))
-    return datetime.datetime.now(vn_tz).date()
+    return get_effective_trading_date()
 
 
 @router.get("/history")

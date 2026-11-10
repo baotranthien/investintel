@@ -10,6 +10,7 @@ from services.portfolio.engine import PORTFOLIO_ID, canonical_asset
 from services.portfolio.schemas import WatchlistCreate, WatchlistItemView, WatchlistPatch
 from services.research.workspace import ResearchWorkspace, build_research_workspace
 from services.common.cache import watchlist_cache
+from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/watchlist", tags=["watchlist"])
 
@@ -149,7 +150,7 @@ def get_watchlist(
     rows = session.query(WatchlistItem, Asset).join(Asset, WatchlistItem.asset_id == Asset.id).order_by(
         WatchlistItem.last_changed_at.desc(), Asset.symbol
     ).offset(offset).limit(limit).all()
-    res = [_item_view(session, item, asset, date.today()) for item, asset in rows]
+    res = [_item_view(session, item, asset, get_effective_trading_date()) for item, asset in rows]
     watchlist_cache.set(cache_key, res)
     return res
 
@@ -166,7 +167,7 @@ def add_watchlist_item(payload: WatchlistCreate, session: Session = Depends(get_
     session.add(item)
     session.commit()
     watchlist_cache.clear()
-    return _item_view(session, item, asset, date.today())
+    return _item_view(session, item, asset, get_effective_trading_date())
 
 
 @router.get("/{item_id}", response_model=WatchlistItemView)
@@ -174,7 +175,7 @@ def get_watchlist_item(item_id: int, session: Session = Depends(get_db)):
     row = session.query(WatchlistItem, Asset).join(Asset, WatchlistItem.asset_id == Asset.id).filter(WatchlistItem.id == item_id).first()
     if row is None:
         raise HTTPException(status_code=404, detail="Watchlist item not found.")
-    return _item_view(session, row[0], row[1], date.today())
+    return _item_view(session, row[0], row[1], get_effective_trading_date())
 
 
 @router.patch("/{item_id}", response_model=WatchlistItemView)
@@ -203,7 +204,7 @@ def patch_watchlist_item(item_id: int, payload: WatchlistPatch, session: Session
     session.commit()
     watchlist_cache.clear()
     asset = session.query(Asset).filter(Asset.id == item.asset_id).one()
-    return _item_view(session, item, asset, date.today())
+    return _item_view(session, item, asset, get_effective_trading_date())
 
 
 @router.delete("/{item_id}", status_code=204)
@@ -224,8 +225,9 @@ def review_watchlist_item(item_id: int, session: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Watchlist item not found.")
     item.last_reviewed_at = datetime.now(timezone.utc)
     session.commit()
+    watchlist_cache.clear()
     asset = session.query(Asset).filter(Asset.id == item.asset_id).one()
-    return _item_view(session, item, asset, date.today())
+    return _item_view(session, item, asset, get_effective_trading_date())
 
 
 @router.post("/{item_id}/snapshot")
@@ -234,7 +236,8 @@ def capture_watchlist_snapshot(item_id: int, session: Session = Depends(get_db))
     if item is None:
         raise HTTPException(status_code=404, detail="Watchlist item not found.")
     asset = session.query(Asset).filter(Asset.id == item.asset_id).one()
-    research = build_research_workspace(session, asset.symbol, date.today())
+    eff_date = get_effective_trading_date()
+    research = build_research_workspace(session, asset.symbol, eff_date)
     if research is None:
         raise HTTPException(status_code=404, detail="Canonical research data is not available for this asset.")
     payload = _snapshot_payload(research)
@@ -247,6 +250,7 @@ def capture_watchlist_snapshot(item_id: int, session: Session = Depends(get_db))
     snapshot = WatchlistSnapshot(watchlist_id=item.id, snapshot_data=payload)
     session.add(snapshot)
     session.commit()
+    watchlist_cache.clear()
     return {
         "snapshot_id": snapshot.id,
         "captured_at": snapshot.captured_at,

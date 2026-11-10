@@ -437,9 +437,11 @@ export default function OpportunitiesPage() {
               // Quality (Y): ROE factor or Opportunity score
               let roe = 0;
               if (o.factor_summary?.roe !== undefined && o.factor_summary.roe !== null) {
-                roe = Math.max(-0.85, Math.min(0.85, (o.factor_summary.roe - 15) / 15));
+                const rawRoe = o.factor_summary.roe as number;
+                const roePct = Math.abs(rawRoe) <= 1.5 ? rawRoe * 100 : rawRoe;
+                roe = Math.max(-0.85, Math.min(0.85, (roePct - 15) / 15));
               } else if (o.factor_summary?.quality !== undefined) {
-                roe = Math.max(-0.85, Math.min(0.85, o.factor_summary.quality * 2 - 1));
+                roe = Math.max(-0.85, Math.min(0.85, (o.factor_summary.quality as number) * 2 - 1));
               } else if (o.opportunity_score !== null) {
                 roe = Math.max(-0.85, Math.min(0.85, (o.opportunity_score - 50) / 40));
               }
@@ -447,21 +449,25 @@ export default function OpportunitiesPage() {
               // Value (X): P/E factor (Lower P/E -> Higher Value -> Right side of X axis)
               let pe = 0;
               if (o.factor_summary?.pe !== undefined && o.factor_summary.pe !== null) {
-                pe = Math.max(-0.85, Math.min(0.85, (16 - o.factor_summary.pe) / 12));
+                pe = Math.max(-0.85, Math.min(0.85, (16 - (o.factor_summary.pe as number)) / 12));
               } else if (o.factor_summary?.value !== undefined) {
-                pe = Math.max(-0.85, Math.min(0.85, o.factor_summary.value * 2 - 1));
+                pe = Math.max(-0.85, Math.min(0.85, (o.factor_summary.value as number) * 2 - 1));
               } else {
                 const hash = o.symbol.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-                const isUnder = o.valuation_status === "UNDERVALUED";
+                const isUnder = (o.margin_of_safety ?? 0) > 0 || o.valuation_status === "UNDERVALUED";
                 pe = isUnder ? 0.35 + ((hash % 8) / 20) : ((hash % 16) - 8) / 12;
               }
 
               // Momentum (Z): Trend / Relative Strength
               let rs = 0;
               if (o.factor_summary?.momentum !== undefined && o.factor_summary.momentum !== null) {
-                rs = Math.max(-0.85, Math.min(0.85, o.factor_summary.momentum * 2 - 1));
+                const m = o.factor_summary.momentum as number;
+                const mNorm = m > 1.0 ? (m - 50) / 50 : m <= 1.0 && m >= 0 ? m * 2 - 1 : m;
+                rs = Math.max(-0.85, Math.min(0.85, mNorm));
               } else if (o.factor_summary?.momentum_score !== undefined) {
-                rs = Math.max(-0.85, Math.min(0.85, o.factor_summary.momentum_score / 10));
+                const ms = o.factor_summary.momentum_score as number;
+                const msNorm = ms > 1.0 ? (ms - 50) / 50 : ms;
+                rs = Math.max(-0.85, Math.min(0.85, msNorm));
               } else {
                 const hashZ = o.symbol.split("").reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0);
                 const whyBonus = (o.why_now?.length ?? 0) * 0.15;
@@ -547,7 +553,7 @@ export default function OpportunitiesPage() {
                   </td>
                   <td>
                     {item.factor_summary?.roe !== undefined && item.factor_summary?.roe !== null
-                      ? `${(item.factor_summary.roe as number).toFixed(1)}%`
+                      ? `${(Math.abs(item.factor_summary.roe as number) <= 1.5 ? (item.factor_summary.roe as number) * 100 : (item.factor_summary.roe as number)).toFixed(1)}%`
                       : "—"}
                   </td>
                   <td style={{ maxWidth: 260 }}>
@@ -563,8 +569,8 @@ export default function OpportunitiesPage() {
                     >
                       ✦ Hỏi AI
                     </Link>
-                    <Link href={`/market?symbol=${item.symbol}`} className={styles.actionBtnPrimary}>
-                      Thị trường →
+                    <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
+                      Nghiên cứu →
                     </Link>
                   </td>
                 </tr>
@@ -584,6 +590,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
   const scoreClass = isHigh ? styles.scoreHigh : isMid ? styles.scoreMid : "";
 
   const roe = item.factor_summary?.roe as number | undefined;
+  const roeDisplay = roe !== undefined && roe !== null ? (Math.abs(roe) <= 1.5 ? roe * 100 : roe) : null;
 
   return (
     <article className={styles.card}>
@@ -606,7 +613,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
       <div className={styles.metricsGrid}>
         <div className={styles.metricItem}>
           <span>ROE</span>
-          <strong>{roe !== undefined && roe !== null ? `${roe.toFixed(1)}%` : "—"}</strong>
+          <strong>{roeDisplay !== null ? `${roeDisplay.toFixed(1)}%` : "—"}</strong>
         </div>
         <div className={styles.metricItem}>
           <span>Định giá</span>
@@ -663,8 +670,8 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         >
           ✦ Hỏi AI
         </Link>
-        <Link href={`/market?symbol=${item.symbol}`} className={styles.actionBtnPrimary}>
-          Thị trường & định giá →
+        <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
+          Nghiên cứu & định giá →
         </Link>
       </div>
     </article>

@@ -76,11 +76,23 @@ def _compute_beta_and_wacc(
                         mkt_prices = vn100_prices
 
             common_dates = sorted(set(stock_prices.keys()).intersection(set(mkt_prices.keys())))
-            if len(common_dates) >= 30:
-                s_series = [stock_prices[d] for d in common_dates]
-                m_series = [mkt_prices[d] for d in common_dates]
-                r_stock = [(s_series[i] - s_series[i - 1]) / s_series[i - 1] for i in range(1, len(s_series))]
-                r_mkt = [(m_series[i] - m_series[i - 1]) / m_series[i - 1] for i in range(1, len(m_series))]
+            paired_returns = []
+            for i in range(1, len(common_dates)):
+                d_prev = common_dates[i - 1]
+                d_curr = common_dates[i]
+                if (d_curr - d_prev).days > 7:
+                    continue
+                s_prev = stock_prices[d_prev]
+                s_curr = stock_prices[d_curr]
+                m_prev = mkt_prices[d_prev]
+                m_curr = mkt_prices[d_curr]
+                if s_prev <= 0 or m_prev <= 0:
+                    continue
+                paired_returns.append(((s_curr - s_prev) / s_prev, (m_curr - m_prev) / m_prev))
+
+            if len(paired_returns) >= 30:
+                r_stock = [p[0] for p in paired_returns]
+                r_mkt = [p[1] for p in paired_returns]
 
                 mean_s = sum(r_stock) / len(r_stock)
                 mean_m = sum(r_mkt) / len(r_mkt)
@@ -146,37 +158,43 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
     growth = snapshot.get("growth", {})
     cash_flow = snapshot.get("cash_flow", {})
 
-    def _val(d, key):
-        """Extract numeric value from MetricResult dict or primitive."""
+    def _val_and_unit(d, key):
+        """Extract numeric value and unit metadata from MetricResult dict or primitive."""
         if not isinstance(d, dict):
-            return None
+            return None, None
         v = d.get(key)
         if isinstance(v, dict):
-            return v.get("value")
-        return v
+            return v.get("value"), v.get("unit")
+        return v, None
 
-    revenue_yoy = _val(growth, "revenue_yoy")
-    if revenue_yoy is not None and abs(revenue_yoy) > 1.0:
-        revenue_yoy = revenue_yoy / 100.0
+    def _val(d, key):
+        return _val_and_unit(d, key)[0]
 
-    revenue_cagr_3y = _val(growth, "revenue_cagr_3y")
-    if revenue_cagr_3y is not None and abs(revenue_cagr_3y) > 1.0:
-        revenue_cagr_3y = revenue_cagr_3y / 100.0
+    def _norm_ratio(d, key, force_abs=False):
+        val, unit = _val_and_unit(d, key)
+        if val is None:
+            return None
+        if force_abs:
+            val = abs(val)
+        if unit in ("%", "PERCENT"):
+            return val / 100.0
+        if abs(val) > 1.0:
+            return val / 100.0
+        return val
+
+    revenue_yoy = _norm_ratio(growth, "revenue_yoy")
+    revenue_cagr_3y = _norm_ratio(growth, "revenue_cagr_3y")
 
     operating_margin = (
-        _val(profitability, "operating_margin")
-        or _val(profitability, "ebit_margin")
-        or _val(profitability, "net_margin")
+        _norm_ratio(profitability, "operating_margin")
+        or _norm_ratio(profitability, "ebit_margin")
+        or _norm_ratio(profitability, "net_margin")
     )
-    if operating_margin is not None and abs(operating_margin) > 1.0:
-        operating_margin = operating_margin / 100.0
 
     de_ratio = _val(balance_sheet, "de_ratio")
     fcf_ttm = _val(cash_flow, "fcf")
     cfo_ttm = _val(cash_flow, "cfo")
-    capex_to_revenue = _val(cash_flow, "capex_to_revenue") or _val(profitability, "capex_to_revenue")
-    if capex_to_revenue is not None and abs(capex_to_revenue) > 1.0:
-        capex_to_revenue = abs(capex_to_revenue) / 100.0
+    capex_to_revenue = _norm_ratio(cash_flow, "capex_to_revenue", force_abs=True) or _norm_ratio(profitability, "capex_to_revenue", force_abs=True)
 
     # Dynamic peer multiples from PeerComparisonEngine and dynamic beta/wacc
     peer_pe = None
@@ -319,33 +337,83 @@ def get_relative_valuation(symbol: str, as_of: Optional[str] = Query(None)):
 def get_historical_valuation(symbol: str):
     """
     Returns historical valuation percentiles.
-    Returns INSUFFICIENT_DATA — requires minimum 3 years of daily prices.
+    Computes real historical P/E and P/B series & percentiles (p25, p50, p75, current)
+    from historical prices and fundamental EPS/BVPS.
     """
     sym = symbol.upper()
-    # Count available price history
     session = SessionLocal()
     try:
-        price_count = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
-            Asset.symbol == sym,
+        asset = session.query(Asset).filter(Asset.symbol == sym).first()
+        if not asset:
+            raise HTTPException(status_code=404, detail=f"Asset '{sym}' not found.")
+
+        prices = session.query(Price.observation_date, Price.raw_close).filter(
+            Price.asset_id == asset.id,
             Price.status == "VALID",
-        ).count()
-        years_available = round(price_count / 252, 1)  # approx trading days/year
+            Price.raw_close > 0,
+        ).order_by(Price.observation_date.asc()).all()
+
+        price_count = len(prices)
+        if price_count < 30:
+            return {
+                "symbol": sym,
+                "status": "INSUFFICIENT_DATA",
+                "reason": f"Requires minimum 30 trading days of price history. Current: {price_count}.",
+                "price_observations": price_count,
+                "pe": None,
+                "pb": None,
+                "ev_ebitda": None,
+            }
+
+        fundamentals = _load_fundamentals_for_valuation(sym)
+        eps = fundamentals.get("eps_ttm") if fundamentals else None
+        bvps = fundamentals.get("bvps") if fundamentals else None
+        current_price = prices[-1][1] if prices else None
+
+        pe_data = None
+        if eps and eps > 0:
+            pe_series = [p[1] / eps for p in prices]
+            sorted_pe = sorted(pe_series)
+            n = len(sorted_pe)
+            pe_data = {
+                "current": round(current_price / eps, 2) if current_price else None,
+                "min": round(sorted_pe[0], 2),
+                "p25": round(sorted_pe[int(0.25 * n)], 2),
+                "p50": round(sorted_pe[int(0.50 * n)], 2),
+                "p75": round(sorted_pe[int(0.75 * n)], 2),
+                "max": round(sorted_pe[-1], 2),
+                "count": n,
+            }
+
+        pb_data = None
+        if bvps and bvps > 0:
+            pb_series = [p[1] / bvps for p in prices]
+            sorted_pb = sorted(pb_series)
+            n = len(sorted_pb)
+            pb_data = {
+                "current": round(current_price / bvps, 2) if current_price else None,
+                "min": round(sorted_pb[0], 2),
+                "p25": round(sorted_pb[int(0.25 * n)], 2),
+                "p50": round(sorted_pb[int(0.50 * n)], 2),
+                "p75": round(sorted_pb[int(0.75 * n)], 2),
+                "max": round(sorted_pb[-1], 2),
+                "count": n,
+            }
+
+        years_available = round(price_count / 252, 1)
+        status = "COMPUTED" if (pe_data or pb_data) else "INSUFFICIENT_DATA"
+
+        return {
+            "symbol": sym,
+            "status": status,
+            "price_observations": price_count,
+            "years_available": years_available,
+            "pe": pe_data,
+            "pb": pb_data,
+            "ev_ebitda": None,
+        }
     finally:
         session.close()
-
-    return {
-        "symbol": sym,
-        "status": "INSUFFICIENT_DATA",
-        "reason": (
-            f"Requires minimum 3 years (756 trading days) of price history. "
-            f"Current: {price_count} observations (~{years_available} years). "
-            "Ingest more historical data to unlock valuation percentiles."
-        ),
-        "price_observations": price_count,
-        "pe": None,
-        "pb": None,
-        "ev_ebitda": None,
-    }
 
 
 @router.get("/{symbol}/peers")
@@ -437,6 +505,8 @@ def get_valuation_sensitivity(symbol: str):
     from services.valuation.models import DCFAssumptions
 
     shares = fundamentals.get("shares_outstanding", 1_000_000_000)
+    if shares < 100_000:
+        shares = int(shares * 1_000_000_000)
     net_debt = fundamentals.get("net_debt") or 0.0
     base_rev = fundamentals["revenue_ttm"]
 

@@ -43,12 +43,8 @@ def is_cloud_mode() -> bool:
 
 
 def is_auth_enabled() -> bool:
-    """Authentication is disabled in runtime (local & cloud) for direct personal workstation access.
-    Only enabled during isolated unit tests when PYTEST_CURRENT_TEST is set and APP_AUTH_ENABLED=true.
-    """
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
-    return False
+    """Checks whether application authentication is enabled via APP_AUTH_ENABLED."""
+    return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
 
 
 def get_allowed_origins() -> list[str]:

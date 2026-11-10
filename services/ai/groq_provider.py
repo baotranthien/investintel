@@ -115,8 +115,12 @@ class GroqProvider:
 
         # Determine appropriate Groq model: if passed model is a valid Groq identifier, use it; otherwise default to self.model
         model_to_use = self.model
-        if model and ("/" in model or any(k in model.lower() for k in ("llama", "mixtral", "gemma", "whisper"))):
-            model_to_use = model.strip()
+        if ":" in model_to_use:
+            model_to_use = "llama-3.3-70b-versatile"
+        if model:
+            m_str = model.strip()
+            if ":" not in m_str and ("/" in m_str or any(k in m_str.lower() for k in ("llama", "mixtral", "gemma", "whisper", "deepseek", "qwen"))):
+                model_to_use = m_str
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",

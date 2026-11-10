@@ -32,11 +32,15 @@ class HashPasswordRequest(BaseModel):
 
 
 def _get_client_ip(request: Request) -> str:
-    """Extract client IP taking into account X-Forwarded-For if behind proxy."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "127.0.0.1"
+    """Extract client IP, only trusting X-Forwarded-For if explicitly enabled or from loopback."""
+    client_host = request.client.host if request.client else "127.0.0.1"
+    trust_proxy = os.getenv("TRUST_PROXY_HEADERS", "false").lower() in ("1", "true", "yes")
+    is_loopback = client_host in ("127.0.0.1", "::1", "localhost")
+    if (trust_proxy or is_loopback) and "X-Forwarded-For" in request.headers:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return client_host
 
 
 def is_cloud_environment() -> bool:
@@ -171,8 +175,16 @@ async def get_session(request: Request):
 
 
 @router.post("/hash-password")
-async def generate_password_hash(req: HashPasswordRequest):
+async def generate_password_hash(req: HashPasswordRequest, request: Request):
     """Utility endpoint to generate a secure PBKDF2 hash for initial configuration."""
+    client_ip = _get_client_ip(request)
+    allowed, retry_after = check_failed_login_rate_limit(client_ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Quá nhiều yêu cầu. Vui lòng thử lại sau {retry_after} giây.",
+            headers={"Retry-After": str(retry_after)},
+        )
     hashed = hash_password(req.password)
     return {
         "password_hash": hashed,

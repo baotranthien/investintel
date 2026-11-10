@@ -43,12 +43,8 @@ def is_cloud_mode() -> bool:
 
 
 def is_auth_enabled() -> bool:
-    """Authentication is disabled in runtime (local & cloud) for direct personal workstation access.
-    Only enabled during isolated unit tests when PYTEST_CURRENT_TEST is set and APP_AUTH_ENABLED=true.
-    """
-    if "PYTEST_CURRENT_TEST" in os.environ:
-        return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
-    return False
+    """Checks whether application authentication is enabled via APP_AUTH_ENABLED."""
+    return os.getenv("APP_AUTH_ENABLED", "false").lower() in ("1", "true", "yes")
 
 
 def get_jwt_secret(require_valid: bool = True) -> Optional[str]:
@@ -233,17 +229,31 @@ def verify_session_token(token: str, secret: Optional[str] = None) -> Optional[d
     return payload
 
 
+_REDIS_CLIENT = None
+_REDIS_INITIALIZED = False
+
+
 def _get_redis_client():
-    """Attempt to get redis client if REDIS_URL is configured."""
+    """Attempt to get cached redis client if REDIS_URL is configured."""
+    global _REDIS_CLIENT, _REDIS_INITIALIZED
+    if _REDIS_INITIALIZED:
+        return _REDIS_CLIENT
+
     redis_url = os.getenv("REDIS_URL")
     if not redis_url or redis_url == "NOT_CONFIGURED":
+        _REDIS_CLIENT = None
+        _REDIS_INITIALIZED = True
         return None
     try:
         import redis
         client = redis.from_url(redis_url, socket_timeout=1.0, socket_connect_timeout=1.0)
         client.ping()
-        return client
+        _REDIS_CLIENT = client
+        _REDIS_INITIALIZED = True
+        return _REDIS_CLIENT
     except Exception:
+        _REDIS_CLIENT = None
+        _REDIS_INITIALIZED = True
         return None
 
 

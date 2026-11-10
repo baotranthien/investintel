@@ -73,7 +73,7 @@ def validate_price_payload(raw: Dict[str, Any]) -> PriceContract:
         provider=str(raw.get("provider", "UNKNOWN")),
         lineage_id=raw.get("lineage_id"),
         source_authority=raw.get("source_authority", "REPUTABLE_SECONDARY"),
-        status=raw.get("status", "VALID"),
+        validation_status=raw.get("validation_status") or raw.get("status", "VALID"),
     )
 
 
@@ -95,14 +95,11 @@ def resolve_shares_by_purpose(
     if not records and not bal_share_capital:
         return None
 
-    # Filter by as_of_date if requested
+    # Filter strictly by as_of_date if requested (prevent future look-ahead leakage)
     eligible = [
         r for r in records
         if as_of_date is None or r.get("fiscal_period_end") is None or r["fiscal_period_end"] <= as_of_date
     ]
-    if not eligible and records:
-        # Fallback to ignore date filter if no eligible point-in-time record
-        eligible = records
 
     # Sort priority depending on purpose
     if purpose == "accounting_eps":
@@ -180,9 +177,18 @@ def resolve_shares_by_purpose(
 
     # Tertiary fallback: nominal share_capital / 10,000 VND par value
     if bal_share_capital and bal_share_capital > 0:
-        est_shares = int(round(bal_share_capital * 100_000))
+        fallback_symbol = "UNKNOWN"
+        if records and records[0].get("symbol"):
+            fallback_symbol = str(records[0]["symbol"]).upper()
+        # Magnitude check: if in raw VND (> 10 billion VND), divide by 10,000;
+        # if in billion VND (e.g. 1,000 bil VND), multiply by 100,000
+        if bal_share_capital > 10_000_000_000:
+            est_shares = int(round(bal_share_capital / 10_000))
+        else:
+            est_shares = int(round(bal_share_capital * 100_000))
+
         return ShareResolutionContract(
-            symbol="UNKNOWN",
+            symbol=fallback_symbol,
             share_count=est_shares,
             share_type=ShareType.CHARTER_CAPITAL_ESTIMATE,
             as_of_date=as_of_date,

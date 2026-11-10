@@ -17,7 +17,7 @@ from database.models import (
     PortfolioHolding,
     PortfolioTarget,
 )
-from services.market.trading_hours import get_effective_trading_date
+from services.market.trading_hours import get_effective_trading_date, get_vn_now
 from services.portfolio.engine import (
     DEFAULT_CORE_PCT,
     DEFAULT_DCA_AMOUNT,
@@ -46,19 +46,23 @@ from services.portfolio.schemas import (
 router = APIRouter(prefix="/api/v1/portfolio", tags=["portfolio"])
 
 
+def _max_valid_date() -> date:
+    return max(date.today(), get_effective_trading_date(), get_vn_now().date())
+
+
 @router.get("", response_model=PortfolioDashboardResponse)
 def get_portfolio(session: Session = Depends(get_db)):
-    return portfolio_dashboard(session, date.today())
+    return portfolio_dashboard(session, get_effective_trading_date())
 
 
 @router.get("/holdings", response_model=list[PortfolioHoldingView])
 def get_holdings(session: Session = Depends(get_db)):
-    return portfolio_dashboard(session, date.today())["holdings"]
+    return portfolio_dashboard(session, get_effective_trading_date())["holdings"]
 
 
 @router.post("/holdings", status_code=201)
 def create_holding(payload: HoldingCreate, session: Session = Depends(get_db)):
-    if payload.acquisition_date > date.today():
+    if payload.acquisition_date > _max_valid_date():
         raise HTTPException(status_code=422, detail="Acquisition date cannot be in the future.")
     asset = canonical_asset(session, payload.symbol)
     if asset is None:
@@ -80,7 +84,7 @@ def create_holding(payload: HoldingCreate, session: Session = Depends(get_db)):
     except IntegrityError as exc:
         session.rollback()
         raise HTTPException(status_code=409, detail="A holding for this symbol already exists; edit the existing record.") from exc
-    return next(item for item in portfolio_dashboard(session, date.today())["holdings"] if item["id"] == holding.id)
+    return next(item for item in portfolio_dashboard(session, get_effective_trading_date())["holdings"] if item["id"] == holding.id)
 
 
 @router.patch("/holdings/{holding_id}")
@@ -92,12 +96,12 @@ def update_holding(holding_id: int, payload: HoldingPatch, session: Session = De
     if holding is None:
         raise HTTPException(status_code=404, detail="Holding not found.")
     updates = payload.model_dump(exclude_unset=True)
-    if updates.get("acquisition_date") and updates["acquisition_date"] > date.today():
+    if updates.get("acquisition_date") and updates["acquisition_date"] > _max_valid_date():
         raise HTTPException(status_code=422, detail="Acquisition date cannot be in the future.")
     for key, value in updates.items():
         setattr(holding, key, value)
     session.commit()
-    return next(item for item in portfolio_dashboard(session, date.today())["holdings"] if item["id"] == holding.id)
+    return next(item for item in portfolio_dashboard(session, get_effective_trading_date())["holdings"] if item["id"] == holding.id)
 
 
 @router.delete("/holdings/{holding_id}", status_code=204)
@@ -137,7 +141,7 @@ def get_manual_transactions(session: Session = Depends(get_db)) -> dict[str, Any
 
 @router.post("/transactions", status_code=201)
 def create_manual_transaction(payload: ManualTransactionCreate, session: Session = Depends(get_db)):
-    if payload.transaction_date > date.today():
+    if payload.transaction_date > _max_valid_date():
         raise HTTPException(status_code=422, detail="Transaction date cannot be in the future.")
     asset = canonical_asset(session, payload.symbol)
     if asset is None:
@@ -249,7 +253,7 @@ def apply_personal_template(template_id: str, session: Session = Depends(get_db)
 
 @router.get("/allocation")
 def get_portfolio_allocation(session: Session = Depends(get_db)):
-    dashboard = portfolio_dashboard(session, date.today())
+    dashboard = portfolio_dashboard(session, get_effective_trading_date())
     targets = get_targets(session)
     holdings_by_symbol = {item["symbol"]: item for item in dashboard["holdings"]}
     drift = []
@@ -275,12 +279,12 @@ def get_portfolio_allocation(session: Session = Depends(get_db)):
 
 @router.get("/fit", response_model=PortfolioFitResponse)
 def get_portfolio_fit(session: Session = Depends(get_db)):
-    return portfolio_fit(session, date.today())
+    return portfolio_fit(session, get_effective_trading_date())
 
 
 @router.get("/dca")
 def get_dca(session: Session = Depends(get_db)):
-    return dca_plan_view(session, date.today())
+    return dca_plan_view(session, get_effective_trading_date())
 
 
 @router.put("/dca")
@@ -294,12 +298,12 @@ def put_dca(payload: DcaPlanUpdate, session: Session = Depends(get_db)):
     plan.core_pct = payload.core_pct
     plan.satellite_pct = payload.satellite_pct
     session.commit()
-    return dca_plan_view(session, date.today())
+    return dca_plan_view(session, get_effective_trading_date())
 
 
 @router.post("/snapshot")
 def create_portfolio_snapshot(session: Session = Depends(get_db)):
-    dashboard = portfolio_dashboard(session, date.today())
+    dashboard = portfolio_dashboard(session, get_effective_trading_date())
     if dashboard["status"] == "EMPTY":
         raise HTTPException(status_code=409, detail="Cannot snapshot an empty portfolio.")
     previous = session.query(PersonalPortfolioSnapshot).filter(
