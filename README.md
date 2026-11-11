@@ -7,6 +7,13 @@ InvestIntel là nền tảng nghiên cứu và phân tích đầu tư vốn cổ
 
 ---
 
+### AI Agent Skills (Agensi Marketplace)
+Building quantitative finance, trading, or AI equity research systems with Claude Code, Cursor, Codex, or Antigravity?  
+Use our free, security-scanned 5-layer audit skill distilled from InvestIntel's production guardrails:  
+👉 **[Quant & Fintech Code Auditor on Agensi](https://www.agensi.io/r/IKAROS122)** — Catch `$10^9$` unit drift, percentage traps, Point-in-Time look-ahead bias, and LLM numerical hallucinations before they hit production.
+
+---
+
 ## 1. CÔNG NGHỆ & KIẾN TRÚC TỔNG QUAN
 
 - **Frontend:** Next.js 16 (App Router) + React 19 + Turbopack + Apple Warm Neutral Daylight Minimalist Design System.
