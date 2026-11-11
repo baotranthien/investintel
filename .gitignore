@@ -56,3 +56,4 @@ apps/web/.impeccable/
 .agents/
 skills-lock.json
 exports/
+.vercel/

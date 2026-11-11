@@ -127,9 +127,27 @@ class AIGateway:
                 active_priority.append("ollama")
 
         active = active_priority[0] if active_priority else "none"
+        groq_st = self._groq.status() if self._groq else None
+        gemini_st = self._gemini.status() if self._gemini else None
 
         base_status = dict(ollama_st)
-        if active == "none" and cloud_ollama_disabled:
+        if active in ("groq", "gemini"):
+            active_st = groq_st if active == "groq" else gemini_st
+            active_model = active_st.get("model") if active_st else None
+            base_status["status"] = "HEALTHY"
+            base_status["available"] = True
+            base_status["model_state"] = "LOADED"
+            base_status["configured_model_installed"] = True
+            base_status["configured_model_loaded"] = True
+            if active_model:
+                base_status["configured_models"] = {
+                    "primary": active_model,
+                    "fast": active_model,
+                    "reasoning": active_model,
+                }
+                base_status["models"] = [active_model]
+            base_status["reason"] = None
+        elif active == "none" and cloud_ollama_disabled:
             base_status["status"] = "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD"
             base_status["available"] = False
             base_status["provider"] = "ollama"
@@ -139,8 +157,8 @@ class AIGateway:
             "provider": active if active != "none" else ("ollama" if cloud_ollama_disabled else base_status.get("provider", "ollama")),
             "provider_priority": active_priority,
             "fallback_enabled": len(active_priority) > 1,
-            "groq": self._groq.status() if self._groq else None,
-            "gemini": self._gemini.status() if self._gemini else None,
+            "groq": groq_st,
+            "gemini": gemini_st,
         })
         return base_status
 

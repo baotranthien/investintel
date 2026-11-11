@@ -825,7 +825,23 @@ function AIWorkspaceContent() {
               <span className={styles.statusBadgeWrapper}>
                 {(() => {
                   const modelName = aiStatus.configured_models?.primary || "qwen3.5:9b-q4_K_M";
+                  const isCloudProvider = aiStatus.provider === "groq" || aiStatus.provider === "gemini";
+                  const providerTag =
+                    aiStatus.provider === "groq"
+                      ? "Groq Cloud"
+                      : aiStatus.provider === "gemini"
+                        ? "Gemini Cloud"
+                        : "Cục bộ";
                   if (aiStatus.available) {
+                    if (isCloudProvider) {
+                      return (
+                        <StatusBadge
+                          status="HEALTHY"
+                          label={`${modelName} · ${providerTag}`}
+                          title={`Mô hình ${modelName} đang hoạt động qua ${providerTag}.`}
+                        />
+                      );
+                    }
                     if (aiStatus.model_state === "LOADED") {
                       return (
                         <StatusBadge

@@ -142,5 +142,42 @@ def test_gateway_status_reporting():
     assert st["active_provider"] == "groq"
     assert st["provider_priority"] == ["groq", "gemini", "ollama"]
     assert st["fallback_enabled"] is True
+    assert st["available"] is True
+    assert st["status"] == "HEALTHY"
+    assert st["configured_models"]["primary"] == "llama-3.3-70b-versatile"
     assert st["groq"]["model"] == "llama-3.3-70b-versatile"
     assert st["gemini"]["model"] == "gemini-1.5-flash"
+
+
+def test_gateway_status_cloud_groq_active_when_ollama_disabled(monkeypatch):
+    monkeypatch.setenv("CLOUD_MODE", "true")
+    monkeypatch.setenv("OLLAMA_ENABLED", "false")
+    mock_groq = MagicMock(spec=GroqProvider)
+    mock_groq.is_available.return_value = True
+    mock_groq.status.return_value = {
+        "provider": "groq",
+        "available": True,
+        "model": "qwen/qwen3.8-27b",
+        "has_api_key": True,
+    }
+    mock_gemini = MagicMock(spec=GeminiProvider)
+    mock_gemini.is_available.return_value = False
+    mock_gemini.status.return_value = {
+        "provider": "gemini",
+        "available": False,
+        "model": "gemini-1.5-flash",
+        "has_api_key": False,
+    }
+
+    gateway = AIGateway(
+        config=GatewayConfig(provider_priority=("groq", "gemini", "ollama")),
+        groq_provider=mock_groq,
+        gemini_provider=mock_gemini,
+    )
+    st = gateway.status()
+    assert st["status"] == "HEALTHY"
+    assert st["available"] is True
+    assert st["provider"] == "groq"
+    assert st["active_provider"] == "groq"
+    assert st["configured_models"]["primary"] == "qwen/qwen3.8-27b"
+    assert st["reason"] is None
