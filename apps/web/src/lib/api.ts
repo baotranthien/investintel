@@ -380,6 +380,14 @@ export type WatchlistItem = {
   changes: Array<Record<string, unknown>>;
 };
 
+export type WatchlistAvailableAsset = {
+  symbol: string;
+  name: string;
+  sector: string;
+  exchange: string;
+  is_in_watchlist: boolean;
+};
+
 export type DecisionScenario = {
   status: "AVAILABLE" | "INSUFFICIENT_DATA";
   assumptions: string[];
@@ -589,6 +597,7 @@ export const getPortfolioFit = (signal?: AbortSignal) => apiGet<PortfolioFit>("/
 export const getManualTransactions = (signal?: AbortSignal) => apiGet<{ mode: string; transactions: Array<Record<string, unknown>> }>("/api/v1/portfolio/transactions", signal);
 export const getPortfolioTemplates = (signal?: AbortSignal) => apiGet<{ templates: Array<{ id: string; label: string; classification: string; targets: Array<{ symbol: string; target_weight: number }>; note: string }> }>("/api/v1/portfolio/templates", signal);
 export const getWatchlist = (signal?: AbortSignal) => apiGet<WatchlistItem[]>("/api/v1/watchlist", signal);
+export const getWatchlistAvailableAssets = (signal?: AbortSignal) => apiGet<WatchlistAvailableAsset[]>("/api/v1/watchlist/assets", signal);
 export function getDecisionContext(symbol: string, asOf?: string, signal?: AbortSignal) {
   const params = new URLSearchParams();
   if (asOf) params.set("as_of", asOf);

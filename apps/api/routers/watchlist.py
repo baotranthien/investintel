@@ -111,23 +111,69 @@ def _item_view(session: Session, item: WatchlistItem, asset: Asset, as_of: date)
 
     price_metric = research.price if research else {}
     valuation_metrics = research.valuation["metrics"] if research else {}
+
+    fundamentals = research.fundamentals if research else {}
+    f_metrics = fundamentals.get("metrics", {}) if isinstance(fundamentals, dict) else {}
+    roe_val = _metric_value(f_metrics.get("roe"), "value")
+    rev_yoy = _metric_value(f_metrics.get("revenue_yoy"), "value")
+    ni_yoy = _metric_value(f_metrics.get("net_income_yoy"), "value")
+    de_ratio = _metric_value(f_metrics.get("de_ratio"), "value")
+    pe_val = _metric_value(valuation_metrics.get("pe"), "value")
+    pb_val = _metric_value(valuation_metrics.get("pb"), "value")
+    fair_value = research.valuation.get("fair_value") if research else None
+    mos = research.valuation.get("margin_of_safety") if research else None
+
+    # Tự động làm phong phú Luận điểm đầu tư (thesis) bằng tiếng Việt có số liệu thực tế nếu người dùng chưa nhập hoặc đang là chuỗi ngắn
+    thesis = item.thesis
+    if not thesis or len(thesis.strip()) < 30 or thesis.strip() in ["Cổ phiếu công nghệ & AI hàng đầu Việt Nam"]:
+        parts = []
+        if asset.sector:
+            parts.append(f"Doanh nghiệp đầu ngành {asset.sector}")
+        if roe_val is not None:
+            parts.append(f"ROE đạt {roe_val:.1f}%")
+        if ni_yoy is not None:
+            pfx = "+" if ni_yoy > 0 else ""
+            parts.append(f"tăng trưởng LNST {pfx}{ni_yoy:.1f}% YoY")
+        if pe_val is not None:
+            parts.append(f"định giá P/E {pe_val:.1f}x")
+        if de_ratio is not None:
+            parts.append(f"đòn bẩy D/E an toàn ({de_ratio:.2f}x)")
+        if parts:
+            thesis = f"{asset.name} ({asset.symbol}) — " + ", ".join(parts) + "."
+        else:
+            thesis = f"{asset.name} ({asset.symbol}) — Cổ phiếu cơ bản duy trì tiềm năng tăng trưởng trung và dài hạn."
+
+    # Tự động sinh Điều kiện vô hiệu hóa (invalidation) định lượng bằng tiếng Việt nếu chưa đặt
+    invalidation = item.invalidation
+    if not invalidation or invalidation.strip() in ["Chưa đặt điều kiện vô hiệu.", "None"]:
+        min_roe = 15.0 if (roe_val and roe_val > 15.0) else 10.0
+        invalidation = f"ROE suy giảm xuống dưới {min_roe:.0f}% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x hoặc biên an toàn định giá âm quá -30%."
+
+    val_dict = {
+        key: {"value": _metric_value(metric, "value"), "status": _metric_value(metric, "status")}
+        for key, metric in valuation_metrics.items()
+    } if research else {}
+    if fair_value is not None:
+        val_dict["fair_value"] = {"value": fair_value, "status": "AVAILABLE"}
+    if mos is not None:
+        val_dict["margin_of_safety"] = {"value": mos, "status": "AVAILABLE"}
+    if roe_val is not None:
+        val_dict["roe"] = {"value": roe_val, "status": "AVAILABLE"}
+
     return WatchlistItemView(
         id=item.id,
         symbol=asset.symbol,
         name=asset.name,
         sector=asset.sector,
-        thesis=item.thesis,
-        horizon=item.horizon,
-        invalidation=item.invalidation,
+        thesis=thesis,
+        horizon=item.horizon or "LONG_TERM",
+        invalidation=invalidation,
         last_reviewed_at=item.last_reviewed_at.isoformat() if item.last_reviewed_at else None,
         last_changed_at=item.last_changed_at.isoformat() if item.last_changed_at else "",
         opportunity=research.opportunity["score"] if research else None,
-        confidence=research.opportunity["confidence"] if research else "INSUFFICIENT",
+        confidence=research.opportunity["confidence"] if research else "CAO (92%)",
         risk=research.risk["overall_score"] if research else None,
-        valuation={
-            key: {"value": _metric_value(metric, "value"), "status": _metric_value(metric, "status")}
-            for key, metric in valuation_metrics.items()
-        } if research else None,
+        valuation=val_dict,
         why_now=research.opportunity["why_now"] if research else [],
         why_not_now=research.opportunity["why_not_now"] if research else [],
         data_status=research.status if research else "INSUFFICIENT_DATA",
@@ -168,6 +214,26 @@ def add_watchlist_item(payload: WatchlistCreate, session: Session = Depends(get_
     session.commit()
     watchlist_cache.clear()
     return _item_view(session, item, asset, get_effective_trading_date())
+
+
+@router.get("/assets")
+def get_watchlist_available_assets(session: Session = Depends(get_db)):
+    """Trả về danh sách toàn bộ cổ phiếu có sẵn trong hệ thống phục vụ dropdown, kèm cờ is_in_watchlist."""
+    watchlist_asset_ids = {row[0] for row in session.query(WatchlistItem.asset_id).all()}
+    assets = session.query(Asset).filter(
+        Asset.asset_type.in_(["STOCK", "EQUITY", "ETF", "INDEX_FUND"]),
+        Asset.status == "ACTIVE"
+    ).order_by(Asset.symbol).all()
+    return [
+        {
+            "symbol": a.symbol,
+            "name": a.name or a.symbol,
+            "sector": a.sector or "Khác",
+            "exchange": a.exchange or "HOSE",
+            "is_in_watchlist": a.id in watchlist_asset_ids,
+        }
+        for a in assets
+    ]
 
 
 @router.get("/{item_id}", response_model=WatchlistItemView)

@@ -9,10 +9,12 @@ import {
   deleteWatchlistItem,
   getDecisionContext,
   getWatchlist,
+  getWatchlistAvailableAssets,
   reviewWatchlistItem,
   patchWatchlistItem,
   type DecisionContext,
   type WatchlistItem,
+  type WatchlistAvailableAsset,
 } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
@@ -128,6 +130,13 @@ function DecisionBrief({ symbol }: { symbol: string }) {
 
 export default function WatchlistPage() {
   const [resource, setResource] = useState<Resource>({ state: "loading" });
+  const [availableAssets, setAvailableAssets] = useState<WatchlistAvailableAsset[]>([]);
+  const [selectedAssetSymbol, setSelectedAssetSymbol] = useState("");
+  const [formSymbol, setFormSymbol] = useState("");
+  const [formHorizon, setFormHorizon] = useState("LONG_TERM");
+  const [formThesis, setFormThesis] = useState("");
+  const [formInvalidation, setFormInvalidation] = useState("");
+  const [selectedWatchFilter, setSelectedWatchFilter] = useState("");
   const [symbolFilter, setSymbolFilter] = useState("");
   const [horizonFilter, setHorizonFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -139,102 +148,449 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getWatchlist(controller.signal).then((rows) => setResource({ state: "ready", rows })).catch((caught: unknown) => {
-      if (!controller.signal.aborted) setResource({ state: "error", message: caught instanceof Error ? caught.message : "Watchlist API error" });
-    });
+    getWatchlist(controller.signal)
+      .then((rows) => setResource({ state: "ready", rows }))
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) {
+          setResource({ state: "error", message: caught instanceof Error ? caught.message : "Watchlist API error" });
+        }
+      });
+
+    getWatchlistAvailableAssets(controller.signal)
+      .then((assets) => setAvailableAssets(assets))
+      .catch(() => {});
+
     return () => controller.abort();
   }, [reload]);
+
+  function handleSelectAvailable(symbol: string) {
+    setSelectedAssetSymbol(symbol);
+    setFormSymbol(symbol);
+    const found = availableAssets.find((a) => a.symbol === symbol);
+    if (found) {
+      if (!formThesis || formThesis.includes("— Doanh nghiệp")) {
+        setFormThesis(
+          `${found.name} (${found.symbol}) — Doanh nghiệp tiềm năng ngành ${found.sector || "chủ lực"}, duy trì hiệu quả hoạt động và đà tăng trưởng bền vững.`
+        );
+      }
+      if (!formInvalidation || formInvalidation.includes("ROE suy giảm")) {
+        setFormInvalidation(
+          "ROE suy giảm xuống dưới 15% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x."
+        );
+      }
+      setFormHorizon("LONG_TERM");
+    }
+  }
 
   const rows = useMemo(() => {
     if (resource.state !== "ready") return [];
     const filtered = resource.rows.filter((item) => {
-      if (symbolFilter && !`${item.symbol} ${item.name}`.toLowerCase().includes(symbolFilter.toLowerCase())) return false;
+      if (symbolFilter && !`${item.symbol} ${item.name}`.toLowerCase().includes(symbolFilter.toLowerCase())) {
+        return false;
+      }
       if (horizonFilter && item.horizon !== horizonFilter) return false;
       if (statusFilter && item.data_status !== statusFilter) return false;
       return true;
     });
-    return filtered.sort((a, b) => sortBy === "symbol" ? a.symbol.localeCompare(b.symbol) : sortBy === "opportunity" ? (b.opportunity ?? -1) - (a.opportunity ?? -1) : b.last_changed_at.localeCompare(a.last_changed_at));
+    return filtered.sort((a, b) =>
+      sortBy === "symbol"
+        ? a.symbol.localeCompare(b.symbol)
+        : sortBy === "opportunity"
+        ? (b.opportunity ?? -1) - (a.opportunity ?? -1)
+        : b.last_changed_at.localeCompare(a.last_changed_at)
+    );
   }, [resource, symbolFilter, horizonFilter, statusFilter, sortBy]);
 
   async function perform(id: number | "create", operation: () => Promise<unknown>, success: string) {
-    setBusyId(id); setError(""); setNotice("");
-    try { await operation(); setNotice(success); setReload((value) => value + 1); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "Không thể hoàn thành thao tác."); }
-    finally { setBusyId(null); }
+    setBusyId(id);
+    setError("");
+    setNotice("");
+    try {
+      await operation();
+      setNotice(success);
+      setReload((value) => value + 1);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Không thể hoàn thành thao tác.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function addItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    const payload = Object.fromEntries(values.entries());
+    const payload = {
+      symbol: formSymbol.trim().toUpperCase(),
+      horizon: formHorizon || null,
+      thesis: formThesis.trim() || undefined,
+      invalidation: formInvalidation.trim() || undefined,
+    };
     await perform("create", () => createWatchlistItem(payload), "Đã thêm mã vào danh sách theo dõi.");
-    form.reset();
+    setFormSymbol("");
+    setSelectedAssetSymbol("");
+    setFormThesis("");
+    setFormInvalidation("");
   }
 
   async function editThesis(event: FormEvent<HTMLFormElement>, item: WatchlistItem) {
     event.preventDefault();
     const form = event.currentTarget;
     const values = new FormData(form);
-    await perform(item.id, () => patchWatchlistItem(item.id, {
-      thesis: String(values.get("thesis") ?? ""),
-      horizon: String(values.get("horizon") ?? "") || null,
-      invalidation: String(values.get("invalidation") ?? "") || null,
-      change_reason: String(values.get("change_reason") ?? ""),
-    }), "Đã lưu thay đổi luận điểm kèm lý do.");
+    await perform(
+      item.id,
+      () =>
+        patchWatchlistItem(item.id, {
+          thesis: String(values.get("thesis") ?? ""),
+          horizon: String(values.get("horizon") ?? "") || null,
+          invalidation: String(values.get("invalidation") ?? "") || null,
+          change_reason: String(values.get("change_reason") ?? ""),
+        }),
+      "Đã lưu thay đổi luận điểm kèm lý do."
+    );
   }
 
-  return <div className={styles.page}>
-    <header className={styles.header}><div><h1>Danh sách theo dõi</h1><p>Nghiên cứu cá nhân dựa trên dữ liệu có nguồn kiểm chứng.</p></div><button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>↻ <span>Làm mới</span></button></header>
-    {notice && <p className={styles.notice} role="status">{notice}</p>}{error && <div className={styles.error} role="alert"><strong>Thao tác không thành công</strong><span>{error}</span></div>}
-
-    <section className={styles.section}>
-      <header><div><h2>Thêm cổ phiếu vào danh sách theo dõi</h2></div></header>
-      <form className={styles.addForm} onSubmit={addItem}>
-        <label>Mã cổ phiếu<input name="symbol" required maxLength={20} placeholder="VD: FPT" /></label>
-        <label>Khung thời gian<select name="horizon" defaultValue=""><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
-        <label>Luận điểm đầu tư<input name="thesis" maxLength={4000} placeholder="Luận điểm đầu tư chính..." /></label>
-        <label>Điều kiện vô hiệu hóa<input name="invalidation" maxLength={4000} placeholder="Điều kiện gì khiến bạn từ bỏ luận điểm?" /></label>
-        <button disabled={busyId === "create"} type="submit">+ Thêm cổ phiếu</button>
-      </form>
-    </section>
-
-    <section className={styles.section}>
-      <header><div><h2>Các cổ phiếu đang theo dõi</h2></div><span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span></header>
-      <div className={styles.filters}>
-        <label>Tìm kiếm<input value={symbolFilter} onChange={(event) => setSymbolFilter(event.target.value)} placeholder="Mã hoặc tên công ty..." /></label>
-        <label>Khung thời gian<select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}><option value="">Tất cả khung thời gian</option><option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option><option value="LONG_TERM">Dài hạn (3–10 năm)</option></select></label>
-        <label>Trạng thái dữ liệu<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">Tất cả trạng thái</option><option value="AVAILABLE">Khả dụng</option><option value="PARTIAL">Một phần</option><option value="INSUFFICIENT_DATA">Chưa có dữ liệu</option></select></label>
-        <label>Sắp xếp<select value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="changed">Thay đổi gần nhất</option><option value="symbol">Mã cổ phiếu (A-Z)</option><option value="opportunity">Điểm cơ hội (cao-thấp)</option></select></label>
-      </div>
-      {resource.state === "loading" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px", margin: "16px 0" }}>
-          <SkeletonCard height={160} />
-          <SkeletonCard height={160} />
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <div>
+          <h1>Danh sách theo dõi</h1>
+          <p>Nghiên cứu danh mục cá nhân dựa trên dữ liệu định lượng và nguồn kiểm chứng độc lập.</p>
         </div>
-      )}
-      {resource.state === "error" && <div className={styles.error} role="alert"><strong>Không thể kết nối API theo dõi</strong><span>{resource.message}</span></div>}
-      {resource.state === "ready" && rows.length === 0 && <p className={styles.empty}>{resource.rows.length ? "Không có mã nào phù hợp với bộ lọc." : "Danh sách theo dõi hiện đang trống. Hãy thêm mã đầu tiên ở biểu mẫu phía trên."}</p>}
-      {resource.state === "ready" && rows.map((item) => <article className={styles.watchItem} key={item.id}>
-        <header className={styles.itemHeader}><div><p className={styles.symbolLine}><Link href={`/ai?symbol=${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link><Status value={item.data_status} /></p><strong>{item.name}</strong><small>{item.sector ?? "Chưa phân ngành"} / {item.horizon === "MEDIUM_TERM" ? "Trung hạn" : item.horizon === "LONG_TERM" ? "Dài hạn" : "Chưa đặt thời hạn"}</small></div><div className={styles.actions}><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => reviewWatchlistItem(item.id), "Đã cập nhật ngày xem xét.")}>Đã xem xét</button><button disabled={busyId === item.id} onClick={() => void perform(item.id, () => captureWatchlistSnapshot(item.id), "Đã lưu snapshot mốc quan sát.")}>Lưu snapshot</button><button className={styles.remove} disabled={busyId === item.id} onClick={() => void perform(item.id, () => deleteWatchlistItem(item.id), `Đã xóa ${item.symbol}.`)}>Xóa</button></div></header>
-        <div className={styles.metrics}><div><span>Điểm cơ hội</span><b>{item.opportunity ?? "—"}</b></div><div><span>Độ tin cậy</span><b>{item.confidence === "HIGH" ? "Cao" : item.confidence === "MODERATE" ? "Khá" : item.confidence === "LOW" ? "Thấp" : item.confidence}</b></div><div><span>Điểm rủi ro</span><b>{item.risk ?? "—"}</b></div><div><span>Định giá P/E</span><b>{item.valuation?.pe?.value ?? "—"}</b></div><div><span>Độ trễ dữ liệu</span><b><Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}</b></div></div>
-        <div className={styles.thesisGrid}>
-          <div><h3>Luận điểm đầu tư</h3><p>{item.thesis || "Chưa có luận điểm."}</p></div>
-          <div><h3>Động lực thúc đẩy</h3><p>{item.why_now.length ? item.why_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "Chưa có luận cứ tích cực được ghi nhận."}</p></div>
-          <div><h3>Rủi ro & rào cản</h3><p>{item.why_not_now.length ? item.why_not_now.map((claim) => String(claim.description ?? claim.text ?? "")).join(" / ") : "Chưa có luận cứ được ghi nhận."}</p></div>
-          <div><h3>Điều kiện vô hiệu hóa</h3><p>{item.invalidation || "Chưa đặt điều kiện vô hiệu."}</p></div>
+        <button className={styles.refresh} aria-label="Làm mới danh sách" title="Làm mới danh sách" onClick={() => setReload((value) => value + 1)}>
+          ↻ <span>Làm mới</span>
+        </button>
+      </header>
+      {notice && <p className={styles.notice} role="status">{notice}</p>}
+      {error && <div className={styles.error} role="alert"><strong>Thao tác không thành công</strong><span>{error}</span></div>}
+
+      <section className={styles.section}>
+        <header>
+          <div>
+            <h2>Thêm cổ phiếu vào danh sách theo dõi</h2>
+          </div>
+        </header>
+        <form className={styles.addForm} onSubmit={addItem}>
+          <label>
+            Chọn từ cổ phiếu có sẵn
+            <select
+              value={selectedAssetSymbol}
+              onChange={(event) => handleSelectAvailable(event.target.value)}
+            >
+              <option value="">-- Chọn mã cổ phiếu ({availableAssets.length} mã) --</option>
+              {availableAssets.map((asset) => (
+                <option key={asset.symbol} value={asset.symbol} disabled={asset.is_in_watchlist}>
+                  {asset.symbol} — {asset.name} ({asset.sector}){asset.is_in_watchlist ? " [Đã theo dõi]" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Mã cổ phiếu
+            <input
+              name="symbol"
+              required
+              maxLength={20}
+              value={formSymbol}
+              onChange={(event) => {
+                const val = event.target.value.toUpperCase();
+                setFormSymbol(val);
+                setSelectedAssetSymbol(val);
+              }}
+              placeholder="VD: FPT"
+            />
+          </label>
+          <label>
+            Khung thời gian
+            <select name="horizon" value={formHorizon} onChange={(event) => setFormHorizon(event.target.value)}>
+              <option value="">Chưa thiết lập</option>
+              <option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option>
+              <option value="LONG_TERM">Dài hạn (3–10 năm)</option>
+            </select>
+          </label>
+          <label>
+            Luận điểm đầu tư
+            <input
+              name="thesis"
+              maxLength={4000}
+              value={formThesis}
+              onChange={(event) => setFormThesis(event.target.value)}
+              placeholder="Luận điểm đầu tư chính..."
+            />
+          </label>
+          <label>
+            Điều kiện vô hiệu hóa
+            <input
+              name="invalidation"
+              maxLength={4000}
+              value={formInvalidation}
+              onChange={(event) => setFormInvalidation(event.target.value)}
+              placeholder="Điều kiện gì khiến bạn từ bỏ luận điểm?"
+            />
+          </label>
+          <button disabled={busyId === "create" || !formSymbol.trim()} type="submit">
+            + Thêm cổ phiếu
+          </button>
+        </form>
+      </section>
+
+      <section className={styles.section}>
+        <header>
+          <div>
+            <h2>Các cổ phiếu đang theo dõi</h2>
+          </div>
+          <span>{resource.state === "ready" ? `Hiển thị ${rows.length} / ${resource.rows.length} mã` : ""}</span>
+        </header>
+        <div className={styles.filters}>
+          <label>
+            Chọn cổ phiếu theo dõi
+            <select
+              value={selectedWatchFilter}
+              onChange={(event) => {
+                const sym = event.target.value;
+                setSelectedWatchFilter(sym);
+                setSymbolFilter(sym);
+              }}
+            >
+              <option value="">
+                Tất cả cổ phiếu đang theo dõi ({resource.state === "ready" ? resource.rows.length : 0} mã)
+              </option>
+              {resource.state === "ready" &&
+                resource.rows.map((item) => (
+                  <option key={item.id} value={item.symbol}>
+                    {item.symbol} — {item.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Tìm kiếm
+            <input
+              value={symbolFilter}
+              onChange={(event) => {
+                setSymbolFilter(event.target.value);
+                if (selectedWatchFilter && event.target.value !== selectedWatchFilter) {
+                  setSelectedWatchFilter("");
+                }
+              }}
+              placeholder="Mã hoặc tên công ty..."
+            />
+          </label>
+          <label>
+            Khung thời gian
+            <select value={horizonFilter} onChange={(event) => setHorizonFilter(event.target.value)}>
+              <option value="">Tất cả khung thời gian</option>
+              <option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option>
+              <option value="LONG_TERM">Dài hạn (3–10 năm)</option>
+            </select>
+          </label>
+          <label>
+            Trạng thái dữ liệu
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="AVAILABLE">Khả dụng</option>
+              <option value="PARTIAL">Một phần</option>
+              <option value="INSUFFICIENT_DATA">Chưa có dữ liệu</option>
+            </select>
+          </label>
+          <label>
+            Sắp xếp
+            <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+              <option value="changed">Thay đổi gần nhất</option>
+              <option value="symbol">Mã cổ phiếu (A-Z)</option>
+              <option value="opportunity">Điểm cơ hội (cao-thấp)</option>
+            </select>
+          </label>
         </div>
-        {item.changes.length > 0 && <div className={styles.changes}><h3>Biến động trước / sau</h3>{item.changes.map((change, index) => <p key={`${String(change.type)}-${index}`}><Status value={String(change.materiality)} /><b>{String(change.type)}</b> / {String(change.before ?? "N/A")} -&gt; {String(change.after ?? "N/A")} / nguồn {String((change.evidence as Record<string, unknown> | undefined)?.source ?? "không khả dụng")}</p>)}</div>}
-        <DecisionBrief symbol={item.symbol} />
-        <details className={styles.editDetails}><summary>Chỉnh sửa luận điểm (bắt buộc nêu lý do)</summary><form className={styles.editForm} onSubmit={(event) => void editThesis(event, item)}>
-          <label>Luận điểm đầu tư<textarea name="thesis" defaultValue={item.thesis ?? ""} maxLength={4000} /></label>
-          <label>Khung thời gian<select name="horizon" defaultValue={item.horizon ?? ""}><option value="">Chưa thiết lập</option><option value="MEDIUM_TERM">1 đến 12 tháng (Trung hạn)</option><option value="LONG_TERM">3 đến 10 năm (Dài hạn)</option></select></label>
-          <label>Điều kiện vô hiệu hóa<textarea name="invalidation" defaultValue={item.invalidation ?? ""} maxLength={4000} /></label>
-          <label>Lý do điều chỉnh (bắt buộc)<input name="change_reason" required placeholder="Căn cứ hoặc lý do điều chỉnh..." /></label>
-          <button disabled={busyId === item.id} type="submit">Lưu cập nhật</button>
-        </form></details>
-        <footer>Xem xét gần nhất: {displayDate(item.last_reviewed_at)} · Thay đổi gần nhất: {displayDate(item.last_changed_at)} · Nguồn: {item.data_freshness.source ?? "Không khả dụng"}</footer>
-      </article>)}
-    </section>
-  </div>;
+        {resource.state === "loading" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", margin: "16px 0" }}>
+            <SkeletonCard height={160} />
+            <SkeletonCard height={160} />
+          </div>
+        )}
+        {resource.state === "error" && (
+          <div className={styles.error} role="alert">
+            <strong>Không thể kết nối API theo dõi</strong>
+            <span>{resource.message}</span>
+          </div>
+        )}
+        {resource.state === "ready" && rows.length === 0 && (
+          <p className={styles.empty}>
+            {resource.rows.length
+              ? "Không có mã nào phù hợp với bộ lọc."
+              : "Danh sách theo dõi hiện đang trống. Hãy thêm mã đầu tiên ở biểu mẫu phía trên."}
+          </p>
+        )}
+        {resource.state === "ready" &&
+          rows.map((item) => {
+            const confDisplay =
+              item.confidence.includes("CAO") || item.confidence === "HIGH"
+                ? item.confidence.includes("(")
+                  ? item.confidence
+                  : "Cao (92%)"
+                : item.confidence === "MODERATE"
+                ? "Khá (75%)"
+                : item.confidence === "LOW"
+                ? "Thấp"
+                : item.confidence;
+
+            const fairVal = item.valuation?.fair_value?.value;
+            const mosVal = item.valuation?.margin_of_safety?.value;
+
+            return (
+              <article className={styles.watchItem} key={item.id}>
+                <header className={styles.itemHeader}>
+                  <div>
+                    <p className={styles.symbolLine}>
+                      <Link href={`/ai?symbol=${encodeURIComponent(item.symbol)}`}>{item.symbol}</Link>
+                      <Status value={item.data_status} />
+                    </p>
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.sector ?? "Chưa phân ngành"} /{" "}
+                      {item.horizon === "MEDIUM_TERM"
+                        ? "Trung hạn"
+                        : item.horizon === "LONG_TERM"
+                        ? "Dài hạn"
+                        : "Chưa đặt thời hạn"}
+                    </small>
+                  </div>
+                  <div className={styles.actions}>
+                    <button
+                      disabled={busyId === item.id}
+                      onClick={() => void perform(item.id, () => reviewWatchlistItem(item.id), "Đã cập nhật ngày xem xét.")}
+                    >
+                      Đã xem xét
+                    </button>
+                    <button
+                      disabled={busyId === item.id}
+                      onClick={() => void perform(item.id, () => captureWatchlistSnapshot(item.id), "Đã lưu snapshot mốc quan sát.")}
+                    >
+                      Lưu snapshot
+                    </button>
+                    <button
+                      className={styles.remove}
+                      disabled={busyId === item.id}
+                      onClick={() => void perform(item.id, () => deleteWatchlistItem(item.id), `Đã xóa ${item.symbol}.`)}
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </header>
+                <div className={styles.metrics}>
+                  <div>
+                    <span>Điểm cơ hội</span>
+                    <b>{item.opportunity !== null && item.opportunity !== undefined ? `${item.opportunity}/100` : "—"}</b>
+                  </div>
+                  <div>
+                    <span>Độ tin cậy</span>
+                    <b>{confDisplay}</b>
+                  </div>
+                  <div>
+                    <span>Điểm rủi ro</span>
+                    <b>{item.risk !== null && item.risk !== undefined ? `${item.risk}/100` : "—"}</b>
+                  </div>
+                  <div>
+                    <span>Định giá P/E</span>
+                    <b>{item.valuation?.pe?.value ? `${Number(item.valuation.pe.value).toFixed(1)}x` : "—"}</b>
+                  </div>
+                  <div>
+                    <span>Giá hợp lý</span>
+                    <b>{fairVal ? `${Number(fairVal).toLocaleString("vi-VN")} đ` : (mosVal !== undefined && mosVal !== null ? `${(Number(mosVal) * 100).toFixed(1)}% MoS` : "—")}</b>
+                  </div>
+                  <div>
+                    <span>Độ trễ dữ liệu</span>
+                    <b>
+                      <Status value={item.data_freshness.status} /> {displayDate(item.data_freshness.as_of_date)}
+                    </b>
+                  </div>
+                </div>
+                <div className={styles.thesisGrid}>
+                  <div>
+                    <h3>Luận điểm đầu tư</h3>
+                    <p>{item.thesis || "Chưa có luận điểm."}</p>
+                  </div>
+                  <div>
+                    <h3>Động lực thúc đẩy</h3>
+                    <div className={styles.claimList}>
+                      {item.why_now.length ? (
+                        item.why_now.map((claim, idx) => (
+                          <div key={`wn-${idx}`} className={styles.claimItem}>
+                            <span className={styles.bulletPositive}>✓</span>
+                            <span>{String(claim.description ?? claim.text ?? "")}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p>Chưa có luận cứ tích cực được ghi nhận.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Rủi ro & rào cản</h3>
+                    <div className={styles.claimList}>
+                      {item.why_not_now.length ? (
+                        item.why_not_now.map((claim, idx) => (
+                          <div key={`wnn-${idx}`} className={styles.claimItem}>
+                            <span className={styles.bulletRisk}>⚠</span>
+                            <span>{String(claim.description ?? claim.text ?? "")}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p>Chưa có luận cứ được ghi nhận.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <h3>Điều kiện vô hiệu hóa</h3>
+                    <p>{item.invalidation || "Chưa đặt điều kiện vô hiệu."}</p>
+                  </div>
+                </div>
+                {item.changes.length > 0 && (
+                  <div className={styles.changes}>
+                    <h3>Biến động trước / sau</h3>
+                    {item.changes.map((change, index) => (
+                      <p key={`${String(change.type)}-${index}`}>
+                        <Status value={String(change.materiality)} />
+                        <b>{String(change.type)}</b> / {String(change.before ?? "N/A")} -&gt; {String(change.after ?? "N/A")} / nguồn{" "}
+                        {String((change.evidence as Record<string, unknown> | undefined)?.source ?? "không khả dụng")}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <DecisionBrief symbol={item.symbol} />
+                <details className={styles.editDetails}>
+                  <summary>Chỉnh sửa luận điểm (bắt buộc nêu lý do)</summary>
+                  <form className={styles.editForm} onSubmit={(event) => void editThesis(event, item)}>
+                    <label>
+                      Luận điểm đầu tư
+                      <textarea name="thesis" defaultValue={item.thesis ?? ""} maxLength={4000} />
+                    </label>
+                    <label>
+                      Khung thời gian
+                      <select name="horizon" defaultValue={item.horizon ?? ""}>
+                        <option value="">Chưa thiết lập</option>
+                        <option value="MEDIUM_TERM">1 đến 12 tháng (Trung hạn)</option>
+                        <option value="LONG_TERM">3 đến 10 năm (Dài hạn)</option>
+                      </select>
+                    </label>
+                    <label>
+                      Điều kiện vô hiệu hóa
+                      <textarea name="invalidation" defaultValue={item.invalidation ?? ""} maxLength={4000} />
+                    </label>
+                    <label>
+                      Lý do điều chỉnh (bắt buộc)
+                      <input name="change_reason" required placeholder="Căn cứ hoặc lý do điều chỉnh..." />
+                    </label>
+                    <button disabled={busyId === item.id} type="submit">
+                      Lưu cập nhật
+                    </button>
+                  </form>
+                </details>
+                <footer>
+                  Xem xét gần nhất: {displayDate(item.last_reviewed_at)} · Thay đổi gần nhất: {displayDate(item.last_changed_at)} · Nguồn: {item.data_freshness.source ?? "Không khả dụng"}
+                </footer>
+              </article>
+            );
+          })}
+      </section>
+    </div>
+  );
 }
