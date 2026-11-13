@@ -89,32 +89,65 @@
   font-weight: 600;
 }
 
-/* Portfolio Telemetry Overview Bar */
+/* Portfolio Telemetry Overview Bar (Finotive Bento Cards) */
 .overview {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
   background: transparent;
   border: none;
   box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .overview {
+    grid-template-columns: 1fr;
+  }
 }
 
 .overview > div {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 20px 22px;
   background: var(--surface-card);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: 16px;
   box-shadow: var(--shadow-sm), var(--border-specular);
-  transition: border-color var(--duration-fast) ease;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-fast) var(--ease-spring);
 }
 
 .overview > div:hover {
-  border-color: var(--line-strong);
+  border-color: rgba(16, 185, 129, 0.28);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), var(--border-specular-emerald);
+}
+
+/* First card: Ambient Emerald Glow Hero */
+.overview > div:first-child {
+  background: var(--surface-card);
+  border-color: var(--finotive-emerald-border, rgba(16, 185, 129, 0.28));
+  box-shadow: var(--shadow-sm), var(--border-specular-emerald);
+}
+
+.overview > div:first-child::after {
+  content: "";
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .overview span {
@@ -434,15 +467,15 @@
   min-height: 36px;
   align-self: flex-end;
   padding: 0 18px;
-  border: 1px solid var(--accent-apple);
+  border: var(--btn-primary-border, 1px solid rgba(16, 185, 129, 0.4));
   border-radius: var(--radius-sm);
-  background: var(--accent-apple);
-  color: #ffffff;
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 650;
-  box-shadow: 0 1px 3px rgba(10, 132, 255, 0.25);
+  font-weight: 700;
+  box-shadow: var(--btn-primary-shadow, 0 1px 3px rgba(10, 132, 255, 0.25));
   transition: all var(--duration-fast) var(--ease-spring);
 }
 
@@ -450,8 +483,9 @@
 .dcaForm button:hover,
 .thresholdForm button:hover,
 .buttonRow > button:first-child:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.35);
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
   transform: translateY(-1px);
 }
 

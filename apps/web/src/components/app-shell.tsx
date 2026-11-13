@@ -223,14 +223,18 @@ export default function AppShell({ children }: { children: ReactNode }): JSX.Ele
 
         <div className={styles.sidebarFooter}>
           <div className={styles.creedBox}>
-            <span className={styles.creedRule} />
-            <p className={styles.creedLine1}>Quant engine calculates.</p>
-            <p className={styles.creedLine2}>AI explains with evidence.</p>
+            <div className={styles.creedHeader}>
+              <span className={styles.creedIcon}>⚡</span>
+              <strong className={styles.creedTitle}>Quant Engine Active</strong>
+            </div>
+            <p className={styles.creedLine1}>Deterministic Calculations</p>
+            <p className={styles.creedLine2}>AI Explains with Evidence</p>
           </div>
         </div>
       </aside>
 
       <div className={styles.mainColumn}>
+        <div className="ambient-emerald-glow" aria-hidden="true" />
         <header className={styles.topbar}>
           {/* Column 1: Breadcrumb (sentence case) */}
           <div className={styles.breadcrumb}>
@@ -250,16 +254,21 @@ export default function AppShell({ children }: { children: ReactNode }): JSX.Ele
             </Link>
           </div>
 
-          {/* Column 2: Search Trigger Button for Command Palette */}
+          {/* Column 2: Search Trigger Button for Command Palette (Finotive Command Bar Style) */}
           <button
             type="button"
             className={styles.searchTrigger}
             onClick={() => setPaletteOpen(true)}
             aria-label="Mở tìm kiếm nhanh"
           >
-            <span className={styles.searchTriggerIcon} aria-hidden="true">🔍</span>
-            <span className={styles.searchTriggerText}>Tìm mã cổ phiếu, trang hoặc hỏi AI…</span>
-            <kbd className={styles.searchTriggerKbd}>{isMac ? "⌘K" : "Ctrl K"}</kbd>
+            <span className={styles.searchTriggerIcon} aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </span>
+            <span className={styles.searchTriggerText}>Tìm mã cổ phiếu, lệnh hoặc hỏi AI…</span>
+            <kbd className={styles.searchTriggerKbd}>{isMac ? "⌘ + K" : "Ctrl + K"}</kbd>
           </button>
 
           {/* Mobile Header Right (Search Icon + Menu Button) */}

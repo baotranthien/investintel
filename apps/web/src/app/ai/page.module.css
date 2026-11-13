@@ -193,9 +193,10 @@
 }
 
 .suggestionPillActive {
-  background-color: var(--ink) !important;
-  color: var(--canvas) !important;
-  border-color: var(--ink) !important;
+  background-color: var(--btn-pill-active-bg, #10B981) !important;
+  color: var(--btn-pill-active-color, #041E15) !important;
+  border-color: var(--btn-pill-active-bg, #10B981) !important;
+  font-weight: 700;
 }
 
 /* 4. Scope Card (Collapsible Tool Scope) */
@@ -252,13 +253,15 @@
   margin: 0;
 }
 
-/* 5. Loading Answer State Card */
+/* 5. Loading Answer State Card (Deterministic Quant Computation) */
 .loadingAnswerCard {
-  background-color: var(--surface);
-  border: 1px solid var(--line);
+  background: var(--surface-card);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--line-strong);
   border-radius: 20px;
   padding: 28px 30px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md), var(--border-specular);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -279,25 +282,80 @@
   align-items: center;
   gap: 8px;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--ink);
 }
 
 .cancelBtn {
   appearance: none;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--line);
+  background: var(--surface-muted);
   color: var(--negative);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background-color 150ms ease;
+  padding: 5px 12px;
+  border-radius: 8px;
+  transition: all var(--duration-fast) ease;
 }
 
 .cancelBtn:hover {
   background-color: var(--negative-soft);
+  border-color: var(--negative-border);
+}
+
+/* StellarX 3-Step Progress Stepper */
+.stellarxStepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  margin: 4px 0 8px;
+}
+
+.stepperItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ink-secondary);
+}
+
+.stepperActive {
+  color: var(--finotive-emerald, #10B981);
+}
+
+.stepperNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--ink);
+  font-size: 10.5px;
+  border: 1px solid var(--line);
+}
+
+.stepperActive .stepperNum {
+  background: var(--finotive-emerald-soft, rgba(16, 185, 129, 0.16));
+  color: var(--finotive-emerald, #10B981);
+  border: 1px solid var(--finotive-emerald-border, rgba(16, 185, 129, 0.35));
+}
+
+.stepperDivider {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  min-width: 16px;
 }
 
 /* 6. Desktop 2-Column Split View (Chat + Evidence Split View) */
@@ -308,20 +366,18 @@
   width: 100%;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 860px) {
   .splitLayout {
-    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
-    /* 65% / 35% Split */
+    grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
     align-items: start;
-    gap: 28px;
+    gap: 24px;
   }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1280px) {
   .splitLayout {
-    grid-template-columns: minmax(0, 68fr) minmax(0, 32fr);
-    /* 68% / 32% Desktop */
-    gap: 32px;
+    grid-template-columns: minmax(0, 1.55fr) minmax(360px, 1fr);
+    gap: 28px;
   }
 }
 
@@ -337,6 +393,11 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  position: sticky;
+  top: 72px;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 /* 7. Khu vực Kết quả AI (Cột Trái 60%) */
@@ -787,21 +848,23 @@
 /* 9. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */
 .bottomDock {
   position: fixed;
-  bottom: 28px;
-  left: 260px;
-  /* Trừ chiều rộng Sidebar trái */
+  bottom: 32px;
+  left: var(--sidebar-width, 260px);
   right: 0;
-  background: linear-gradient(180deg, transparent 0%, var(--canvas) 40%, var(--canvas) 100%);
-  padding: 16px 24px 18px 24px;
-  z-index: 30;
+  background: linear-gradient(180deg, transparent 0%, var(--canvas) 45%, var(--canvas) 100%);
+  padding: 16px 24px 20px 24px;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   align-items: center;
+  transition: left var(--duration-fast) ease;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .bottomDock {
     left: 0;
+    bottom: 64px;
+    padding: 10px 14px 14px 14px;
   }
 }
 
@@ -860,37 +923,39 @@
 /* Hộp nhập câu hỏi chuẩn Apple / ChatGPT */
 .promptBox {
   width: 100%;
-  background-color: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 10px 12px 10px 16px;
-  box-shadow: var(--shadow-island);
+  background-color: var(--surface-card);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  padding: 8px 12px 8px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), var(--border-specular);
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: all var(--duration-fast) ease;
   box-sizing: border-box;
+  min-height: 54px;
 }
 
 .promptBox:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  border-color: var(--finotive-emerald, #10B981);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--finotive-emerald-border, rgba(16, 185, 129, 0.35));
 }
 
 .tickerInput {
   width: 78px;
-  height: 36px;
+  height: 38px;
   background-color: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0 10px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--ink);
   text-transform: uppercase;
   text-align: center;
   outline: none;
   flex-shrink: 0;
+  margin-bottom: 2px;
 }
 
 .tickerInput::placeholder {
@@ -900,7 +965,7 @@
 
 .tickerInput:focus {
   background-color: var(--surface);
-  border-color: var(--accent);
+  border-color: var(--finotive-emerald, #10B981);
 }
 
 .promptTextarea {
@@ -908,14 +973,15 @@
   border: none !important;
   background: transparent !important;
   color: var(--ink) !important;
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 1.5;
-  padding: 6px 4px;
+  padding: 8px 4px 6px;
   resize: none;
   outline: none !important;
-  min-height: 36px;
+  min-height: 38px;
   max-height: 140px;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .promptTextarea::placeholder {
@@ -925,21 +991,26 @@
 
 .submitBtn {
   appearance: none;
-  border: none;
-  background-color: var(--accent);
-  color: var(--canvas);
-  height: 36px;
-  padding: 0 18px;
+  border: var(--btn-primary-border, none);
+  background-color: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
+  height: 38px;
+  padding: 0 20px;
   border-radius: 9999px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 150ms ease, transform 150ms ease, opacity 150ms ease;
+  margin-bottom: 2px;
+  box-shadow: var(--btn-primary-shadow, 0 2px 8px rgba(16, 185, 129, 0.3));
+  transition: all var(--duration-fast) var(--ease-spring);
 }
 
 .submitBtn:hover:not(:disabled) {
-  background-color: var(--accent-hover);
+  background-color: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--finotive-emerald-glow, rgba(16, 185, 129, 0.45));
 }
 
 .submitBtn:active:not(:disabled) {
@@ -950,6 +1021,8 @@
   background-color: var(--surface-secondary);
   color: var(--ink-muted);
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .disclaimerText {

@@ -526,6 +526,49 @@ export class ApiError extends Error {
   }
 }
 
+export function extractErrorMessage(responseText: string, fallbackStatusText: string): string {
+  if (!responseText) return fallbackStatusText || "Không thể tải dữ liệu từ API.";
+  try {
+    const payload: unknown = JSON.parse(responseText);
+    if (typeof payload === "object" && payload !== null) {
+      if ("detail" in payload) {
+        const detail = (payload as Record<string, unknown>).detail;
+        if (typeof detail === "string") return detail;
+        if (Array.isArray(detail)) {
+          return detail
+            .map((item) => {
+              if (typeof item === "object" && item !== null) {
+                const rec = item as Record<string, unknown>;
+                const msg = rec.msg || rec.message;
+                const locArr = rec.loc;
+                const loc = Array.isArray(locArr) ? ` (${locArr.join(".")})` : "";
+                if (msg) return `${msg}${loc}`;
+              }
+              return JSON.stringify(item);
+            })
+            .join("; ");
+        }
+        if (typeof detail === "object" && detail !== null) {
+          const d = detail as Record<string, unknown>;
+          return (
+            (d.message as string) ||
+            (d.reason as string) ||
+            (d.error as string) ||
+            JSON.stringify(detail)
+          );
+        }
+        return String(detail);
+      }
+      if ("message" in payload && typeof (payload as Record<string, unknown>).message === "string") {
+        return (payload as Record<string, unknown>).message as string;
+      }
+    }
+  } catch {
+    // Non-JSON response
+  }
+  return responseText || fallbackStatusText || "Lỗi không xác định từ máy chủ.";
+}
+
 export async function apiGet<T>(path: `/api/${string}`, signal?: AbortSignal): Promise<T> {
   const response = await fetch(path, {
     method: "GET",
@@ -540,16 +583,8 @@ export async function apiGet<T>(path: `/api/${string}`, signal?: AbortSignal): P
 
   if (!response.ok) {
     const responseText = await response.text();
-    let detail = responseText;
-    try {
-      const payload: unknown = JSON.parse(responseText);
-      if (typeof payload === "object" && payload !== null && "detail" in payload) {
-        detail = String(payload.detail);
-      }
-    } catch {
-      detail = responseText || response.statusText;
-    }
-    throw new ApiError(detail || "Không thể tải dữ liệu từ API.", response.status);
+    const detail = extractErrorMessage(responseText, response.statusText);
+    throw new ApiError(detail, response.status);
   }
 
   return (await response.json()) as T;
@@ -617,11 +652,7 @@ export async function apiWrite<T>(path: `/api/${string}`, method: "POST" | "PUT"
   });
   if (!response.ok) {
     const text = await response.text();
-    let message = text || response.statusText;
-    try {
-      const parsed: unknown = JSON.parse(text);
-      if (typeof parsed === "object" && parsed !== null && "detail" in parsed) message = String(parsed.detail);
-    } catch { /* retain the response body */ }
+    const message = extractErrorMessage(text, response.statusText);
     throw new ApiError(message, response.status);
   }
   if (response.status === 204) return undefined as T;

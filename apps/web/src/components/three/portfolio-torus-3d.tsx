@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect, useMemo, type JSX } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useTheme } from "@/lib/theme";
 
@@ -61,12 +61,30 @@ function TorusSegment({
   const tube = 0.22;
   const segmentColor = item.color || (isDark ? "#3b82f6" : "#2563eb");
 
+  const midAngle = startAngle + arcAngle / 2;
+  const dirX = Math.cos(midAngle);
+  const dirY = Math.sin(midAngle);
+
+  const scaleRef = useRef<number>(1.0);
+  const currentDisplace = useRef<number>(0);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    const targetDisplace = isHovered ? 0.08 : 0;
+    const targetScale = isHovered ? 1.05 : 1.0;
+    currentDisplace.current = THREE.MathUtils.lerp(currentDisplace.current, targetDisplace, 0.14);
+    scaleRef.current = THREE.MathUtils.lerp(scaleRef.current, targetScale, 0.14);
+
+    meshRef.current.position.x = dirX * currentDisplace.current;
+    meshRef.current.position.y = dirY * currentDisplace.current;
+    meshRef.current.position.z = isHovered ? 0.14 : 0;
+    meshRef.current.scale.setScalar(scaleRef.current);
+  });
+
   return (
     <group rotation={[0, 0, startAngle]}>
       <mesh
         ref={meshRef}
-        position={[0, 0, isHovered ? 0.18 : 0]}
-        scale={isHovered ? 1.04 : 1.0}
         onPointerOver={(e) => {
           e.stopPropagation();
           onPointerOver();
@@ -76,17 +94,20 @@ function TorusSegment({
           onPointerOut();
         }}
       >
-        <torusGeometry args={[radius, tube, 32, 64, arcAngle]} />
+        <torusGeometry args={[radius, tube, 36, 72, arcAngle]} />
         <meshPhysicalMaterial
           color={segmentColor}
           emissive={segmentColor}
-          emissiveIntensity={isHovered ? (isDark ? 0.5 : 0.25) : isDark ? 0.15 : 0.05}
-          roughness={0.18}
-          metalness={0.12}
-          transmission={0.25}
-          thickness={0.4}
+          emissiveIntensity={isHovered ? (isDark ? 0.75 : 0.45) : isDark ? 0.22 : 0.1}
+          roughness={0.14}
+          metalness={0.24}
+          clearcoat={1.0}
+          clearcoatRoughness={0.06}
+          transmission={0.42}
+          thickness={0.7}
+          ior={1.48}
           transparent
-          opacity={isHovered ? 1 : 0.9}
+          opacity={isHovered ? 1.0 : 0.94}
         />
       </mesh>
     </group>
@@ -105,6 +126,16 @@ function PortfolioTorusScene({
   effectiveTheme: string;
 }) {
   const isDark = effectiveTheme === "dark";
+  const sceneRef = useRef<THREE.Group>(null);
+  const { pointer } = useThree();
+
+  useFrame(() => {
+    if (!sceneRef.current) return;
+    const targetRotX = -Math.PI / 8 - pointer.y * 0.18;
+    const targetRotY = pointer.x * 0.25;
+    sceneRef.current.rotation.x = THREE.MathUtils.lerp(sceneRef.current.rotation.x, targetRotX, 0.08);
+    sceneRef.current.rotation.y = THREE.MathUtils.lerp(sceneRef.current.rotation.y, targetRotY, 0.08);
+  });
 
   // Calculate arc angles with subtle gaps
   const segments = useMemo(() => {
@@ -129,12 +160,23 @@ function PortfolioTorusScene({
   }, [data]);
 
   return (
-    <group position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]}>
+    <group ref={sceneRef} position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]}>
       <InvalidateOnChange triggers={[hoveredIdx, data, effectiveTheme]} />
 
-      <ambientLight intensity={isDark ? 1.0 : 1.4} />
-      <directionalLight position={[3, 4, 5]} intensity={isDark ? 1.8 : 2.2} />
-      <pointLight position={[-3, -2, 2]} intensity={0.8} color={isDark ? "#818cf8" : "#93c5fd"} />
+      <ambientLight intensity={isDark ? 0.95 : 1.3} />
+      <directionalLight position={[3, 5, 5]} intensity={isDark ? 2.2 : 2.5} />
+      <pointLight position={[-3, -2, 2]} intensity={1.2} color={isDark ? "#10B981" : "#38BDF8"} />
+
+      {/* Inner Glowing Halo Energy Ring */}
+      <mesh rotation={[0, 0, 0]}>
+        <torusGeometry args={[0.58, 0.014, 16, 64]} />
+        <meshBasicMaterial
+          color={isDark ? "#10B981" : "#059669"}
+          transparent
+          opacity={0.35}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
 
       {segments.map(({ item, idx, startAngle, arcAngle }) => (
         <TorusSegment
@@ -191,7 +233,7 @@ function PortfolioTorus3DInner({
       role="img"
     >
       <Canvas
-        frameloop="demand"
+        frameloop="always"
         dpr={[1, 1.5]}
         camera={{ position: [0, 0.05, 5.2], fov: 36 }}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}

@@ -508,6 +508,7 @@ function AIWorkspaceContent() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AIHistoryItem[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [scopeExpanded, setScopeExpanded] = useState(false);
 
   // Background fetch of AI Model Status via SWR Cache without blocking UI
   const { data: aiStatus, isLoading: isStatusLoading } = useCachedResource<AIStatus>(
@@ -518,6 +519,15 @@ function AIWorkspaceContent() {
 
   const answerSectionRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize prompt textarea based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      const nextHeight = Math.max(38, Math.min(textareaRef.current.scrollHeight, 120));
+      textareaRef.current.style.height = `${nextHeight}px`;
+    }
+  }, [question]);
 
   // Navigation tracking ref to ensure idempotency and prevent overwriting user edits
   const lastHandledKeyRef = useRef<string>("");
@@ -1040,11 +1050,18 @@ function AIWorkspaceContent() {
 
         {/* 4. Khung Phạm vi công cụ (Collapsible Tool Scope) */}
         <section className={styles.scopeCard}>
-          <div className={styles.scopeHeader}>
-            <span className={styles.scopeTitle}>
-              Phạm vi công cụ phân tích ({selectedTools.length}/{toolOptions.length})
+          <div
+            className={styles.scopeHeader}
+            style={{ cursor: "pointer", marginBottom: scopeExpanded ? "12px" : "0" }}
+            onClick={() => setScopeExpanded((prev) => !prev)}
+          >
+            <span className={styles.scopeTitle} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>Phạm vi công cụ phân tích ({selectedTools.length}/{toolOptions.length})</span>
+              <span style={{ fontSize: "11px", color: "var(--finotive-emerald, #10B981)", fontWeight: 600 }}>
+                {scopeExpanded ? "▲ Thu gọn" : "▼ Tùy chỉnh công cụ"}
+              </span>
             </span>
-            <div className={styles.scopeActions}>
+            <div className={styles.scopeActions} onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 className={styles.suggestionPill}
@@ -1063,19 +1080,21 @@ function AIWorkspaceContent() {
               </button>
             </div>
           </div>
-          <div className={styles.scopeGrid}>
-            {toolOptions.map((tool) => (
-              <label key={tool.name} className={styles.scopeItem}>
-                <input
-                  type="checkbox"
-                  className={styles.scopeCheckbox}
-                  checked={selectedTools.includes(tool.name)}
-                  onChange={() => toggleTool(tool.name)}
-                />
-                <span>{tool.label}</span>
-              </label>
-            ))}
-          </div>
+          {scopeExpanded && (
+            <div className={styles.scopeGrid}>
+              {toolOptions.map((tool) => (
+                <label key={tool.name} className={styles.scopeItem}>
+                  <input
+                    type="checkbox"
+                    className={styles.scopeCheckbox}
+                    checked={selectedTools.includes(tool.name)}
+                    onChange={() => toggleTool(tool.name)}
+                  />
+                  <span>{tool.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 5. Thông báo lỗi nếu có */}
@@ -1100,9 +1119,28 @@ function AIWorkspaceContent() {
                 ✕ Hủy phân tích
               </button>
             </div>
-            <SkeletonCard />
-            <div style={{ marginTop: "12px" }}>
-              <SkeletonText lines={4} lastLineWidth="65%" />
+
+            {/* StellarX 3-Step Progress Stepper */}
+            <div className={styles.stellarxStepper} role="status" aria-label="Tiến trình suy luận AI">
+              <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
+                <span className={styles.stepperNum}>01</span>
+                <span>DỮ LIỆU ĐỊNH LƯỢNG</span>
+              </div>
+              <div className={styles.stepperDivider} />
+              <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
+                <span className={styles.stepperNum}>02</span>
+                <span>SUY LUẬN MÔ HÌNH</span>
+              </div>
+              <div className={styles.stepperDivider} />
+              <div className={styles.stepperItem}>
+                <span className={styles.stepperNum}>03</span>
+                <span>ĐỐI SOÁT BẰNG CHỨNG</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "8px 0" }}>
+              <Skeleton height={22} width="40%" radius={6} />
+              <SkeletonText lines={4} lastLineWidth="70%" lineHeight={16} gap={10} />
             </div>
           </div>
         )}
@@ -1319,7 +1357,7 @@ function AIWorkspaceContent() {
       {/* 8. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */}
       <div className={styles.bottomDock}>
         <div className={`${styles.dockInner} ${answer ? styles.dockInnerWide : ""}`}>
-          {busy && (
+          {busy && answer && (
             <div className={styles.sseStatusPill}>
               <div className={styles.pulseDot} />
               <span>{streamMessage || "AI đang phân tích..."}</span>

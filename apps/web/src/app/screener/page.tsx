@@ -419,7 +419,7 @@ export default function StockScreenerPage() {
         </div>
       </div>
 
-      {viewMode === "cube" && result && result.matches.length > 0 ? (
+      {viewMode === "cube" && result && result.matches.length > 0 && (
         <div className={styles.cubeContainer}>
           <div className={styles.cubeHeader}>
             <div className={styles.cubeTitleGroup}>
@@ -429,7 +429,7 @@ export default function StockScreenerPage() {
               </p>
             </div>
             <span className={styles.cubeHint}>
-              Kéo chuột để xoay 3D · Hover để xem chỉ số · Nhấp điểm để tra cứu AI Analyst
+              Kéo chuột để xoay 3D · Hover để xem chỉ số · Lăn chuột để cuộn xuống bảng dữ liệu
             </span>
           </div>
           <MultiFactorCube3D
@@ -448,9 +448,10 @@ export default function StockScreenerPage() {
             onSelectStock={(sym) => router.push(`/ai?symbol=${encodeURIComponent(sym)}`)}
           />
         </div>
-      ) : (
-        /* RESULTS TABLE */
-        <div className={styles.tableCard}>
+      )}
+
+      {/* RESULTS TABLE */}
+      <div className={styles.tableCard}>
           <div className={styles.tableScroll}>
             <table className={styles.table}>
               <thead>
@@ -543,7 +544,6 @@ export default function StockScreenerPage() {
             </table>
           </div>
         </div>
-      )}
     </div>
   );
 }

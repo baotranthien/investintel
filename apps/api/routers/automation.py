@@ -11,9 +11,9 @@ Endpoints:
   POST /api/v1/automation/trigger         — Run automation cycle on demand
 """
 from datetime import date
-from typing import Optional
+from typing import Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -234,12 +234,26 @@ def resume_scheduler():
     return {"status": "ACTIVE"}
 
 
+class TriggerPipelinePayload(BaseModel):
+    target_symbols: Optional[list[str]] = None
+
+
 @router.post("/scheduler/trigger")
-async def trigger_local_pipeline(target_symbols: Optional[list[str]] = None):
+async def trigger_local_pipeline(
+    payload: Optional[Union[TriggerPipelinePayload, list[str]]] = Body(None)
+):
     """Triggers the full local pipeline (Ingestion -> Opportunity -> Alerts -> Backup)."""
+    symbols: Optional[list[str]] = None
+    if isinstance(payload, list):
+        symbols = payload
+    elif isinstance(payload, TriggerPipelinePayload):
+        symbols = payload.target_symbols
+    elif isinstance(payload, dict):
+        symbols = payload.get("target_symbols")
+
     from services.scheduler.engine import local_scheduler, SchedulerLockError, JobDependencyError
     try:
-        res = await local_scheduler.run_pipeline(target_symbols=target_symbols)
+        res = await local_scheduler.run_pipeline(target_symbols=symbols)
         return res
     except SchedulerLockError as exc:
         raise HTTPException(status_code=409, detail=str(exc))

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 const themeInitializerScript = `(function() {
   try {
     var stored = localStorage.getItem("investintel:theme:v1");
-    var theme = (stored === "light" || stored === "dark" || stored === "system") ? stored : "system";
+    var theme = (stored === "light" || stored === "dark" || stored === "system") ? stored : "dark";
     var systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     var effectiveTheme = theme === "system" ? (systemDark ? "dark" : "light") : theme;
     var root = document.documentElement;

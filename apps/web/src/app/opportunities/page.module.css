@@ -90,15 +90,15 @@
 }
 
 .aiLinkBtn {
-  background: var(--accent-apple);
-  color: #ffffff;
-  border-color: var(--accent-apple);
-  box-shadow: 0 1px 3px rgba(10, 132, 255, 0.3);
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
+  border: var(--btn-primary-border, 1px solid rgba(16, 185, 129, 0.4));
+  box-shadow: var(--btn-primary-shadow, 0 1px 3px rgba(10, 132, 255, 0.3));
 }
 
 .aiLinkBtn:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 4px 12px rgba(10, 132, 255, 0.35);
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
   transform: translateY(-1px);
 }
 
@@ -570,9 +570,9 @@
 .actionBtnSecondary {
   font-size: 12px;
   font-weight: 650;
-  color: var(--accent-apple);
-  background: var(--accent-apple-soft);
-  border: 1px solid var(--accent-apple-border, rgba(10, 132, 255, 0.22));
+  color: var(--btn-secondary-color, var(--ink));
+  background: var(--btn-secondary-bg, var(--surface-card));
+  border: var(--btn-secondary-border, 1px solid var(--line-strong));
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   display: inline-flex;
@@ -583,29 +583,30 @@
 }
 
 .actionBtnSecondary:hover {
-  background: rgba(10, 132, 255, 0.2);
-  color: var(--ink);
+  background: var(--btn-secondary-hover, var(--surface-card-hover));
+  color: var(--accent-apple);
   border-color: var(--accent-apple);
 }
 
 .actionBtnPrimary {
   font-size: 12px;
   font-weight: 700;
-  color: var(--positive-ink);
+  color: var(--btn-primary-color, #041E15);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
-  border-radius: 4px;
-  background: var(--positive-soft);
-  border: 1px solid var(--positive-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--btn-primary-bg, #10B981);
+  border: var(--btn-primary-border, 1px solid rgba(16, 185, 129, 0.4));
+  box-shadow: var(--btn-primary-shadow, 0 1px 3px rgba(10, 132, 255, 0.25));
   transition: all 150ms ease;
   text-decoration: none;
 }
 
 .actionBtnPrimary:hover {
-  background: var(--positive);
-  color: #ffffff;
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
 }
 
 /* Table View */
@@ -668,9 +669,9 @@
 .actionBtnAiSmall {
   font-size: 11.5px;
   font-weight: 650;
-  color: var(--accent-apple);
-  background: var(--accent-apple-soft);
-  border: 1px solid var(--info-border);
+  color: var(--btn-secondary-color, var(--ink));
+  background: var(--btn-secondary-bg, var(--surface-card));
+  border: var(--btn-secondary-border, 1px solid var(--line-strong));
   padding: 4px 10px;
   border-radius: 6px;
   display: inline-flex;
@@ -681,13 +682,9 @@
 }
 
 .actionBtnAiSmall:hover {
-  background: rgba(10, 132, 255, 0.22);
-}
-
-.actionBtnAiSmall:hover {
-  background: #116b56;
-  color: #ffffff;
-  border-color: #116b56;
+  background: var(--btn-secondary-hover, var(--surface-card-hover));
+  border-color: var(--accent-apple);
+  color: var(--accent-apple);
 }
 
 /* Empty / Loading States */
@@ -723,13 +720,19 @@
 .resetBtn {
   margin-top: 8px;
   padding: 8px 16px;
-  background: var(--ink);
-  color: #ffffff;
-  border: none;
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
+  border: var(--btn-primary-border, none);
   border-radius: 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.resetBtn:hover {
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
 }
 
 @media (max-width: 900px) {

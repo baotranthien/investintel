@@ -65,22 +65,13 @@
   pointer-events: auto;
 }
 
-/* Đảm bảo Dark mode luôn có nền than chì đậm & chữ sáng rõ, không bao giờ bị trắng lóa */
+/* Đảm bảo Dark mode đồng bộ với Finotive Obsidian Design System */
 :global(html[data-theme="dark"]) .popover,
 :global(html[data-effective-theme="dark"]) .popover {
-  background: #1C1D21 !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
-  color: #F5F5F7 !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  :global(html:not([data-theme="light"]):not([data-effective-theme="light"])) .popover {
-    background: #1C1D21 !important;
-    border: 1px solid rgba(255, 255, 255, 0.16) !important;
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
-    color: #F5F5F7 !important;
-  }
+  background: var(--surface-card, #121614) !important;
+  border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.16)) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8), var(--border-specular) !important;
+  color: var(--ink, #FFFFFF) !important;
 }
 
 @keyframes popoverFade {

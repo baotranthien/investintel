@@ -54,16 +54,34 @@
   --ink-faint: #64748B;
 
   /* Interactive Accent */
-  --accent: #1D1D1F;
+  --accent: #059669;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #333336;
-  --accent-apple: #0071E3;
-  --accent-apple-soft: rgba(0, 113, 227, 0.08);
+  --accent-hover: #047857;
+  --accent-apple: #059669;
+  --accent-apple-soft: rgba(5, 150, 105, 0.10);
   --accent-soft: rgba(0, 0, 0, 0.05);
-  --accent-cyan: #0071E3;
-  --accent-cyan-soft: rgba(0, 113, 227, 0.08);
-  --accent-blue: #0071E3;
-  --accent-blue-soft: rgba(0, 113, 227, 0.08);
+  --accent-cyan: #0284C7;
+  --accent-cyan-soft: rgba(2, 132, 199, 0.08);
+  --accent-blue: #059669;
+  --accent-blue-soft: rgba(5, 150, 105, 0.08);
+
+  /* Standardized Interactive Button Tokens (Default / Light) */
+  --btn-primary-bg: #059669;
+  --btn-primary-color: #FFFFFF;
+  --btn-primary-hover: #047857;
+  --btn-primary-border: 1px solid #047857;
+  --btn-primary-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+
+  --btn-secondary-bg: var(--surface-card);
+  --btn-secondary-color: var(--ink);
+  --btn-secondary-border: 1px solid var(--line-strong);
+  --btn-secondary-hover: var(--surface-card-hover);
+
+  --btn-pill-active-bg: #0F172A;
+  --btn-pill-active-color: #FFFFFF;
+  --btn-pill-inactive-bg: var(--surface-muted);
+  --btn-pill-inactive-color: var(--ink-secondary);
+  --btn-pill-inactive-border: 1px solid var(--line);
 
   /* Semantic Financial Colors (Calm, legible, non-neon - WCAG AA compliant) */
   --positive: #15803D;
@@ -125,6 +143,53 @@
   /* Font Families */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI Variable", "Segoe UI", sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  /* Finotive & Vietnam Stock Market Standards (Light Mode Defaults) */
+  --finotive-canvas: #F5F6F8;
+  --finotive-surface: #FFFFFF;
+  --finotive-card: #FFFFFF;
+  --finotive-card-hover: #F8FAFC;
+  --finotive-elevated: #FFFFFF;
+  --finotive-emerald: #059669;
+  --finotive-emerald-soft: rgba(5, 150, 105, 0.12);
+  --finotive-emerald-border: rgba(5, 150, 105, 0.22);
+  --finotive-emerald-glow: rgba(5, 150, 105, 0.10);
+  --finotive-lime: #D97706;
+  --finotive-lime-soft: rgba(217, 119, 6, 0.12);
+  --finotive-red: #DC2626;
+  --finotive-red-soft: rgba(220, 38, 38, 0.12);
+  --finotive-purple: #9333EA;
+  --finotive-purple-soft: rgba(147, 51, 234, 0.12);
+  --finotive-cyan: #0284C7;
+  --finotive-cyan-soft: rgba(2, 132, 199, 0.12);
+
+  /* Vietnam Stock Standard Semantic Tokens */
+  --vn-ceiling: #9333EA;
+  --vn-ceiling-soft: rgba(147, 51, 234, 0.12);
+  --vn-up: #059669;
+  --vn-up-soft: rgba(5, 150, 105, 0.12);
+  --vn-ref: #D97706;
+  --vn-ref-soft: rgba(217, 119, 6, 0.12);
+  --vn-down: #DC2626;
+  --vn-down-soft: rgba(220, 38, 38, 0.12);
+  --vn-floor: #0284C7;
+  --vn-floor-soft: rgba(2, 132, 199, 0.12);
+  --border-specular-emerald: 0 1px 2px rgba(5, 150, 105, 0.15);
+
+  /* Responsive Sidebar Dimension Token */
+  --sidebar-width: 260px;
+}
+
+@media (max-width: 1080px) {
+  :root {
+    --sidebar-width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
 }
 
 * {
@@ -134,207 +199,314 @@
 }
 
 html {
-  /* color-scheme is managed dynamically via data-theme & system preference */
+  background-color: var(--canvas);
+  color-scheme: light;
+  width: 100%;
+  min-height: 100%;
 }
 
 /* ==========================================================================
-   Apple Obsidian / macOS Sequoia Stocks Financial Dark Mode System
-   Pure obsidian foundation, subtle specular hairlines, crisp WCAG AA typography
+   Light Mode Explicit Declaration (Overrides when user selects Light)
+   ========================================================================== */
+html[data-theme="light"],
+html[data-effective-theme="light"] {
+  color-scheme: light;
+  --canvas: #F5F6F8;
+  --canvas-base: #F5F6F8;
+  --canvas-subtle: #EBEBEF;
+  --canvas-inset: #E5E5EA;
+  --canvas-sidebar: #FAFAFC;
+
+  --surface: #FFFFFF;
+  --surface-panel: #FFFFFF;
+  --surface-card: #FFFFFF;
+  --surface-card-hover: #F8FAFC;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #F2F2F7;
+  --surface-active: #E8E8ED;
+  --surface-secondary: #EFEFF4;
+  --surface-hover: #FAFAFC;
+
+  --bg-alt: #F8FAFC;
+  --bg-hover: #F1F5F9;
+  --badge-bg: #F2F2F7;
+  --badge-ink: #475569;
+
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --surface-glass-border: rgba(0, 0, 0, 0.08);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.95);
+
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --line-subtle: rgba(0, 0, 0, 0.04);
+  --line-titanium: rgba(0, 0, 0, 0.08);
+  --line-focus: rgba(5, 150, 105, 0.45);
+  --border-specular: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --border-specular-cyan: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --border-specular-emerald: 0 1px 2px rgba(5, 150, 105, 0.15);
+
+  --ink: #0F172A;
+  --ink-secondary: #475569;
+  --ink-muted: #64748B;
+  --ink-faint: #94A3B8;
+
+  --accent: #059669;
+  --accent-contrast: #FFFFFF;
+  --accent-hover: #047857;
+  --accent-apple: #059669;
+  --accent-apple-soft: rgba(5, 150, 105, 0.10);
+  --accent-soft: rgba(0, 0, 0, 0.05);
+
+  /* Standardized Interactive Button Tokens (Light) */
+  --btn-primary-bg: #059669;
+  --btn-primary-color: #FFFFFF;
+  --btn-primary-hover: #047857;
+  --btn-primary-border: 1px solid #047857;
+  --btn-primary-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+
+  --btn-secondary-bg: #FFFFFF;
+  --btn-secondary-color: #0F172A;
+  --btn-secondary-border: 1px solid rgba(0, 0, 0, 0.14);
+  --btn-secondary-hover: #F8FAFC;
+
+  --btn-pill-active-bg: #0F172A;
+  --btn-pill-active-color: #FFFFFF;
+  --btn-pill-inactive-bg: #F1F5F9;
+  --btn-pill-inactive-color: #475569;
+  --btn-pill-inactive-border: 1px solid rgba(0, 0, 0, 0.08);
+
+  --finotive-canvas: #F5F6F8;
+  --finotive-surface: #FFFFFF;
+  --finotive-card: #FFFFFF;
+  --finotive-card-hover: #F8FAFC;
+  --finotive-elevated: #FFFFFF;
+  --finotive-emerald: #059669;
+  --finotive-emerald-soft: rgba(5, 150, 105, 0.12);
+  --finotive-emerald-border: rgba(5, 150, 105, 0.22);
+  --finotive-emerald-glow: rgba(5, 150, 105, 0.10);
+}
+
+/* ==========================================================================
+   Finotive Obsidian / Apple Financial Design System (Dark Mode)
+   Canvas #080A09, Bento Cards #121614, Ambient Emerald Radial Glow #10B981
    ========================================================================== */
 
 html[data-theme="dark"],
 html[data-effective-theme="dark"] {
   color-scheme: dark;
 
-  /* Apple Pure Obsidian Canvas */
-  --canvas: #09090B;
-  --canvas-base: #09090B;
-  --canvas-sidebar: #0C0C0E;
-  --canvas-subtle: #111114;
-  --canvas-inset: #141418;
+  /* Finotive Pure Obsidian Foundation */
+  --canvas: #080A09;
+  --canvas-base: #080A09;
+  --canvas-sidebar: #0B0E0C;
+  --canvas-subtle: #0F1411;
+  --canvas-inset: #121614;
 
-  /* Elevated Dark Surfaces (Deep obsidian layers - never muddy, zero brown/olive cast) */
-  --surface: #121215;
-  --surface-panel: #121215;
-  --surface-card: #16161A;
-  --surface-card-hover: #1D1D23;
-  --surface-elevated: #202027;
-  --surface-muted: #141418;
-  --surface-active: #24242D;
-  --surface-secondary: #17171C;
-  --surface-hover: #1D1D23;
+  /* Elevated Surfaces & Bento Cards */
+  --surface: #0D110F;
+  --surface-panel: #0D110F;
+  --surface-card: #121614;
+  --surface-card-hover: #171E1A;
+  --surface-elevated: #171D1A;
+  --surface-muted: #101412;
+  --surface-active: #1C2420;
+  --surface-secondary: #131815;
+  --surface-hover: #171E1A;
 
   /* Additional Surface Tokens */
-  --bg-alt: #131317;
-  --bg-hover: #1A1A20;
-  --badge-bg: #16161C;
+  --bg-alt: #0C100E;
+  --bg-hover: #161D19;
+  --badge-bg: #131A16;
   --badge-ink: #A1A1AA;
 
-  /* Translucent Glass */
-  --surface-glass: rgba(12, 12, 14, 0.82);
-  --surface-glass-border: rgba(255, 255, 255, 0.08);
-  --surface-glass-highlight: rgba(255, 255, 255, 0.06);
+  /* Translucent Vibrancy */
+  --surface-glass: rgba(8, 10, 9, 0.85);
+  --surface-glass-border: rgba(255, 255, 255, 0.07);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.05);
 
   /* Hairlines & Specular Edge Highlights */
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --line-subtle: rgba(255, 255, 255, 0.05);
-  --line-titanium: rgba(255, 255, 255, 0.12);
-  --line-focus: rgba(10, 132, 255, 0.55);
+  --line: rgba(255, 255, 255, 0.06);
+  --line-strong: rgba(255, 255, 255, 0.12);
+  --line-subtle: rgba(255, 255, 255, 0.04);
+  --line-titanium: rgba(255, 255, 255, 0.09);
+  --line-focus: rgba(16, 185, 129, 0.45);
   --border-specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --border-specular-cyan: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --border-specular-cyan: inset 0 1px 0 rgba(16, 185, 129, 0.20);
+  --border-specular-emerald: inset 0 1px 0 rgba(16, 185, 129, 0.28), 0 0 0 1px rgba(16, 185, 129, 0.18);
 
-  /* Crisp Typography (High Contrast Dark Mode - Pure zinc/slate hierarchy) */
+  /* Crisp Typography */
   --ink: #FFFFFF;
-  --ink-secondary: #A1A1AA;
-  --ink-muted: #71717A;
-  --ink-faint: #52525B;
+  --ink-secondary: #9CA3AF;
+  --ink-muted: #6B7280;
+  --ink-faint: #4B5563;
 
-  /* Accent (Apple Blue for interaction, White button with obsidian text) */
-  --accent: #FFFFFF;
-  --accent-contrast: #09090B;
-  --accent-hover: #E4E4E7;
-  --accent-apple: #0A84FF;
-  --accent-apple-soft: rgba(10, 132, 255, 0.12);
+  /* Interactive Accent */
+  --accent: #10B981;
+  --accent-contrast: #041E15;
+  --accent-hover: #34D399;
+  --accent-apple: #10B981;
+  --accent-apple-soft: rgba(16, 185, 129, 0.14);
   --accent-soft: rgba(255, 255, 255, 0.08);
-  --accent-cyan: #0A84FF;
-  --accent-cyan-soft: rgba(10, 132, 255, 0.12);
-  --accent-blue: #0A84FF;
-  --accent-blue-soft: rgba(10, 132, 255, 0.12);
+  --accent-cyan: #06B6D4;
+  --accent-cyan-soft: rgba(6, 182, 212, 0.14);
+  --accent-blue: #10B981;
+  --accent-blue-soft: rgba(16, 185, 129, 0.14);
 
-  /* Semantic Financial (Apple Stocks Dark - Vivid, crisp, non-muddy) */
-  --positive: #30D158;
-  --positive-soft: rgba(48, 209, 88, 0.10);
-  --positive-border: rgba(48, 209, 88, 0.22);
-  --positive-ink: #30D158;
+  /* Standardized Interactive Button Tokens (Dark) */
+  --btn-primary-bg: #10B981;
+  --btn-primary-color: #041E15;
+  --btn-primary-hover: #34D399;
+  --btn-primary-border: 1px solid rgba(16, 185, 129, 0.4);
+  --btn-primary-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 
-  --warning: #FF9F0A;
-  --warning-soft: rgba(255, 159, 10, 0.10);
-  --warning-border: rgba(255, 159, 10, 0.22);
-  --warning-ink: #FFB340;
+  --btn-secondary-bg: #121614;
+  --btn-secondary-color: #FFFFFF;
+  --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.14);
+  --btn-secondary-hover: #171E1A;
 
-  --negative: #FF453A;
-  --negative-soft: rgba(255, 69, 58, 0.10);
-  --negative-border: rgba(255, 69, 58, 0.22);
-  --negative-ink: #FF453A;
+  --btn-pill-active-bg: #10B981;
+  --btn-pill-active-color: #041E15;
+  --btn-pill-inactive-bg: #131A16;
+  --btn-pill-inactive-color: #9CA3AF;
+  --btn-pill-inactive-border: 1px solid rgba(255, 255, 255, 0.08);
 
-  --info: #0A84FF;
-  --info-soft: rgba(10, 132, 255, 0.12);
-  --info-border: rgba(10, 132, 255, 0.22);
-  --info-ink: #0A84FF;
+  /* Semantic Financial (Vietnam Stock Market 5-color Standard) */
+  --positive: #10B981;
+  --positive-soft: rgba(16, 185, 129, 0.14);
+  --positive-border: rgba(16, 185, 129, 0.26);
+  --positive-ink: #10B981;
+
+  --warning: #FACC15;
+  --warning-soft: rgba(250, 204, 21, 0.14);
+  --warning-border: rgba(250, 204, 21, 0.26);
+  --warning-ink: #FACC15;
+
+  --negative: #EF4444;
+  --negative-soft: rgba(239, 68, 68, 0.14);
+  --negative-border: rgba(239, 68, 68, 0.26);
+  --negative-ink: #EF4444;
+
+  --info: #06B6D4;
+  --info-soft: rgba(6, 182, 212, 0.14);
+  --info-border: rgba(6, 182, 212, 0.26);
+  --info-ink: #06B6D4;
 
   /* Shadows */
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-terminal: 0 4px 16px rgba(0, 0, 0, 0.45);
-  --shadow-island: 0 4px 20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.10);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-terminal: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-island: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
   html:not([data-theme="light"]):not([data-effective-theme="light"]) {
     color-scheme: dark;
 
-    /* Apple Pure Obsidian Canvas */
-    --canvas: #09090B;
-    --canvas-base: #09090B;
-    --canvas-sidebar: #0C0C0E;
-    --canvas-subtle: #111114;
-    --canvas-inset: #141418;
+    /* Finotive Pure Obsidian Foundation */
+    --canvas: #080A09;
+    --canvas-base: #080A09;
+    --canvas-sidebar: #0B0E0C;
+    --canvas-subtle: #0F1411;
+    --canvas-inset: #121614;
 
-    /* Elevated Dark Surfaces (Deep obsidian layers - never muddy) */
-    --surface: #121215;
-    --surface-panel: #121215;
-    --surface-card: #16161A;
-    --surface-card-hover: #1D1D23;
-    --surface-elevated: #202027;
-    --surface-muted: #141418;
-    --surface-active: #24242D;
-    --surface-secondary: #17171C;
-    --surface-hover: #1D1D23;
+    /* Elevated Surfaces & Bento Cards */
+    --surface: #0D110F;
+    --surface-panel: #0D110F;
+    --surface-card: #121614;
+    --surface-card-hover: #171E1A;
+    --surface-elevated: #171D1A;
+    --surface-muted: #101412;
+    --surface-active: #1C2420;
+    --surface-secondary: #131815;
+    --surface-hover: #171E1A;
 
     /* Additional Surface Tokens */
-    --bg-alt: #131317;
-    --bg-hover: #1A1A20;
-    --badge-bg: #16161C;
+    --bg-alt: #0C100E;
+    --bg-hover: #161D19;
+    --badge-bg: #131A16;
     --badge-ink: #A1A1AA;
 
-    /* Translucent Glass */
-    --surface-glass: rgba(12, 12, 14, 0.82);
-    --surface-glass-border: rgba(255, 255, 255, 0.08);
-    --surface-glass-highlight: rgba(255, 255, 255, 0.06);
+    /* Translucent Vibrancy */
+    --surface-glass: rgba(8, 10, 9, 0.85);
+    --surface-glass-border: rgba(255, 255, 255, 0.07);
+    --surface-glass-highlight: rgba(255, 255, 255, 0.05);
 
     /* Hairlines */
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.16);
-    --line-subtle: rgba(255, 255, 255, 0.05);
-    --line-titanium: rgba(255, 255, 255, 0.12);
-    --line-focus: rgba(10, 132, 255, 0.55);
+    --line: rgba(255, 255, 255, 0.06);
+    --line-strong: rgba(255, 255, 255, 0.12);
+    --line-subtle: rgba(255, 255, 255, 0.04);
+    --line-titanium: rgba(255, 255, 255, 0.09);
+    --line-focus: rgba(16, 185, 129, 0.45);
     --border-specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --border-specular-cyan: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --border-specular-cyan: inset 0 1px 0 rgba(16, 185, 129, 0.20);
+    --border-specular-emerald: inset 0 1px 0 rgba(16, 185, 129, 0.28), 0 0 0 1px rgba(16, 185, 129, 0.18);
 
     /* Typography */
     --ink: #FFFFFF;
-    --ink-secondary: #A1A1AA;
-    --ink-muted: #71717A;
-    --ink-faint: #52525B;
+    --ink-secondary: #9CA3AF;
+    --ink-muted: #6B7280;
+    --ink-faint: #4B5563;
 
     /* Accent */
-    --accent: #FFFFFF;
-    --accent-contrast: #09090B;
-    --accent-hover: #E4E4E7;
-    --accent-apple: #0A84FF;
-    --accent-apple-soft: rgba(10, 132, 255, 0.12);
+    --accent: #10B981;
+    --accent-contrast: #041E15;
+    --accent-hover: #34D399;
+    --accent-apple: #10B981;
+    --accent-apple-soft: rgba(16, 185, 129, 0.14);
     --accent-soft: rgba(255, 255, 255, 0.08);
-    --accent-cyan: #0A84FF;
-    --accent-cyan-soft: rgba(10, 132, 255, 0.12);
-    --accent-blue: #0A84FF;
-    --accent-blue-soft: rgba(10, 132, 255, 0.12);
+    --accent-cyan: #06B6D4;
+    --accent-cyan-soft: rgba(6, 182, 212, 0.14);
+    --accent-blue: #10B981;
+    --accent-blue-soft: rgba(16, 185, 129, 0.14);
 
-    /* Semantic Financial */
-    --positive: #30D158;
-    --positive-soft: rgba(48, 209, 88, 0.10);
-    --positive-border: rgba(48, 209, 88, 0.22);
-    --positive-ink: #30D158;
+    /* Standardized Interactive Button Tokens (Dark) */
+    --btn-primary-bg: #10B981;
+    --btn-primary-color: #041E15;
+    --btn-primary-hover: #34D399;
+    --btn-primary-border: 1px solid rgba(16, 185, 129, 0.4);
+    --btn-primary-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 
-    --warning: #FF9F0A;
-    --warning-soft: rgba(255, 159, 10, 0.10);
-    --warning-border: rgba(255, 159, 10, 0.22);
-    --warning-ink: #FFB340;
+    --btn-secondary-bg: #121614;
+    --btn-secondary-color: #FFFFFF;
+    --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.14);
+    --btn-secondary-hover: #171E1A;
 
-    --negative: #FF453A;
-    --negative-soft: rgba(255, 69, 58, 0.10);
-    --negative-border: rgba(255, 69, 58, 0.22);
-    --negative-ink: #FF453A;
+    --btn-pill-active-bg: #10B981;
+    --btn-pill-active-color: #041E15;
+    --btn-pill-inactive-bg: #131A16;
+    --btn-pill-inactive-color: #9CA3AF;
+    --btn-pill-inactive-border: 1px solid rgba(255, 255, 255, 0.08);
 
-    --info: #0A84FF;
-    --info-soft: rgba(10, 132, 255, 0.12);
-    --info-border: rgba(10, 132, 255, 0.22);
-    --info-ink: #0A84FF;
+    /* Semantic Financial (Vietnam Stock Market 5-color Standard) */
+    --positive: #10B981;
+    --positive-soft: rgba(16, 185, 129, 0.14);
+    --positive-border: rgba(16, 185, 129, 0.26);
+    --positive-ink: #10B981;
 
-    --warning: #FF9F0A;
-    --warning-soft: rgba(255, 159, 10, 0.14);
-    --warning-border: rgba(255, 159, 10, 0.28);
-    --warning-ink: #FFB340;
+    --warning: #FACC15;
+    --warning-soft: rgba(250, 204, 21, 0.14);
+    --warning-border: rgba(250, 204, 21, 0.26);
+    --warning-ink: #FACC15;
 
-    --negative: #FF453A;
-    --negative-soft: rgba(255, 69, 58, 0.14);
-    --negative-border: rgba(255, 69, 58, 0.28);
-    --negative-ink: #FF6961;
+    --negative: #EF4444;
+    --negative-soft: rgba(239, 68, 68, 0.14);
+    --negative-border: rgba(239, 68, 68, 0.26);
+    --negative-ink: #EF4444;
 
-    --info: #0A84FF;
-    --info-soft: rgba(10, 132, 255, 0.14);
-    --info-border: rgba(10, 132, 255, 0.28);
-    --info-ink: #0A84FF;
+    --info: #06B6D4;
+    --info-soft: rgba(6, 182, 212, 0.14);
+    --info-border: rgba(6, 182, 212, 0.26);
+    --info-ink: #06B6D4;
 
     /* Shadows */
-    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
-    --shadow-terminal: 0 4px 16px rgba(0, 0, 0, 0.45);
-    --shadow-island: 0 4px 20px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.45);
+    --shadow-terminal: 0 4px 16px rgba(0, 0, 0, 0.55);
+    --shadow-island: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -355,13 +527,16 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
 }
 
 body {
+  width: 100%;
   min-width: 320px;
+  min-height: 100vh;
   background-color: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* MANDATORY TECHNICAL CONSTRAINT: Numeric Tabular Figures */
@@ -408,6 +583,36 @@ a.action-btn:active,
   transform: scale(0.985);
 }
 
+/* Universal Standard Action Buttons */
+.btnPrimary {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-color) !important;
+  border: var(--btn-primary-border) !important;
+  box-shadow: var(--btn-primary-shadow) !important;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--btn-primary-hover) !important;
+  transform: translateY(-1px);
+}
+
+.btnSecondary {
+  background: var(--btn-secondary-bg) !important;
+  color: var(--btn-secondary-color) !important;
+  border: var(--btn-secondary-border) !important;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: var(--btn-secondary-hover) !important;
+  border-color: var(--line-strong) !important;
+}
+
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -447,3 +652,153 @@ a.action-btn:active,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   Finotive Obsidian & SEGESTA HUD & StellarX Motion Utilities
+   ========================================================================== */
+
+/* Ambient Radial Glow Effect */
+.ambient-emerald-glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 540px;
+  height: 420px;
+  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.14) 0%, rgba(16, 185, 129, 0.04) 45%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(48px);
+}
+
+/* Finotive Circular / Pill Metric Change Badges */
+.badge-pill-up {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.14);
+  color: #10B981;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge-pill-down {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.14);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge-pill-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(250, 204, 21, 0.14);
+  color: #FACC15;
+  border: 1px solid rgba(250, 204, 21, 0.28);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge-pill-ceiling {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(168, 85, 247, 0.14);
+  color: #A855F7;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge-pill-floor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(6, 182, 212, 0.14);
+  color: #06B6D4;
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Finotive Bento Card Base */
+.finotive-bento-card {
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm), var(--border-specular);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) var(--ease-spring), transform var(--duration-fast) var(--ease-spring);
+}
+
+.finotive-bento-card:hover {
+  border-color: rgba(16, 185, 129, 0.24);
+  box-shadow: var(--shadow-md), var(--border-specular-emerald);
+}
+
+/* SEGESTA Holographic HUD Glass Styling */
+.hud-glass-panel {
+  background: rgba(14, 18, 16, 0.78);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* StellarX Progress Stepper */
+.stepper-stellarx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.stepper-item-active {
+  color: var(--finotive-emerald);
+}
+
+.stepper-line {
+  width: 24px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.stepper-line-active {
+  background: var(--finotive-emerald);
+}
+

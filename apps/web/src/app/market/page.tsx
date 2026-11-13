@@ -103,8 +103,9 @@ function Evidence({ metric }: { metric: MarketMetric }) {
 }
 
 function IndexCard({ item }: { item: MarketDashboard["indexes"][number] }) {
+  const cleanId = item.symbol.toLowerCase().replace(/[^a-z0-9]/g, "");
   return (
-    <article className={styles.indexCard}>
+    <article className={styles.indexCard} id={cleanId}>
       <div className={styles.indexLine}>
         <span className={styles.indexSymbol}>{item.symbol}</span>
         <StatusBadge status={item.metric.status} />
@@ -296,7 +297,7 @@ export default function MarketPage() {
       {/* ========================================================================= */}
       {/* TRỤ CỘT 1: CHỈ SỐ & ĐỘ RỘNG DÒNG TIỀN (INDICES & BREADTH)                 */}
       {/* ========================================================================= */}
-      <section className={styles.pillarSection} aria-label="Trụ cột 1: Chỉ số và Độ rộng dòng tiền">
+      <section id="indices" className={styles.pillarSection} aria-label="Trụ cột 1: Chỉ số và Độ rộng dòng tiền">
         <header className={styles.pillarHeader}>
           <div className={styles.pillarTitleRow}>
             <h2>Chỉ số & Độ rộng Dòng tiền</h2>
@@ -342,7 +343,7 @@ export default function MarketPage() {
         </div>
 
         {/* 1B. LIQUIDITY, BREADTH, MOMENTUM & FOREIGN FLOW METRICS */}
-        <div className={styles.metricGrid} aria-label="Các chỉ báo thanh khoản và dòng tiền">
+        <div id="breadth" className={styles.metricGrid} aria-label="Các chỉ báo thanh khoản và dòng tiền">
           {market ? (
             <>
               <MetricCard title="Độ rộng Thị trường (Breadth)" metric={market.breadth} />
@@ -376,7 +377,7 @@ export default function MarketPage() {
       {/* ========================================================================= */}
       {/* TRỤ CỘT 2: TRẠNG THÁI THỊ TRƯỜNG (MARKET REGIME & RADAR)                  */}
       {/* ========================================================================= */}
-      <section className={styles.pillarSection} aria-label="Trụ cột 2: Trạng thái Thị trường">
+      <section id="regime" className={styles.pillarSection} aria-label="Trụ cột 2: Trạng thái Thị trường">
         <header className={styles.pillarHeader}>
           <div className={styles.pillarTitleRow}>
             <h2>Trạng thái Thị trường & Cơ hội</h2>

@@ -79,9 +79,9 @@
 }
 
 .tabActive {
-  background: var(--accent);
-  color: var(--accent-contrast) !important;
-  border-color: var(--accent);
+  background: var(--btn-pill-active-bg, #10B981);
+  color: var(--btn-pill-active-color, #041E15) !important;
+  border-color: var(--btn-pill-active-bg, #10B981);
   box-shadow: var(--shadow-sm);
 }
 
@@ -127,15 +127,21 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: var(--accent-apple);
-  color: #ffffff;
-  border: none;
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
+  border: var(--btn-primary-border, none);
   border-radius: var(--radius-sm);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--btn-primary-shadow, var(--shadow-sm));
   transition: all 150ms ease;
+}
+
+.actionBtn:hover {
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
+  transform: translateY(-1px);
 }
 
 .actionBtn:hover:not(:disabled) {

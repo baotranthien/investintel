@@ -11,6 +11,7 @@ export default function SystemObservabilityPage() {
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
+  const [triggerStatus, setTriggerStatus] = useState<"idle" | "running" | "success" | "error">("idle");
 
   const fetchDiagnostics = () => {
     setLoading(true);
@@ -33,13 +34,21 @@ export default function SystemObservabilityPage() {
 
   const handleRunPipeline = async () => {
     setTriggering(true);
+    setTriggerStatus("running");
     setTriggerMsg("Đang kích hoạt pipeline tự động (Ingestion → Opportunity → Alerts → Backup)...");
     try {
       const res = await triggerAutomationPipeline(["FPT", "BMP"]);
-      setTriggerMsg(`Pipeline hoàn tất: ${res.pipeline_status}`);
+      setTriggerStatus("success");
+      const duration = (res as { total_duration_sec?: number }).total_duration_sec;
+      setTriggerMsg(
+        `Pipeline hoàn tất thành công: ${res.pipeline_status}${
+          duration ? ` (${duration}s)` : ""
+        } · Đã đối soát & sao lưu SQLite.`
+      );
       fetchDiagnostics();
     } catch (err: unknown) {
-      setTriggerMsg(`Lỗi kích hoạt pipeline: ${String(err)}`);
+      setTriggerStatus("error");
+      setTriggerMsg(`Lỗi kích hoạt pipeline: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setTriggering(false);
     }
@@ -98,8 +107,40 @@ export default function SystemObservabilityPage() {
       </header>
 
       {triggerMsg && (
-        <div style={{ marginBottom: "20px", padding: "12px 16px", borderRadius: "8px", background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: "14px", color: "#166534" }}>
-          {triggerMsg}
+        <div
+          role={triggerStatus === "error" ? "alert" : "status"}
+          style={{
+            marginBottom: "20px",
+            padding: "12px 18px",
+            borderRadius: "10px",
+            fontSize: "13.5px",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background:
+              triggerStatus === "error"
+                ? "rgba(239, 68, 68, 0.12)"
+                : triggerStatus === "success"
+                ? "rgba(16, 185, 129, 0.12)"
+                : "rgba(59, 130, 246, 0.12)",
+            border: `1px solid ${
+              triggerStatus === "error"
+                ? "rgba(239, 68, 68, 0.35)"
+                : triggerStatus === "success"
+                ? "rgba(16, 185, 129, 0.35)"
+                : "rgba(59, 130, 246, 0.35)"
+            }`,
+            color:
+              triggerStatus === "error"
+                ? "#ef4444"
+                : triggerStatus === "success"
+                ? "#10b981"
+                : "#60a5fa",
+          }}
+        >
+          <span>{triggerStatus === "error" ? "⚠️" : triggerStatus === "success" ? "✓" : "⚡"}</span>
+          <span>{triggerMsg}</span>
         </div>
       )}
 

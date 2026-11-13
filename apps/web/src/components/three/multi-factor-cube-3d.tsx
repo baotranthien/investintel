@@ -47,6 +47,202 @@ const DEFAULT_STOCKS: StockFactorPoint[] = [
   { symbol: "STB", name: "Sacombank", pe: -0.2, roe: 0.7, rs: 0.6, score: 75, sector: "Ngân hàng" },
 ];
 
+function AmbientDust({ isDark }: { isDark: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const dustGeo = useMemo(() => {
+    const count = 42;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 1.85;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 1.85;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 1.85;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return geo;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y += delta * 0.035;
+      pointsRef.current.rotation.x += delta * 0.015;
+    }
+  });
+
+  return (
+    <points ref={pointsRef} geometry={dustGeo}>
+      <pointsMaterial
+        size={0.03}
+        color={isDark ? "#34d399" : "#059669"}
+        transparent
+        opacity={isDark ? 0.38 : 0.22}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
+  );
+}
+
+function StockNode({
+  stock,
+  isSelected,
+  isCompact,
+  isDark,
+  onPointerOver,
+  onPointerOut,
+  onClick,
+}: {
+  stock: StockFactorPoint;
+  isSelected: boolean;
+  isCompact: boolean;
+  isDark: boolean;
+  onPointerOver: () => void;
+  onPointerOut: () => void;
+  onClick: () => void;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const scaleRef = useRef<number>(1.0);
+
+  const pointColor =
+    stock.score >= 80 ? "#10B981" : stock.score >= 70 ? "#38BDF8" : "#F59E0B";
+
+  const posX = Math.max(-0.88, Math.min(0.88, stock.pe * 0.88));
+  const posY = Math.max(-0.88, Math.min(0.88, stock.roe * 0.88));
+  const posZ = Math.max(-0.88, Math.min(0.88, stock.rs * 0.88));
+
+  const baseRadius = isCompact ? 0.052 : isSelected ? 0.096 : 0.066;
+
+  // Individual phase offset for harmonic micro-levitation
+  const phase = useMemo(() => {
+    return (stock.symbol.charCodeAt(0) * 0.73 + (stock.symbol.charCodeAt(1) || 0) * 0.41);
+  }, [stock.symbol]);
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current) return;
+    // Harmonic micro-floating
+    const floatY = posY + Math.sin(clock.elapsedTime * 1.5 + phase) * 0.022;
+    groupRef.current.position.y = floatY;
+
+    // Smooth hover/selection scaling
+    const targetScale = isSelected ? 1.35 : 1.0;
+    scaleRef.current = THREE.MathUtils.lerp(scaleRef.current, targetScale, 0.14);
+    groupRef.current.scale.setScalar(scaleRef.current);
+  });
+
+  // 3-Plane Laser Projection lines
+  const dropToFloor = useMemo(
+    () => new Float32Array([posX, -1.0, posZ, posX, posY, posZ]),
+    [posX, posY, posZ]
+  );
+  const projToBack = useMemo(
+    () => new Float32Array([posX, posY, -1.0, posX, posY, posZ]),
+    [posX, posY, posZ]
+  );
+  const projToSide = useMemo(
+    () => new Float32Array([-1.0, posY, posZ, posX, posY, posZ]),
+    [posX, posY, posZ]
+  );
+
+  return (
+    <>
+      {/* Vertical Drop Line to Floor */}
+      {!isCompact && (
+        <lineSegments>
+          <bufferGeometry>
+            <bufferAttribute attach="attributes-position" args={[dropToFloor, 3]} />
+          </bufferGeometry>
+          <lineBasicMaterial
+            color={isSelected ? pointColor : isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)"}
+            transparent
+            opacity={isSelected ? 0.85 : 0.22}
+          />
+        </lineSegments>
+      )}
+
+      {/* Projection Lines to Back and Side Planes when Selected */}
+      {isSelected && !isCompact && (
+        <>
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[projToBack, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color={pointColor} transparent opacity={0.65} />
+          </lineSegments>
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute attach="attributes-position" args={[projToSide, 3]} />
+            </bufferGeometry>
+            <lineBasicMaterial color={pointColor} transparent opacity={0.65} />
+          </lineSegments>
+
+          {/* Coordinate Target Rings on Wall/Floor */}
+          <mesh position={[posX, -0.99, posZ]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.025, 0.045, 16]} />
+            <meshBasicMaterial color={pointColor} transparent opacity={0.75} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[posX, posY, -0.99]}>
+            <ringGeometry args={[0.025, 0.045, 16]} />
+            <meshBasicMaterial color={pointColor} transparent opacity={0.75} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[-0.99, posY, posZ]} rotation={[0, Math.PI / 2, 0]}>
+            <ringGeometry args={[0.025, 0.045, 16]} />
+            <meshBasicMaterial color={pointColor} transparent opacity={0.75} side={THREE.DoubleSide} />
+          </mesh>
+        </>
+      )}
+
+      {/* Physical Optical Sphere + Holographic Glow Atmosphere */}
+      <group ref={groupRef} position={[posX, posY, posZ]}>
+        {/* Core Luminous Crystal */}
+        <mesh
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            onPointerOver();
+          }}
+          onPointerOut={(e) => {
+            e.stopPropagation();
+            onPointerOut();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+        >
+          <sphereGeometry args={[baseRadius, 32, 32]} />
+          <meshPhysicalMaterial
+            color={pointColor}
+            emissive={pointColor}
+            emissiveIntensity={isSelected ? (isDark ? 1.6 : 1.2) : isDark ? 0.45 : 0.28}
+            roughness={0.12}
+            metalness={0.22}
+            clearcoat={1.0}
+            clearcoatRoughness={0.06}
+            transmission={0.35}
+            thickness={0.5}
+            ior={1.52}
+            reflectivity={1.0}
+            transparent
+            opacity={0.96}
+          />
+        </mesh>
+
+        {/* Volumetric Atmospheric Corona Shell (Outer Glow) */}
+        <mesh scale={1.55}>
+          <sphereGeometry args={[baseRadius, 16, 16]} />
+          <meshBasicMaterial
+            color={pointColor}
+            transparent
+            opacity={isSelected ? 0.38 : isDark ? 0.16 : 0.1}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            side={THREE.BackSide}
+          />
+        </mesh>
+      </group>
+    </>
+  );
+}
+
 function CubeScene({
   stocks,
   variant,
@@ -90,27 +286,35 @@ function CubeScene({
 
   return (
     <>
-      <ambientLight intensity={isDark ? 1.1 : 1.5} />
-      <pointLight position={[5, 6, 5]} intensity={isDark ? 2.2 : 2.6} />
+      <ambientLight intensity={isDark ? 0.95 : 1.3} />
+      <directionalLight position={[4, 6, 5]} intensity={isDark ? 2.2 : 2.6} />
+      {/* Dual Rim Lights for specular highlights */}
+      <pointLight position={[-4, 3, -4]} intensity={1.4} color="#10B981" />
+      <pointLight position={[3, -2, 4]} intensity={0.9} color="#38BDF8" />
 
       {!isCompact && (
         <OrbitControls
           target={[0, 0, 0]}
-          enableZoom={true}
+          enableZoom={false}
           minDistance={2.5}
           maxDistance={7}
           enablePan={false}
           autoRotate
-          autoRotateSpeed={0.4}
-          dampingFactor={0.08}
+          autoRotateSpeed={0.35}
+          enableDamping={true}
+          dampingFactor={0.05}
+          rotateSpeed={0.5}
         />
       )}
 
       <group ref={groupRef} scale={1.0}>
-        {/* Architectural 12-edge Bounding Wireframe (Zero messy diagonals, 100% unclipped) */}
+        {/* Architectural 12-edge Bounding Wireframe */}
         <lineSegments geometry={boxEdges}>
           <lineBasicMaterial color={wireColor} transparent opacity={isDark ? 0.45 : 0.3} />
         </lineSegments>
+
+        {/* Ambient Floating Stardust */}
+        {!isCompact && <AmbientDust isDark={isDark} />}
 
         {/* Spatial Floor Grid at Y = -1.0 (Grounding perspective) */}
         {!isCompact && (
@@ -149,63 +353,25 @@ function CubeScene({
           <lineBasicMaterial color="#f59e0b" transparent opacity={isDark ? 0.6 : 0.45} />
         </lineSegments>
 
-        {/* Stock Data Nodes & Vertical Drop Lines */}
-        {stocks.map((stock) => {
-          const isSelected = hoveredStock?.symbol === stock.symbol;
-          const pointColor =
-            stock.score >= 80 ? "#10b981" : stock.score >= 70 ? "#3b82f6" : "#f59e0b";
-
-          // Coordinate mapping [-1, 1] inside [-0.9, 0.9] cube interior
-          const posX = Math.max(-0.9, Math.min(0.9, stock.pe * 0.9));
-          const posY = Math.max(-0.9, Math.min(0.9, stock.roe * 0.9));
-          const posZ = Math.max(-0.9, Math.min(0.9, stock.rs * 0.9));
-
-          const pointSize = isCompact ? 0.05 : isSelected ? 0.105 : 0.065;
-          const dropPoints = new Float32Array([posX, -1.0, posZ, posX, posY, posZ]);
-
-          return (
-            <group key={stock.symbol}>
-              {/* Vertical Drop Line to Floor for 3D Depth Perception */}
-              {!isCompact && (
-                <lineSegments>
-                  <bufferGeometry>
-                    <bufferAttribute attach="attributes-position" args={[dropPoints, 3]} />
-                  </bufferGeometry>
-                  <lineBasicMaterial
-                    color={isSelected ? pointColor : isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)"}
-                    transparent
-                    opacity={isSelected ? 0.8 : 0.22}
-                  />
-                </lineSegments>
-              )}
-
-              {/* Data Sphere */}
-              <group position={[posX, posY, posZ]}>
-                <mesh
-                  onPointerOver={(e) => {
-                    e.stopPropagation();
-                    setHoveredStock(stock);
-                    invalidate();
-                  }}
-                  onPointerOut={(e) => {
-                    e.stopPropagation();
-                    setHoveredStock(null);
-                    invalidate();
-                  }}
-                  onClick={() => onSelectStock && onSelectStock(stock.symbol)}
-                >
-                  <sphereGeometry args={[pointSize, 16, 16]} />
-                  <meshStandardMaterial
-                    color={pointColor}
-                    emissive={pointColor}
-                    emissiveIntensity={isSelected ? (isDark ? 0.95 : 0.7) : isDark ? 0.4 : 0.2}
-                    roughness={0.2}
-                  />
-                </mesh>
-              </group>
-            </group>
-          );
-        })}
+        {/* High-Performance Holographic Stock Nodes */}
+        {stocks.map((stock) => (
+          <StockNode
+            key={stock.symbol}
+            stock={stock}
+            isSelected={hoveredStock?.symbol === stock.symbol}
+            isCompact={isCompact}
+            isDark={isDark}
+            onPointerOver={() => {
+              setHoveredStock(stock);
+              invalidate();
+            }}
+            onPointerOut={() => {
+              setHoveredStock(null);
+              invalidate();
+            }}
+            onClick={() => onSelectStock && onSelectStock(stock.symbol)}
+          />
+        ))}
       </group>
     </>
   );

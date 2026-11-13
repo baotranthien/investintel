@@ -14,7 +14,7 @@ export function getSystemTheme(): EffectiveTheme {
 }
 
 export function getThemePreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "dark";
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === "light" || stored === "dark" || stored === "system") {
@@ -23,7 +23,7 @@ export function getThemePreference(): ThemePreference {
   } catch {
     // LocalStorage might be disabled or blocked
   }
-  return "system";
+  return "dark";
 }
 
 export function resolveEffectiveTheme(pref: ThemePreference): EffectiveTheme {
@@ -66,8 +66,8 @@ export function setThemePreference(theme: ThemePreference): void {
 
 // Hook to subscribe to theme state across components
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemePreference>("system");
-  const [effectiveTheme, setEffectiveThemeState] = useState<EffectiveTheme>("light");
+  const [theme, setThemeState] = useState<ThemePreference>("dark");
+  const [effectiveTheme, setEffectiveThemeState] = useState<EffectiveTheme>("dark");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

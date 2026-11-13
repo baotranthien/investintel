@@ -199,22 +199,23 @@
 .actions button {
   min-height: 34px;
   padding: 0 16px;
-  border: none;
+  border: var(--btn-primary-border, none);
   border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
   cursor: pointer;
   font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 650;
-  box-shadow: var(--shadow-sm);
+  font-weight: 700;
+  box-shadow: var(--btn-primary-shadow, var(--shadow-sm));
   transition: all var(--duration-fast) var(--ease-spring);
 }
 
 .addForm button:hover,
 .editForm button:hover,
 .actions button:hover {
-  background: var(--accent-hover);
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
   transform: translateY(-1px);
 }
 

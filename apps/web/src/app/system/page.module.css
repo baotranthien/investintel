@@ -22,6 +22,8 @@
   text-transform: uppercase;
   color: var(--ink-muted);
   margin-bottom: 6px;
+  line-height: 1.5;
+  padding-top: 4px;
 }
 
 .title {
@@ -49,26 +51,33 @@
 }
 
 .btnPrimary {
-  background: var(--accent, #0071e3);
-  color: #ffffff;
-  border: none;
+  background: var(--btn-primary-bg, #10B981);
+  color: var(--btn-primary-color, #041E15);
+  border: var(--btn-primary-border, 1px solid rgba(16, 185, 129, 0.4));
   border-radius: 980px;
   padding: 10px 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: var(--btn-primary-shadow, 0 0 14px rgba(16, 185, 129, 0.25));
   transition: all 0.2s ease;
 }
 
-.btnPrimary:hover {
-  background: #0077ed;
+.btnPrimary:hover:not(:disabled) {
+  background: var(--btn-primary-hover, #34D399);
+  color: var(--btn-primary-color, #041E15);
   transform: translateY(-1px);
 }
 
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btnSecondary {
-  background: var(--surface-muted);
-  color: var(--ink);
-  border: 1px solid var(--line);
+  background: var(--btn-secondary-bg, var(--surface-card));
+  color: var(--btn-secondary-color, var(--ink));
+  border: var(--btn-secondary-border, 1px solid var(--line-strong));
   border-radius: 980px;
   padding: 10px 18px;
   font-size: 13px;
@@ -77,8 +86,9 @@
   transition: all 0.2s ease;
 }
 
-.btnSecondary:hover {
-  background: var(--surface-hover, rgba(0, 0, 0, 0.08));
+.btnSecondary:hover:not(:disabled) {
+  background: var(--btn-secondary-hover, var(--surface-card-hover));
+  border-color: var(--line-strong);
 }
 
 .grid {

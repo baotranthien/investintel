@@ -288,7 +288,21 @@ export default function PortfolioPage() {
       <section className={styles.overview}>
         <div><span>Tổng giá trị danh mục</span><strong>{dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.total_value)}</strong><Status value={dashboardData.summary.holdings_count === 0 ? "EMPTY" : dashboardData.summary.value_status} /></div>
         <div><span>Tổng giá vốn đầu tư</span><strong>{money(dashboardData.summary.cost_basis)}</strong><small>{dashboardData.summary.holdings_count} vị thế nắm giữ · {dashboardData.summary.currency}</small></div>
-        <div><span>Lãi / lỗ chưa thực hiện</span><strong className={dashboardData.summary.unrealized_pnl !== null && dashboardData.summary.unrealized_pnl >= 0 ? styles.positive : styles.negative}>{dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.unrealized_pnl)}</strong><small>{dashboardData.summary.holdings_count === 0 ? "Chưa có vị thế" : "Chỉ tính khi mọi holding có giá"}</small></div>
+        <div>
+          <span>Lãi / lỗ chưa thực hiện</span>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
+            <strong className={dashboardData.summary.unrealized_pnl !== null && dashboardData.summary.unrealized_pnl >= 0 ? styles.positive : styles.negative}>
+              {dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.unrealized_pnl)}
+            </strong>
+            {dashboardData.summary.cost_basis && dashboardData.summary.unrealized_pnl !== null && dashboardData.summary.cost_basis > 0 && (
+              <span className={dashboardData.summary.unrealized_pnl >= 0 ? "badge-pill-up" : "badge-pill-down"}>
+                {dashboardData.summary.unrealized_pnl >= 0 ? "↗ +" : "↘ "}
+                {pct(dashboardData.summary.unrealized_pnl / dashboardData.summary.cost_basis)}
+              </span>
+            )}
+          </div>
+          <small>{dashboardData.summary.holdings_count === 0 ? "Chưa có vị thế" : "Chỉ tính khi mọi holding có giá"}</small>
+        </div>
         <div>
           <span>Chất lượng dữ liệu</span>
           <strong>
