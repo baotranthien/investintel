@@ -199,6 +199,14 @@ def seed_reference_data(db):
     except Exception as e:
         logger.warning(f"Financial statement seeding notice: {e}")
 
+    # Seed default VN100 sample portfolio and watchlist if empty
+    try:
+        from services.portfolio.engine import seed_default_portfolio_and_watchlist
+        seed_default_portfolio_and_watchlist(db, force_reset=False)
+        logger.info("Default VN100 sample portfolio and watchlist check completed.")
+    except Exception as e:
+        logger.warning(f"Sample portfolio/watchlist seeding notice: {e}")
+
     db.commit()
     logger.info("Reference data seeding completed successfully.")
 

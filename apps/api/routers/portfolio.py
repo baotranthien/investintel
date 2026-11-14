@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from database.models import (
     PortfolioHolding,
     PortfolioTarget,
 )
+from services.common.cache import watchlist_cache
 from services.market.trading_hours import get_effective_trading_date, get_vn_now
 from services.portfolio.engine import (
     DEFAULT_CORE_PCT,
@@ -29,6 +30,7 @@ from services.portfolio.engine import (
     ensure_portfolio,
     portfolio_dashboard,
     portfolio_fit,
+    seed_default_portfolio_and_watchlist,
 )
 from services.portfolio.schemas import (
     DcaPlanUpdate,
@@ -341,3 +343,10 @@ def get_portfolio_changes(session: Session = Depends(get_db)):
         "change_threshold": threshold,
         "changes": compare_snapshots(snapshots[1].snapshot_data, snapshots[0].snapshot_data, threshold),
     }
+
+
+@router.post("/seed-demo", response_model=PortfolioDashboardResponse)
+def seed_demo_portfolio(force: bool = Query(False), session: Session = Depends(get_db)):
+    seed_default_portfolio_and_watchlist(session, force_reset=force)
+    watchlist_cache.clear()
+    return portfolio_dashboard(session, get_effective_trading_date())

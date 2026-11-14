@@ -770,6 +770,7 @@ export const putPortfolioDca = (payload: { monthly_amount: number; core_pct: num
 export const applyPortfolioTemplate = (templateId: string) => apiWrite<PortfolioTargets>(`/api/v1/portfolio/templates/${encodeURIComponent(templateId)}/apply`, "POST");
 export const createManualTransaction = (payload: Record<string, unknown>) => apiWrite<Record<string, unknown>>("/api/v1/portfolio/transactions", "POST", payload);
 export const createPortfolioSnapshot = () => apiWrite<Record<string, unknown>>("/api/v1/portfolio/snapshot", "POST");
+export const seedDemoPortfolio = (force = false) => apiWrite<PortfolioDashboard>(`/api/v1/portfolio/seed-demo?force=${force}`, "POST");
 export const createWatchlistItem = (payload: Record<string, unknown>) => apiWrite<WatchlistItem>("/api/v1/watchlist", "POST", payload);
 export const patchWatchlistItem = (id: number, payload: Record<string, unknown>) => apiWrite<WatchlistItem>(`/api/v1/watchlist/${id}`, "PATCH", payload);
 export const deleteWatchlistItem = (id: number) => apiWrite<void>(`/api/v1/watchlist/${id}`, "DELETE");

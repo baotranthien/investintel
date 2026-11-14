@@ -344,3 +344,135 @@ def compare_snapshots(previous: dict[str, Any], current: dict[str, Any], thresho
                 },
             })
     return changes
+
+
+def seed_default_portfolio_and_watchlist(session: Session, force_reset: bool = False) -> dict[str, Any]:
+    """Idempotently seed a realistic VN100 sample portfolio, targets, DCA plan, transactions, and watchlist."""
+    portfolio = ensure_portfolio(session)
+
+    if force_reset or portfolio.single_name_limit is None:
+        portfolio.single_name_limit = Decimal("0.45")
+    if force_reset or portfolio.sector_limit is None:
+        portfolio.sector_limit = Decimal("0.50")
+    if force_reset or portfolio.core_target is None:
+        portfolio.core_target = Decimal("0.70")
+    if force_reset or portfolio.satellite_target is None:
+        portfolio.satellite_target = Decimal("0.30")
+    if force_reset or portfolio.material_change_threshold is None:
+        portfolio.material_change_threshold = Decimal("0.05")
+    session.flush()
+
+    if force_reset:
+        for model in (
+            PortfolioHolding,
+            PortfolioTarget,
+            DcaPlan,
+            ManualPortfolioTransaction,
+        ):
+            session.query(model).filter(model.portfolio_id == PORTFOLIO_ID).delete(synchronize_session=False)
+        session.flush()
+
+    holding_specs = [
+        ("FPT", Decimal("2000"), Decimal("44500"), date(2026, 1, 15), "CORE", "LONG_TERM", "Cổ phiếu tăng trưởng công nghệ & AI chủ lực"),
+        ("VCB", Decimal("1500"), Decimal("48200"), date(2026, 2, 10), "CORE", "LONG_TERM", "Ngân hàng đầu ngành, chất lượng tài sản dẫn đầu"),
+        ("MWG", Decimal("1000"), Decimal("64500"), date(2026, 2, 20), "SATELLITE", "MEDIUM_TERM", "Chu kỳ phục hồi bán lẻ & Bách Hóa Xanh sinh lời"),
+        ("HPG", Decimal("2500"), Decimal("19200"), date(2026, 3, 5), "SATELLITE", "MEDIUM_TERM", "Chu kỳ phục hồi ngành thép & Dung Quất 2"),
+    ]
+
+    if session.query(PortfolioHolding).filter(PortfolioHolding.portfolio_id == PORTFOLIO_ID).count() == 0:
+        for symbol, qty, avg_cost, acq_date, role, horizon, notes in holding_specs:
+            asset = canonical_asset(session, symbol)
+            if asset is None:
+                continue
+            session.add(PortfolioHolding(
+                portfolio_id=PORTFOLIO_ID,
+                asset_id=asset.id,
+                quantity=qty,
+                average_cost=avg_cost,
+                acquisition_date=acq_date,
+                role=role,
+                horizon=horizon,
+                notes=notes,
+            ))
+
+    if session.query(PortfolioTarget).filter(PortfolioTarget.portfolio_id == PORTFOLIO_ID).count() == 0:
+        target_specs = [
+            ("FPT", Decimal("0.35")),
+            ("VCB", Decimal("0.30")),
+            ("MWG", Decimal("0.20")),
+            ("HPG", Decimal("0.15")),
+        ]
+        for symbol, weight in target_specs:
+            asset = canonical_asset(session, symbol)
+            if asset is None:
+                continue
+            session.add(PortfolioTarget(
+                portfolio_id=PORTFOLIO_ID,
+                asset_id=asset.id,
+                target_weight=weight,
+            ))
+
+    if session.query(DcaPlan).filter(DcaPlan.portfolio_id == PORTFOLIO_ID).first() is None:
+        session.add(DcaPlan(
+            portfolio_id=PORTFOLIO_ID,
+            monthly_amount=DEFAULT_DCA_AMOUNT,
+            core_pct=DEFAULT_CORE_PCT,
+            satellite_pct=DEFAULT_SATELLITE_PCT,
+        ))
+
+    if session.query(ManualPortfolioTransaction).filter(ManualPortfolioTransaction.portfolio_id == PORTFOLIO_ID).count() == 0:
+        for symbol, qty, unit_price, tx_date, _role, _horizon, notes in holding_specs:
+            asset = canonical_asset(session, symbol)
+            if asset is None:
+                continue
+            session.add(ManualPortfolioTransaction(
+                portfolio_id=PORTFOLIO_ID,
+                asset_id=asset.id,
+                transaction_type="BUY",
+                quantity=qty,
+                unit_price=unit_price,
+                transaction_date=tx_date,
+                entry_source="MANUAL",
+                notes=notes,
+            ))
+
+    if session.query(WatchlistItem).count() == 0:
+        watchlist_specs = [
+            (
+                "BMP",
+                "High dividend yield, net cash balance sheet, deep value discount",
+                "LONG_TERM",
+                "ROE suy giảm xuống dưới 15% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x hoặc biên an toàn định giá âm quá -30%.",
+            ),
+            (
+                "FPT",
+                "CTCP FPT (FPT) — Doanh nghiệp đầu ngành TECHNOLOGY, ROE đạt 24.7%, tăng trưởng LNST +27.3% YoY, định giá P/E 9.6x, đòn bẩy D/E an toàn (0.45x).",
+                "LONG_TERM",
+                "ROE suy giảm xuống dưới 15% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x hoặc biên an toàn định giá âm quá -30%.",
+            ),
+            (
+                "BCM",
+                "Tập đoàn Đầu tư và Phát triển Công nghiệp Becamex (BCM) — Doanh nghiệp tiềm năng ngành Real Estate, duy trì hiệu quả hoạt động và đà tăng trưởng bền vững.",
+                "MEDIUM_TERM",
+                "ROE suy giảm xuống dưới 15% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x.",
+            ),
+            (
+                "ANV",
+                "Amicogen Nam Việt (ANV) — Doanh nghiệp tiềm năng ngành Khác, duy trì hiệu quả hoạt động và đà tăng trưởng bền vững.",
+                "LONG_TERM",
+                "ROE suy giảm xuống dưới 15% hoặc tăng trưởng LNST âm 2 quý liên tiếp; Tỷ lệ nợ D/E vượt quá 1.5x.",
+            ),
+        ]
+        for symbol, thesis, horizon, invalidation in watchlist_specs:
+            asset = canonical_asset(session, symbol)
+            if asset is None:
+                continue
+            session.add(WatchlistItem(
+                asset_id=asset.id,
+                thesis=thesis,
+                horizon=horizon,
+                invalidation=invalidation,
+            ))
+
+    session.commit()
+    return {"seeded": True}

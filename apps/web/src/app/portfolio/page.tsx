@@ -18,6 +18,7 @@ import {
   patchPortfolioSettings,
   putPortfolioDca,
   putPortfolioTargets,
+  seedDemoPortfolio,
   type DcaPlan,
   type PortfolioDashboard,
   type PortfolioFit,
@@ -204,6 +205,16 @@ export default function PortfolioPage() {
     );
   }
 
+  async function seedSamplePortfolio() {
+    await mutate(
+      () => seedDemoPortfolio(true),
+      t(
+        "Đã nạp danh mục mẫu VN100 (FPT, VCB, MWG, HPG) từ cơ sở dữ liệu.",
+        "Loaded VN100 sample portfolio (FPT, VCB, MWG, HPG) from database."
+      )
+    );
+  }
+
   const dashboardData = dashboard.state === "ready" ? dashboard.data : null;
 
   return (
@@ -213,9 +224,19 @@ export default function PortfolioPage() {
           <h1>{t("Quản lý danh mục đầu tư", "Portfolio Management")}</h1>
           <p>{t("Theo dõi danh mục thủ công · Không liên kết tài khoản chứng khoán · Không đặt lệnh.", "Manual portfolio tracking · No brokerage connection · No order execution.")}</p>
         </div>
-        <button className={styles.refresh} onClick={() => setReload((value) => value + 1)} type="button">
-          ↻ <span>{t("Làm mới", "Refresh")}</span>
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            className={styles.secondaryButton}
+            disabled={busy}
+            onClick={() => void seedSamplePortfolio()}
+            type="button"
+          >
+            <span>{t("Nạp danh mục mẫu VN100", "Load Sample VN100 Portfolio")}</span>
+          </button>
+          <button className={styles.refresh} onClick={() => setReload((value) => value + 1)} type="button">
+            ↻ <span>{t("Làm mới", "Refresh")}</span>
+          </button>
+        </div>
       </header>
 
       {notice && <p className={styles.notice} role="status">{notice}</p>}
@@ -306,12 +327,24 @@ export default function PortfolioPage() {
               <span>{dashboardData.holdings.length} {t("vị thế", "holdings")}</span>
             </header>
             {dashboardData.holdings.length === 0 ? (
-              <p className={styles.empty}>
-                {t(
-                  "Danh mục hiện chưa có cổ phiếu nào. Nhập thông tin vị thế mua bên dưới để bắt đầu theo dõi tỷ trọng, lãi/lỗ và rủi ro (ghi nhận thủ công, không đồng bộ tài khoản chứng khoán).",
-                  "No holdings in portfolio yet. Enter a position below to begin tracking allocation weights, P&L, and risk exposures (manual entry, no brokerage sync)."
-                )}
-              </p>
+              <div className={styles.empty}>
+                <p style={{ margin: 0 }}>
+                  {t(
+                    "Danh mục hiện chưa có cổ phiếu nào. Nhập thông tin vị thế mua bên dưới hoặc nạp nhanh bộ dữ liệu mẫu VN100 để bắt đầu theo dõi tỷ trọng, lãi/lỗ và rủi ro (ghi nhận thủ công, không đồng bộ tài khoản chứng khoán).",
+                    "No holdings in portfolio yet. Enter a position below or load the sample VN100 dataset to begin tracking allocation weights, P&L, and risk exposures (manual entry, no brokerage sync)."
+                  )}
+                </p>
+                <div className={styles.emptyActions}>
+                  <button
+                    className={styles.primaryButton}
+                    disabled={busy}
+                    onClick={() => void seedSamplePortfolio()}
+                    type="button"
+                  >
+                    {t("Nạp danh mục mẫu VN100", "Load Sample VN100 Portfolio")}
+                  </button>
+                </div>
+              </div>
             ) : (
               <>
                 <div className={styles.tableWrap}>

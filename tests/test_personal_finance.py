@@ -23,12 +23,12 @@ from database.models import (
     WatchlistSnapshot,
     WatchlistThesisRevision,
 )
+from services.market.trading_hours import get_effective_trading_date
 from services.portfolio.engine import compare_snapshots
 from main import app
 
 
-@pytest.fixture(autouse=True)
-def clear_test_personal_data(db_session):
+def _clear_personal_data(session):
     for model in (
         WatchlistSnapshot,
         WatchlistThesisRevision,
@@ -40,8 +40,13 @@ def clear_test_personal_data(db_session):
         PortfolioHolding,
         PersonalPortfolio,
     ):
-        db_session.query(model).delete(synchronize_session=False)
-    db_session.flush()
+        session.query(model).delete(synchronize_session=False)
+    session.flush()
+
+
+@pytest.fixture(autouse=True)
+def clear_test_personal_data(db_session):
+    _clear_personal_data(db_session)
 
 
 def _client_for_session(db_session):
@@ -159,9 +164,10 @@ def test_portfolio_value_requires_all_prices_and_concentration_is_configured(db_
     assert all(row["current_weight"] is None for row in partial.json()["holdings"])
     assert any(warning["code"] == "MISSING_PRICE" for warning in partial.json()["concentration"]["warnings"])
 
+    effective_date = get_effective_trading_date()
     db_session.add_all([
-        Price(asset_id=first.id, observation_date=date.today(), raw_close=200, source="CANONICAL_A", status="VALID"),
-        Price(asset_id=second.id, observation_date=date.today(), raw_close=100, source="CANONICAL_B", status="VALID"),
+        Price(asset_id=first.id, observation_date=effective_date, raw_close=200, source="CANONICAL_A", status="VALID"),
+        Price(asset_id=second.id, observation_date=effective_date, raw_close=100, source="CANONICAL_B", status="VALID"),
     ])
     db_session.commit()
     with _client_for_session(db_session) as client:
@@ -181,9 +187,10 @@ def test_portfolio_value_requires_all_prices_and_concentration_is_configured(db_
 
 
 def test_targets_dca_bounds_and_advisory_routing(db_session):
+    effective_date = get_effective_trading_date()
     assets = [_add_asset(db_session) for _ in range(3)]
     for asset in assets:
-        db_session.add(Price(asset_id=asset.id, observation_date=date.today(), raw_close=100, source="CANONICAL", status="VALID"))
+        db_session.add(Price(asset_id=asset.id, observation_date=effective_date, raw_close=100, source="CANONICAL", status="VALID"))
         with _client_for_session(db_session) as client:
             created = client.post("/api/v1/portfolio/holdings", json={
                 "symbol": asset.symbol, "quantity": 100, "average_cost": 100, "acquisition_date": "2025-01-01",
@@ -249,14 +256,15 @@ def test_watchlist_crud_thesis_audit_and_evidence_snapshot_change(db_session):
     history = history_response.json()
     assert history["revisions"][0]["change_reason"] == "New filing evidence"
 
-    db_session.add(Price(asset_id=asset.id, observation_date=date.today() - timedelta(days=1), raw_close=100, source="CANONICAL_PRICE", status="VALID"))
+    effective_date = get_effective_trading_date()
+    db_session.add(Price(asset_id=asset.id, observation_date=effective_date - timedelta(days=1), raw_close=100, source="CANONICAL_PRICE", status="VALID"))
     db_session.commit()
     with _client_for_session(db_session) as client:
         first_snapshot = client.post(f"/api/v1/watchlist/{item_id}/snapshot")
     app.dependency_overrides.clear()
     assert first_snapshot.status_code == 200
 
-    db_session.add(Price(asset_id=asset.id, observation_date=date.today(), raw_close=120, source="CANONICAL_PRICE", status="VALID"))
+    db_session.add(Price(asset_id=asset.id, observation_date=effective_date, raw_close=120, source="CANONICAL_PRICE", status="VALID"))
     db_session.commit()
     with _client_for_session(db_session) as client:
         second_snapshot = client.post(f"/api/v1/watchlist/{item_id}/snapshot")
@@ -342,3 +350,46 @@ def test_portfolio_snapshot_comparison_handles_membership_and_missing_values():
     assert by_key[("DDD", "PRICE_CHANGE")]["direction"] == "DATA_AVAILABLE"
     assert by_key[("DDD", "PRICE_CHANGE")]["status"] == "INSUFFICIENT_DATA"
     assert compare_snapshots({}, {}) == []
+
+
+def test_seed_demo_portfolio_endpoint(db_session):
+    effective_date = get_effective_trading_date()
+    for sym, sector in [
+        ("FPT", "TECHNOLOGY"),
+        ("VCB", "BANK"),
+        ("MWG", "RETAIL"),
+        ("HPG", "MATERIALS"),
+        ("BMP", "MATERIALS"),
+        ("BCM", "REAL_ESTATE"),
+        ("ANV", "CONSUMER"),
+    ]:
+        asset = _add_asset(db_session, sym, sector)
+        existing_price = (
+            db_session.query(Price)
+            .filter(Price.asset_id == asset.id, Price.observation_date == effective_date)
+            .first()
+        )
+        if existing_price is None:
+            db_session.add(
+                Price(
+                    asset_id=asset.id,
+                    observation_date=effective_date,
+                    raw_close=50000,
+                    source="CANONICAL",
+                    status="VALID",
+                )
+            )
+    db_session.commit()
+
+    with _client_for_session(db_session) as client:
+        resp = client.post("/api/v1/portfolio/seed-demo?force=true")
+    app.dependency_overrides.clear()
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["status"] == "AVAILABLE", payload
+    assert len(payload["holdings"]) == 4
+    assert payload["summary"]["total_value"] > 0
+
+    _clear_personal_data(db_session)
+    db_session.commit()

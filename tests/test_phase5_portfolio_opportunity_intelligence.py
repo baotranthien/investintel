@@ -72,7 +72,7 @@ def test_phase5_watchlist_management():
         "target_price": 75000.0,
         "confidence": "HIGH"
     })
-    assert res_post.status_code in (200, 201, 400)  # 400 if already present
+    assert res_post.status_code in (200, 201, 400, 409)  # 400/409 if already present
 
     # 3. Verify item listed
     res_verify = client.get("/api/v1/watchlist")
