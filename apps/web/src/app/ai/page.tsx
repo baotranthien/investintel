@@ -634,7 +634,7 @@ function AIWorkspaceContent() {
   const [asOf] = useState("");
   const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((tItem) => tItem.name));
   const [busy, setBusy] = useState(false);
-  const [, setStreamStep] = useState<AIStreamStep | null>(null);
+  const [streamStep, setStreamStep] = useState<AIStreamStep | null>(null);
   const [streamMessage, setStreamMessage] = useState("");
   const [answer, setAnswer] = useState<AIChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -651,13 +651,17 @@ function AIWorkspaceContent() {
   const answerSectionRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize prompt textarea based on content
+  // Auto-resize prompt textarea based on content and viewport width
   useEffect(() => {
-    if (textareaRef.current) {
+    const syncHeight = () => {
+      if (!textareaRef.current) return;
       textareaRef.current.style.height = "auto";
-      const nextHeight = Math.max(38, Math.min(textareaRef.current.scrollHeight, 120));
+      const nextHeight = Math.max(40, Math.min(textareaRef.current.scrollHeight, 132));
       textareaRef.current.style.height = `${nextHeight}px`;
-    }
+    };
+    syncHeight();
+    window.addEventListener("resize", syncHeight);
+    return () => window.removeEventListener("resize", syncHeight);
   }, [question]);
 
   // Navigation tracking ref to ensure idempotency and prevent overwriting user edits
@@ -1329,7 +1333,7 @@ function AIWorkspaceContent() {
             style={{ cursor: "pointer", marginBottom: scopeExpanded ? "12px" : "0" }}
             onClick={() => setScopeExpanded((prev) => !prev)}
           >
-            <span className={styles.scopeTitle} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className={styles.scopeTitle} style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <span>
                 {t(
                   `Phạm vi công cụ phân tích (${selectedTools.length}/${toolOptions.length})`,
@@ -1401,17 +1405,17 @@ function AIWorkspaceContent() {
 
             {/* StellarX 3-Step Progress Stepper */}
             <div className={styles.stellarxStepper} role="status" aria-label={t("Tiến trình suy luận AI", "AI reasoning progress")}>
-              <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
+              <div className={`${styles.stepperItem} ${!streamStep || streamStep === "fetching_data" ? styles.stepperActive : ""}`}>
                 <span className={styles.stepperNum}>01</span>
                 <span>{t("DỮ LIỆU ĐỊNH LƯỢNG", "QUANTITATIVE DATA")}</span>
               </div>
               <div className={styles.stepperDivider} />
-              <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
+              <div className={`${styles.stepperItem} ${streamStep === "llm_reasoning" ? styles.stepperActive : ""}`}>
                 <span className={styles.stepperNum}>02</span>
                 <span>{t("SUY LUẬN MÔ HÌNH", "MODEL INFERENCE")}</span>
               </div>
               <div className={styles.stepperDivider} />
-              <div className={styles.stepperItem}>
+              <div className={`${styles.stepperItem} ${streamStep === "validating" ? styles.stepperActive : ""}`}>
                 <span className={styles.stepperNum}>03</span>
                 <span>{t("ĐỐI SOÁT BẰNG CHỨNG", "EVIDENCE RECONCILIATION")}</span>
               </div>

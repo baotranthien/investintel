@@ -143,7 +143,7 @@ function StockNode({
   isDark,
   onPointerOver,
   onPointerOut,
-  onClick,
+  onSelect,
 }: {
   stock: StockFactorPoint;
   isSelected: boolean;
@@ -151,10 +151,19 @@ function StockNode({
   isDark: boolean;
   onPointerOver: () => void;
   onPointerOut: () => void;
-  onClick: () => void;
+  onSelect: () => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const scaleRef = useRef<number>(1.0);
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
+  const lastTriggerRef = useRef<number>(0);
+
+  const triggerSelect = () => {
+    const now = performance.now();
+    if (now - lastTriggerRef.current < 250) return;
+    lastTriggerRef.current = now;
+    onSelect();
+  };
 
   const pointColor =
     stock.score >= 80 ? "#10B981" : stock.score >= 70 ? "#38BDF8" : "#F59E0B";
@@ -238,20 +247,39 @@ function StockNode({
       )}
 
       <group ref={groupRef} position={[posX, posY, posZ]}>
+        {/* Generous hit-target sphere so finger taps on mobile register reliably inside OrbitControls */}
         <mesh
+          scale={isCompact ? 1.0 : 1.65}
           onPointerOver={(e) => {
             e.stopPropagation();
-            onPointerOver();
+            if (e.pointerType !== "touch") onPointerOver();
           }}
           onPointerOut={(e) => {
             e.stopPropagation();
-            onPointerOut();
+            if (e.pointerType !== "touch") onPointerOut();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            pointerDownRef.current = { x: e.clientX, y: e.clientY };
+          }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+            const start = pointerDownRef.current;
+            pointerDownRef.current = null;
+            if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 14) {
+              triggerSelect();
+            }
           }}
           onClick={(e) => {
             e.stopPropagation();
-            onClick();
+            triggerSelect();
           }}
         >
+          <sphereGeometry args={[baseRadius, 16, 16]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+
+        <mesh>
           <sphereGeometry args={[baseRadius, 32, 32]} />
           <meshPhysicalMaterial
             color={pointColor}
@@ -390,7 +418,7 @@ function CubeScene({
               setHoveredStock(null);
               invalidate();
             }}
-            onClick={() => {
+            onSelect={() => {
               setSelectedStock((prev) => (prev?.symbol === stock.symbol ? null : stock));
               invalidate();
             }}
@@ -461,16 +489,21 @@ function MultiFactorCube3DInner({
             position: "absolute",
             bottom: 10,
             left: 12,
+            right: 12,
+            width: "fit-content",
+            maxWidth: "calc(100% - 24px)",
+            boxSizing: "border-box",
             pointerEvents: "none",
             display: "flex",
-            gap: "14px",
-            whiteSpace: "nowrap",
+            flexWrap: "wrap",
+            gap: "6px 12px",
+            whiteSpace: "normal",
             fontSize: "11px",
             fontWeight: 650,
             color: "var(--ink-secondary)",
             backgroundColor: "var(--surface-elevated, rgba(255,255,255,0.92))",
             backdropFilter: "blur(12px)",
-            padding: "6px 14px",
+            padding: "6px 12px",
             borderRadius: "10px",
             border: "1px solid var(--line)",
             zIndex: 5,
@@ -499,6 +532,8 @@ function MultiFactorCube3DInner({
             position: "absolute",
             top: 12,
             right: 14,
+            maxWidth: "calc(100% - 28px)",
+            boxSizing: "border-box",
             pointerEvents: "auto",
             backgroundColor: "var(--surface-elevated, #ffffff)",
             color: "var(--ink, #1d1d1f)",
@@ -515,7 +550,7 @@ function MultiFactorCube3DInner({
             minWidth: "170px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
             <strong
               style={{
                 fontSize: "14px",
@@ -529,17 +564,46 @@ function MultiFactorCube3DInner({
             >
               {activeStock.symbol}
             </strong>
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "2px 6px",
-                borderRadius: "5px",
-                background: "var(--surface-muted)",
-              }}
-            >
-              {activeStock.score}/100
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "2px 6px",
+                  borderRadius: "5px",
+                  background: "var(--surface-muted)",
+                }}
+              >
+                {activeStock.score}/100
+              </span>
+              {selectedStock && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedStock(null);
+                  }}
+                  aria-label={t("Đóng thẻ cổ phiếu", "Close stock card")}
+                  style={{
+                    border: "1px solid var(--line)",
+                    background: "var(--surface-muted)",
+                    color: "var(--ink-secondary)",
+                    borderRadius: "5px",
+                    width: "20px",
+                    height: "20px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "11px",
+                    lineHeight: 1,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
           {activeStock.name && (
             <div style={{ fontSize: "11px", color: "var(--ink-secondary)" }}>

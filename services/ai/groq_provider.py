@@ -113,13 +113,17 @@ class GroqProvider:
         if not self.is_available():
             raise AIProviderAuthError("GROQ_API_KEY is not configured or invalid.")
 
-        # Determine appropriate Groq model: if passed model is a valid Groq identifier, use it; otherwise default to self.model
+        # Determine appropriate Groq model: fallback legacy/local aliases to active Groq model
         model_to_use = self.model
-        if ":" in model_to_use:
+        if ":" in model_to_use or model_to_use == "qwen/qwen3.8-27b":
             model_to_use = "llama-3.3-70b-versatile"
         if model:
             m_str = model.strip()
-            if ":" not in m_str and ("/" in m_str or any(k in m_str.lower() for k in ("llama", "mixtral", "gemma", "whisper", "deepseek", "qwen"))):
+            if (
+                ":" not in m_str
+                and m_str != "qwen/qwen3.8-27b"
+                and ("/" in m_str or any(k in m_str.lower() for k in ("llama", "mixtral", "gemma", "whisper", "deepseek", "qwen")))
+            ):
                 model_to_use = m_str
 
         headers = {

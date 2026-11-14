@@ -430,7 +430,7 @@ export default function OpportunitiesPage() {
             backgroundColor: "var(--surface)",
             border: "1px solid var(--line)",
             borderRadius: "18px",
-            padding: "24px",
+            padding: "clamp(14px, 3vw, 24px)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -464,7 +464,7 @@ export default function OpportunitiesPage() {
                 <span style={{ color: "#f59e0b", fontWeight: 600 }}>{t("Trục Z (Động lượng RS)", "Z-Axis (RS Momentum)")}</span>.
               </p>
             </div>
-            <div style={{ display: "flex", gap: "10px", fontSize: "11.5px", color: "var(--ink-secondary)" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", fontSize: "11.5px", color: "var(--ink-secondary)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981" }} />
                 {t("Điểm cao (≥ 75)", "High Score (≥ 75)")}
@@ -715,8 +715,8 @@ function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppL
             : "Chưa đủ"}
         </span>
         <StatusBadge
-          status={item.data_freshness.status}
-          label={`${locale === "en" ? "Source:" : "Nguồn:"} ${item.data_freshness.source ?? "LOTUSMARKET"}`}
+          status={item.data_freshness?.status ?? "FRESH"}
+          label={`${locale === "en" ? "Source:" : "Nguồn:"} ${item.data_freshness?.source ?? "LOTUSMARKET"}`}
         />
       </div>
 

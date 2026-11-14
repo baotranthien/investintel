@@ -1896,7 +1896,14 @@ class AIAnalyst:
         else:
             query_target = extracted_symbols if len(extracted_symbols) > 1 else canonical_symbol
 
-        context = AITools.get_context(query_target, requested_date, tool_names, session, question=question)
+        context = await asyncio.to_thread(
+            AITools.get_context,
+            query_target,
+            requested_date,
+            tool_names,
+            session,
+            question=question,
+        )
         citations = self._citations(context)
         used_tools = [item["name"] for item in context.get("tools", [])]
         asks_horizon = any(term in question.casefold() for term in (

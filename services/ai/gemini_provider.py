@@ -111,6 +111,8 @@ class GeminiProvider:
         model_to_use = self.model
         if model and model.strip().lower().startswith("gemini"):
             model_to_use = model.strip()
+        if model_to_use == "gemini-1.5-flash":
+            model_to_use = "gemini-2.0-flash"
 
         url = f"{self.base_url}/models/{model_to_use}:generateContent?key={self.api_key}"
 

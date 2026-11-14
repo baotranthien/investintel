@@ -26,6 +26,8 @@ def is_cloud_mode() -> bool:
     return (
         os.getenv("CLOUD_MODE", "false").lower() in ("1", "true", "yes")
         or os.getenv("APP_ENV", "development").lower() == "production"
+        or os.getenv("VERCEL", "").lower() in ("1", "true", "yes")
+        or os.getenv("VERCEL_ENV", "").lower() in ("production", "preview")
     )
 
 
