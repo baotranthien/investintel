@@ -131,6 +131,11 @@ interface FlightTrackData {
   dockingCenter: { x: number; y: number } | null;
   entryRampPath: string;
   entryRampStart: { x: number; y: number } | null;
+  roadPathD: string;
+  roadStart: { x: number; y: number };
+  roadEnd: { x: number; y: number };
+  svgPerPxX: number;
+  svgPerPxY: number;
 }
 
 function clampNum(v: number, min: number, max: number): number {
@@ -231,7 +236,14 @@ function buildDenseFlightTrack(
   obstacles: CardObstacleBox[],
   entryRampPath = "",
   entryRampStart: { x: number; y: number } | null = null,
-  roadLockStartP = 1.0
+  roadLockStartP = 1.0,
+  roadGeometry?: {
+    roadPathD: string;
+    roadStart: { x: number; y: number };
+    roadEnd: { x: number; y: number };
+    svgPerPxX: number;
+    svgPerPxY: number;
+  }
 ): FlightTrackData {
   const samples = 160;
   const stops: number[] = [];
@@ -342,10 +354,10 @@ function buildDenseFlightTrack(
     const dy = Math.max(ys[next] - ys[prev], 6);
 
     const headingDownDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-    rawDownTrack.push(clampNum(normalizeAngleNear(headingDownDeg - SVG_NOSE_DEG, -114), -166, -62));
+    rawDownTrack.push(clampNum(normalizeAngleNear(headingDownDeg - SVG_NOSE_DEG, -114), -172, -56));
 
     const headingUpDeg = (Math.atan2(-dy, -dx) * 180) / Math.PI;
-    rawUpTrack.push(clampNum(normalizeAngleNear(headingUpDeg - SVG_NOSE_DEG, 66), 14, 118));
+    rawUpTrack.push(clampNum(normalizeAngleNear(headingUpDeg - SVG_NOSE_DEG, 66), 8, 124));
   }
 
   for (let pass = 0; pass < 3; pass++) {
@@ -407,6 +419,139 @@ function buildDenseFlightTrack(
     dockingCenter,
     entryRampPath,
     entryRampStart,
+    roadPathD: roadGeometry?.roadPathD ?? PIPELINE_PATH_D,
+    roadStart: roadGeometry?.roadStart ?? { x: 720, y: 40 },
+    roadEnd: roadGeometry?.roadEnd ?? { x: 720, y: 1350 },
+    svgPerPxX: roadGeometry?.svgPerPxX ?? 1,
+    svgPerPxY: roadGeometry?.svgPerPxY ?? 1,
+  };
+}
+
+interface RoadSample {
+  x: number;
+  y: number;
+  frac: number;
+}
+
+/** Generate a C1-smooth cubic Bezier SVG path through monotonic Y knots plus an arc-length LUT. */
+function buildSmoothSvgRoad(knots: { x: number; y: number }[]): {
+  pathD: string;
+  samples: RoadSample[];
+} {
+  if (knots.length < 2) {
+    return { pathD: PIPELINE_PATH_D, samples: [] };
+  }
+
+  const n = knots.length;
+  const dirs: { x: number; y: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    if (i === 0 || i === n - 1) {
+      dirs.push({ x: 0, y: 1 });
+    } else {
+      const dx = knots[i + 1].x - knots[i - 1].x;
+      const dy = Math.max(24, knots[i + 1].y - knots[i - 1].y);
+      const len = Math.hypot(dx, dy) || 1;
+      dirs.push({ x: dx / len, y: dy / len });
+    }
+  }
+
+  const parts: string[] = [`M ${knots[0].x.toFixed(1)} ${knots[0].y.toFixed(1)}`];
+  const rawPts: { x: number; y: number; cumLen: number }[] = [
+    { x: knots[0].x, y: knots[0].y, cumLen: 0 },
+  ];
+  let totalLen = 0;
+  let prevX = knots[0].x;
+  let prevY = knots[0].y;
+
+  const stepsPerSeg = 24;
+  for (let i = 0; i < n - 1; i++) {
+    const p1 = knots[i];
+    const p2 = knots[i + 1];
+    const segDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const dySeg = Math.max(8, p2.y - p1.y);
+
+    const h1Scale = i === 0 ? Math.min(segDist * 0.44, dySeg * 0.65) : segDist * 0.34;
+    const h2Scale = i === n - 2 ? Math.min(segDist * 0.44, dySeg * 0.65) : segDist * 0.34;
+
+    const c1x = clampNum(p1.x + dirs[i].x * h1Scale, 60, 1380);
+    const c1y = clampNum(p1.y + dirs[i].y * h1Scale, p1.y + 2, p2.y - 2);
+    const c2x = clampNum(p2.x - dirs[i + 1].x * h2Scale, 60, 1380);
+    const c2y = clampNum(p2.y - dirs[i + 1].y * h2Scale, p1.y + 2, p2.y - 2);
+
+    parts.push(
+      `C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`
+    );
+
+    for (let s = 1; s <= stepsPerSeg; s++) {
+      const u = s / stepsPerSeg;
+      const inv = 1 - u;
+      const x =
+        inv * inv * inv * p1.x +
+        3 * inv * inv * u * c1x +
+        3 * inv * u * u * c2x +
+        u * u * u * p2.x;
+      const y =
+        inv * inv * inv * p1.y +
+        3 * inv * inv * u * c1y +
+        3 * inv * u * u * c2y +
+        u * u * u * p2.y;
+      totalLen += Math.hypot(x - prevX, y - prevY);
+      prevX = x;
+      prevY = y;
+      rawPts.push({ x, y, cumLen: totalLen });
+    }
+  }
+
+  const invTotal = totalLen > 0 ? 1 / totalLen : 0;
+  return {
+    pathD: parts.join(" "),
+    samples: rawPts.map((pt) => ({ x: pt.x, y: pt.y, frac: pt.cumLen * invTotal })),
+  };
+}
+
+function findRoadSampleAtY(samples: RoadSample[], targetSvgY: number): RoadSample {
+  if (samples.length === 0) return { x: 720, y: targetSvgY, frac: 0 };
+  if (targetSvgY <= samples[0].y) return samples[0];
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = samples[i];
+    const b = samples[i + 1];
+    if (targetSvgY <= b.y) {
+      const span = Math.max(0.0001, b.y - a.y);
+      const t = clampNum((targetSvgY - a.y) / span, 0, 1);
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        frac: a.frac + (b.frac - a.frac) * t,
+      };
+    }
+  }
+  return samples[samples.length - 1];
+}
+
+function findRoadSampleAtFrac(
+  samples: RoadSample[],
+  targetFrac: number
+): { x: number; y: number; tx: number; ty: number } {
+  if (samples.length < 2) return { x: 720, y: 0, tx: 0, ty: 1 };
+  const f = clampNum(targetFrac, 0, 1);
+  let idx = 0;
+  while (idx < samples.length - 2 && f > samples[idx + 1].frac) {
+    idx++;
+  }
+  const a = samples[idx];
+  const b = samples[idx + 1];
+  const span = Math.max(0.0001, b.frac - a.frac);
+  const t = clampNum((f - a.frac) / span, 0, 1);
+  const prev = samples[Math.max(0, idx - 1)];
+  const next = samples[Math.min(samples.length - 1, idx + 2)];
+  const dx = next.x - prev.x;
+  const dy = next.y - prev.y;
+  const tanLen = Math.hypot(dx, dy) || 1;
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    tx: dx / tanLen,
+    ty: dy / tanLen,
   };
 }
 
@@ -728,7 +873,7 @@ function TacticalGatewayExperience({
     const pathEl = pipelinePathRef.current;
     const rigEl = shipRigRef.current;
     const portalEl = portalRef.current;
-    if (!scrollEl || !rootEl || !heroEl || !valleyEl || !pathEl || !rigEl || !portalEl) return;
+    if (!scrollEl || !rootEl || !heroEl || !valleyEl || !rigEl || !portalEl) return;
 
     const rootRect = rootEl.getBoundingClientRect();
     const heroRect = heroEl.getBoundingClientRect();
@@ -746,17 +891,17 @@ function TacticalGatewayExperience({
     const valleyH = Math.max(900, valleyRect.height);
     const viewH = Math.max(400, scrollEl.clientHeight || window.innerHeight);
     const maxScroll = Math.max(1, scrollEl.scrollHeight - viewH);
-    const svgTotalLen = pathEl.getTotalLength();
 
     // Use unscaled element layout dimensions so scrolled scale/rotation transforms never corrupt rest geometry
     const shipW = Math.max(120, rigEl.offsetWidth || rigEl.getBoundingClientRect().width || 240);
     const shipH = Math.max(80, rigEl.offsetHeight || rigEl.getBoundingClientRect().height || 160);
     const isMobile = rootW <= 600;
-    const isTablet = rootW <= 960;
+    const isTablet = rootW > 600 && rootW <= 960;
+    const isDesktop = !isMobile && !isTablet;
 
-    // Compact nimble size for weaving cleanly around pipeline banners and sitting comfortably inside the 80px road
-    const cruiseScale = isMobile ? 0.36 : isTablet ? 0.41 : 0.385;
-    const dockScale = isMobile ? 0.34 : isTablet ? 0.38 : 0.365;
+    // Nimble aerospace silhouette scaled cleanly to fit inside responsive road bed (48px mobile / 54px tablet / 80px desktop)
+    const cruiseScale = isMobile ? 0.305 : isTablet ? 0.365 : 0.385;
+    const dockScale = isMobile ? 0.295 : isTablet ? 0.345 : 0.365;
     const cruiseHalfW = shipW * cruiseScale * 0.5;
     const cruiseHalfH = shipH * cruiseScale * 0.5;
 
@@ -769,7 +914,14 @@ function TacticalGatewayExperience({
     const docYToProgress = (docY: number, vpBias = 0.48): number =>
       clampNum((docY - viewH * vpBias) / maxScroll, 0, 0.995);
 
+    const svgPerPxX = 1440 / Math.max(1, valleyW);
+    const svgPerPxY = 1600 / Math.max(1, valleyH);
     const svgXToDoc = (svgX: number): number => valleyLeft + (svgX / 1440) * valleyW;
+    const svgYToDoc = (svgY: number): number => valleyTop + (svgY / 1600) * valleyH;
+    const docXToSvg = (docX: number): number =>
+      clampNum(((docX - valleyLeft) / Math.max(1, valleyW)) * 1440, 0, 1440);
+    const docYToSvg = (docY: number): number =>
+      clampNum(((docY - valleyTop) / Math.max(1, valleyH)) * 1600, 0, 1600);
 
     const obstacles: CardObstacleBox[] = [];
     if (heroPanelRect) {
@@ -793,23 +945,8 @@ function TacticalGatewayExperience({
       });
     }
 
-    // Open right corridor alongside "From Raw Data to Decision" header banner
-    const edgePadX = isMobile ? 8 : isTablet ? 16 : 22;
-    const rightLaneX = clampNum(
-      headerRightX + cruiseHalfW + (isMobile ? 10 : isTablet ? 24 : 42),
-      cruiseHalfW + edgePadX,
-      rootW - cruiseHalfW - edgePadX
-    );
-
-    const measuredWaypoints: WaypointMarker[] = [];
-    const layerAnchors: {
-      x: number;
-      y: number;
-      rawP: number;
-      spineFrac: number;
-      cardBox: CardObstacleBox | null;
-    }[] = [];
-
+    const stemDocYs: number[] = [];
+    const cardBoxes: (CardObstacleBox | null)[] = [];
     for (let i = 0; i < LAYER_NUMBERS.length; i++) {
       const stemEl = stemNodeRefs.current[i];
       const slotEl = cardSlotRefs.current[i];
@@ -837,130 +974,218 @@ function TacticalGatewayExperience({
         obstacles.push(cardBox);
       }
 
-      const targetSvgY = clampNum(((stemDocY - valleyTop) / valleyH) * 1600, 50, 1460);
-      const pt = findPathPointAtY(pathEl, svgTotalLen, targetSvgY);
-
-      measuredWaypoints.push({
-        num: LAYER_NUMBERS[i],
-        x: pt.x,
-        y: pt.y,
-        svgLenFrac: pt.frac,
-      });
-
-      const padSideX = cruiseHalfW + (isMobile ? 10 : isTablet ? 20 : 28);
-      let spineDocX = svgXToDoc(pt.x);
-
-      if (isMobile) {
-        // Grouped in 2-layer banks (06-05 Left -> 04-03 Right -> 02-01 Left) so flight weaves in 2 slow S-waves
-        const onRightRunway = i <= 1 || i >= 4;
-        const gentleSway = i === 1 || i === 4 ? -4 : 0;
-        spineDocX = onRightRunway
-          ? rootW - cruiseHalfW - 10 + gentleSway
-          : cruiseHalfW + 10 - gentleSway;
-      } else if (isTablet && cardBox) {
-        // Upper half glides smoothly down right channel (06-04), single graceful S-cross to left (03-01)
-        const onRightFlank = i <= 2;
-        const rightOpen = Math.min(rootW - cruiseHalfW - 14, cardBox.right + padSideX);
-        const leftOpen = Math.max(cruiseHalfW + 14, cardBox.left - padSideX);
-        const arcOffset = onRightFlank ? (2 - i) * 6 : (i - 3) * 6;
-        spineDocX = onRightFlank ? rightOpen + arcOffset : leftOpen - arcOffset;
-      } else if (cardBox) {
-        // Desktop follows the exact SVG conduit curve wherever clear of cards
-        if (spineDocX >= cardBox.left - padSideX && spineDocX <= cardBox.right + padSideX) {
-          const rightRoom = rootW - cardBox.right;
-          spineDocX =
-            rightRoom >= cardBox.left
-              ? Math.min(rootW - cruiseHalfW - 22, cardBox.right + padSideX)
-              : Math.max(cruiseHalfW + 22, cardBox.left - padSideX);
-        }
-      }
-
-      const anchorY = cardBox ? (cardBox.top + cardBox.bottom) * 0.5 : stemDocY - 12;
-      layerAnchors.push({
-        x: spineDocX,
-        y: anchorY,
-        rawP: docYToProgress(anchorY, 0.5),
-        spineFrac: pt.frac,
-        cardBox,
-      });
+      stemDocYs.push(stemDocY);
+      cardBoxes.push(cardBox);
     }
 
     // Terminal dock point cleanly centered just above End Portal & its rotating reticle
     const portalTop = portalRect.top - rootRect.top;
     const dockCenterX = reticleRect.left - rootRect.left + reticleRect.width * 0.5;
-    const dockCenterY = portalTop - (isMobile ? 52 : isTablet ? 60 : 64);
-    const dockEndFrac = findPathPointAtY(
-      pathEl,
-      svgTotalLen,
-      clampNum(((portalTop - valleyTop) / valleyH) * 1600, 100, 1495)
-    ).frac;
-    const dockApproachFrac = findPathPointAtY(
-      pathEl,
-      svgTotalLen,
-      clampNum(((dockCenterY - 46 - valleyTop) / valleyH) * 1600, 100, 1495)
-    ).frac;
-
+    const dockCenterY = portalTop - (isMobile ? 54 : isTablet ? 58 : 64);
+    const reticleCenterY = reticleRect.top - rootRect.top + reticleRect.height * 0.5;
     const headerMidY = (headerTopY + headerBottomY) * 0.5;
-    const rawTakeoffP = clampNum(docYToProgress(heroH * 0.88, 0.45), 0.04, 0.095);
-    const rawHeaderPassP = clampNum(docYToProgress(headerMidY, 0.5), rawTakeoffP + 0.04, 0.17);
-    const bridgeClearY = headerBottomY + cruiseHalfH + (isMobile ? 22 : 44);
-    const rawBridgeP = clampNum(docYToProgress(bridgeClearY, 0.5), rawHeaderPassP + 0.035, 0.235);
 
-    const mergeSvgY = clampNum(((headerBottomY + cruiseHalfH + 150 - valleyTop) / valleyH) * 1600, 275, 330);
-    const mergePt = findPathPointAtY(pathEl, svgTotalLen, mergeSvgY);
+    // Build responsive SVG pipeline road (Desktop preserves signature conduit; Tablet & Mobile route strictly through card-free open corridors)
+    let roadPathD = PIPELINE_PATH_D;
+    let generatedSamples: RoadSample[] = [];
+    let roadStart = { x: 720, y: 40 };
+    let roadEnd = { x: 720, y: 1350 };
+    let mobileHeaderLaneX = clampNum(headerRightX + 42, rootW * 0.68, rootW - 38);
+
+    if (isMobile) {
+      const roadHalfOuter = 26;
+      const cardClearMin = roadHalfOuter + 14;
+      const edgeClearMin = roadHalfOuter + 11;
+      const maxRightLane = rootW - edgeClearMin;
+      mobileHeaderLaneX = clampNum(headerRightX + cardClearMin + 4, rootW * 0.64, maxRightLane);
+
+      const centerDocX = valleyLeft + valleyW * 0.5;
+      const knots: { x: number; y: number }[] = [
+        { x: docXToSvg(centerDocX), y: 0 },
+        { x: docXToSvg(centerDocX), y: docYToSvg(valleyTop + 28) },
+      ];
+      const pushKnot = (docX: number, docY: number) => {
+        const prevY = knots[knots.length - 1].y;
+        const nextY = clampNum(docYToSvg(docY), prevY + 14, 1585);
+        knots.push({ x: docXToSvg(clampNum(docX, edgeClearMin, maxRightLane)), y: nextY });
+      };
+
+      // Clear top-right corner of header banner cleanly before entering right coastal corridor
+      pushKnot(mobileHeaderLaneX, Math.max(valleyTop + 72, headerTopY - 10));
+      pushKnot(mobileHeaderLaneX, headerMidY + 8);
+
+      let lastCardRoadX = mobileHeaderLaneX;
+      for (let i = 0; i < LAYER_NUMBERS.length; i++) {
+        const cb = cardBoxes[i];
+        const cardRight = cb ? cb.right : rootW * 0.72;
+        const centerY = cb ? (cb.top + cb.bottom) * 0.5 : stemDocYs[i];
+        const minSafeX = cardRight + cardClearMin;
+        const desiredX = i % 2 === 0 ? maxRightLane - 2 : Math.max(minSafeX, rootW - 60);
+        const knotX = clampNum(desiredX, minSafeX, maxRightLane);
+        lastCardRoadX = knotX;
+        pushKnot(knotX, centerY);
+      }
+
+      const lastBottom = cardBoxes[cardBoxes.length - 1]?.bottom ?? stemDocYs[stemDocYs.length - 1] + 40;
+      const lastCardRight = cardBoxes[cardBoxes.length - 1]?.right ?? rootW * 0.68;
+      // Clear Card 01 bottom-right edge before guiding down a long graceful docking runway
+      pushKnot(clampNum(lastCardRoadX - 10, lastCardRight + cardClearMin - 4, maxRightLane), lastBottom + 18);
+      knots.push({
+        x: docXToSvg(dockCenterX + (lastCardRoadX - dockCenterX) * 0.42),
+        y: Math.max(knots[knots.length - 1].y + 18, docYToSvg(lastBottom + 54)),
+      });
+      knots.push({
+        x: docXToSvg(dockCenterX),
+        y: Math.max(knots[knots.length - 1].y + 20, docYToSvg(portalTop - 16)),
+      });
+      knots.push({
+        x: docXToSvg(dockCenterX),
+        y: Math.max(knots[knots.length - 1].y + 16, docYToSvg(Math.min(valleyTop + valleyH - 30, reticleCenterY))),
+      });
+
+      const built = buildSmoothSvgRoad(knots);
+      roadPathD = built.pathD;
+      generatedSamples = built.samples;
+      roadStart = findRoadSampleAtY(generatedSamples, docYToSvg(valleyTop + 28));
+      const endSample = findRoadSampleAtY(generatedSamples, docYToSvg(portalTop - 14));
+      roadEnd = { x: endSample.x, y: endSample.y };
+    } else if (isTablet) {
+      let maxLeftRight = rootW * 0.32;
+      let minRightLeft = rootW * 0.68;
+      for (let i = 0; i < cardBoxes.length; i++) {
+        const cb = cardBoxes[i];
+        if (!cb) continue;
+        const isRightSlot = i === 1 || i === 4;
+        if (isRightSlot) {
+          minRightLeft = Math.min(minRightLeft, cb.left);
+        } else {
+          maxLeftRight = Math.max(maxLeftRight, cb.right);
+        }
+      }
+
+      const corridorPad = 42;
+      const safeMinX = Math.max(rootW * 0.34, maxLeftRight + corridorPad);
+      const safeMaxX = Math.min(rootW * 0.66, minRightLeft - corridorPad);
+      const midX = (safeMinX + safeMaxX) * 0.5;
+      const halfSwing = Math.max(10, (safeMaxX - safeMinX) * 0.44);
+      const cardOffsets = [0.9, -0.95, 0.72, 0.78, -0.88, -0.24];
+
+      const knots: { x: number; y: number }[] = [
+        { x: 720, y: 0 },
+        { x: 720, y: docYToSvg(valleyTop + 44) },
+      ];
+      for (let i = 0; i < LAYER_NUMBERS.length; i++) {
+        const cb = cardBoxes[i];
+        const targetY = cb ? (cb.top + cb.bottom) * 0.5 : stemDocYs[i];
+        const prevY = knots[knots.length - 1].y;
+        knots.push({
+          x: docXToSvg(clampNum(midX + halfSwing * cardOffsets[i], safeMinX, safeMaxX)),
+          y: Math.max(prevY + 18, docYToSvg(targetY)),
+        });
+      }
+      knots.push({
+        x: docXToSvg(dockCenterX),
+        y: Math.max(knots[knots.length - 1].y + 18, docYToSvg(portalTop - 16)),
+      });
+      knots.push({
+        x: docXToSvg(dockCenterX),
+        y: Math.max(knots[knots.length - 1].y + 16, docYToSvg(Math.min(valleyTop + valleyH - 36, reticleCenterY))),
+      });
+
+      const built = buildSmoothSvgRoad(knots);
+      roadPathD = built.pathD;
+      generatedSamples = built.samples;
+      roadStart = findRoadSampleAtY(generatedSamples, docYToSvg(valleyTop + 44));
+      const endSample = findRoadSampleAtY(generatedSamples, docYToSvg(portalTop - 18));
+      roadEnd = { x: endSample.x, y: endSample.y };
+    }
+
+    const svgTotalLen = isDesktop && pathEl ? pathEl.getTotalLength() : 0;
+    const sampleRoadAtSvgY = (targetSvgY: number): { x: number; y: number; frac: number } => {
+      if (isDesktop && pathEl && svgTotalLen > 0) {
+        return findPathPointAtY(pathEl, svgTotalLen, targetSvgY);
+      }
+      return findRoadSampleAtY(generatedSamples, targetSvgY);
+    };
+    const sampleRoadAtFrac = (frac: number): { x: number; y: number; tx: number; ty: number } => {
+      if (isDesktop && pathEl && svgTotalLen > 0) {
+        const dist = clampNum(frac, 0, 1) * svgTotalLen;
+        const pt = pathEl.getPointAtLength(dist);
+        const pBefore = pathEl.getPointAtLength(Math.max(0, dist - 12));
+        const pAfter = pathEl.getPointAtLength(Math.min(svgTotalLen, dist + 12));
+        const tanLen = Math.hypot(pAfter.x - pBefore.x, pAfter.y - pBefore.y) || 1;
+        return {
+          x: pt.x,
+          y: pt.y,
+          tx: (pAfter.x - pBefore.x) / tanLen,
+          ty: (pAfter.y - pBefore.y) / tanLen,
+        };
+      }
+      return findRoadSampleAtFrac(generatedSamples, frac);
+    };
+
+    const measuredWaypoints: WaypointMarker[] = LAYER_NUMBERS.map((num, i) => {
+      const targetSvgY = clampNum(docYToSvg(stemDocYs[i]), 50, 1520);
+      const pt = sampleRoadAtSvgY(targetSvgY);
+      return {
+        num,
+        x: pt.x,
+        y: pt.y,
+        svgLenFrac: pt.frac,
+      };
+    });
+
+    const dockEndFrac = sampleRoadAtSvgY(clampNum(docYToSvg(portalTop - 10), 100, 1540)).frac;
+    const dockApproachFrac = sampleRoadAtSvgY(
+      clampNum(docYToSvg(dockCenterY - (isMobile ? 24 : 46)), 100, 1520)
+    ).frac;
+
+    // Open right corridor alongside "From Data to Decision" header banner for Hero launch on-ramp
+    const edgePadX = isMobile ? 8 : isTablet ? 16 : 22;
+    const rightLaneX = isMobile
+      ? rootW - cruiseHalfW - 6
+      : clampNum(headerRightX + cruiseHalfW + (isTablet ? 24 : 42), cruiseHalfW + edgePadX, rootW - cruiseHalfW - edgePadX);
+
+    const rawTakeoffP = clampNum(docYToProgress(heroH * 0.88, 0.45), 0.04, 0.095);
+    const rawRampStartP = clampNum(
+      docYToProgress(isMobile ? valleyTop + 44 : headerMidY, 0.5),
+      rawTakeoffP + 0.035,
+      0.165
+    );
+
+    const mergeTargetDocY = isMobile
+      ? headerMidY + 18
+      : isTablet
+        ? headerBottomY + cruiseHalfH + 92
+        : headerBottomY + cruiseHalfH + 150;
+    const mergePt = sampleRoadAtSvgY(clampNum(docYToSvg(mergeTargetDocY), isMobile ? 80 : 220, 420));
+    const mergeTangent = sampleRoadAtFrac(mergePt.frac);
     const mergeDocX = svgXToDoc(mergePt.x);
-    const svgYToDoc = (svgY: number): number => valleyTop + (svgY / 1600) * valleyH;
     const mergeDocY = svgYToDoc(mergePt.y);
 
-    const bridgeX = isMobile
-      ? rightLaneX
-      : isTablet
-        ? clampNum(rightLaneX - (rightLaneX - layerAnchors[0].x) * 0.25, layerAnchors[0].x, rightLaneX)
-        : clampNum(rightLaneX - (rightLaneX - mergeDocX) * 0.42, mergeDocX, rightLaneX);
-
-    let entryRampPath = "";
-    let entryRampStart: { x: number; y: number } | null = null;
-    let rampCtrlPts: {
-      startX: number;
-      startY: number;
-      ctrl1X: number;
-      ctrl1Y: number;
-      ctrl2X: number;
-      ctrl2Y: number;
-      endX: number;
-      endY: number;
-    } | null = null;
-    if (!isMobile && !isTablet) {
-      const docXToSvg = (docX: number) => clampNum((docX / Math.max(1, rootW)) * 1440, 0, 1440);
-      const docYToSvg = (docY: number) => clampNum(((docY - valleyTop) / Math.max(1, valleyH)) * 1600, 0, 1600);
-      const rampStartSvgX = docXToSvg(rightLaneX);
-      const rampStartSvgY = docYToSvg(Math.max(valleyTop + 20, headerMidY));
-      const rampEndSvgX = mergePt.x;
-      const rampEndSvgY = mergePt.y;
-      const rampDist = Math.hypot(rampEndSvgX - rampStartSvgX, rampEndSvgY - rampStartSvgY);
-      const mLen = mergePt.frac * svgTotalLen;
-      const pBefore = pathEl.getPointAtLength(Math.max(0, mLen - 12));
-      const pAfter = pathEl.getPointAtLength(Math.min(svgTotalLen, mLen + 12));
-      const tanLen = Math.hypot(pAfter.x - pBefore.x, pAfter.y - pBefore.y) || 1;
-      const tx = (pAfter.x - pBefore.x) / tanLen;
-      const ty = (pAfter.y - pBefore.y) / tanLen;
-      const ctrl1X = rampStartSvgX;
-      const ctrl1Y = clampNum(rampStartSvgY + rampDist * 0.44, 0, 1600);
-      const ctrl2X = clampNum(rampEndSvgX - tx * rampDist * 0.42, 0, 1440);
-      const ctrl2Y = clampNum(rampEndSvgY - ty * rampDist * 0.42, 0, 1600);
-      entryRampStart = { x: rampStartSvgX, y: rampStartSvgY };
-      entryRampPath = `M ${rampStartSvgX.toFixed(1)} ${rampStartSvgY.toFixed(1)} C ${ctrl1X.toFixed(1)} ${ctrl1Y.toFixed(1)}, ${ctrl2X.toFixed(1)} ${ctrl2Y.toFixed(1)}, ${rampEndSvgX.toFixed(1)} ${rampEndSvgY.toFixed(1)}`;
-      rampCtrlPts = {
-        startX: svgXToDoc(rampStartSvgX),
-        startY: svgYToDoc(rampStartSvgY),
-        ctrl1X: svgXToDoc(ctrl1X),
-        ctrl1Y: svgYToDoc(ctrl1Y),
-        ctrl2X: svgXToDoc(ctrl2X),
-        ctrl2Y: svgYToDoc(ctrl2Y),
-        endX: mergeDocX,
-        endY: mergeDocY,
-      };
-    }
+    // G1 smooth cubic Bezier on-ramp connecting Hero right corridor seamlessly into the pipeline road
+    const rampStartDocY = isMobile ? Math.max(valleyTop + 28, headerTopY - 58) : Math.max(valleyTop + 20, headerMidY);
+    const rampStartSvgX = docXToSvg(rightLaneX);
+    const rampStartSvgY = docYToSvg(rampStartDocY);
+    const rampEndSvgX = mergePt.x;
+    const rampEndSvgY = mergePt.y;
+    const rampDist = Math.max(16, Math.hypot(rampEndSvgX - rampStartSvgX, rampEndSvgY - rampStartSvgY));
+    const ctrl1X = rampStartSvgX;
+    const ctrl1Y = clampNum(rampStartSvgY + rampDist * 0.44, 0, 1590);
+    const ctrl2X = clampNum(rampEndSvgX - mergeTangent.tx * rampDist * 0.42, 40, 1400);
+    const ctrl2Y = clampNum(rampEndSvgY - mergeTangent.ty * rampDist * 0.42, 0, 1590);
+    const entryRampStart = { x: rampStartSvgX, y: rampStartSvgY };
+    const entryRampPath = `M ${rampStartSvgX.toFixed(1)} ${rampStartSvgY.toFixed(1)} C ${ctrl1X.toFixed(1)} ${ctrl1Y.toFixed(1)}, ${ctrl2X.toFixed(1)} ${ctrl2Y.toFixed(1)}, ${rampEndSvgX.toFixed(1)} ${rampEndSvgY.toFixed(1)}`;
+    const rampCtrlPts = {
+      startX: svgXToDoc(rampStartSvgX),
+      startY: svgYToDoc(rampStartSvgY),
+      ctrl1X: svgXToDoc(ctrl1X),
+      ctrl1Y: svgYToDoc(ctrl1Y),
+      ctrl2X: svgXToDoc(ctrl2X),
+      ctrl2Y: svgYToDoc(ctrl2Y),
+      endX: mergeDocX,
+      endY: mergeDocY,
+    };
 
     const anchors: FlightAnchor[] = [
       { p: 0.0, x: restX, y: restY, scale: 1.0, engine: 0.58, dock: 0, spineFrac: 0 },
@@ -968,170 +1193,115 @@ function TacticalGatewayExperience({
         p: rawTakeoffP,
         x: restX + (rightLaneX - restX) * 0.46,
         y: heroH * 0.9,
-        scale: isMobile ? 0.64 : 0.72,
+        scale: isMobile ? 0.52 : 0.72,
         engine: 0.76,
         dock: 0,
-        spineFrac: 0.015,
+        spineFrac: 0.012,
       },
       {
-        p: rawHeaderPassP,
+        p: rawRampStartP,
         x: rightLaneX,
-        y: headerMidY,
+        y: rampCtrlPts.startY,
         scale: cruiseScale,
         engine: 0.8,
         dock: 0,
-        spineFrac: 0.03,
+        spineFrac: isMobile ? 0.025 : 0.03,
       },
     ];
 
-    const computedLayerThresholds: number[] = [];
-    let prevP = rawHeaderPassP;
-    let roadLockStartP = 1.0;
+    // Unified On-Ramp + Road-Centerline Sampling across Desktop, Tablet, and Mobile
+    const roadLockStartP = rawRampStartP;
+    const minXRoad = Math.max(edgePadX + cruiseHalfW, 24);
+    const maxXRoad = Math.max(minXRoad + 20, rootW - minXRoad);
+    const rawMergeP = clampNum(docYToProgress(mergeDocY, 0.5), rawRampStartP + 0.035, 0.245);
+    const onRampSteps = 5;
 
-    if (!isMobile && !isTablet && rampCtrlPts) {
-      // Desktop: sample the exact on-ramp Bezier then follow the full SVG road centerline cleanly
-      roadLockStartP = rawHeaderPassP;
-      const minXDesktop = Math.max(edgePadX + cruiseHalfW, 34);
-      const maxXDesktop = Math.max(minXDesktop + 20, rootW - minXDesktop);
-      const rawMergeP = clampNum(docYToProgress(mergeDocY, 0.5), rawHeaderPassP + 0.055, 0.245);
-      const onRampSteps = 5;
-
-      for (let s = 1; s <= onRampSteps; s++) {
-        const u = s / onRampSteps;
-        const inv = 1 - u;
-        const bx =
-          inv * inv * inv * rampCtrlPts.startX +
-          3 * inv * inv * u * rampCtrlPts.ctrl1X +
-          3 * inv * u * u * rampCtrlPts.ctrl2X +
-          u * u * u * rampCtrlPts.endX;
-        const by =
-          inv * inv * inv * rampCtrlPts.startY +
-          3 * inv * inv * u * rampCtrlPts.ctrl1Y +
-          3 * inv * u * u * rampCtrlPts.ctrl2Y +
-          u * u * u * rampCtrlPts.endY;
-        const pHere = rawHeaderPassP + (rawMergeP - rawHeaderPassP) * u;
-        anchors.push({
-          p: pHere,
-          x: clampNum(bx, minXDesktop, maxXDesktop),
-          y: by,
-          scale: cruiseScale,
-          engine: 0.82,
-          dock: 0,
-          spineFrac: 0.03 + (mergePt.frac - 0.03) * u,
-        });
-      }
-
-      prevP = rawMergeP;
-      const roadSteps = 36;
-      const roadStartFrac = clampNum(mergePt.frac, 0.06, 0.26);
-      const roadEndFrac = clampNum(
-        Math.max(dockApproachFrac, measuredWaypoints[measuredWaypoints.length - 1].svgLenFrac + 0.02),
-        roadStartFrac + 0.15,
-        0.97
-      );
-      const roadSamples: { frac: number; p: number }[] = [{ frac: roadStartFrac, p: rawMergeP }];
-
-      for (let k = 1; k <= roadSteps; k++) {
-        const t = k / roadSteps;
-        const frac = roadStartFrac + (roadEndFrac - roadStartFrac) * t;
-        const pt = pathEl.getPointAtLength(frac * svgTotalLen);
-        const rawRoadX = svgXToDoc(pt.x);
-        const roadY = svgYToDoc(pt.y);
-        const safeX = pushSampleOutsideObstacles(
-          rawRoadX,
-          roadY,
-          cruiseHalfW + 2,
-          cruiseHalfH + 2,
-          obstacles,
-          minXDesktop,
-          maxXDesktop
-        );
-        const remaining = roadSteps - k;
-        const maxAllowedHere = 0.915 - remaining * 0.009;
-        const linearRoadP = rawMergeP + (0.895 - rawMergeP) * t;
-        const docRoadP = docYToProgress(roadY, 0.5);
-        const blendedP = linearRoadP * 0.68 + docRoadP * 0.32;
-        const pHere = clampNum(Math.max(blendedP, prevP + 0.01), prevP + 0.008, maxAllowedHere);
-        prevP = pHere;
-
-        roadSamples.push({ frac, p: pHere });
-        anchors.push({
-          p: pHere,
-          x: safeX,
-          y: roadY,
-          scale: cruiseScale,
-          engine: k >= roadSteps - 1 ? 0.64 : 0.82,
-          dock: k >= roadSteps - 1 ? 0.08 : 0,
-          spineFrac: frac,
-        });
-      }
-
-      for (let i = 0; i < measuredWaypoints.length; i++) {
-        const targetFrac = measuredWaypoints[i].svgLenFrac;
-        let wpP = roadSamples[roadSamples.length - 1].p;
-        for (let s = 0; s < roadSamples.length - 1; s++) {
-          if (targetFrac <= roadSamples[s + 1].frac) {
-            const spanF = Math.max(0.0001, roadSamples[s + 1].frac - roadSamples[s].frac);
-            const u = clampNum((targetFrac - roadSamples[s].frac) / spanF, 0, 1);
-            wpP = roadSamples[s].p + (roadSamples[s + 1].p - roadSamples[s].p) * u;
-            break;
-          }
-        }
-        computedLayerThresholds.push(Math.max(rawHeaderPassP + 0.025, wpP - 0.042));
-      }
-    } else {
-      // Tablet / Mobile: smooth card-clearance flanks with at most 1-2 sweeping S-crossings
+    for (let s = 1; s <= onRampSteps; s++) {
+      const u = s / onRampSteps;
+      const inv = 1 - u;
+      const bx =
+        inv * inv * inv * rampCtrlPts.startX +
+        3 * inv * inv * u * rampCtrlPts.ctrl1X +
+        3 * inv * u * u * rampCtrlPts.ctrl2X +
+        u * u * u * rampCtrlPts.endX;
+      const by =
+        inv * inv * inv * rampCtrlPts.startY +
+        3 * inv * inv * u * rampCtrlPts.ctrl1Y +
+        3 * inv * u * u * rampCtrlPts.ctrl2Y +
+        u * u * u * rampCtrlPts.endY;
+      const pHere = rawRampStartP + (rawMergeP - rawRampStartP) * u;
       anchors.push({
-        p: rawBridgeP,
-        x: bridgeX,
-        y: bridgeClearY,
+        p: pHere,
+        x: clampNum(bx, minXRoad, maxXRoad),
+        y: by,
         scale: cruiseScale,
         engine: 0.82,
         dock: 0,
-        spineFrac: 0.055,
+        spineFrac: 0.03 + (mergePt.frac - 0.03) * u,
       });
-      prevP = rawBridgeP + 0.038;
-      let prevAnchor = anchors[anchors.length - 1];
-      let prevCardBox: CardObstacleBox | null = null;
-
-      for (let i = 0; i < layerAnchors.length; i++) {
-        const curr = layerAnchors[i];
-        const remaining = layerAnchors.length - i;
-        const maxAllowedHere = 0.89 - remaining * 0.044;
-        const pHere = clampNum(Math.max(curr.rawP, prevP + 0.052), prevP + 0.045, maxAllowedHere);
-
-        if (prevCardBox && curr.cardBox && Math.abs(prevAnchor.x - curr.x) > rootW * 0.35) {
-          const corridorY = (prevCardBox.bottom + curr.cardBox.top) * 0.5;
-          const midP = (prevP + pHere) * 0.5;
-          anchors.push({
-            p: midP,
-            x: (prevAnchor.x + curr.x) * 0.5,
-            y: corridorY,
-            scale: cruiseScale,
-            engine: 0.8,
-            dock: 0,
-            spineFrac: (prevAnchor.spineFrac + curr.spineFrac) * 0.5,
-          });
-        }
-
-        prevP = pHere;
-        computedLayerThresholds.push(Math.max(rawBridgeP + 0.015, pHere - 0.048));
-        const layerAnchor: FlightAnchor = {
-          p: pHere,
-          x: curr.x,
-          y: curr.y,
-          scale: cruiseScale,
-          engine: i === layerAnchors.length - 1 ? 0.64 : 0.82,
-          dock: i === layerAnchors.length - 1 ? 0.08 : 0,
-          spineFrac: curr.spineFrac,
-        };
-        anchors.push(layerAnchor);
-        prevAnchor = layerAnchor;
-        prevCardBox = curr.cardBox;
-      }
     }
 
-    const approachP = clampNum(Math.max(prevP + 0.038, 0.93), prevP + 0.025, 0.955);
+    let prevP = rawMergeP;
+    const roadSteps = 36;
+    const roadStartFrac = clampNum(mergePt.frac, 0.04, 0.28);
+    const roadEndFrac = clampNum(
+      Math.max(dockApproachFrac, measuredWaypoints[measuredWaypoints.length - 1].svgLenFrac + 0.02),
+      roadStartFrac + 0.15,
+      0.975
+    );
+    const roadSamplesP: { frac: number; p: number }[] = [{ frac: roadStartFrac, p: rawMergeP }];
+
+    for (let k = 1; k <= roadSteps; k++) {
+      const t = k / roadSteps;
+      const frac = roadStartFrac + (roadEndFrac - roadStartFrac) * t;
+      const pt = sampleRoadAtFrac(frac);
+      const rawRoadX = svgXToDoc(pt.x);
+      const roadY = svgYToDoc(pt.y);
+      const safeX = pushSampleOutsideObstacles(
+        rawRoadX,
+        roadY,
+        cruiseHalfW + 2,
+        cruiseHalfH + 2,
+        obstacles,
+        minXRoad,
+        maxXRoad
+      );
+      const remaining = roadSteps - k;
+      const maxAllowedHere = 0.915 - remaining * 0.0085;
+      const linearRoadP = rawMergeP + (0.895 - rawMergeP) * t;
+      const docRoadP = docYToProgress(roadY, 0.5);
+      const blendedP = linearRoadP * 0.65 + docRoadP * 0.35;
+      const pHere = clampNum(Math.max(blendedP, prevP + 0.009), prevP + 0.007, maxAllowedHere);
+      prevP = pHere;
+
+      roadSamplesP.push({ frac, p: pHere });
+      anchors.push({
+        p: pHere,
+        x: safeX,
+        y: roadY,
+        scale: cruiseScale,
+        engine: k >= roadSteps - 1 ? 0.64 : 0.82,
+        dock: k >= roadSteps - 1 ? 0.08 : 0,
+        spineFrac: frac,
+      });
+    }
+
+    const computedLayerThresholds: number[] = [];
+    for (let i = 0; i < measuredWaypoints.length; i++) {
+      const targetFrac = measuredWaypoints[i].svgLenFrac;
+      let wpP = roadSamplesP[roadSamplesP.length - 1].p;
+      for (let s = 0; s < roadSamplesP.length - 1; s++) {
+        if (targetFrac <= roadSamplesP[s + 1].frac) {
+          const spanF = Math.max(0.0001, roadSamplesP[s + 1].frac - roadSamplesP[s].frac);
+          const u = clampNum((targetFrac - roadSamplesP[s].frac) / spanF, 0, 1);
+          wpP = roadSamplesP[s].p + (roadSamplesP[s + 1].p - roadSamplesP[s].p) * u;
+          break;
+        }
+      }
+      computedLayerThresholds.push(Math.max(rawRampStartP + 0.02, wpP - 0.042));
+    }
+
+    const approachP = clampNum(Math.max(prevP + 0.036, 0.928), prevP + 0.024, 0.955);
     const dockThreshold = clampNum(approachP - 0.02, 0.885, 0.94);
 
     const lastCruiseAnchor = anchors[anchors.length - 1];
@@ -1155,7 +1325,7 @@ function TacticalGatewayExperience({
       spineFrac: Math.max(0.95, dockEndFrac),
     });
 
-    const minX = Math.max(edgePadX + cruiseHalfW, 34);
+    const minX = Math.max(edgePadX + cruiseHalfW, 24);
     const maxX = Math.max(minX + 20, rootW - minX);
     const track = buildDenseFlightTrack(
       anchors,
@@ -1167,7 +1337,14 @@ function TacticalGatewayExperience({
       obstacles,
       entryRampPath,
       entryRampStart,
-      roadLockStartP
+      roadLockStartP,
+      {
+        roadPathD,
+        roadStart,
+        roadEnd,
+        svgPerPxX,
+        svgPerPxY,
+      }
     );
     setFlightTrack(track);
   }, []);
@@ -2085,9 +2262,11 @@ function TacticalGatewayExperience({
             aria-hidden="true"
           >
             <defs>
+              <path ref={pipelinePathRef} id="desktopSpineRef" d={PIPELINE_PATH_D} />
               <path
+                key={flightTrack.roadPathD}
                 id="pipelineSpinePath"
-                d={PIPELINE_PATH_D}
+                d={flightTrack.roadPathD}
               />
               <radialGradient id="packetHalo" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor={geo.coreBright} stopOpacity="0.95" />
@@ -2098,7 +2277,7 @@ function TacticalGatewayExperience({
 
             {/* Architectural Winding Data Pipeline Conduit */}
             <path
-              d={PIPELINE_PATH_D}
+              d={flightTrack.roadPathD}
               stroke="var(--gw-road-outer)"
               className={styles.pipelineRailOuter}
               vectorEffect="non-scaling-stroke"
@@ -2106,7 +2285,7 @@ function TacticalGatewayExperience({
               strokeLinejoin="round"
             />
             <path
-              d={PIPELINE_PATH_D}
+              d={flightTrack.roadPathD}
               stroke="var(--gw-road-bed)"
               className={styles.pipelineBedInner}
               vectorEffect="non-scaling-stroke"
@@ -2124,10 +2303,11 @@ function TacticalGatewayExperience({
                   strokeLinecap="round"
                 />
                 {flightTrack.entryRampStart ? (
-                  <circle
+                  <ellipse
                     cx={flightTrack.entryRampStart.x}
                     cy={flightTrack.entryRampStart.y}
-                    r="3.2"
+                    rx={3.2 * flightTrack.svgPerPxX}
+                    ry={3.2 * flightTrack.svgPerPxY}
                     fill="var(--gw-node-fill)"
                     stroke="var(--gw-accent)"
                     strokeWidth="1.2"
@@ -2138,8 +2318,7 @@ function TacticalGatewayExperience({
               </g>
             ) : null}
             <path
-              ref={pipelinePathRef}
-              d={PIPELINE_PATH_D}
+              d={flightTrack.roadPathD}
               stroke="var(--gw-road-trace)"
               className={styles.pipelineTraceBase}
               vectorEffect="non-scaling-stroke"
@@ -2148,7 +2327,8 @@ function TacticalGatewayExperience({
             />
             {/* Scrubbed Energized Trace Advancing With Spacecraft Along Conduit */}
             <motion.path
-              d={PIPELINE_PATH_D}
+              key={flightTrack.roadPathD}
+              d={flightTrack.roadPathD}
               stroke="var(--gw-accent)"
               className={styles.pipelineActiveTrace}
               style={{ pathLength: energizedSpineLength }}
@@ -2157,7 +2337,7 @@ function TacticalGatewayExperience({
               strokeLinejoin="round"
             />
             <path
-              d={PIPELINE_PATH_D}
+              d={flightTrack.roadPathD}
               stroke="var(--gw-accent)"
               className={`${styles.pipelineTraceDash} ${styles.pipelineCurrentStream}`}
               vectorEffect="non-scaling-stroke"
@@ -2166,103 +2346,104 @@ function TacticalGatewayExperience({
             />
 
             {/* Flowing Data Telemetry Packets Riding Along Curved Conduit */}
-            <g className={styles.pipelinePackets}>
+            <g key={`packets-${flightTrack.roadPathD}`} className={styles.pipelinePackets}>
               <g>
-                <circle r="14" fill="url(#packetHalo)" />
-                <circle r="4" fill={geo.beaconBright} />
+                <ellipse
+                  rx={14 * flightTrack.svgPerPxX}
+                  ry={14 * flightTrack.svgPerPxY}
+                  fill="url(#packetHalo)"
+                />
+                <ellipse
+                  rx={4 * flightTrack.svgPerPxX}
+                  ry={4 * flightTrack.svgPerPxY}
+                  fill={geo.beaconBright}
+                />
                 <animateMotion dur="8.5s" repeatCount="indefinite" begin="0s">
                   <mpath href="#pipelineSpinePath" />
                 </animateMotion>
               </g>
               <g>
-                <circle r="12" fill="url(#packetHalo)" />
-                <circle r="3.4" fill={geo.accent} />
+                <ellipse
+                  rx={12 * flightTrack.svgPerPxX}
+                  ry={12 * flightTrack.svgPerPxY}
+                  fill="url(#packetHalo)"
+                />
+                <ellipse
+                  rx={3.4 * flightTrack.svgPerPxX}
+                  ry={3.4 * flightTrack.svgPerPxY}
+                  fill={geo.accent}
+                />
                 <animateMotion dur="8.5s" repeatCount="indefinite" begin="2.8s">
                   <mpath href="#pipelineSpinePath" />
                 </animateMotion>
               </g>
               <g>
-                <circle r="12" fill="url(#packetHalo)" />
-                <circle r="3.4" fill={geo.accentLight} />
+                <ellipse
+                  rx={12 * flightTrack.svgPerPxX}
+                  ry={12 * flightTrack.svgPerPxY}
+                  fill="url(#packetHalo)"
+                />
+                <ellipse
+                  rx={3.4 * flightTrack.svgPerPxX}
+                  ry={3.4 * flightTrack.svgPerPxY}
+                  fill={geo.accentLight}
+                />
                 <animateMotion dur="8.5s" repeatCount="indefinite" begin="5.6s">
                   <mpath href="#pipelineSpinePath" />
                 </animateMotion>
               </g>
             </g>
-
-            {/* 6 Scroll-Synchronized Layer Nodes Along Pipeline Conduit */}
-            <g>
-              <circle cx="720" cy="40" r="8" fill="var(--gw-node-fill)" stroke="var(--gw-border)" strokeWidth="1.2" />
-              <circle
-                cx="720"
-                cy="40"
-                r="2.8"
-                fill={activeStage >= 0 ? "var(--gw-accent)" : "var(--gw-ink-muted)"}
-              />
-
-              {flightTrack.waypoints.map((wp, idx) => {
-                const state =
-                  idx === activeStage ? "active" : activeStage > idx ? "visited" : "pending";
-                const isLit = state !== "pending";
-                const isActive = state === "active";
-                return (
-                  <g key={wp.num} className={styles.pipelineWaypointGroup} data-layer-state={state}>
-                    {isActive && !prefersReducedMotion && (
-                      <circle
-                        cx={wp.x}
-                        cy={wp.y}
-                        r="22"
-                        fill="none"
-                        stroke={geo.accentEdgeStrong}
-                        strokeWidth="1.2"
-                        className={styles.waypointPulse}
-                      />
-                    )}
-                    <circle
-                      cx={wp.x}
-                      cy={wp.y}
-                      r={isActive ? 12 : 9.5}
-                      fill="var(--gw-node-fill)"
-                      stroke={isActive ? "var(--gw-accent)" : isLit ? geo.accentEdgeMid : "var(--gw-border)"}
-                      strokeWidth={isActive ? "1.6" : "1.2"}
-                    />
-                    <circle
-                      cx={wp.x}
-                      cy={wp.y}
-                      r={isActive ? 4.5 : 3.2}
-                      fill={isActive ? "var(--gw-ink)" : isLit ? "var(--gw-accent)" : "var(--gw-ink-muted)"}
-                    />
-                  </g>
-                );
-              })}
-
-              {activeStage === 6 && !prefersReducedMotion && (
-                <circle
-                  cx="720"
-                  cy="1350"
-                  r="20"
-                  fill="none"
-                  stroke={geo.accentEdgeStrong}
-                  strokeWidth="1.1"
-                  className={styles.waypointPulseAlt}
-                />
-              )}
-              <circle
-                cx="720"
-                cy="1350"
-                r="9"
-                fill="var(--gw-node-fill)"
-                stroke={activeStage === 6 ? "var(--gw-accent)" : "var(--gw-border)"}
-                strokeWidth="1.2"
-              />
-              <circle
-                cx="720"
-                cy="1350"
-                r="3.4"
-                fill={activeStage === 6 ? "var(--gw-ink)" : "var(--gw-ink-muted)"}
-              />
-            </g>
           </svg>
+
+          {/* True 1:1 Circular Waypoint Markers Along Responsive Pipeline Conduit */}
+          <div className={styles.pipelineWaypointOverlay} aria-hidden="true">
+            <span
+              className={styles.waypointHtmlEndpoint}
+              data-lit={activeStage >= 0 ? "true" : "false"}
+              style={{
+                left: `${(flightTrack.roadStart.x / 1440) * 100}%`,
+                top: `${(flightTrack.roadStart.y / 1600) * 100}%`,
+              }}
+            >
+              <span className={styles.waypointHtmlEndpointCore} />
+            </span>
+
+            {flightTrack.waypoints.map((wp, idx) => {
+              const state =
+                idx === activeStage ? "active" : activeStage > idx ? "visited" : "pending";
+              const isActive = state === "active";
+              return (
+                <span
+                  key={wp.num}
+                  className={styles.waypointHtmlNode}
+                  data-layer-state={state}
+                  style={{
+                    left: `${(wp.x / 1440) * 100}%`,
+                    top: `${(wp.y / 1600) * 100}%`,
+                  }}
+                >
+                  {isActive && !prefersReducedMotion ? (
+                    <span className={styles.waypointHtmlHalo} />
+                  ) : null}
+                  <span className={styles.waypointHtmlCore} />
+                </span>
+              );
+            })}
+
+            <span
+              className={styles.waypointHtmlEndpoint}
+              data-lit={activeStage === 6 ? "true" : "false"}
+              style={{
+                left: `${(flightTrack.roadEnd.x / 1440) * 100}%`,
+                top: `${(flightTrack.roadEnd.y / 1600) * 100}%`,
+              }}
+            >
+              {activeStage === 6 && !prefersReducedMotion ? (
+                <span className={styles.waypointHtmlHalo} />
+              ) : null}
+              <span className={styles.waypointHtmlEndpointCore} />
+            </span>
+          </div>
 
           {/* Section Header (Pipeline Overview) */}
           <div ref={valleyHeaderRef} className={`${styles.valleyHeader} ${styles.revealBlock}`} data-reveal>

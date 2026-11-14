@@ -453,6 +453,21 @@
   }
 }
 
+@keyframes stemHaloPulseH {
+  0% {
+    opacity: 0.65;
+    transform: translateY(-50%) scale3d(0.85, 0.85, 1);
+  }
+  75% {
+    opacity: 0;
+    transform: translateY(-50%) scale3d(2.1, 2.1, 1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale3d(2.1, 2.1, 1);
+  }
+}
+
 /* ==========================================================================
    Slide 1: Matte Data-Workstation Hero Section & Orbital/Thruster Motion
    ========================================================================== */
@@ -882,6 +897,95 @@
 
 .waypointPulseAlt {
   animation-delay: 1.3s;
+}
+
+.pipelineWaypointOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.waypointHtmlNode {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gw-node-fill);
+  border: 1.3px solid var(--gw-border);
+  transition: width 220ms var(--ease-out), height 220ms var(--ease-out), border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.waypointHtmlNode[data-layer-state="visited"] {
+  border-color: var(--gw-accent-border);
+}
+
+.waypointHtmlNode[data-layer-state="active"] {
+  width: 24px;
+  height: 24px;
+  border-color: var(--gw-accent);
+  border-width: 1.7px;
+  box-shadow: 0 0 14px var(--gw-accent-soft);
+}
+
+.waypointHtmlCore {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gw-ink-muted);
+  transition: width 220ms var(--ease-out), height 220ms var(--ease-out), background-color 220ms ease;
+}
+
+.waypointHtmlNode[data-layer-state="visited"] .waypointHtmlCore {
+  background: var(--gw-accent);
+}
+
+.waypointHtmlNode[data-layer-state="active"] .waypointHtmlCore {
+  width: 8.5px;
+  height: 8.5px;
+  background: var(--gw-ink);
+}
+
+.waypointHtmlHalo {
+  position: absolute;
+  inset: -11px;
+  border-radius: 50%;
+  border: 1.2px solid var(--gw-accent-ring);
+  animation: waypointPulseAnim 2.6s var(--ease-out) infinite;
+}
+
+.waypointHtmlEndpoint {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  transform: translate3d(-50%, -50%, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gw-node-fill);
+  border: 1.3px solid var(--gw-border);
+  transition: border-color 220ms ease;
+}
+
+.waypointHtmlEndpoint[data-lit="true"] {
+  border-color: var(--gw-accent);
+}
+
+.waypointHtmlEndpointCore {
+  width: 5.5px;
+  height: 5.5px;
+  border-radius: 50%;
+  background: var(--gw-ink-muted);
+  transition: background-color 220ms ease;
+}
+
+.waypointHtmlEndpoint[data-lit="true"] .waypointHtmlEndpointCore {
+  background: var(--gw-accent);
 }
 
 .valleyHeader {
@@ -1338,8 +1442,8 @@
   }
 
   .spaceshipFlightRig {
-    width: 220px;
-    opacity: 0.88;
+    width: 205px;
+    opacity: 0.92;
   }
 
   .spaceshipFlightRigReduced {
@@ -1347,19 +1451,19 @@
   }
 
   .valleySection {
-    padding: 46px 20px 28px;
+    padding: 46px 16px 28px;
   }
 
   .pipelineRailOuter {
-    stroke-width: 68px;
+    stroke-width: 58px;
   }
 
   .pipelineBedInner {
-    stroke-width: 63px;
+    stroke-width: 54px;
   }
 
   .valleyHeader {
-    max-width: 440px;
+    max-width: min(420px, calc(100% - 170px));
     margin-bottom: 64px;
   }
 
@@ -1369,20 +1473,33 @@
   }
 
   .roadmapSlotLeft,
-  .roadmapSlotCenterLeft,
-  .roadmapSlotCenterRight,
-  .roadmapSlotRight {
-    justify-content: center;
-    padding-left: 0;
+  .roadmapSlotCenterLeft {
+    justify-content: flex-start;
+    padding-left: clamp(2px, 1vw, 12px);
     padding-right: 0;
   }
 
+  .roadmapSlotCenterRight,
+  .roadmapSlotRight {
+    justify-content: flex-end;
+    padding-left: 0;
+    padding-right: clamp(2px, 1vw, 12px);
+  }
+
   .milestoneStage {
-    max-width: 380px;
+    max-width: clamp(204px, 33vw, 296px);
+  }
+
+  .milestoneCard {
+    padding: 16px 18px;
+  }
+
+  .milestoneTitle {
+    font-size: 16px;
   }
 
   .valleyBgSvg {
-    opacity: 0.65;
+    opacity: 0.88;
   }
 }
 
@@ -1415,8 +1532,8 @@
   }
 
   .spaceshipFlightRig {
-    width: 175px;
-    opacity: 0.86;
+    width: 165px;
+    opacity: 0.94;
   }
 
   .spaceshipFlightRigReduced {
@@ -1435,7 +1552,7 @@
   }
 
   .valleySection {
-    padding: 40px 12px 24px;
+    padding: 44px 12px 24px;
   }
 
   .pipelineRailOuter {
@@ -1446,10 +1563,14 @@
     stroke-width: 48px;
   }
 
+  .valleyBgSvg {
+    opacity: 0.92;
+  }
+
   .valleyHeader {
-    max-width: calc(100% - 82px);
-    margin: 0 auto 48px 0;
-    padding: 16px 16px;
+    max-width: calc(100% - 92px);
+    margin: 64px auto 48px 0;
+    padding: 15px 16px;
     text-align: left;
   }
 
@@ -1458,8 +1579,8 @@
   }
 
   .roadmapFlow {
-    gap: 44px;
-    margin-bottom: 64px;
+    gap: 40px;
+    margin-bottom: 118px;
   }
 
   .roadmapSlotLeft,
@@ -1467,32 +1588,96 @@
   .roadmapSlotCenterRight,
   .roadmapSlotRight {
     justify-content: flex-start;
-  }
-
-  .roadmapFlow > .roadmapSlot:nth-child(3),
-  .roadmapFlow > .roadmapSlot:nth-child(4) {
-    justify-content: flex-end;
-  }
-
-  .roadmapFlow > .roadmapSlot:nth-child(3),
-  .roadmapFlow > .roadmapSlot:nth-child(5) {
-    margin-top: 22px;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .milestoneStage {
+    position: relative;
+    flex-direction: row;
+    align-items: center;
     max-width: calc(100% - 76px);
   }
 
+  .roadmapFlow > .roadmapSlot:nth-child(even) .milestoneStage {
+    max-width: calc(100% - 102px);
+  }
+
+  .milestoneStem {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    width: 22px;
+    height: 1px;
+    transform: translateY(-50%);
+    background: linear-gradient(to right, var(--gw-border), var(--gw-accent-border-soft));
+  }
+
+  .roadmapFlow > .roadmapSlot:nth-child(even) .milestoneStem {
+    width: 32px;
+  }
+
+  .milestoneStemNode {
+    top: 50%;
+    left: auto;
+    right: -4px;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+
+  .milestoneStemHalo {
+    top: 50%;
+    left: auto;
+    right: -4px;
+    bottom: auto;
+  }
+
+  .roadmapSlot[data-layer-state="visited"] .milestoneStem {
+    background: linear-gradient(to right, var(--gw-border), var(--gw-accent-ring));
+  }
+
+  .roadmapSlot[data-layer-state="active"] .milestoneStem {
+    background: linear-gradient(to right, var(--gw-accent-border), var(--gw-accent-light));
+  }
+
+  .roadmapSlot[data-layer-state="active"] .milestoneStemNode {
+    transform: translateY(-50%) scale3d(1.32, 1.32, 1);
+  }
+
+  .roadmapSlot[data-layer-state="active"] .milestoneStemHalo {
+    animation: stemHaloPulseH 1.8s var(--ease-out) infinite;
+  }
+
   .milestoneCard {
-    padding: 16px 16px;
+    padding: 14px 15px;
   }
 
   .milestoneTitle {
-    font-size: 16px;
+    font-size: 15.5px;
   }
 
   .milestoneSummary {
-    font-size: 13px;
+    font-size: 12.5px;
+  }
+
+  .waypointHtmlNode {
+    width: 17px;
+    height: 17px;
+  }
+
+  .waypointHtmlNode[data-layer-state="active"] {
+    width: 21px;
+    height: 21px;
+  }
+
+  .waypointHtmlCore {
+    width: 5px;
+    height: 5px;
+  }
+
+  .waypointHtmlNode[data-layer-state="active"] .waypointHtmlCore {
+    width: 7px;
+    height: 7px;
   }
 
   .roadEndPortal {
