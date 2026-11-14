@@ -46,40 +46,64 @@ const DEFAULT_OPP_FILTERS: OpportunityFilters = {
   valuationStatus: "",
 };
 
-function getProductShowcases(locale: AppLocale) {
+interface ProductShowcase {
+  id: string;
+  index: string;
+  shortLabel: string;
+  eyebrow: string;
+  title: string;
+  ctaLabel: string;
+  route: string;
+  desc: string;
+  specs: string[];
+}
+
+function getProductShowcases(locale: AppLocale): ProductShowcase[] {
   if (locale === "en") {
     return [
       {
         id: "quant",
+        index: "01",
+        shortLabel: "QUANT",
         eyebrow: "OUR PRODUCTS",
         title: "QUANT ENGINE",
         ctaLabel: "QUANT ENGINE",
         route: "/screener",
         desc: "InvestIntel Quant Engine normalizes Point-in-Time EOD market data across HOSE, HNX, and UPCOM while isolating deterministic valuation models (DCF, RIM, IAS 33 normalized P/E) before synthesizing VN100 opportunity scores.",
+        specs: ["DCF · RIM · IAS 33 P/E", "100 VN100 equities · 3 exchanges", "0–100 opportunity score"],
       },
       {
         id: "ai",
+        index: "02",
+        shortLabel: "AI",
         eyebrow: "OUR PRODUCTS",
         title: "AI ANALYST",
         ctaLabel: "AI ANALYST",
         route: "/ai",
         desc: "Hybrid RAG financial statement co-pilot with verifiable source citations. Every thesis covering earnings growth, margin trajectory, and leverage risk is strictly anchored to audited line items with zero-hallucination checks.",
+        specs: ["Hybrid RAG + source citations", "14 analysis tools", "Line-item filing audit"],
       },
       {
         id: "screener",
+        index: "03",
+        shortLabel: "3D",
         eyebrow: "OUR PRODUCTS",
         title: "3D SCREENER",
         ctaLabel: "3D SCREENER",
         route: "/screener",
         desc: "Interactive real-time 3D multi-factor manifold visualizing Value, Quality, Momentum, and Low-Volatility dispersion across Vietnam equities to surface undervalued opportunities with deep margins of safety.",
+        specs: ["7 quantitative factors", "Interactive 3D factor cube", "Margin-of-safety filters"],
       },
       {
         id: "portfolio",
+        index: "04",
+        shortLabel: "RISK",
         eyebrow: "OUR PRODUCTS",
         title: "RISK TERMINAL",
         ctaLabel: "RISK TERMINAL",
         route: "/portfolio",
         desc: "Simulates portfolio weights and computes parametric Value-at-Risk (VaR 95%), Sharpe Ratio, Maximum Drawdown, and automated macro stress tests under interest-rate and FX shock scenarios.",
+        specs: ["VaR 95% · Sharpe ratio", "Maximum drawdown", "Rate & FX shock scenarios"],
       },
     ];
   }
@@ -87,36 +111,81 @@ function getProductShowcases(locale: AppLocale) {
   return [
     {
       id: "quant",
+      index: "01",
+      shortLabel: "ĐỊNH LƯỢNG",
       eyebrow: "PHÂN HỆ CỐT LÕI",
       title: "ĐỘNG CƠ ĐỊNH LƯỢNG",
       ctaLabel: "MỞ ĐỘNG CƠ ĐỊNH LƯỢNG",
       route: "/screener",
       desc: "Chuẩn hóa dữ liệu giá cuối ngày theo đúng mốc thời gian trên toàn sàn HOSE, HNX và UPCOM; tách bạch hoàn toàn các mô hình định giá định lượng (DCF, RIM, P/E điều chỉnh theo chuẩn IAS 33) trước khi tổng hợp điểm cơ hội VN100.",
+      specs: ["DCF · RIM · P/E IAS 33", "100 mã VN100 · 3 sàn", "Điểm cơ hội 0–100"],
     },
     {
       id: "ai",
+      index: "02",
+      shortLabel: "TRỢ LÝ AI",
       eyebrow: "PHÂN HỆ CỐT LÕI",
       title: "TRỢ LÝ PHÂN TÍCH AI",
       ctaLabel: "MỞ TRỢ LÝ AI",
       route: "/ai",
       desc: "Trợ lý đối soát báo cáo tài chính ứng dụng truy xuất đa tầng (Hybrid RAG) và trích dẫn bằng chứng gốc. Mọi luận điểm về tăng trưởng, biên lợi nhuận và rủi ro đòn bẩy đều neo chặt vào dòng số liệu thực tế, loại bỏ suy diễn ảo.",
+      specs: ["Hybrid RAG + trích dẫn gốc", "14 công cụ phân tích", "Đối soát từng khoản mục BCTC"],
     },
     {
       id: "screener",
+      index: "03",
+      shortLabel: "BỘ LỌC 3D",
       eyebrow: "PHÂN HỆ CỐT LÕI",
       title: "BỘ LỌC ĐA NHÂN TỐ 3D",
       ctaLabel: "MỞ BỘ LỌC 3D",
       route: "/screener",
       desc: "Không gian trực quan hóa đa nhân tố Giá trị — Chất lượng — Xung lượng — Biến động thấp trong mô hình 3D thời gian thực, hỗ trợ sàng lọc nhanh cổ phiếu có biên an toàn vượt trội.",
+      specs: ["7 nhân tố định lượng", "Khối lập phương 3D tương tác", "Lọc theo biên an toàn"],
     },
     {
       id: "portfolio",
+      index: "04",
+      shortLabel: "RỦI RO",
       eyebrow: "PHÂN HỆ CỐT LÕI",
       title: "QUẢN TRỊ RỦI RO DANH MỤC",
       ctaLabel: "MỞ QUẢN TRỊ RỦI RO",
       route: "/portfolio",
       desc: "Mô phỏng tỷ trọng phân bổ danh mục, tính toán Giá trị chịu rủi ro (VaR 95%), tỷ số Sharpe, mức sụt giảm tối đa và kiểm định sức chịu đựng trước kịch bản biến động lãi suất và tỷ giá.",
+      specs: ["VaR 95% · Tỷ số Sharpe", "Mức sụt giảm tối đa (MDD)", "Kịch bản sốc lãi suất & tỷ giá"],
     },
+  ];
+}
+
+function getMilestoneMeta(num: string, locale: AppLocale): { layer: string; metric: string } {
+  const isEn = locale === "en";
+  const meta: Record<string, { vi: [string, string]; en: [string, string] }> = {
+    "06": { vi: ["TẦNG QUYẾT ĐỊNH", "VaR 95%"], en: ["DECISION LAYER", "VaR 95%"] },
+    "05": { vi: ["TẦNG KIỂM CHỨNG", "14 CÔNG CỤ"], en: ["VERIFICATION LAYER", "14 TOOLS"] },
+    "04": { vi: ["TẦNG TÍN HIỆU", "TOP 3 VN100"], en: ["SIGNAL LAYER", "TOP 3 VN100"] },
+    "03": { vi: ["TẦNG MÔ HÌNH", "7 NHÂN TỐ"], en: ["MODEL LAYER", "7 FACTORS"] },
+    "02": { vi: ["TẦNG CHUẨN HÓA", "EPS PHA LOÃNG"], en: ["NORMALIZATION LAYER", "DILUTED EPS"] },
+    "01": { vi: ["TẦNG DỮ LIỆU", "3 SÀN"], en: ["DATA LAYER", "3 EXCHANGES"] },
+  };
+  const entry = meta[num];
+  if (!entry) return { layer: "", metric: "" };
+  const [layer, metric] = isEn ? entry.en : entry.vi;
+  return { layer, metric };
+}
+
+function getWhyStats(locale: AppLocale) {
+  if (locale === "en") {
+    return [
+      { value: "100", label: "VN100 EQUITIES NORMALIZED" },
+      { value: "3", label: "HOSE · HNX · UPCOM" },
+      { value: "7", label: "QUANT FACTORS" },
+      { value: "14", label: "AI ANALYSIS TOOLS" },
+    ];
+  }
+  return [
+    { value: "100", label: "MÃ VN100 CHUẨN HÓA" },
+    { value: "3", label: "SÀN HOSE · HNX · UPCOM" },
+    { value: "7", label: "NHÂN TỐ ĐỊNH LƯỢNG" },
+    { value: "14", label: "CÔNG CỤ PHÂN TÍCH AI" },
   ];
 }
 
@@ -426,6 +495,7 @@ export function TacticalGateway({
   };
 
   const productShowcases = useMemo(() => getProductShowcases(locale), [locale]);
+  const whyStats = useMemo(() => getWhyStats(locale), [locale]);
   const activeProduct = productShowcases[productIndex] ?? productShowcases[0];
 
   const milestoneCards = useMemo(() => {
@@ -978,6 +1048,9 @@ export function TacticalGateway({
             SLIDE 2: WHY INVESTINTEL? + OUR PRODUCTS SUNSET MOUNTAIN HORIZON
             ================================================================ */}
         <section ref={whySectionRef} className={styles.whyAndProductsSection}>
+          {/* Central data spine continuing from the hero scroll prompt */}
+          <span className={`${styles.spineConnector} ${styles.spineConnectorTop}`} aria-hidden="true" />
+
           <div className={`${styles.whyBlock} ${styles.revealBlock}`} data-reveal>
             <h2 className={styles.slantedSectionTitle}>
               {t("VÌ SAO CHỌN INVESTINTEL?", "WHY INVESTINTEL?")}
@@ -988,6 +1061,21 @@ export function TacticalGateway({
                 "InvestIntel bridges the gap between fragmented local market feeds and institutional quantitative research standards in Vietnam. Point-in-Time EOD pricing, IAS 33 corporate-action normalization, multi-factor VN100 scoring, and citation-locked AI statement verification operate together in one unified workstation."
               )}
             </p>
+
+            <div className={styles.whyStatsGrid}>
+              {whyStats.map((stat, idx) => (
+                <div
+                  key={stat.label}
+                  className={`${styles.whyStatTile} ${styles.revealBlock}`}
+                  data-reveal
+                  style={{ "--reveal-delay": `${120 + idx * 80}ms` } as React.CSSProperties}
+                >
+                  <span className={styles.whyStatValue}>{stat.value}</span>
+                  <span className={styles.whyStatLabel}>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+
             <button
               type="button"
               className={styles.whiteRectBtn}
@@ -995,14 +1083,15 @@ export function TacticalGateway({
             >
               {t("XEM QUY TRÌNH", "READ MORE")}
             </button>
+            <span className={styles.spineConnector} aria-hidden="true" />
           </div>
 
           <div className={styles.productsHorizonWrapper}>
-            {/* High-Detail Sunset Mountain Horizon + Crystal Spires + Hovering Scout Pods */}
+            {/* High-Detail Sunset Mountain Horizon + Crystal Spires + Hovering Scout Pods + Lake Outflow River */}
             <svg
               className={styles.horizonBackdropSvg}
               viewBox="0 0 1440 760"
-              preserveAspectRatio="xMidYMax slice"
+              preserveAspectRatio="none"
               fill="none"
               aria-hidden="true"
             >
@@ -1021,11 +1110,67 @@ export function TacticalGateway({
                   <stop offset="50%" stopColor="#F9A8D4" stopOpacity="0.52" />
                   <stop offset="100%" stopColor="#3B0764" stopOpacity="0" />
                 </linearGradient>
+                <linearGradient id="auroraGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#67E8F9" stopOpacity="0" />
+                  <stop offset="30%" stopColor="#67E8F9" stopOpacity="0.38" />
+                  <stop offset="62%" stopColor="#C084FC" stopOpacity="0.42" />
+                  <stop offset="100%" stopColor="#F472B6" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id="shootGrad" x1="980" y1="0" x2="1080" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
+                  <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.95" />
+                </linearGradient>
+                {/* Outflow river gradients end on the exact colors where Slide 3's river begins */}
+                <linearGradient id="outflowOuter" x1="720" y1="610" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#F472B6" stopOpacity="0" />
+                  <stop offset="45%" stopColor="#C084FC" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.22" />
+                </linearGradient>
+                <linearGradient id="outflowBody" x1="720" y1="610" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#F9A8D4" stopOpacity="0" />
+                  <stop offset="40%" stopColor="#C4B5FD" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#93C5FD" stopOpacity="0.7" />
+                </linearGradient>
+                <linearGradient id="outflowCore" x1="720" y1="610" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FBCFE8" stopOpacity="0" />
+                  <stop offset="50%" stopColor="#F5D0FE" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#E0E7FF" stopOpacity="0.35" />
+                </linearGradient>
+                <linearGradient id="outflowDash" x1="720" y1="610" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0" />
+                  <stop offset="55%" stopColor="#FFFFFF" stopOpacity="1" />
+                  <stop offset="100%" stopColor="#FFFFFF" stopOpacity="1" />
+                </linearGradient>
+                <radialGradient id="lakeSourceGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#FBCFE8" stopOpacity="0.7" />
+                  <stop offset="55%" stopColor="#C084FC" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#1B0F42" stopOpacity="0" />
+                </radialGradient>
               </defs>
 
               <rect width="1440" height="760" fill="url(#sunriseGlow)" className={styles.sunPulseGroup} />
               {/* Crescent Moon Behind Left Ridge */}
-              <circle cx="176" cy="412" r="205" fill="url(#planetHorizon)" opacity="0.56" />
+              <circle cx="176" cy="445" r="175" fill="url(#planetHorizon)" opacity="0.56" />
+
+              {/* Aurora Ribbon Across the Upper Sky */}
+              <path
+                className={styles.auroraWave}
+                d="M 0 236 C 220 176, 420 262, 660 214 C 900 166, 1120 250, 1440 196 L 1440 226 C 1140 282, 900 200, 660 248 C 420 296, 220 210, 0 268 Z"
+                fill="url(#auroraGrad)"
+              />
+
+              {/* Distant Ringed Planet */}
+              <g className={styles.distantPlanet}>
+                <circle cx="1046" cy="252" r="22" fill="#C4B5FD" opacity="0.85" />
+                <path d="M 1024 252 A 22 22 0 0 1 1068 252 Z" fill="#E0E7FF" opacity="0.55" />
+                <ellipse cx="1046" cy="254" rx="40" ry="8" stroke="#F9A8D4" strokeWidth="2" opacity="0.75" fill="none" />
+              </g>
+
+              {/* Shooting Star */}
+              <g className={styles.shootingStar}>
+                <line x1="980" y1="210" x2="1080" y2="178" stroke="url(#shootGrad)" strokeWidth="2.2" strokeLinecap="round" />
+                <circle cx="1080" cy="178" r="2.6" fill="#FFFFFF" />
+              </g>
 
               {/* Animated Drifting Low-Poly Sunset Clouds */}
               <g className={styles.cloudLeft}>
@@ -1038,19 +1183,24 @@ export function TacticalGateway({
               </g>
 
               {/* Distant & Mid Multi-Ridged Low-Poly Mountains with Specular Rim Seams */}
+              <polygon points="540,580 760,430 870,500 1010,410 1190,580" fill="#5E3F99" opacity="0.55" stroke="rgba(224,231,255,0.16)" strokeWidth="0.9" />
+              <polygon points="760,430 870,500 820,580 1010,410 1190,580" fill="#4A2F82" opacity="0.5" />
               <polygon points="430,580 680,458 920,580" fill="#7C54AD" opacity="0.72" stroke="rgba(224,231,255,0.22)" strokeWidth="0.9" />
               <polygon points="680,458 920,580 730,580" fill="#5B3B8D" opacity="0.78" />
+              <polyline points="430,580 680,458 920,580" stroke="rgba(249,168,212,0.32)" strokeWidth="1" fill="none" />
 
               {/* Left Jagged Mountain Peak */}
               <polygon points="0,580 185,305 340,420 515,580" fill="#47367F" stroke="rgba(165,243,252,0.22)" strokeWidth="1" />
               <polygon points="185,305 340,420 264,580 515,580" fill="#2E215E" />
               <polygon points="185,305 232,374 128,450" fill="#634B9E" opacity="0.78" />
+              <polygon points="185,305 206,336 168,330" fill="#E0E7FF" opacity="0.7" />
               <polyline points="0,580 185,305 340,420 515,580" stroke="rgba(249,168,212,0.28)" strokeWidth="1.2" fill="none" />
 
               {/* Right Jagged Mountain Range */}
               <polygon points="900,580 1125,382 1285,250 1440,382 1440,580" fill="#4E388C" stroke="rgba(165,243,252,0.2)" strokeWidth="1" />
               <polygon points="1285,250 1440,382 1440,580 1165,580" fill="#2D1E5E" />
               <polygon points="1125,382 1285,250 1245,425" fill="#7158B5" opacity="0.72" />
+              <polygon points="1285,250 1310,272 1262,280" fill="#E0E7FF" opacity="0.68" />
               <polyline points="900,580 1125,382 1285,250 1440,382" stroke="rgba(165,243,252,0.28)" strokeWidth="1.2" fill="none" />
 
               {/* Shimmering Sunset Horizon Lake */}
@@ -1058,21 +1208,51 @@ export function TacticalGateway({
               <polygon points="310,580 1110,580 990,654 430,654" fill="url(#lakeShimmer)" />
               <line x1="480" y1="600" x2="940" y2="600" stroke="#FDE68A" strokeWidth="2" opacity="0.45" />
               <line x1="540" y1="616" x2="880" y2="616" stroke="#F9A8D4" strokeWidth="1.5" opacity="0.35" />
+              <g className={styles.lakeRipples}>
+                <line x1="250" y1="676" x2="430" y2="676" stroke="#C4B5FD" strokeWidth="1.2" opacity="0.4" />
+                <line x1="980" y1="684" x2="1180" y2="684" stroke="#C4B5FD" strokeWidth="1.2" opacity="0.4" />
+                <line x1="120" y1="712" x2="260" y2="712" stroke="#A5F3FC" strokeWidth="1" opacity="0.32" />
+                <line x1="1220" y1="726" x2="1380" y2="726" stroke="#A5F3FC" strokeWidth="1" opacity="0.32" />
+              </g>
+
+              {/* Lake Source Glow + Outflow River (continues seamlessly into Slide 3 river) */}
+              <ellipse cx="720" cy="640" rx="190" ry="34" fill="url(#lakeSourceGlow)" className={styles.sunPulseGroup} />
+              <path d="M 720 612 L 720 800" stroke="url(#outflowOuter)" className={styles.riverGlowStroke} vectorEffect="non-scaling-stroke" strokeLinecap="butt" />
+              <path d="M 720 612 L 720 800" stroke="url(#outflowBody)" className={styles.riverBodyStroke} vectorEffect="non-scaling-stroke" strokeLinecap="butt" />
+              <path d="M 720 612 L 720 800" stroke="url(#outflowCore)" className={styles.riverCoreStroke} vectorEffect="non-scaling-stroke" strokeLinecap="butt" />
+              <path d="M 720 612 L 720 800" stroke="url(#outflowDash)" className={`${styles.riverDashStroke} ${styles.riverCurrentStream}`} vectorEffect="non-scaling-stroke" strokeLinecap="round" />
 
               {/* Left Futuristic Crystal Spire & Lattice Citadel */}
               <polygon points="48,650 96,315 144,650" fill="#4F46E5" opacity="0.88" />
               <polygon points="96,315 144,650 112,650" fill="#7DD3FC" opacity="0.92" />
               <rect x="92" y="345" width="7" height="285" fill="#A5F3FC" className={styles.towerConduit} />
+              <circle cx="96" cy="312" r="4" fill="#F472B6" className={styles.beaconBlink} />
 
               <polygon points="168,660 168,530 438,510 438,660" fill="#312468" />
               <line x1="176" y1="538" x2="432" y2="652" stroke="#67E8F9" strokeWidth="4.5" className={styles.towerConduit} />
               <line x1="176" y1="564" x2="424" y2="554" stroke="#818CF8" strokeWidth="1.2" opacity="0.55" />
               <line x1="176" y1="596" x2="424" y2="590" stroke="#818CF8" strokeWidth="1.2" opacity="0.55" />
+              <line x1="176" y1="628" x2="424" y2="624" stroke="#818CF8" strokeWidth="1.2" opacity="0.45" />
+              {/* Citadel Window Grid */}
+              <rect x="196" y="572" width="10" height="5" fill="#FDE68A" opacity="0.75" />
+              <rect x="226" y="606" width="10" height="5" fill="#A5F3FC" opacity="0.7" />
+              <rect x="372" y="572" width="10" height="5" fill="#F9A8D4" opacity="0.7" />
+              <rect x="398" y="606" width="10" height="5" fill="#FDE68A" opacity="0.7" />
+              {/* Satellite Uplink Dish on Citadel Roof */}
+              <line x1="318" y1="518" x2="318" y2="490" stroke="#A5B4FC" strokeWidth="2" />
+              <path d="M 296 488 Q 318 470 340 488 Z" fill="#C7D2FE" stroke="#E0E7FF" strokeWidth="1" />
+              <line x1="318" y1="482" x2="330" y2="466" stroke="#E0E7FF" strokeWidth="1.2" />
+              <circle cx="331" cy="464" r="3" fill="#67E8F9" className={styles.beaconBlink} />
 
               {/* Right Stepped Pyramid Citadel + Tall Skyscraper Monolith */}
               <polygon points="1018,658 1102,462 1202,462 1280,658" fill="#5B49A8" />
+              <polygon points="1060,560 1240,560 1250,580 1050,580" fill="#4B3B91" opacity="0.8" />
               <polygon points="1136,658 1144,462 1172,462 1180,658" fill="#A5F3FC" className={styles.towerConduit} />
+              <circle cx="1158" cy="458" r="4" fill="#67E8F9" className={styles.beaconBlink} />
               <polygon points="1270,658 1270,295 1372,295 1372,658" fill="#4338CA" />
+              <polygon points="1270,295 1321,262 1372,295" fill="#6366F1" />
+              <line x1="1321" y1="262" x2="1321" y2="232" stroke="#C7D2FE" strokeWidth="2" />
+              <circle cx="1321" cy="230" r="4.5" fill="#F472B6" className={styles.beaconBlink} />
               <rect x="1310" y="315" width="18" height="325" fill="#A5F3FC" className={styles.towerConduit} />
               {/* Lit Tower Window Arrays */}
               <rect x="1282" y="340" width="18" height="4" fill="#E0E7FF" opacity="0.7" />
@@ -1080,6 +1260,17 @@ export function TacticalGateway({
               <rect x="1336" y="374" width="20" height="4" fill="#F9A8D4" opacity="0.75" />
               <rect x="1282" y="408" width="16" height="4" fill="#E0E7FF" opacity="0.7" />
               <rect x="1336" y="438" width="22" height="4" fill="#67E8F9" opacity="0.85" />
+              <rect x="1282" y="472" width="18" height="4" fill="#F9A8D4" opacity="0.7" />
+              <rect x="1336" y="508" width="16" height="4" fill="#E0E7FF" opacity="0.7" />
+              <rect x="1282" y="546" width="14" height="4" fill="#67E8F9" opacity="0.8" />
+
+              {/* Lake Reflections of the Towers */}
+              <g className={styles.lakeRipples}>
+                <rect x="1270" y="662" width="102" height="64" fill="#4338CA" opacity="0.2" />
+                <rect x="1310" y="662" width="18" height="78" fill="#A5F3FC" opacity="0.22" />
+                <rect x="1136" y="662" width="44" height="52" fill="#A5F3FC" opacity="0.16" />
+                <rect x="92" y="654" width="7" height="70" fill="#A5F3FC" opacity="0.2" />
+              </g>
 
               {/* Autonomous Hovering Scout Pods with Twin Thruster Micro-Plumes */}
               <g className={styles.podHoverA}>
@@ -1096,21 +1287,71 @@ export function TacticalGateway({
                 <polygon points="932,498 936,506 940,498" fill="#F9A8D4" opacity="0.85" />
                 <polygon points="950,498 954,506 958,498" fill="#F9A8D4" opacity="0.85" />
               </g>
+              <g className={styles.podHoverA}>
+                <polygon points="1176,378 1196,372 1216,378 1196,383" fill="#E0E7FF" />
+                <ellipse cx="1196" cy="378" rx="14" ry="3.5" fill="#67E8F9" />
+                <polygon points="1190,382 1193,389 1196,382" fill="#A5F3FC" opacity="0.8" />
+              </g>
 
               {/* Low-Poly Teal Pine Clusters */}
               <polygon points="148,712 172,605 196,712" fill="#0F766E" />
               <polygon points="182,718 202,628 222,718" fill="#14B8A6" />
+              <polygon points="212,722 228,650 244,722" fill="#0D9488" />
               <polygon points="562,710 584,616 606,710" fill="#0D9488" />
+              <polygon points="530,716 548,646 566,716" fill="#0F766E" />
+              <polygon points="872,712 892,630 912,712" fill="#0F766E" />
+              <polygon points="902,718 918,654 934,718" fill="#14B8A6" />
               <polygon points="1018,712 1040,602 1062,712" fill="#0F766E" />
               <polygon points="1352,718 1378,598 1404,718" fill="#115E59" />
+              <polygon points="1396,722 1414,640 1432,722" fill="#0D9488" />
+
+              {/* Shoreline Fireflies */}
+              <g className={styles.fireflyDrift}>
+                <circle cx="300" cy="690" r="2.2" fill="#FDE68A" />
+                <circle cx="460" cy="702" r="1.8" fill="#A5F3FC" />
+                <circle cx="620" cy="690" r="2" fill="#F9A8D4" />
+                <circle cx="840" cy="696" r="2" fill="#FDE68A" />
+                <circle cx="1000" cy="706" r="1.8" fill="#A5F3FC" />
+                <circle cx="1240" cy="694" r="2.2" fill="#F9A8D4" />
+              </g>
             </svg>
 
             <div className={`${styles.productsCardContent} ${styles.revealBlock}`} data-reveal>
+              <div
+                className={styles.productTabs}
+                role="tablist"
+                aria-label={t("Chọn phân hệ sản phẩm", "Select product showcase")}
+              >
+                {productShowcases.map((prod, idx) => (
+                  <button
+                    key={prod.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={idx === productIndex}
+                    className={`${styles.productTab} ${idx === productIndex ? styles.productTabActive : ""}`}
+                    onClick={() => setProductIndex(idx)}
+                  >
+                    <span className={styles.productTabIndex}>{prod.index}</span>
+                    <span className={styles.productTabLabel}>{prod.shortLabel}</span>
+                  </button>
+                ))}
+              </div>
+
               <div key={activeProduct.id} className={styles.productSwapWrap}>
-                <span className={styles.eyebrowCaption}>{activeProduct.eyebrow}</span>
+                <span className={styles.eyebrowCaption}>
+                  {activeProduct.eyebrow} · {activeProduct.index}/{String(productShowcases.length).padStart(2, "0")}
+                </span>
                 <h2 className={styles.slantedSectionTitle}>{activeProduct.title}</h2>
                 <span className={styles.pinkDashDivider} aria-hidden="true" />
                 <p className={styles.productDesc}>{activeProduct.desc}</p>
+                <ul className={styles.productSpecList}>
+                  {activeProduct.specs.map((spec) => (
+                    <li key={spec} className={styles.productSpecChip}>
+                      <span className={styles.productSpecDot} aria-hidden="true" />
+                      {spec}
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className={styles.ctaRow}>
                 <button
@@ -1130,23 +1371,7 @@ export function TacticalGateway({
                   {t("TIẾP THEO ↗", "NEXT ↗")}
                 </button>
               </div>
-              <div
-                className={styles.productDots}
-                role="tablist"
-                aria-label={t("Chọn phân hệ sản phẩm", "Select product showcase")}
-              >
-                {productShowcases.map((prod, idx) => (
-                  <button
-                    key={prod.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={idx === productIndex}
-                    aria-label={prod.title}
-                    className={`${styles.productDot} ${idx === productIndex ? styles.productDotActive : ""}`}
-                    onClick={() => setProductIndex(idx)}
-                  />
-                ))}
-              </div>
+              <span className={styles.spineConnector} aria-hidden="true" />
             </div>
           </div>
         </section>
@@ -1163,18 +1388,22 @@ export function TacticalGateway({
             aria-hidden="true"
           >
             <defs>
-              <linearGradient id="riverOuterGlow" x1="0.7" y1="0" x2="0.5" y2="1">
+              <linearGradient id="valleyTopFade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#1B0F42" stopOpacity="1" />
+                <stop offset="100%" stopColor="#1B0F42" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="riverOuterGlow" x1="720" y1="-40" x2="720" y2="1525" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.22" />
                 <stop offset="50%" stopColor="#C084FC" stopOpacity="0.34" />
                 <stop offset="100%" stopColor="#F472B6" stopOpacity="0.48" />
               </linearGradient>
-              <linearGradient id="riverGrad" x1="0.7" y1="0" x2="0.4" y2="1">
+              <linearGradient id="riverGrad" x1="720" y1="-40" x2="720" y2="1525" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.7" />
                 <stop offset="40%" stopColor="#C4B5FD" stopOpacity="0.88" />
                 <stop offset="78%" stopColor="#F9A8D4" stopOpacity="0.95" />
                 <stop offset="100%" stopColor="#F472B6" stopOpacity="0.98" />
               </linearGradient>
-              <linearGradient id="riverCoreGrad" x1="0.7" y1="0" x2="0.5" y2="1">
+              <linearGradient id="riverCoreGrad" x1="720" y1="-40" x2="720" y2="1525" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#E0E7FF" stopOpacity="0.35" />
                 <stop offset="55%" stopColor="#F5D0FE" stopOpacity="0.52" />
                 <stop offset="100%" stopColor="#FBCFE8" stopOpacity="0.72" />
@@ -1184,44 +1413,73 @@ export function TacticalGateway({
                 <stop offset="45%" stopColor="#F472B6" stopOpacity="0.48" />
                 <stop offset="100%" stopColor="#241459" stopOpacity="0" />
               </radialGradient>
+              <radialGradient id="lanternGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="#FDE68A" stopOpacity="0.9" />
+                <stop offset="60%" stopColor="#F472B6" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#F472B6" stopOpacity="0" />
+              </radialGradient>
             </defs>
 
-            {/* Winding Lavender-Pink River Path Converging Cleanly into Bottom-Center End-of-Road Portal (Single Spine, Zero Pinch) */}
+            {/* Lake continuation from Slide 2 so the boundary disappears */}
+            <rect x="0" y="0" width="1440" height="150" fill="url(#valleyTopFade)" />
+
+            {/* Distant Valley Ridge Silhouettes */}
+            <polygon points="0,250 110,176 210,226 320,150 430,236 520,300 0,300" fill="#2A1A63" opacity="0.7" />
+            <polygon points="920,300 1010,214 1120,262 1240,168 1340,232 1440,190 1440,300" fill="#2A1A63" opacity="0.7" />
+            <polyline points="0,250 110,176 210,226 320,150 430,236 520,300" stroke="rgba(165,243,252,0.2)" strokeWidth="1" fill="none" />
+            <polyline points="920,300 1010,214 1120,262 1240,168 1340,232 1440,190" stroke="rgba(249,168,212,0.22)" strokeWidth="1" fill="none" />
+
+            {/* Winding River: starts vertically at the top-center where Slide 2's lake outflow ends */}
             <path
-              d="M 1135 -40 C 1030 140, 640 175, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
-              fill="none"
+              d="M 720 -40 L 720 40 C 720 150, 640 190, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
               stroke="url(#riverOuterGlow)"
-              strokeWidth="210"
+              className={styles.riverGlowStroke}
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
-              d="M 1135 -40 C 1030 140, 640 175, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
-              fill="none"
+              d="M 720 -40 L 720 40 C 720 150, 640 190, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
               stroke="url(#riverGrad)"
-              strokeWidth="148"
+              className={styles.riverBodyStroke}
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             <path
-              d="M 1135 -40 C 1030 140, 640 175, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
-              fill="none"
+              d="M 720 -40 L 720 40 C 720 150, 640 190, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
               stroke="url(#riverCoreGrad)"
-              strokeWidth="76"
+              className={styles.riverCoreStroke}
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
             {/* Static Crisp Dashed Centerline + Composite Pulsing Energy Nodes (Zero SVG Stroke Repaint) */}
             <path
-              d="M 1135 -40 C 1030 140, 640 175, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
-              fill="none"
+              d="M 720 -40 L 720 40 C 720 150, 640 190, 640 320 C 640 465, 1000 490, 955 675 C 910 860, 355 855, 375 1065 C 395 1255, 695 1310, 720 1525"
               stroke="#FFFFFF"
-              strokeWidth="4"
-              strokeDasharray="24 22"
+              className={`${styles.riverDashStroke} ${styles.riverCurrentStream}`}
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={styles.riverCurrentStream}
             />
+
+            {/* River Surface Sparkles */}
+            <g className={styles.riverSparkleA}>
+              <polygon points="712,96 718,88 724,96 718,104" fill="#FFFFFF" />
+              <polygon points="694,420 700,412 706,420 700,428" fill="#E0E7FF" />
+              <polygon points="926,782 932,774 938,782 932,790" fill="#FFFFFF" />
+              <polygon points="456,960 462,952 468,960 462,968" fill="#F5D0FE" />
+              <polygon points="556,1330 562,1322 568,1330 562,1338" fill="#FFFFFF" />
+            </g>
+            <g className={styles.riverSparkleB}>
+              <polygon points="660,214 666,206 672,214 666,222" fill="#A5F3FC" />
+              <polygon points="872,556 878,548 884,556 878,564" fill="#FFFFFF" />
+              <polygon points="706,880 712,872 718,880 712,888" fill="#A5F3FC" />
+              <polygon points="392,1180 398,1172 404,1180 398,1188" fill="#FFFFFF" />
+              <polygon points="702,1440 708,1432 714,1440 708,1448" fill="#FBCFE8" />
+            </g>
+
             <g className={styles.riverPulseNodes}>
               <circle cx="640" cy="320" r="14" fill="#A5F3FC" opacity="0.55" />
               <circle cx="955" cy="675" r="16" fill="#F9A8D4" opacity="0.55" />
@@ -1233,17 +1491,67 @@ export function TacticalGateway({
 
             {/* Valley Low-Poly Hills & Glowing Crystal Pyramids */}
             <polygon points="0,120 310,275 160,480 0,410" fill="#4C2E8E" opacity="0.72" stroke="rgba(165,243,252,0.16)" strokeWidth="1" />
+            <polygon points="0,410 160,480 90,560 0,540" fill="#3A2373" opacity="0.8" />
             <polygon points="1440,210 1110,335 1265,575 1440,510" fill="#3B2178" opacity="0.78" stroke="rgba(165,243,252,0.16)" strokeWidth="1" />
+            <polygon points="1440,510 1265,575 1360,660 1440,640" fill="#2E1A66" opacity="0.82" />
             <polygon points="0,980 280,1140 140,1410 0,1320" fill="#2E1B69" opacity="0.82" stroke="rgba(249,168,212,0.18)" strokeWidth="1" />
             <polygon points="1440,1040 1120,1210 1280,1480 1440,1390" fill="#261559" opacity="0.85" stroke="rgba(249,168,212,0.18)" strokeWidth="1" />
+            <polygon points="0,700 150,760 80,860 0,840" fill="#341F70" opacity="0.7" />
+            <polygon points="1440,820 1300,880 1380,980 1440,960" fill="#341F70" opacity="0.7" />
+
+            {/* River Bank Boulders */}
+            <polygon points="500,290 528,272 548,294 524,312" fill="#3B2A7A" stroke="rgba(165,243,252,0.22)" strokeWidth="0.8" />
+            <polygon points="770,356 800,340 818,366 790,380" fill="#45318A" stroke="rgba(249,168,212,0.22)" strokeWidth="0.8" />
+            <polygon points="820,640 846,626 862,650 836,662" fill="#3B2A7A" stroke="rgba(165,243,252,0.22)" strokeWidth="0.8" />
+            <polygon points="1080,700 1110,684 1126,712 1096,724" fill="#45318A" stroke="rgba(249,168,212,0.22)" strokeWidth="0.8" />
+            <polygon points="230,1040 260,1022 278,1048 250,1062" fill="#3B2A7A" stroke="rgba(165,243,252,0.22)" strokeWidth="0.8" />
+            <polygon points="508,1100 536,1086 552,1112 524,1124" fill="#45318A" stroke="rgba(249,168,212,0.22)" strokeWidth="0.8" />
+            <polygon points="586,1390 612,1376 628,1400 602,1412" fill="#3B2A7A" stroke="rgba(165,243,252,0.22)" strokeWidth="0.8" />
+            <polygon points="838,1400 866,1386 882,1410 854,1422" fill="#45318A" stroke="rgba(249,168,212,0.22)" strokeWidth="0.8" />
+
+            {/* Riverside Lanterns marking each pipeline bend */}
+            <g className={styles.lanternBlink}>
+              <circle cx="520" cy="250" r="22" fill="url(#lanternGlow)" />
+              <circle cx="520" cy="250" r="4" fill="#FDE68A" />
+              <circle cx="1090" cy="650" r="22" fill="url(#lanternGlow)" />
+              <circle cx="1090" cy="650" r="4" fill="#FDE68A" />
+              <circle cx="250" cy="1000" r="22" fill="url(#lanternGlow)" />
+              <circle cx="250" cy="1000" r="4" fill="#FDE68A" />
+            </g>
+            <g className={styles.lanternBlinkAlt}>
+              <circle cx="790" cy="320" r="22" fill="url(#lanternGlow)" />
+              <circle cx="790" cy="320" r="4" fill="#FDE68A" />
+              <circle cx="830" cy="700" r="22" fill="url(#lanternGlow)" />
+              <circle cx="830" cy="700" r="4" fill="#FDE68A" />
+              <circle cx="530" cy="1060" r="22" fill="url(#lanternGlow)" />
+              <circle cx="530" cy="1060" r="4" fill="#FDE68A" />
+            </g>
 
             {/* Multi-Faceted Glowing Crystal Obelisks & Pyramids */}
             <g className={styles.crystalBeacon}>
               <polygon points="755,195 805,120 855,195 805,218" fill="#A5F3FC" opacity="0.88" stroke="#FFFFFF" strokeWidth="0.9" />
               <polygon points="805,120 855,195 805,218" fill="#38BDF8" opacity="0.7" />
               <polygon points="215,355 272,272 328,430 215,446" fill="#818CF8" opacity="0.9" stroke="rgba(165,243,252,0.45)" strokeWidth="1" />
+              <polygon points="272,272 328,430 272,420" fill="#C4B5FD" opacity="0.55" />
               <polygon points="762,845 818,722 882,845 820,958" fill="#F472B6" opacity="0.84" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
+              <polygon points="818,722 882,845 820,860" fill="#F9A8D4" opacity="0.6" />
               <polygon points="1185,1085 1244,965 1304,1085 1244,1135" fill="#67E8F9" opacity="0.84" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
+              <polygon points="120,1250 150,1190 180,1250 150,1272" fill="#C4B5FD" opacity="0.82" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+              <polygon points="1300,420 1324,372 1348,420 1324,438" fill="#F9A8D4" opacity="0.8" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+            </g>
+
+            {/* Hovering Survey Drones */}
+            <g className={styles.podHoverA}>
+              <polygon points="1130,820 1156,812 1182,820 1156,827" fill="#E0E7FF" />
+              <ellipse cx="1156" cy="820" rx="18" ry="4.5" fill="#818CF8" />
+              <polygon points="1148,825 1152,833 1156,825" fill="#A5F3FC" opacity="0.85" />
+              <polygon points="1158,825 1162,833 1166,825" fill="#A5F3FC" opacity="0.85" />
+            </g>
+            <g className={styles.podHoverB}>
+              <polygon points="240,600 264,592 288,600 264,607" fill="#DDD6FE" />
+              <ellipse cx="264" cy="600" rx="17" ry="4.2" fill="#C084FC" />
+              <polygon points="256,605 260,613 264,605" fill="#F9A8D4" opacity="0.85" />
+              <polygon points="266,605 270,613 274,605" fill="#F9A8D4" opacity="0.85" />
             </g>
 
             {/* Dark-Teal Valley Pine Clusters */}
@@ -1251,41 +1559,89 @@ export function TacticalGateway({
             <polygon points="482,286 498,188 516,286" fill="#14B8A6" />
             <polygon points="1080,585 1102,472 1124,585" fill="#0F766E" />
             <polygon points="1132,598 1156,462 1180,598" fill="#0D9488" />
+            <polygon points="1186,604 1204,520 1222,604" fill="#14B8A6" />
             <polygon points="94,1065 118,935 142,1065" fill="#0F766E" />
+            <polygon points="146,1072 164,980 182,1072" fill="#14B8A6" />
             <polygon points="1038,1315 1062,1195 1086,1315" fill="#0D9488" />
+            <polygon points="1090,1322 1108,1236 1126,1322" fill="#0F766E" />
+            <polygon points="60,620 78,548 96,620" fill="#0D9488" />
+            <polygon points="1370,1180 1390,1094 1410,1180" fill="#0F766E" />
+
+            {/* Valley Fireflies */}
+            <g className={styles.fireflyDrift}>
+              <circle cx="380" cy="420" r="2" fill="#FDE68A" />
+              <circle cx="1180" cy="760" r="2.2" fill="#A5F3FC" />
+              <circle cx="300" cy="880" r="1.8" fill="#F9A8D4" />
+              <circle cx="1000" cy="1180" r="2" fill="#FDE68A" />
+              <circle cx="460" cy="1260" r="2" fill="#A5F3FC" />
+              <circle cx="980" cy="420" r="1.8" fill="#F9A8D4" />
+            </g>
           </svg>
+
+          {/* Section Header (Pipeline Overview) */}
+          <div className={`${styles.valleyHeader} ${styles.revealBlock}`} data-reveal>
+            <span className={styles.eyebrowCaption}>{t("QUY TRÌNH 6 TẦNG", "6-LAYER PIPELINE")}</span>
+            <h2 className={styles.slantedSectionTitle}>
+              {t("TỪ DỮ LIỆU THÔ ĐẾN QUYẾT ĐỊNH", "FROM RAW DATA TO DECISION")}
+            </h2>
+            <p className={styles.valleyHeaderBody}>
+              {t(
+                "Dòng dữ liệu chảy qua 6 tầng xử lý: từ giá EOD chuẩn mốc thời gian, chuẩn hóa IAS 33, mô hình đa nhân tố, tín hiệu VN100, AI đối soát bằng chứng cho đến đo lường rủi ro danh mục.",
+                "Data flows through six processing layers: Point-in-Time EOD prices, IAS 33 normalization, multi-factor models, VN100 signals, evidence-audited AI, and portfolio risk measurement."
+              )}
+            </p>
+          </div>
 
           {/* Staggered Roadmap Cards 06..01 with Hologram Projector Orbs */}
           <div className={styles.roadmapFlow}>
-            {milestoneCards.map((card, idx) => (
-              <div
-                key={card.num}
-                className={`${styles.roadmapSlot} ${card.slot} ${styles.revealBlock}`}
-                data-reveal
-                style={{ "--reveal-delay": `${idx * 70}ms` } as React.CSSProperties}
-              >
-                <div className={styles.milestoneStage}>
-                  <article className={styles.milestoneCard}>
-                    <div className={styles.milestoneHeader}>
-                      <span className={styles.milestoneNumber}>{card.num}</span>
-                      <span className={styles.milestoneTitle}>{card.title}</span>
-                    </div>
-                    <ul className={styles.milestoneList}>
-                      {card.bullets.map((bullet, bIdx) => (
-                        <li key={bIdx} className={styles.milestoneItem}>
-                          <span className={styles.milestoneArrow} aria-hidden="true">
-                            ↗
-                          </span>
-                          <span>{bullet}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                  <div className={styles.hologramCone} aria-hidden="true" />
-                  <div className={styles.pearlOrb} aria-hidden="true" />
+            {milestoneCards.map((card, idx) => {
+              const meta = getMilestoneMeta(card.num, locale);
+              const layerNumber = Number(card.num);
+              return (
+                <div
+                  key={card.num}
+                  className={`${styles.roadmapSlot} ${card.slot} ${styles.revealBlock}`}
+                  data-reveal
+                  style={{ "--reveal-delay": `${idx * 70}ms` } as React.CSSProperties}
+                >
+                  <div className={styles.milestoneStage}>
+                    <article className={styles.milestoneCard}>
+                      <div className={styles.milestoneLayerRow}>
+                        <span className={styles.milestoneLayerTag}>{meta.layer}</span>
+                        <span className={styles.milestoneMetric}>{meta.metric}</span>
+                      </div>
+                      <div className={styles.milestoneHeader}>
+                        <span className={styles.milestoneNumber}>{card.num}</span>
+                        <span className={styles.milestoneTitle}>{card.title}</span>
+                      </div>
+                      <ul className={styles.milestoneList}>
+                        {card.bullets.map((bullet, bIdx) => (
+                          <li key={bIdx} className={styles.milestoneItem}>
+                            <span className={styles.milestoneArrow} aria-hidden="true">
+                              ↗
+                            </span>
+                            <span>{bullet}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className={styles.milestoneFooter}>
+                        <span className={styles.milestoneProgress} aria-hidden="true">
+                          <span
+                            className={styles.milestoneProgressFill}
+                            style={{ "--progress-scale": `${layerNumber / 6}` } as React.CSSProperties}
+                          />
+                        </span>
+                        <span className={styles.milestoneStageLabel}>
+                          {t(`TẦNG ${layerNumber}/6`, `LAYER ${layerNumber}/6`)}
+                        </span>
+                      </div>
+                    </article>
+                    <div className={styles.hologramCone} aria-hidden="true" />
+                    <div className={styles.pearlOrb} aria-hidden="true" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Harmonious End-of-Road Connect Portal Where Winding River Terminates */}
@@ -1307,6 +1663,23 @@ export function TacticalGateway({
                 "Full VN100 quantitative datasets, Point-in-Time valuation benchmarks, and evidence-cited AI analysis are ready to connect."
               )}
             </p>
+            <ul className={styles.portalStatusList}>
+              <li className={styles.portalStatusItem}>
+                <span className={styles.portalStatusDot} aria-hidden="true" />
+                <span className={styles.portalStatusLabel}>{t("DỮ LIỆU EOD", "EOD DATA")}</span>
+                <span className={styles.portalStatusValue}>HOSE · HNX · UPCOM</span>
+              </li>
+              <li className={styles.portalStatusItem}>
+                <span className={styles.portalStatusDot} aria-hidden="true" />
+                <span className={styles.portalStatusLabel}>{t("MÔ HÌNH ĐỊNH GIÁ", "VALUATION MODELS")}</span>
+                <span className={styles.portalStatusValue}>DCF · RIM · IAS 33</span>
+              </li>
+              <li className={styles.portalStatusItem}>
+                <span className={styles.portalStatusDot} aria-hidden="true" />
+                <span className={styles.portalStatusLabel}>{t("TRỢ LÝ AI", "AI ANALYST")}</span>
+                <span className={styles.portalStatusValue}>{t("TRÍCH DẪN BẰNG CHỨNG", "EVIDENCE-CITED")}</span>
+              </li>
+            </ul>
             <div className={styles.ctaRow}>
               <button
                 type="button"
