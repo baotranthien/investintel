@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   getResearchWorkspace,
   type ResearchMetric,
   type ResearchTimelineItem,
   type ResearchWorkspace,
 } from "@/lib/api";
-import { useLocale, translateQuantEnum, type AppLocale } from "@/lib/i18n";
+import { useLocale, translateQuantEnum, translateSectorName, type AppLocale } from "@/lib/i18n";
 import styles from "./research-workspace.module.css";
 
 const metricNames: Record<string, { vi: string; en: string }> = {
@@ -152,6 +164,18 @@ function EvidenceDetails({ evidence, locale }: { evidence: ResearchMetric["evide
   );
 }
 
+function VerificationChip({ metric, locale }: { metric: ResearchMetric; locale: AppLocale }) {
+  if (!metric.verification_level && !metric.is_estimate) return null;
+  const label = metric.is_estimate
+    ? (locale === "en" ? "Estimate" : "Ước tính")
+    : metric.verification_level === "INDEPENDENTLY_VERIFIED"
+    ? (locale === "en" ? "Verified" : "Đã đối chiếu")
+    : metric.verification_level === "MATHEMATICALLY_CALCULATED"
+    ? (locale === "en" ? "Formula" : "Công thức BCTC")
+    : translateQuantEnum(metric.verification_level, locale);
+  return <span className={styles.verifyTag}>{label}</span>;
+}
+
 function MetricTable({
   metrics,
   keys,
@@ -172,20 +196,21 @@ function MetricTable({
   return (
     <div className={styles.metricList}>
       {entries.map(([key, metric]) => (
-        <article className={styles.metricRow} key={key}>
+        <div className={styles.metricRow} key={key}>
           <div>
             <strong>{getMetricName(key, locale)}</strong>
             <small>
               {metric.period ?? (locale === "en" ? "Period unavailable" : "Kỳ chưa xác định")}
               {metric.calculation ? ` · ${metric.calculation}` : ""}
             </small>
+            <VerificationChip metric={metric} locale={locale} />
           </div>
           <div className={styles.metricValue}>
             <b>{formatNumber(metric.value, metric.unit, locale)}</b>
             <Status value={metric.status} locale={locale} />
           </div>
           <EvidenceDetails evidence={metric.evidence} locale={locale} />
-        </article>
+        </div>
       ))}
     </div>
   );
@@ -278,8 +303,58 @@ function Timeline({ items, locale }: { items: ResearchTimelineItem[]; locale: Ap
   );
 }
 
+type ChartWindow = "1M" | "3M" | "6M" | "ALL";
+
 function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: AppLocale }) {
+  const [priceWindow, setPriceWindow] = useState<ChartWindow>("3M");
   const history = data.fundamentals.history;
+
+  const valuationRange = useMemo(() => {
+    if (data.valuation.valuation_range) return data.valuation.valuation_range;
+    if (typeof data.valuation.fair_value === "object" && data.valuation.fair_value !== null) {
+      return data.valuation.fair_value;
+    }
+    return null;
+  }, [data.valuation.valuation_range, data.valuation.fair_value]);
+
+  const slicedPriceHistory = useMemo(() => {
+    const raw = data.price.history ?? [];
+    if (!raw.length) return [];
+    const count =
+      priceWindow === "1M" ? 22 : priceWindow === "3M" ? 65 : priceWindow === "6M" ? 130 : raw.length;
+    return raw.slice(-count).map((pt) => ({
+      ...pt,
+      label: pt.date.slice(5),
+    }));
+  }, [data.price.history, priceWindow]);
+
+  const fundamentalsChartData = useMemo(() => {
+    if (history.length < 2) return [];
+    return [...history]
+      .sort((a, b) => {
+        const yDiff = (a.fiscal_year ?? 0) - (b.fiscal_year ?? 0);
+        if (yDiff !== 0) return yDiff;
+        return (a.fiscal_quarter ?? 0) - (b.fiscal_quarter ?? 0);
+      })
+      .slice(-12)
+      .map((row) => ({
+        period: `${row.fiscal_year ?? ""}${row.period_type === "QUARTERLY" ? ` Q${row.fiscal_quarter ?? "?"}` : ""}`,
+        revenue: row.revenue,
+        earnings: row.earnings,
+      }));
+  }, [history]);
+
+  const periodReturnPct = useMemo(() => {
+    if (slicedPriceHistory.length < 2) return null;
+    const first = slicedPriceHistory[0].close;
+    const last = slicedPriceHistory[slicedPriceHistory.length - 1].close;
+    if (!first || first <= 0) return null;
+    return ((last - first) / first) * 100;
+  }, [slicedPriceHistory]);
+
+  const isPricePositive = periodReturnPct === null || periodReturnPct >= 0;
+  const priceStroke = isPricePositive ? "#10b981" : "#ef4444";
+
   const metricGroups = [
     {
       title: locale === "en" ? "Income & Per Share Metrics" : "Thu nhập & Chỉ số trên mỗi cổ phiếu",
@@ -303,16 +378,14 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
     <>
       <section className={styles.overview} id="overview">
         <div className={styles.assetIdentity}>
-          <p className={styles.eyebrow}>
-            ASSET RESEARCH · {data.asset.exchange ?? (locale === "en" ? "EXCHANGE UNAVAILABLE" : "SÀN CHƯA XÁC ĐỊNH")}
-          </p>
+          <span className={styles.exchangeMeta}>
+            {data.asset.exchange ?? (locale === "en" ? "HOSE/HNX" : "Sàn CKVN")} · {translateSectorName(data.asset.sector, locale)} · {data.asset.currency}
+          </span>
           <h1>
             {data.asset.symbol}
             <span>{data.asset.name}</span>
           </h1>
-          <p>
-            {data.asset.sector} · {data.asset.asset_type} · {data.asset.currency}
-          </p>
+          <p>{data.asset.asset_type}</p>
         </div>
         <div className={styles.quoteBlock}>
           <span>{locale === "en" ? "Market Price" : "Thị giá"}</span>
@@ -374,6 +447,7 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
 
       <nav className={styles.sectionNav} aria-label={locale === "en" ? "Research sections" : "Các mục nghiên cứu"}>
         {[
+          ...(slicedPriceHistory.length >= 2 ? [{ id: "price-chart", label: locale === "en" ? "Price Chart" : "Biểu đồ Giá" }] : []),
           { id: "fundamentals", label: locale === "en" ? "Fundamentals" : "Báo cáo Tài chính (Fundamentals)" },
           { id: "sector", label: locale === "en" ? "Sector Analysis" : "Phân tích Ngành (Sector)" },
           { id: "valuation", label: locale === "en" ? "Valuation" : "Định giá (Valuation)" },
@@ -388,10 +462,113 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
         ))}
       </nav>
 
+      {slicedPriceHistory.length >= 2 && (
+        <section className={styles.section} id="price-chart">
+          <header className={styles.sectionHeader}>
+            <div>
+              <h2>{locale === "en" ? "Price Trajectory & Intrinsic Fair Value" : "Diễn biến giá & Vùng định giá nội tại"}</h2>
+              <p className={styles.sectionNote}>
+                {slicedPriceHistory.length} {locale === "en" ? "trading sessions" : "phiên giao dịch gần nhất"}
+                {periodReturnPct !== null && (
+                  <>
+                    {" · "}
+                    <strong className={isPricePositive ? styles.positiveText : styles.negativeText}>
+                      {periodReturnPct >= 0 ? "+" : ""}
+                      {periodReturnPct.toFixed(2)}%
+                    </strong>
+                  </>
+                )}
+                {valuationRange && (
+                  <>
+                    {" · "}
+                    {locale === "en" ? "Base Fair Value:" : "Giá trị hợp lý Cơ sở:"}{" "}
+                    <strong>{formatNumber(valuationRange.base, "VND", locale)}</strong>
+                  </>
+                )}
+              </p>
+            </div>
+            <div className={styles.windowSwitch} role="group" aria-label={locale === "en" ? "Chart timeframe" : "Khung thời gian biểu đồ"}>
+              {(["1M", "3M", "6M", "ALL"] as const).map((win) => (
+                <button
+                  key={win}
+                  type="button"
+                  className={`${styles.windowBtn} ${priceWindow === win ? styles.windowBtnActive : ""}`}
+                  onClick={() => setPriceWindow(win)}
+                >
+                  {win === "ALL" ? (locale === "en" ? "ALL" : "TẤT CẢ") : win}
+                </button>
+              ))}
+            </div>
+          </header>
+          <div className={styles.chartCanvas}>
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={slicedPriceHistory} margin={{ top: 10, right: 16, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="priceAreaFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={priceStroke} stopOpacity={0.28} />
+                    <stop offset="95%" stopColor={priceStroke} stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.14)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "var(--ink-muted)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={28}
+                />
+                <YAxis
+                  domain={["auto", "auto"]}
+                  tick={{ fontSize: 11, fill: "var(--ink-muted)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={62}
+                  tickFormatter={(val: number) =>
+                    val >= 1000 ? `${(val / 1000).toFixed(0)}k` : String(val)
+                  }
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--surface-card)",
+                    borderColor: "var(--line-strong)",
+                    borderRadius: "10px",
+                    fontSize: "12px",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                  formatter={(value: unknown) => [formatNumber(Number(value), "VND", locale), locale === "en" ? "Close" : "Giá đóng cửa"]}
+                  labelFormatter={(label: unknown) => `${locale === "en" ? "Date" : "Ngày"}: ${String(label)}`}
+                />
+                {valuationRange && (
+                  <ReferenceLine
+                    y={valuationRange.base}
+                    stroke="#0a84ff"
+                    strokeDasharray="5 4"
+                    label={{
+                      value: `${locale === "en" ? "Base FV" : "Cơ sở"}: ${Math.round(valuationRange.base).toLocaleString("en-US")}`,
+                      position: "insideTopRight",
+                      fill: "#0a84ff",
+                      fontSize: 11,
+                    }}
+                  />
+                )}
+                <Area
+                  type="monotone"
+                  dataKey="close"
+                  stroke={priceStroke}
+                  strokeWidth={2}
+                  fill="url(#priceAreaFill)"
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 0, fill: priceStroke }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      )}
+
       <section className={styles.section} id="fundamentals">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>CANONICAL FINANCIAL STATEMENTS</p>
             <h2>{locale === "en" ? "Fundamentals & Key Financials" : "Chỉ số tài chính cơ bản"}</h2>
           </div>
           <Status value={data.fundamentals.status} locale={locale} />
@@ -428,7 +605,35 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
         )}
         {history.length >= 2 && (
           <div className={styles.historyTable}>
-            <h3>{locale === "en" ? "Financial History" : "Lịch sử tài chính"}</h3>
+            <h3>{locale === "en" ? "Revenue & Net Income Trajectory" : "Xu hướng Doanh thu & Lợi nhuận đa kỳ"}</h3>
+            {fundamentalsChartData.length >= 2 && (
+              <div className={styles.chartCanvasCompact}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={fundamentalsChartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.14)" vertical={false} />
+                    <XAxis dataKey="period" tick={{ fontSize: 11, fill: "var(--ink-muted)" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "var(--ink-muted)" }} tickLine={false} axisLine={false} width={56} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--surface-card)",
+                        borderColor: "var(--line-strong)",
+                        borderRadius: "10px",
+                        fontSize: "12px",
+                        fontFamily: "var(--font-mono)",
+                      }}
+                      formatter={(val: unknown, name: unknown) => [
+                        formatNumber(Number(val), "BILLION_VND", locale),
+                        String(name) === "revenue"
+                          ? (locale === "en" ? "Revenue" : "Doanh thu")
+                          : (locale === "en" ? "Net Earnings" : "Lợi nhuận ròng"),
+                      ]}
+                    />
+                    <Bar dataKey="revenue" fill="#0a84ff" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="earnings" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
             <div className={styles.tableScroll}>
               <table>
                 <thead>
@@ -472,8 +677,7 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="sector">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>SECTOR MODEL · {data.sector_analysis.sector}</p>
-            <h2>{locale === "en" ? "Sector Comparison & Benchmarks" : "Phân tích & So sánh ngành"}</h2>
+            <h2>{locale === "en" ? `Sector Benchmarks · ${translateSectorName(data.sector_analysis.sector, locale)}` : `Phân tích & So sánh ngành · ${translateSectorName(data.sector_analysis.sector, locale)}`}</h2>
           </div>
           <Status value={data.sector_analysis.status} locale={locale} />
         </header>
@@ -494,21 +698,48 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="valuation">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>VALUATION ENGINE OUTPUT</p>
             <h2>{locale === "en" ? "Intrinsic & Relative Valuation" : "Định giá Doanh nghiệp"}</h2>
           </div>
           <Status value={data.valuation.status} locale={locale} />
         </header>
         <MetricTable metrics={data.valuation.metrics} locale={locale} />
+        {valuationRange && (
+          <div className={styles.scenarioRow}>
+            {(["bear", "base", "bull"] as const).map((tier) => {
+              const val = valuationRange[tier];
+              const upside = data.price.value && data.price.value > 0 ? ((val - data.price.value) / data.price.value) * 100 : null;
+              const tierLabel =
+                tier === "bear"
+                  ? (locale === "en" ? "Bear Case" : "Kịch bản Thận trọng")
+                  : tier === "base"
+                  ? (locale === "en" ? "Base Intrinsic" : "Giá trị Cơ sở")
+                  : (locale === "en" ? "Bull Case" : "Kịch bản Lạc quan");
+              return (
+                <div className={styles.scenarioCell} key={tier}>
+                  <span>{tierLabel}</span>
+                  <strong>{formatNumber(val, "VND", locale)}</strong>
+                  {upside !== null && (
+                    <small className={upside >= 0 ? styles.positiveText : styles.negativeText}>
+                      {upside >= 0 ? "+" : ""}
+                      {upside.toFixed(1)}% {locale === "en" ? "vs market" : "so với thị giá"}
+                    </small>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className={styles.uncertainty}>
           <strong>
             {locale === "en" ? "Fair value range / Bear · Base · Bull:" : "Khoảng định giá hợp lý / Thận trọng · Cơ sở · Lạc quan:"}{" "}
-            {data.valuation.fair_value
-              ? `${formatNumber(data.valuation.fair_value.bear, "VND", locale)} · ${formatNumber(
-                  data.valuation.fair_value.base,
+            {valuationRange
+              ? `${formatNumber(valuationRange.bear, "VND", locale)} · ${formatNumber(
+                  valuationRange.base,
                   "VND",
                   locale
-                )} · ${formatNumber(data.valuation.fair_value.bull, "VND", locale)}`
+                )} · ${formatNumber(valuationRange.bull, "VND", locale)}`
+              : typeof data.valuation.fair_value === "number"
+              ? formatNumber(data.valuation.fair_value, "VND", locale)
               : (locale === "en" ? "INSUFFICIENT_DATA" : "CHƯA ĐỦ DỮ LIỆU")}
           </strong>
           <ul>
@@ -522,7 +753,6 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="factors">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>FACTOR ENGINE</p>
             <h2>{locale === "en" ? "Multi-Factor Exposures" : "Mô hình đa nhân tố"}</h2>
           </div>
           <Status value={data.factors.status} locale={locale} />
@@ -548,22 +778,23 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="risk">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>RISK ENGINE · 10 CATEGORIES</p>
             <h2>{locale === "en" ? "Risk Analysis & Breakdown" : "Phân tích & Đo lường rủi ro"}</h2>
           </div>
           <Status value={data.risk.status} locale={locale} />
         </header>
         <div className={styles.riskGrid}>
           {data.risk.categories.map((category) => (
-            <article key={category.name}>
+            <div className={styles.riskCard} key={category.name}>
               <strong>{category.name}</strong>
               <span>{category.value === null ? "—" : formatNumber(category.value, null, locale)}</span>
               <Status value={category.status} locale={locale} />
               <small>{category.drivers.join(" · ") || (locale === "en" ? "No evidence-backed driver." : "Không có động lực kiểm chứng.")}</small>
-            </article>
+            </div>
           ))}
         </div>
-        <p className={styles.warning}>{data.risk.missing_data_warning}</p>
+        {data.risk.missing_data_warning && (
+          <p className={styles.warning}>{data.risk.missing_data_warning}</p>
+        )}
         <div className={styles.macroSensitivity}>
           <h3>{locale === "en" ? "Macro Sensitivity" : "Độ nhạy vĩ mô"}</h3>
           <Status value={data.macro_sensitivity.status} locale={locale} />
@@ -574,7 +805,6 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="events">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>CANONICAL EVENTS & CORPORATE ACTIONS</p>
             <h2>{locale === "en" ? "Corporate Actions & Event Timeline" : "Sự kiện & Dòng thời gian doanh nghiệp"}</h2>
           </div>
           <Status value={data.events.length || data.timeline.length ? "AVAILABLE" : "INSUFFICIENT_DATA"} locale={locale} />
@@ -598,7 +828,6 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
       <section className={styles.section} id="summary">
         <header className={styles.sectionHeader}>
           <div>
-            <p className={styles.eyebrow}>ENGINE & EVIDENCE ONLY · NO AI</p>
             <h2>{locale === "en" ? "Evidence-Anchored Research Summary" : "Tóm tắt kết quả nghiên cứu kiểm chứng"}</h2>
           </div>
         </header>

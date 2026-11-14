@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../apps/api"))
 from database.connection import get_db
 from database.models import Asset, CorporateAction, EventRecord, FinancialStatement, NormalizedIncome, Price
 from services.fundamentals.repository import FinancialRepository
+from services.market.trading_hours import get_effective_trading_date
 from main import app
 
 
@@ -67,7 +68,7 @@ def test_research_endpoint_withholds_unsupported_engine_numbers(db_session):
     db_session.flush()
     db_session.add(Price(
         asset_id=asset.id,
-        observation_date=date.today(),
+        observation_date=get_effective_trading_date(),
         raw_close=42_000,
         adjusted_close=42_000,
         source="TEST_SOURCE",
@@ -207,7 +208,7 @@ def test_annual_eps_is_not_used_as_ttm_multiple(db_session):
     db_session.flush()
     db_session.add(Price(
         asset_id=asset.id,
-        observation_date=date.today(),
+        observation_date=get_effective_trading_date(),
         raw_close=20_000,
         source="CANONICAL_TEST_SOURCE",
         status="VALID",

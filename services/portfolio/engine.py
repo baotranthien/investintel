@@ -146,6 +146,68 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
             if item["weight"] > sector_limit:
                 warnings.append({"code": "SECTOR_CONCENTRATION", "sector": item["sector"], "weight": item["weight"], "limit": sector_limit})
 
+    risk_exposure: dict[str, Any] = {
+        "status": "INSUFFICIENT_DATA",
+        "value": None,
+        "note": "Portfolio risk aggregation requires evidence-backed per-asset risk scores.",
+    }
+    factor_exposure: dict[str, Any] = {
+        "status": "INSUFFICIENT_DATA",
+        "value": None,
+        "profile": {},
+        "note": "Portfolio factor aggregation requires evidence-backed factor profiles.",
+    }
+
+    if all_prices_available and total_value and total_value > 0:
+        workspaces_by_symbol: dict[str, Any] = {
+            item["symbol"]: build_research_workspace(session, item["symbol"], as_of)
+            for item in holdings
+        }
+        if all(
+            (ws := workspaces_by_symbol.get(item["symbol"])) is not None
+            and ws.risk.get("status") == "AVAILABLE"
+            and ws.risk.get("overall_score") is not None
+            for item in holdings
+        ):
+            weighted_risk = sum(
+                float(item["current_weight"] or 0.0) * float(workspaces_by_symbol[item["symbol"]].risk["overall_score"])
+                for item in holdings
+            )
+            risk_exposure = {
+                "status": "AVAILABLE",
+                "value": round(weighted_risk, 1),
+                "note": "Điểm rủi ro danh mục gia quyền theo tỷ trọng vốn hóa từng vị thế.",
+            }
+
+        if all(
+            (ws := workspaces_by_symbol.get(item["symbol"])) is not None
+            and ws.factors.get("status") == "AVAILABLE"
+            for item in holdings
+        ):
+            factor_totals: dict[str, float] = {}
+            factor_weights: dict[str, float] = {}
+            for item in holdings:
+                w = float(item["current_weight"] or 0.0)
+                scores = workspaces_by_symbol[item["symbol"]].factors.get("scores", {})
+                for fname, fmetric in scores.items():
+                    fval = fmetric.get("value") if isinstance(fmetric, dict) else getattr(fmetric, "value", None)
+                    if fval is not None:
+                        factor_totals[fname] = factor_totals.get(fname, 0.0) + w * float(fval)
+                        factor_weights[fname] = factor_weights.get(fname, 0.0) + w
+            profile_agg = {
+                fname: round(factor_totals[fname] / factor_weights[fname], 1)
+                for fname in factor_totals
+                if factor_weights.get(fname, 0.0) > 0
+            }
+            if profile_agg:
+                composite_factor = round(sum(profile_agg.values()) / len(profile_agg), 1)
+                factor_exposure = {
+                    "status": "AVAILABLE",
+                    "value": composite_factor,
+                    "profile": profile_agg,
+                    "note": "Điểm nhân tố định lượng tổng hợp gia quyền theo tỷ trọng danh mục.",
+                }
+
     latest_holding_date = max((h["price_as_of"] for h in holdings if h["price_as_of"] is not None), default=as_of)
     return {
         "portfolio_id": PORTFOLIO_ID,
@@ -171,35 +233,80 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
             "status": "AVAILABLE" if total_value is not None else "INSUFFICIENT_DATA",
             "warnings": warnings,
         },
-        "risk_exposure": {"status": "INSUFFICIENT_DATA", "value": None, "note": "Portfolio risk aggregation requires evidence-backed per-asset risk scores."},
-        "factor_exposure": {"status": "INSUFFICIENT_DATA", "value": None, "note": "Portfolio factor aggregation requires evidence-backed factor profiles."},
+        "risk_exposure": risk_exposure,
+        "factor_exposure": factor_exposure,
     }
 
 
 def portfolio_fit(session: Session, as_of: date) -> dict[str, Any]:
     dashboard = portfolio_dashboard(session, as_of)
     fit_items = []
+    multi_holding = len(dashboard["holdings"]) >= 2
     for holding in dashboard["holdings"]:
         asset = canonical_asset(session, holding["symbol"])
         research = build_research_workspace(session, holding["symbol"], as_of) if asset else None
+        sector_weight = next(
+            (item["weight"] for item in dashboard["allocation"]["sector"] if item["sector"] == (holding["sector"] or "UNKNOWN")),
+            None,
+        )
+        opp_score = research.opportunity["score"] if research else None
+        conf_str = research.opportunity["confidence"] if research else "INSUFFICIENT"
+        risk_score = research.risk["overall_score"] if research else None
+        risk_available = bool(
+            multi_holding
+            and holding["current_weight"] is not None
+            and research
+            and research.risk.get("status") == "AVAILABLE"
+            and risk_score is not None
+        )
+        if risk_available:
+            risk_score_f = float(risk_score)
+            risk_overlap = "HIGH" if risk_score_f >= 55.0 else ("MODERATE" if risk_score_f >= 38.0 else "LOW")
+            sw_f = float(sector_weight or 0.0)
+            factor_overlap = "HIGH_OVERLAP" if sw_f > 0.45 else ("MODERATE_OVERLAP" if sw_f > 0.28 else "DIVERSIFIED")
+            role = holding["role"]
+            horizon = holding["horizon"]
+            if not horizon:
+                horizon_compatibility = "UNSET"
+            elif (role == "CORE" and horizon == "LONG_TERM") or (role == "SATELLITE" and horizon in ("MEDIUM_TERM", "LONG_TERM")):
+                horizon_compatibility = "ALIGNED"
+            else:
+                horizon_compatibility = "REVIEW"
+            item_status = "AVAILABLE"
+            note = (
+                f"Tỷ trọng ngành {(sw_f * 100):.1f}% · Rủi ro vị thế {risk_score_f:.1f}/100 · "
+                f"Phù hợp {horizon_compatibility.lower()} với vai trò {role}."
+            )
+        else:
+            risk_overlap = "INSUFFICIENT_DATA"
+            factor_overlap = "INSUFFICIENT_DATA"
+            horizon_compatibility = "INSUFFICIENT_DATA"
+            item_status = "INSUFFICIENT_DATA"
+            note = "Portfolio Fit is separate from opportunity/confidence/risk and awaits sourced factor, risk, and horizon-fit inputs."
+
         fit_items.append({
             "symbol": holding["symbol"],
             "portfolio_role": holding["role"],
             "current_weight": holding["current_weight"],
             "target_weight": holding["target_weight"],
             "sector": holding["sector"],
-            "sector_weight": next((item["weight"] for item in dashboard["allocation"]["sector"] if item["sector"] == (holding["sector"] or "UNKNOWN")), None),
+            "sector_weight": sector_weight,
             "sector_overlap": "AVAILABLE" if holding["sector"] else "INSUFFICIENT_DATA",
-            "opportunity_score": research.opportunity["score"] if research else None,
-            "confidence": research.opportunity["confidence"] if research else "INSUFFICIENT",
-            "risk_score": research.risk["overall_score"] if research else None,
-            "risk_overlap": "INSUFFICIENT_DATA",
-            "factor_overlap": "INSUFFICIENT_DATA",
-            "horizon_compatibility": "INSUFFICIENT_DATA",
-            "status": "INSUFFICIENT_DATA",
-            "note": "Portfolio Fit is separate from opportunity/confidence/risk and awaits sourced factor, risk, and horizon-fit inputs.",
+            "opportunity_score": opp_score,
+            "confidence": conf_str,
+            "risk_score": risk_score,
+            "risk_overlap": risk_overlap,
+            "factor_overlap": factor_overlap,
+            "horizon_compatibility": horizon_compatibility,
+            "status": item_status,
+            "note": note,
         })
-    return {"portfolio_id": PORTFOLIO_ID, "as_of_date": as_of, "status": "INSUFFICIENT_DATA" if fit_items else "EMPTY", "items": fit_items}
+    overall_status = (
+        "EMPTY"
+        if not fit_items
+        else ("AVAILABLE" if all(item["status"] == "AVAILABLE" for item in fit_items) else "INSUFFICIENT_DATA")
+    )
+    return {"portfolio_id": PORTFOLIO_ID, "as_of_date": as_of, "status": overall_status, "items": fit_items}
 
 
 def dca_plan_view(session: Session, as_of: date) -> dict[str, Any]:

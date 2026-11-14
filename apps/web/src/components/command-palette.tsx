@@ -66,6 +66,7 @@ type PaletteItem =
       exchange: string | null;
       action: () => void;
       actionAlt: () => void;
+      actionResearch?: () => void;
     }
   | {
       id: string;
@@ -215,6 +216,10 @@ export default function CommandPalette({
             router.push(`/market?symbol=${encodeURIComponent(sym)}`);
             onClose();
           },
+          actionResearch: () => {
+            router.push(`/research/${encodeURIComponent(sym)}`);
+            onClose();
+          },
         });
       }
 
@@ -281,6 +286,10 @@ export default function CommandPalette({
           },
           actionAlt: () => {
             router.push(`/market?symbol=${encodeURIComponent(s.symbol)}`);
+            onClose();
+          },
+          actionResearch: () => {
+            router.push(`/research/${encodeURIComponent(s.symbol)}`);
             onClose();
           },
         });
@@ -467,6 +476,19 @@ export default function CommandPalette({
                   <div className={styles.itemRight}>
                     {item.exchange && (
                       <span className={styles.exchangeTag}>{item.exchange}</span>
+                    )}
+                    {item.actionResearch && (
+                      <button
+                        type="button"
+                        className={styles.askAiBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          item.actionResearch?.();
+                        }}
+                        title={t("Mở trang Nghiên cứu chuyên sâu cho mã này", "Open Research Workspace for this ticker")}
+                      >
+                        {t("Nghiên cứu", "Research")}
+                      </button>
                     )}
                     <button
                       type="button"

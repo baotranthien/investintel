@@ -1,10 +1,12 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
+import math
 from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database.models import Asset, CorporateAction, DataLineage, DataSource, EventRecord, Price
+from services.factors.engine import FactorEngine
 from services.fundamentals.engine import TTMEngine
 from services.fundamentals.repository import FinancialRepository
 from services.fundamentals.sector_models import get_sector_model
@@ -158,6 +160,27 @@ def build_research_workspace(
         Price.status == "VALID",
         Price.observation_date <= as_of_d,
     ).order_by(Price.observation_date.desc()).first()
+    price_history_rows = (
+        session.query(Price)
+        .filter(
+            Price.asset_id == asset.id,
+            Price.status == "VALID",
+            Price.observation_date <= as_of_d,
+        )
+        .order_by(Price.observation_date.desc())
+        .limit(180)
+        .all()
+    )
+    price_history = [
+        {
+            "date": p.observation_date.isoformat(),
+            "close": float(p.adjusted_close if p.adjusted_close is not None else p.raw_close),
+            "raw_close": float(p.raw_close) if p.raw_close is not None else None,
+            "volume": float(p.volume) if p.volume is not None else 0.0,
+        }
+        for p in reversed(price_history_rows)
+        if (p.adjusted_close is not None or p.raw_close is not None)
+    ]
     price_lineage = _lineage_for(session, "prices", price.id) if price else None
     price_source = price.source if price else None
     price_origin = "INSUFFICIENT_DATA"
@@ -681,11 +704,13 @@ def build_research_workspace(
             status="INSUFFICIENT_DATA",
             evidence=Evidence(
                 claim_type="UNCERTAINTY",
-                note="Current factor API uses demo inputs or has no canonical-input adapter; factor scores are withheld.",
+                note="Financial statements or market series are incomplete for this factor.",
             ),
         )
         for name in factor_names
     }
+    factors_supporting: list[str] = []
+    factors_contradicting: list[str] = []
 
     roe_val = snapshot.get("profitability", {}).get("roe", {}).get("value")
     ni_yoy_val = snapshot.get("growth", {}).get("net_income_yoy", {}).get("value")
@@ -694,6 +719,164 @@ def build_research_workspace(
     de_ratio = snapshot.get("balance_sheet", {}).get("de_ratio", {}).get("value")
     eps_val = fundamentals_metrics.get("eps_ttm").value if "eps_ttm" in fundamentals_metrics else None
     bvps_val = fundamentals_metrics.get("bvps").value if "bvps" in fundamentals_metrics else None
+
+    if has_financials:
+        pe_metric_val = valuation_metrics["pe"].value if "pe" in valuation_metrics else None
+        if roe_val is not None:
+            q_score = round(FactorEngine._normalize(roe_val / 100.0, 0.04, 0.28), 1)
+            factors["quality"] = WorkspaceMetric(
+                value=q_score,
+                unit="/100",
+                status="AVAILABLE",
+                period=snapshot.get("period") or "ANNUAL",
+                calculation="Normalized ROE on [4%, 28%] scale",
+                verification_level="MATHEMATICALLY_CALCULATED",
+                evidence=Evidence(
+                    claim_type="MODEL_OUTPUT",
+                    source=primary_source,
+                    observation_date=snapshot_source_date,
+                    publication_date=latest_publication,
+                    data_origin="CANONICAL_FINANCIAL_STATEMENTS",
+                    note=f"ROE = {roe_val:.1f}%",
+                ),
+            )
+        if rev_yoy_val is not None or ni_yoy_val is not None:
+            growth_inputs = [v for v in (rev_yoy_val, ni_yoy_val) if v is not None]
+            avg_growth = sum(growth_inputs) / len(growth_inputs)
+            g_score = round(FactorEngine._normalize(avg_growth / 100.0, -0.05, 0.35), 1)
+            factors["growth"] = WorkspaceMetric(
+                value=g_score,
+                unit="/100",
+                status="AVAILABLE",
+                period=snapshot.get("period") or "ANNUAL",
+                calculation="Blended Revenue YoY & Net Income YoY on [-5%, 35%] scale",
+                verification_level="MATHEMATICALLY_CALCULATED",
+                evidence=Evidence(
+                    claim_type="MODEL_OUTPUT",
+                    source=primary_source,
+                    observation_date=snapshot_source_date,
+                    publication_date=latest_publication,
+                    data_origin="CANONICAL_FINANCIAL_STATEMENTS",
+                    note=f"Blended YoY growth = {avg_growth:.1f}%",
+                ),
+            )
+        if pe_metric_val is not None and pe_metric_val > 0:
+            v_score = round(100.0 - FactorEngine._normalize(pe_metric_val, 5.0, 32.0), 1)
+            factors["value"] = WorkspaceMetric(
+                value=v_score,
+                unit="/100",
+                status="AVAILABLE",
+                period="TTM",
+                calculation="Inverse P/E percentile on [5x, 32x] scale",
+                verification_level="MATHEMATICALLY_CALCULATED",
+                evidence=Evidence(
+                    claim_type="MODEL_OUTPUT",
+                    source=price_source or primary_source,
+                    observation_date=price.observation_date if price else snapshot_source_date,
+                    publication_date=latest_publication,
+                    data_origin=price_origin,
+                    note=f"Observed P/E = {pe_metric_val:.2f}x",
+                ),
+            )
+        if current_price and current_price > 0:
+            cash_divs = (
+                session.query(CorporateAction)
+                .filter(
+                    CorporateAction.symbol == normalized_symbol,
+                    CorporateAction.action_type == "CASH_DIVIDEND",
+                    CorporateAction.action_date <= as_of_d,
+                    CorporateAction.action_date >= as_of_d - timedelta(days=365),
+                    CorporateAction.value.isnot(None),
+                )
+                .all()
+            )
+            if cash_divs:
+                total_div = sum(float(ca.value or 0.0) for ca in cash_divs)
+                div_yield = total_div / current_price
+                d_score = round(FactorEngine._normalize(div_yield, 0.0, 0.08), 1)
+                factors["dividend"] = WorkspaceMetric(
+                    value=d_score,
+                    unit="/100",
+                    status="AVAILABLE",
+                    period="TTM",
+                    calculation="Trailing 12M Cash Dividend / Canonical Price",
+                    verification_level="MATHEMATICALLY_CALCULATED",
+                    evidence=Evidence(
+                        claim_type="MODEL_OUTPUT",
+                        source=price_source,
+                        observation_date=as_of_d,
+                        data_origin="CANONICAL_CORPORATE_ACTIONS",
+                        note=f"Trailing 12M cash dividend {total_div:,.0f} VND (yield {div_yield * 100:.2f}%)",
+                    ),
+                )
+        if len(price_history) >= 10:
+            first_c = price_history[0]["close"]
+            last_c = price_history[-1]["close"]
+            if first_c > 0:
+                ret_period = (last_c - first_c) / first_c
+                m_score = round(FactorEngine._normalize(ret_period, -0.25, 0.45), 1)
+                factors["momentum"] = WorkspaceMetric(
+                    value=m_score,
+                    unit="/100",
+                    status="AVAILABLE",
+                    period=f"{len(price_history)}D",
+                    calculation="Price return across available trailing EOD window",
+                    verification_level="MATHEMATICALLY_CALCULATED",
+                    evidence=Evidence(
+                        claim_type="MODEL_OUTPUT",
+                        source=price_source,
+                        observation_date=price.observation_date if price else as_of_d,
+                        data_origin=price_origin,
+                        note=f"Trailing {len(price_history)}-bar return = {ret_period * 100:+.1f}%",
+                    ),
+                )
+            daily_rets = [
+                (price_history[i]["close"] - price_history[i - 1]["close"]) / price_history[i - 1]["close"]
+                for i in range(1, len(price_history))
+                if price_history[i - 1]["close"] > 0
+            ]
+            if len(daily_rets) >= 8:
+                mean_r = sum(daily_rets) / len(daily_rets)
+                var_r = sum((r - mean_r) ** 2 for r in daily_rets) / len(daily_rets)
+                ann_vol = math.sqrt(var_r) * math.sqrt(252.0)
+                def_score = round(100.0 - FactorEngine._normalize(ann_vol, 0.12, 0.55), 1)
+                cyc_score = round(FactorEngine._normalize(ann_vol, 0.15, 0.60), 1)
+                factors["defensive"] = WorkspaceMetric(
+                    value=def_score,
+                    unit="/100",
+                    status="AVAILABLE",
+                    period=f"{len(daily_rets)}D",
+                    calculation="Inverse annualized realized volatility on [12%, 55%]",
+                    verification_level="MATHEMATICALLY_CALCULATED",
+                    evidence=Evidence(
+                        claim_type="MODEL_OUTPUT",
+                        source=price_source,
+                        observation_date=price.observation_date if price else as_of_d,
+                        data_origin=price_origin,
+                        note=f"Annualized volatility = {ann_vol * 100:.1f}%",
+                    ),
+                )
+                factors["cyclical"] = WorkspaceMetric(
+                    value=cyc_score,
+                    unit="/100",
+                    status="AVAILABLE",
+                    period=f"{len(daily_rets)}D",
+                    calculation="Realized volatility beta proxy on [15%, 60%]",
+                    verification_level="MATHEMATICALLY_CALCULATED",
+                    evidence=Evidence(
+                        claim_type="MODEL_OUTPUT",
+                        source=price_source,
+                        observation_date=price.observation_date if price else as_of_d,
+                        data_origin=price_origin,
+                        note=f"Annualized volatility = {ann_vol * 100:.1f}%",
+                    ),
+                )
+        for fname, fmetric in factors.items():
+            if fmetric.value is not None:
+                if fmetric.value >= 65.0:
+                    factors_supporting.append(f"{fname.title()} ({fmetric.value:.0f}/100)")
+                elif fmetric.value <= 35.0:
+                    factors_contradicting.append(f"{fname.title()} ({fmetric.value:.0f}/100)")
 
     # Valuation snapshot builder
     val_snap = None
@@ -958,7 +1141,23 @@ def build_research_workspace(
         "data_origin": price_origin,
         "retrieved_at": price_lineage.retrieved_at if price_lineage else (price.created_at if price else None),
         "source_url": price_lineage.url if price_lineage else None,
+        "history": price_history,
     }
+
+    valuation_range = None
+    valuation_scenarios: list[dict[str, Any]] = []
+    if val_snap and val_snap.composite_fair_value and fair_value_base:
+        rng = val_snap.composite_fair_value.range
+        valuation_range = {
+            "bear": round(float(rng.bear), 2),
+            "base": round(float(rng.base), 2),
+            "bull": round(float(rng.bull), 2),
+        }
+        for label, fv in (("BEAR", valuation_range["bear"]), ("BASE", valuation_range["base"]), ("BULL", valuation_range["bull"])):
+            upside = round(((fv - current_price) / current_price) * 100.0, 2) if current_price and current_price > 0 else None
+            valuation_scenarios.append({"scenario": label, "fair_value": fv, "upside_pct": upside})
+
+    factors_available = any(m.status == "AVAILABLE" for m in factors.values())
 
     result_status: WorkspaceStatus = (
         "INSUFFICIENT_DATA" if not has_financials and price is None else
@@ -997,13 +1196,19 @@ def build_research_workspace(
             "status": "AVAILABLE" if (has_financials and current_price and any(item.status == "AVAILABLE" for item in valuation_metrics.values())) else ("PARTIAL" if any(item.status == "AVAILABLE" for item in valuation_metrics.values()) else "INSUFFICIENT_DATA"),
             "metrics": valuation_metrics,
             "fair_value": fair_value_base,
+            "valuation_range": valuation_range,
             "margin_of_safety": mos_val,
-            "scenarios": [],
+            "scenarios": valuation_scenarios,
             "warnings": (val_snap.warnings if (val_snap and hasattr(val_snap, "warnings") and val_snap.warnings) else [
                 "Observed P/E and P/B, when available, are current multiples and are not fair value estimates.",
             ]),
         },
-        factors={"status": "INSUFFICIENT_DATA", "scores": factors, "supporting": [], "contradicting": []},
+        factors={
+            "status": "AVAILABLE" if factors_available else "INSUFFICIENT_DATA",
+            "scores": factors,
+            "supporting": factors_supporting,
+            "contradicting": factors_contradicting,
+        },
         risk=risk,
         macro_sensitivity={
             "status": "INSUFFICIENT_DATA",

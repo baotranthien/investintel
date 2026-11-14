@@ -1,12 +1,14 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   applyPortfolioTemplate,
   createManualTransaction,
   createPortfolioHolding,
   createPortfolioSnapshot,
   deletePortfolioHolding,
+  getAssets,
   getManualTransactions,
   getPortfolio,
   getPortfolioDca,
@@ -19,13 +21,14 @@ import {
   putPortfolioDca,
   putPortfolioTargets,
   seedDemoPortfolio,
+  type AssetSummary,
   type DcaPlan,
   type PortfolioDashboard,
   type PortfolioFit,
   type PortfolioSettings,
   type PortfolioTargets,
 } from "@/lib/api";
-import { useLocale, translateQuantEnum, type AppLocale } from "@/lib/i18n";
+import { useLocale, translateQuantEnum, translateSectorName, type AppLocale } from "@/lib/i18n";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { PortfolioTorus3D } from "@/components/three/portfolio-torus-3d";
@@ -33,10 +36,23 @@ import styles from "./page.module.css";
 
 type Load<T> = { state: "loading" } | { state: "ready"; data: T } | { state: "error"; message: string };
 
+const POPULAR_TICKERS = ["FPT", "VCB", "MWG", "HPG", "ACB", "SSI", "GAS", "VNM"];
+
 function money(value: number | null | undefined, locale: AppLocale = "vi") {
   if (value === null || value === undefined) return "—";
   const localeStr = locale === "en" ? "en-US" : "vi-VN";
   return `${new Intl.NumberFormat(localeStr, { maximumFractionDigits: 0 }).format(value)} VND`;
+}
+
+function compactMoney(value: number | null | undefined, locale: AppLocale = "vi"): string | null {
+  if (value === null || value === undefined || Math.abs(value) < 1_000_000) return null;
+  const absVal = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  const fmt = (n: number) => n.toLocaleString(locale === "en" ? "en-US" : "vi-VN", { maximumFractionDigits: 2 });
+  if (absVal >= 1_000_000_000) {
+    return `${sign}≈ ${fmt(absVal / 1_000_000_000)} ${locale === "en" ? "B VND" : "tỷ VND"}`;
+  }
+  return `${sign}≈ ${fmt(absVal / 1_000_000)} ${locale === "en" ? "M VND" : "tr VND"}`;
 }
 
 function pct(value: number | null | undefined) {
@@ -68,6 +84,7 @@ function ErrorState({ message, locale }: { message: string; locale: AppLocale })
 }
 
 const MAX_DATE_LIMIT = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+const TODAY_ISO = MAX_DATE_LIMIT;
 
 export default function PortfolioPage() {
   const { locale, t } = useLocale();
@@ -79,6 +96,7 @@ export default function PortfolioPage() {
   const [fit, setFit] = useState<Load<PortfolioFit>>({ state: "loading" });
   const [transactions, setTransactions] = useState<Load<Array<Record<string, unknown>>>>({ state: "loading" });
   const [templates, setTemplates] = useState<Array<{ id: string; label: string; note: string }>>([]);
+  const [assets, setAssets] = useState<AssetSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -90,9 +108,15 @@ export default function PortfolioPage() {
   const [singleLimit, setSingleLimit] = useState("");
   const [sectorLimit, setSectorLimit] = useState("");
   const [changeThreshold, setChangeThreshold] = useState("");
+  const holdingSymbolRef = useRef<HTMLInputElement>(null);
+  const txSymbolRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
+
+    getAssets(controller.signal)
+      .then((data) => setAssets(Array.isArray(data) ? data : []))
+      .catch(() => setAssets([]));
 
     getPortfolio(controller.signal)
       .then((data) => setDashboard({ state: "ready", data }))
@@ -259,11 +283,17 @@ export default function PortfolioPage() {
             <div>
               <span>{t("Tổng giá trị danh mục", "Total Portfolio Value")}</span>
               <strong>{dashboardData.summary.holdings_count === 0 ? "0 VND" : money(dashboardData.summary.total_value, locale)}</strong>
+              {compactMoney(dashboardData.summary.total_value, locale) && (
+                <small className={styles.compactSub}>{compactMoney(dashboardData.summary.total_value, locale)}</small>
+              )}
               <Status value={dashboardData.summary.holdings_count === 0 ? "EMPTY" : dashboardData.summary.value_status} locale={locale} />
             </div>
             <div>
               <span>{t("Tổng giá vốn đầu tư", "Total Cost Basis")}</span>
               <strong>{money(dashboardData.summary.cost_basis, locale)}</strong>
+              {compactMoney(dashboardData.summary.cost_basis, locale) && (
+                <small className={styles.compactSub}>{compactMoney(dashboardData.summary.cost_basis, locale)}</small>
+              )}
               <small>{dashboardData.summary.holdings_count} {t("vị thế nắm giữ", "holdings")} · {dashboardData.summary.currency}</small>
             </div>
             <div>
@@ -282,7 +312,7 @@ export default function PortfolioPage() {
               <small>{dashboardData.summary.holdings_count === 0 ? t("Chưa có vị thế", "No holdings") : t("Chỉ tính khi mọi holding có giá", "Calculated only when all holdings have prices")}</small>
             </div>
             <div>
-              <span>{t("Chất lượng dữ liệu", "Data Quality")}</span>
+              <span>{t("Chất lượng & Rủi ro", "Data & Portfolio Risk")}</span>
               <strong>
                 {dashboardData.status === "AVAILABLE"
                   ? t("Sẵn sàng", "Available")
@@ -290,9 +320,22 @@ export default function PortfolioPage() {
                   ? t("Dữ liệu một phần", "Partial Data")
                   : t("Chưa có vị thế", "No Holdings")}
               </strong>
-              <small>{t("Tính đến", "As of")} {dateLabel(dashboardData.as_of_date, locale)}</small>
+              <small>
+                {dashboardData.risk_exposure.status === "AVAILABLE" && dashboardData.risk_exposure.value !== null
+                  ? `${t("Rủi ro DM", "Portfolio Risk")}: ${dashboardData.risk_exposure.value}/100 · `
+                  : ""}
+                {t("Tính đến", "As of")} {dateLabel(dashboardData.as_of_date, locale)}
+              </small>
             </div>
           </section>
+
+          <datalist id="vn100-tickers-list">
+            {assets.map((asset) => (
+              <option key={asset.symbol} value={asset.symbol}>
+                {asset.name} ({asset.exchange ?? "HOSE"})
+              </option>
+            ))}
+          </datalist>
 
           {dashboardData.concentration.warnings
             .filter((w) => !String(w.code).endsWith("_LIMIT_UNSET"))
@@ -367,8 +410,10 @@ export default function PortfolioPage() {
                       {dashboardData.holdings.map((holding) => (
                         <tr key={holding.id}>
                           <td>
-                            <strong>{holding.symbol}</strong>
-                            <small>{holding.name} · {holding.sector ?? t("Chưa phân ngành", "Unclassified")}</small>
+                            <Link href={`/research/${encodeURIComponent(holding.symbol)}`} className={styles.tickerLink}>
+                              <strong>{holding.symbol}</strong>
+                            </Link>
+                            <small>{holding.name} · {translateSectorName(holding.sector, locale)}</small>
                           </td>
                           <td>
                             <select
@@ -418,7 +463,9 @@ export default function PortfolioPage() {
                     <article key={holding.id}>
                       <header>
                         <div>
-                          <strong>{holding.symbol}</strong>
+                          <Link href={`/research/${encodeURIComponent(holding.symbol)}`} className={styles.tickerLink}>
+                            <strong>{holding.symbol}</strong>
+                          </Link>
                           <small>{holding.name}</small>
                         </div>
                         <Status value={holding.price_status} locale={locale} />
@@ -441,10 +488,37 @@ export default function PortfolioPage() {
             )}
 
             <form className={styles.form} onSubmit={addHolding}>
-              <h3>{t("+ Thêm vị thế mua thủ công", "+ Add Position Manually")}</h3>
+              <div className={styles.formTopRow}>
+                <h3>{t("+ Thêm vị thế mua thủ công", "+ Add Position Manually")}</h3>
+                <div className={styles.quickTickers} role="group" aria-label={t("Chọn nhanh mã VN100", "Quick-select VN100 tickers")}>
+                  <span>{t("Chọn nhanh:", "Quick pick:")}</span>
+                  {POPULAR_TICKERS.map((sym) => (
+                    <button
+                      key={sym}
+                      type="button"
+                      className={styles.tickerChip}
+                      onClick={() => {
+                        if (holdingSymbolRef.current) {
+                          holdingSymbolRef.current.value = sym;
+                          holdingSymbolRef.current.focus();
+                        }
+                      }}
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label>
                 {t("Mã cổ phiếu", "Ticker Symbol")}
-                <input name="symbol" required maxLength={20} placeholder={t("VD: FPT, MWG", "e.g. FPT, MWG")} />
+                <input
+                  ref={holdingSymbolRef}
+                  name="symbol"
+                  list="vn100-tickers-list"
+                  required
+                  maxLength={20}
+                  placeholder={t("VD: FPT, MWG", "e.g. FPT, MWG")}
+                />
               </label>
               <label>
                 {t("Khối lượng", "Shares / Quantity")}
@@ -456,7 +530,7 @@ export default function PortfolioPage() {
               </label>
               <label>
                 {t("Ngày khớp lệnh", "Acquisition Date")}
-                <input name="acquisition_date" required type="date" max={MAX_DATE_LIMIT} />
+                <input name="acquisition_date" required type="date" defaultValue={TODAY_ISO} max={MAX_DATE_LIMIT} />
               </label>
               <label>
                 {t("Vai trò danh mục", "Portfolio Role")}
@@ -528,9 +602,33 @@ export default function PortfolioPage() {
                   )}
                 </div>
               </div>
-              <p className={`${styles.sectionNote} ${styles.sectionNoteFooter}`}>
-                {t("Độ phơi nhiễm rủi ro / nhân tố", "Risk & factor exposures")}: {translateQuantEnum(dashboardData.risk_exposure.status, locale)} · {translateQuantEnum(dashboardData.factor_exposure.status, locale)}.
-              </p>
+              <div className={styles.quantExposurePanel}>
+                <div className={styles.quantExposureGrid}>
+                  <div className={styles.quantMetric}>
+                    <span>{t("Rủi ro gia quyền danh mục", "Weighted Portfolio Risk")}</span>
+                    <strong>
+                      {dashboardData.risk_exposure.value !== null ? `${dashboardData.risk_exposure.value}/100` : translateQuantEnum(dashboardData.risk_exposure.status, locale)}
+                    </strong>
+                  </div>
+                  <div className={styles.quantMetric}>
+                    <span>{t("Điểm nhân tố tổng hợp", "Composite Factor Score")}</span>
+                    <strong>
+                      {dashboardData.factor_exposure.value !== null ? `${dashboardData.factor_exposure.value}/100` : translateQuantEnum(dashboardData.factor_exposure.status, locale)}
+                    </strong>
+                  </div>
+                </div>
+                {dashboardData.factor_exposure.profile && Object.keys(dashboardData.factor_exposure.profile).length > 0 && (
+                  <div className={styles.factorProfileList}>
+                    {Object.entries(dashboardData.factor_exposure.profile).map(([fname, fscore]) => (
+                      <div className={styles.barRow} key={fname}>
+                        <span style={{ textTransform: "capitalize" }}>{fname}</span>
+                        <div><i style={{ width: `${Math.max(0, Math.min(100, Number(fscore)))}%` }} /></div>
+                        <b>{Number(fscore).toFixed(1)}</b>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className={styles.card}>
@@ -545,9 +643,11 @@ export default function PortfolioPage() {
               )}
               {fit.state === "ready" &&
                 fit.data.items.map((item) => (
-                  <article className={styles.fitRow} key={item.symbol}>
-                    <header>
-                      <strong>{item.symbol}</strong>
+                  <div className={styles.fitRow} key={item.symbol}>
+                    <header className={styles.fitHeader}>
+                      <Link href={`/research/${encodeURIComponent(item.symbol)}`} className={styles.tickerLink}>
+                        <strong>{item.symbol}</strong>
+                      </Link>
                       <Status value={item.status} locale={locale} />
                     </header>
                     <p>
@@ -556,8 +656,13 @@ export default function PortfolioPage() {
                     <p>
                       {t("Cơ hội", "Opportunity")} {item.opportunity_score ?? "—"} · {t("Độ tin cậy", "Confidence")} {translateQuantEnum(item.confidence, locale)} · {t("Rủi ro", "Risk")} {item.risk_score ?? "—"}
                     </p>
+                    <div className={styles.fitBadges}>
+                      <span className={styles.fitTag}>{t("Rủi ro vị thế", "Risk")}: {translateQuantEnum(item.risk_overlap, locale)}</span>
+                      <span className={styles.fitTag}>{t("Phân tán ngành", "Concentration")}: {translateQuantEnum(item.factor_overlap, locale)}</span>
+                      <span className={styles.fitTag}>{t("Khung T/G", "Horizon")}: {translateQuantEnum(item.horizon_compatibility, locale)}</span>
+                    </div>
                     <small>{item.note}</small>
-                  </article>
+                  </div>
                 ))}
             </div>
           </div>
@@ -575,6 +680,7 @@ export default function PortfolioPage() {
                     <div className={styles.targetRow} key={`${target.symbol}-${index}`}>
                       <input
                         aria-label={t(`Mã mục tiêu ${index + 1}`, `Target symbol ${index + 1}`)}
+                        list="vn100-tickers-list"
                         value={target.symbol}
                         placeholder={t("Mã CK", "Ticker")}
                         onChange={(event) =>
@@ -737,7 +843,7 @@ export default function PortfolioPage() {
             <form className={styles.form} onSubmit={addTransaction}>
               <label>
                 {t("Mã cổ phiếu", "Ticker Symbol")}
-                <input name="symbol" required placeholder={t("VD: FPT", "e.g. FPT")} />
+                <input ref={txSymbolRef} name="symbol" list="vn100-tickers-list" required placeholder={t("VD: FPT", "e.g. FPT")} />
               </label>
               <label>
                 {t("Loại giao dịch", "Transaction Type")}
@@ -758,7 +864,7 @@ export default function PortfolioPage() {
               </label>
               <label>
                 {t("Ngày giao dịch", "Transaction Date")}
-                <input name="transaction_date" required type="date" max={MAX_DATE_LIMIT} />
+                <input name="transaction_date" required type="date" defaultValue={TODAY_ISO} max={MAX_DATE_LIMIT} />
               </label>
               <label className={styles.notesField}>
                 {t("Ghi chú", "Notes")}

@@ -106,10 +106,106 @@ def print_diff_report(diff: Dict[str, Any], is_dry_run: bool):
 
 
 def execute_incremental_sync(local_session, neon_session, batch_size: int = 500):
-    """Executes safe chunked copy from Local DB to Neon Cloud DB."""
+    """Executes safe idempotent chunked copy from Local DB to Neon Cloud DB."""
     print(f"Starting chunked incremental synchronization (batch_size={batch_size})...")
-    # In actual cloud connection, stream missing primary keys and insert
-    print("Sync completed safely.")
+    local_assets_by_id = {a.id: a.symbol for a in local_session.query(Asset).all()}
+    neon_assets_by_symbol = {a.symbol: a.id for a in neon_session.query(Asset).all()}
+
+    inserted_counts = {"macro_commodities": 0, "bank_metrics": 0, "prices": 0}
+
+    # 1. Macro Commodities
+    existing_mc = {(r.commodity_code, r.observation_date) for r in neon_session.query(MacroCommodity.commodity_code, MacroCommodity.observation_date).all()}
+    mc_batch: list[MacroCommodity] = []
+    for row in local_session.query(MacroCommodity).all():
+        key = (row.commodity_code, row.observation_date)
+        if key not in existing_mc:
+            existing_mc.add(key)
+            mc_batch.append(MacroCommodity(
+                commodity_code=row.commodity_code,
+                observation_date=row.observation_date,
+                close_price=row.close_price,
+                change_pct=row.change_pct,
+                unit=row.unit,
+                source=row.source,
+            ))
+            if len(mc_batch) >= batch_size:
+                neon_session.add_all(mc_batch)
+                neon_session.commit()
+                inserted_counts["macro_commodities"] += len(mc_batch)
+                mc_batch.clear()
+    if mc_batch:
+        neon_session.add_all(mc_batch)
+        neon_session.commit()
+        inserted_counts["macro_commodities"] += len(mc_batch)
+
+    # 2. Bank Metrics (mapped via symbol -> neon asset_id)
+    existing_bm = {(r.asset_id, r.fiscal_period) for r in neon_session.query(BankMetric.asset_id, BankMetric.fiscal_period).all()}
+    bm_batch: list[BankMetric] = []
+    for row in local_session.query(BankMetric).all():
+        sym = local_assets_by_id.get(row.asset_id)
+        neon_asset_id = neon_assets_by_symbol.get(sym) if sym else None
+        if not neon_asset_id:
+            continue
+        key = (neon_asset_id, row.fiscal_period)
+        if key not in existing_bm:
+            existing_bm.add(key)
+            bm_batch.append(BankMetric(
+                asset_id=neon_asset_id,
+                fiscal_date=row.fiscal_date,
+                fiscal_period=row.fiscal_period,
+                credit_growth=row.credit_growth,
+                nim=row.nim,
+                casa_ratio=row.casa_ratio,
+                npl_ratio=row.npl_ratio,
+                llr_ratio=row.llr_ratio,
+                source=row.source,
+                status=row.status,
+            ))
+            if len(bm_batch) >= batch_size:
+                neon_session.add_all(bm_batch)
+                neon_session.commit()
+                inserted_counts["bank_metrics"] += len(bm_batch)
+                bm_batch.clear()
+    if bm_batch:
+        neon_session.add_all(bm_batch)
+        neon_session.commit()
+        inserted_counts["bank_metrics"] += len(bm_batch)
+
+    # 3. Prices (mapped via symbol -> neon asset_id)
+    existing_prices = {(r.asset_id, r.observation_date) for r in neon_session.query(Price.asset_id, Price.observation_date).all()}
+    p_batch: list[Price] = []
+    for row in local_session.query(Price).order_by(Price.observation_date.desc()).all():
+        sym = local_assets_by_id.get(row.asset_id)
+        neon_asset_id = neon_assets_by_symbol.get(sym) if sym else None
+        if not neon_asset_id:
+            continue
+        key = (neon_asset_id, row.observation_date)
+        if key not in existing_prices:
+            existing_prices.add(key)
+            p_batch.append(Price(
+                asset_id=neon_asset_id,
+                observation_date=row.observation_date,
+                raw_close=row.raw_close,
+                adjusted_close=row.adjusted_close,
+                adjustment_factor=row.adjustment_factor,
+                volume=row.volume,
+                turnover=row.turnover,
+                source=row.source,
+                data_quality_score=row.data_quality_score,
+                status=row.status,
+            ))
+            if len(p_batch) >= batch_size:
+                neon_session.add_all(p_batch)
+                neon_session.commit()
+                inserted_counts["prices"] += len(p_batch)
+                p_batch.clear()
+    if p_batch:
+        neon_session.add_all(p_batch)
+        neon_session.commit()
+        inserted_counts["prices"] += len(p_batch)
+
+    print(f"Sync completed safely: {inserted_counts}")
+    return inserted_counts
 
 
 def main():

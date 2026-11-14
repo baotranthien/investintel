@@ -164,6 +164,9 @@ export type ResearchMetric = {
   status: "AVAILABLE" | "STALE" | "INSUFFICIENT_DATA" | "NOT_MEANINGFUL";
   period: string | null;
   calculation: string | null;
+  verification_level?: string | null;
+  is_estimate?: boolean;
+  diagnostic_reason?: string | null;
   evidence: ResearchEvidence;
 };
 
@@ -192,12 +195,16 @@ export type ResearchWorkspace = {
   };
   price: {
     value: number | null;
+    raw_close?: number | null;
+    adjusted_close?: number | null;
+    price_semantics?: string | null;
     as_of_date: string | null;
     source: string | null;
     status: string;
     data_origin: string;
     retrieved_at: string | null;
     source_url: string | null;
+    history?: Array<{ date: string; close: number; raw_close?: number | null; volume: number }>;
   };
   opportunity: {
     score: number | null;
@@ -242,8 +249,10 @@ export type ResearchWorkspace = {
   valuation: {
     status: string;
     metrics: Record<string, ResearchMetric>;
-    fair_value: null | { bear: number; base: number; bull: number };
-    scenarios: Array<Record<string, unknown>>;
+    fair_value: number | null | { bear: number; base: number; bull: number };
+    valuation_range?: null | { bear: number; base: number; bull: number };
+    margin_of_safety?: number | null;
+    scenarios: Array<{ scenario?: string; fair_value?: number; upside_pct?: number | null } & Record<string, unknown>>;
     warnings: string[];
   };
   factors: { status: string; scores: Record<string, ResearchMetric>; supporting: string[]; contradicting: string[] };
@@ -306,7 +315,7 @@ export type PortfolioDashboard = {
   allocation: { status: string; sector: Array<{ sector: string; market_value: number; weight: number }>; core_satellite: Array<{ role: string; market_value: number; weight: number }> };
   concentration: { single_name_limit: number | null; sector_limit: number | null; warnings: Array<Record<string, unknown>> };
   risk_exposure: { status: string; value: number | null; note: string };
-  factor_exposure: { status: string; value: number | null; note: string };
+  factor_exposure: { status: string; value: number | null; profile?: Record<string, number>; note: string };
 };
 
 export type PortfolioSettings = {
