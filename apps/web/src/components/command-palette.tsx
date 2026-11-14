@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, useMemo, type JSX } from "react";
 import { useRouter } from "next/navigation";
 import { getAssets, type AssetSummary } from "@/lib/api";
 import { useCachedResource } from "@/lib/use-cached-resource";
-import { appNavigation } from "@/lib/navigation";
+import { appNavigation, getNavLabel } from "@/lib/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setThemePreference } from "@/lib/theme";
+import { useLocale, setLocalePreference } from "@/lib/i18n";
 import styles from "./command-palette.module.css";
 
 const POPULAR_SYMBOLS = ["FPT", "VCB", "HPG", "MBB", "MWG"];
@@ -18,6 +19,42 @@ function removeVietnameseDiacritics(str: string): string {
     .toLowerCase()
     .replace(/đ/g, "d")
     .replace(/Đ/g, "d");
+}
+
+function ActionIcon({ kind }: { kind: "dark" | "light" | "lang" | "settings" }) {
+  if (kind === "dark") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20.2 14.4A8.5 8.5 0 0 1 9.6 3.8a8.5 8.5 0 1 0 10.6 10.6Z" />
+      </svg>
+    );
+  }
+  if (kind === "light") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2.5v2M12 19.5v2M5.28 5.28l1.42 1.42M17.3 17.3l1.42 1.42M2.5 12h2M19.5 12h2M5.28 18.72l1.42-1.42M17.3 6.7l1.42-1.42" />
+      </svg>
+    );
+  }
+  if (kind === "lang") {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <line x1="3.6" y1="9" x2="20.4" y2="9" />
+        <line x1="3.6" y1="15" x2="20.4" y2="15" />
+        <path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <line x1="4" y1="17" x2="20" y2="17" />
+      <circle cx="9" cy="7" r="2.2" />
+      <circle cx="15" cy="17" r="2.2" />
+    </svg>
+  );
 }
 
 type PaletteItem =
@@ -41,7 +78,7 @@ type PaletteItem =
       id: string;
       group: "action";
       label: string;
-      icon?: string;
+      iconKind?: "dark" | "light" | "lang" | "settings";
       action: () => void;
     }
   | {
@@ -59,6 +96,7 @@ export default function CommandPalette({
   onClose: () => void;
 }): JSX.Element | null {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -66,7 +104,6 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Synchronize state during render instead of cascading effects
   const [prevOpen, setPrevOpen] = useState(open);
   if (prevOpen !== open) {
     setPrevOpen(open);
@@ -86,7 +123,6 @@ export default function CommandPalette({
     maxAgeMs: 10 * 60_000,
   });
 
-  // Track previous active element and autofocus when opened
   useEffect(() => {
     if (open) {
       previousActiveElementRef.current = document.activeElement as HTMLElement | null;
@@ -109,12 +145,11 @@ export default function CommandPalette({
     const normQuery = removeVietnameseDiacritics(trimmedQuery);
     const result: PaletteItem[] = [];
 
-    const themeActions = [
+    const quickActions = [
       {
         id: "action-theme-dark",
-        group: "action" as const,
-        label: "Chuyển giao diện: Chế độ Tối (Dark Mode)",
-        icon: "🌙",
+        label: t("Chuyển giao diện: Chế độ Tối", "Switch Theme: Dark Mode"),
+        iconKind: "dark" as const,
         keywords: ["toi", "dark", "giao dien", "theme", "night", "den"],
         action: () => {
           setThemePreference("dark");
@@ -123,9 +158,8 @@ export default function CommandPalette({
       },
       {
         id: "action-theme-light",
-        group: "action" as const,
-        label: "Chuyển giao diện: Chế độ Sáng (Light Mode)",
-        icon: "☀️",
+        label: t("Chuyển giao diện: Chế độ Sáng", "Switch Theme: Light Mode"),
+        iconKind: "light" as const,
         keywords: ["sang", "light", "giao dien", "theme", "day", "trang"],
         action: () => {
           setThemePreference("light");
@@ -133,21 +167,22 @@ export default function CommandPalette({
         },
       },
       {
-        id: "action-theme-system",
-        group: "action" as const,
-        label: "Chuyển giao diện: Tự động theo hệ thống (System)",
-        icon: "🖥️",
-        keywords: ["tu dong", "he thong", "system", "auto", "giao dien", "theme"],
+        id: "action-locale-toggle",
+        label:
+          locale === "en"
+            ? "Switch Language: Tiếng Việt (VI)"
+            : "Chuyển ngôn ngữ: English (EN)",
+        iconKind: "lang" as const,
+        keywords: ["en", "vi", "language", "ngon ngu", "english", "viet", "tieng anh"],
         action: () => {
-          setThemePreference("system");
+          setLocalePreference(locale === "en" ? "vi" : "en");
           onClose();
         },
       },
       {
         id: "action-settings-page",
-        group: "action" as const,
-        label: "Cài đặt & Tùy chọn hệ thống",
-        icon: "⚙️",
+        label: t("Cài đặt & Tùy chọn hệ thống", "Workspace Preferences & Settings"),
+        iconKind: "settings" as const,
         keywords: ["cai dat", "tuy chon", "preference", "settings", "cau hinh"],
         action: () => {
           router.push("/settings");
@@ -157,7 +192,6 @@ export default function CommandPalette({
     ];
 
     if (!trimmedQuery) {
-      // 1. Popular stocks
       const assetMap = new Map<string, AssetSummary>();
       if (assets.data) {
         for (const a of assets.data) {
@@ -184,12 +218,11 @@ export default function CommandPalette({
         });
       }
 
-      // 2. All pages
       for (const nav of appNavigation) {
         result.push({
           id: `page-${nav.href}`,
           group: "page",
-          label: nav.label,
+          label: getNavLabel(nav, locale),
           href: nav.href,
           action: () => {
             router.push(nav.href);
@@ -198,13 +231,12 @@ export default function CommandPalette({
         });
       }
 
-      // 3. Theme & Preferences quick actions
-      for (const act of themeActions) {
+      for (const act of quickActions) {
         result.push({
           id: act.id,
           group: "action",
           label: act.label,
-          icon: act.icon,
+          iconKind: act.iconKind,
           action: act.action,
         });
       }
@@ -212,8 +244,6 @@ export default function CommandPalette({
       return result;
     }
 
-    // When query is non-empty:
-    // a) Stocks matching query (priority: symbol startsWith -> symbol contains -> name contains)
     if (assets.data) {
       const startsWithMatches: AssetSummary[] = [];
       const containsSymbolMatches: AssetSummary[] = [];
@@ -257,15 +287,15 @@ export default function CommandPalette({
       }
     }
 
-    // b) Pages matching query
     for (const nav of appNavigation) {
-      const normLabel = removeVietnameseDiacritics(nav.label);
-      const normShort = removeVietnameseDiacritics(nav.shortLabel);
-      if (normLabel.includes(normQuery) || normShort.includes(normQuery)) {
+      const displayLabel = getNavLabel(nav, locale);
+      const normVi = removeVietnameseDiacritics(nav.label);
+      const normEn = removeVietnameseDiacritics(nav.labelEn);
+      if (normVi.includes(normQuery) || normEn.includes(normQuery)) {
         result.push({
           id: `page-${nav.href}`,
           group: "page",
-          label: nav.label,
+          label: displayLabel,
           href: nav.href,
           action: () => {
             router.push(nav.href);
@@ -275,8 +305,7 @@ export default function CommandPalette({
       }
     }
 
-    // c) Theme & Preferences matching query
-    for (const act of themeActions) {
+    for (const act of quickActions) {
       const normActLabel = removeVietnameseDiacritics(act.label);
       const matchKeyword = act.keywords.some((k) => normQuery.includes(k) || k.includes(normQuery));
       if (normActLabel.includes(normQuery) || matchKeyword) {
@@ -284,15 +313,14 @@ export default function CommandPalette({
           id: act.id,
           group: "action",
           label: act.label,
-          icon: act.icon,
+          iconKind: act.iconKind,
           action: act.action,
         });
       }
     }
 
-    // d) Ask AI option
     result.push({
-      id: `ai-ask`,
+      id: "ai-ask",
       group: "ai",
       query: trimmedQuery,
       action: () => {
@@ -302,9 +330,8 @@ export default function CommandPalette({
     });
 
     return result;
-  }, [open, query, assets.data, router, onClose]);
+  }, [open, query, assets.data, router, onClose, locale, t]);
 
-  // Scroll active item into view
   useEffect(() => {
     if (!listRef.current) return;
     const activeEl = listRef.current.querySelector<HTMLElement>("[aria-selected='true']");
@@ -359,19 +386,25 @@ export default function CommandPalette({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Tìm kiếm nhanh"
+        aria-label={t("Tìm kiếm nhanh", "Quick command search")}
         className={styles.dialog}
         onKeyDown={handleKeyDown}
       >
         <div className={styles.searchHeader}>
           <span className={styles.searchIcon} aria-hidden="true">
-            🔍
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
           </span>
           <input
             ref={inputRef}
             type="text"
             className={styles.input}
-            placeholder="Tìm mã cổ phiếu, trang hoặc hỏi AI…"
+            placeholder={t(
+              "Tìm mã cổ phiếu, trang hoặc hỏi AI…",
+              "Search ticker, route, or ask AI Analyst…"
+            )}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             role="combobox"
@@ -383,16 +416,17 @@ export default function CommandPalette({
             type="button"
             className={styles.closeButton}
             onClick={onClose}
-            aria-label="Đóng tìm kiếm"
+            aria-label={t("Đóng tìm kiếm", "Close search")}
           >
             Esc
           </button>
         </div>
 
         <ul id="palette-listbox" role="listbox" className={styles.list} ref={listRef}>
-          {/* STOCKS GROUP */}
           <div className={styles.groupHeader}>
-            {query.trim() ? "Cổ phiếu" : "Mã phổ biến"}
+            {query.trim()
+              ? t("Cổ phiếu", "Equities")
+              : t("Mã phổ biến", "Popular Tickers")}
           </div>
 
           {assets.isLoading && !assets.data && (
@@ -405,7 +439,10 @@ export default function CommandPalette({
 
           {assets.error && (
             <div className={styles.errorText}>
-              Không tải được danh sách mã — vẫn có thể hỏi AI.
+              {t(
+                "Không tải được danh sách mã — vẫn có thể hỏi AI.",
+                "Unable to load asset directory — AI Analyst remains available."
+              )}
             </div>
           )}
 
@@ -438,9 +475,9 @@ export default function CommandPalette({
                         e.stopPropagation();
                         item.actionAlt();
                       }}
-                      title="Hỏi AI Analyst về mã này"
+                      title={t("Mở trang Thị trường cho mã này", "Open Market view for this ticker")}
                     >
-                      Hỏi AI
+                      {t("Thị trường", "Market")}
                     </button>
                   </div>
                 </li>
@@ -450,10 +487,9 @@ export default function CommandPalette({
             return null;
           })}
 
-          {/* PAGES GROUP */}
           {items.some((i) => i.group === "page") && (
             <>
-              <div className={styles.groupHeader}>Trang</div>
+              <div className={styles.groupHeader}>{t("Trang", "Workspaces")}</div>
               {items.map((item, index) => {
                 if (item.group !== "page") return null;
                 const isSelected = index === selectedIndex;
@@ -476,10 +512,11 @@ export default function CommandPalette({
             </>
           )}
 
-          {/* ACTIONS & PREFERENCES GROUP */}
           {items.some((i) => i.group === "action") && (
             <>
-              <div className={styles.groupHeader}>Giao diện & Cài đặt</div>
+              <div className={styles.groupHeader}>
+                {t("Giao diện & Cài đặt", "Appearance & Preferences")}
+              </div>
               {items.map((item, index) => {
                 if (item.group !== "action") return null;
                 const isSelected = index === selectedIndex;
@@ -494,9 +531,12 @@ export default function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div className={styles.itemLeft}>
-                      {item.icon && (
-                        <span style={{ fontSize: "14px", marginRight: "8px", lineHeight: 1 }} aria-hidden="true">
-                          {item.icon}
+                      {item.iconKind && (
+                        <span
+                          style={{ display: "inline-flex", marginRight: "8px", opacity: 0.75 }}
+                          aria-hidden="true"
+                        >
+                          <ActionIcon kind={item.iconKind} />
                         </span>
                       )}
                       <span className={styles.itemName}>{item.label}</span>
@@ -507,10 +547,9 @@ export default function CommandPalette({
             </>
           )}
 
-          {/* AI QUERY GROUP */}
           {items.some((i) => i.group === "ai") && (
             <>
-              <div className={styles.groupHeader}>Trợ lý AI</div>
+              <div className={styles.groupHeader}>{t("Trợ lý AI", "AI Analyst")}</div>
               {items.map((item, index) => {
                 if (item.group !== "ai") return null;
                 const isSelected = index === selectedIndex;
@@ -525,8 +564,10 @@ export default function CommandPalette({
                     onMouseEnter={() => setSelectedIndex(index)}
                   >
                     <div className={styles.aiItem}>
-                      <span aria-hidden="true">✨</span>
-                      <span>Hỏi AI Analyst: “{item.query}”</span>
+                      <span aria-hidden="true">→</span>
+                      <span>
+                        {t("Hỏi Trợ lý AI:", "Ask AI Analyst:")} “{item.query}”
+                      </span>
                     </div>
                   </li>
                 );
@@ -536,7 +577,12 @@ export default function CommandPalette({
         </ul>
 
         <div className={styles.footer}>
-          <span>↑↓ di chuyển · Enter mở · Shift+Enter hỏi AI · Esc đóng</span>
+          <span>
+            {t(
+              "↑↓ di chuyển · Enter mở · Shift+Enter thị trường · Esc đóng",
+              "↑↓ navigate · Enter open · Shift+Enter market · Esc close"
+            )}
+          </span>
         </div>
       </div>
     </div>

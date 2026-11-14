@@ -248,12 +248,17 @@
   background: var(--surface-card);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-sm), var(--border-specular);
 }
 
 .tableScroll {
   width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
@@ -471,4 +476,58 @@
   font-size: 12px;
   color: var(--ink-secondary);
   align-self: center;
+}
+
+@media (max-width: 640px) {
+  .presetSection {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .filterCard {
+    padding: 14px;
+  }
+
+  .filterGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .filterField input,
+  .filterField select {
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  .filterActions {
+    justify-content: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .btnPrimary,
+  .btnReset,
+  .btnSecondary {
+    min-height: 42px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .viewBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .viewToggleGroup {
+    width: 100%;
+  }
+
+  .viewToggleBtn {
+    flex: 1;
+    min-height: 38px;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px 12px;
+  }
 }

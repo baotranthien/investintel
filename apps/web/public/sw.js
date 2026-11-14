@@ -1,7 +1,6 @@
 // Service Worker for InvestIntel PWA
-const CACHE_NAME = "investintel-shell-v1";
+const CACHE_NAME = "investintel-shell-v3";
 const STATIC_ASSETS = [
-  "/",
   "/manifest.json",
   "/favicon.ico",
 ];
@@ -53,7 +52,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For static assets: Stale-while-revalidate or Cache-first
+  // For HTML navigation and Next.js chunks: Network-First to prevent stale deployments/rebuilds
+  if (event.request.mode === "navigate" || url.pathname.startsWith("/_next/")) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === "basic") {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
+
+  // For remaining static assets: Stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {

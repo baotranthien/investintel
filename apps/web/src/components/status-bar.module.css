@@ -57,8 +57,42 @@
   background-color: var(--ink-muted);
 }
 
+.latencyGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ecgWave {
+  flex-shrink: 0;
+  animation: ecgPulseAnim 1.8s ease-in-out infinite;
+}
+
+@keyframes ecgPulseAnim {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.coordDisplay {
+  color: var(--ink-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
 .divider {
   opacity: 0.4;
+}
+
+@media (max-width: 1200px) {
+  .coordDisplay {
+    display: none;
+  }
 }
 
 @media (max-width: 1080px) {

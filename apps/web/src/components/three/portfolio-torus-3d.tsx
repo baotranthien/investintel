@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useMemo, type JSX } from "react";
+import React, { useRef, useState, useEffect, useMemo, useSyncExternalStore, type JSX } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useTheme } from "@/lib/theme";
+import { useLocale, type AppLocale } from "@/lib/i18n";
 
 export interface TorusAllocationItem {
   id?: string;
@@ -29,11 +30,25 @@ const DEFAULT_ALLOCATION: TorusAllocationItem[] = [
   { id: "cash", label: "Dự trữ thanh khoản", value: 20, color: "#f59e0b", role: "LIQUIDITY" },
 ];
 
-function InvalidateOnChange({ triggers }: { triggers: unknown[] }) {
+function translateAllocationLabel(item: TorusAllocationItem, locale: AppLocale): string {
+  const isEn = locale === "en";
+  if (item.id === "growth" || item.label === "Tăng trưởng") {
+    return isEn ? "Growth" : "Tăng trưởng";
+  }
+  if (item.id === "defense" || item.label.includes("Phòng thủ") || item.label.includes("Cổ tức")) {
+    return isEn ? "Defensive & Dividend" : "Phòng thủ & Cổ tức";
+  }
+  if (item.id === "cash" || item.label.includes("thanh khoản") || item.label.includes("Dự trữ")) {
+    return isEn ? "Liquidity Reserve" : "Dự trữ thanh khoản";
+  }
+  return item.label;
+}
+
+function InvalidateOnChange({ triggerKey }: { triggerKey: string }) {
   const invalidate = useThree((state) => state.invalidate);
   useEffect(() => {
     invalidate();
-  }, [invalidate, ...triggers]);
+  }, [invalidate, triggerKey]);
   return null;
 }
 
@@ -137,37 +152,45 @@ function PortfolioTorusScene({
     sceneRef.current.rotation.y = THREE.MathUtils.lerp(sceneRef.current.rotation.y, targetRotY, 0.08);
   });
 
-  // Calculate arc angles with subtle gaps
   const segments = useMemo(() => {
     const total = data.reduce((sum, d) => sum + d.value, 0) || 100;
-    const gapAngle = 0.04; // small visual gap between arcs
-    let currentAngle = 0;
+    const gapAngle = 0.04;
+    const list: Array<{
+      item: TorusAllocationItem;
+      idx: number;
+      startAngle: number;
+      arcAngle: number;
+    }> = [];
 
-    return data.map((item, idx) => {
+    let angleCursor = 0;
+    for (let idx = 0; idx < data.length; idx++) {
+      const item = data[idx];
       const proportion = item.value / total;
       const rawAngle = proportion * Math.PI * 2;
       const arcAngle = Math.max(0.1, rawAngle - gapAngle);
-      const startAngle = currentAngle + gapAngle / 2;
-      currentAngle += rawAngle;
+      const startAngle = angleCursor + gapAngle / 2;
+      angleCursor += rawAngle;
 
-      return {
+      list.push({
         item,
         idx,
         startAngle,
         arcAngle,
-      };
-    });
+      });
+    }
+    return list;
   }, [data]);
+
+  const triggerKey = `${hoveredIdx ?? "none"}-${effectiveTheme}-${data.length}`;
 
   return (
     <group ref={sceneRef} position={[0, 0, 0]} rotation={[-Math.PI / 8, 0, 0]}>
-      <InvalidateOnChange triggers={[hoveredIdx, data, effectiveTheme]} />
+      <InvalidateOnChange triggerKey={triggerKey} />
 
       <ambientLight intensity={isDark ? 0.95 : 1.3} />
       <directionalLight position={[3, 5, 5]} intensity={isDark ? 2.2 : 2.5} />
       <pointLight position={[-3, -2, 2]} intensity={1.2} color={isDark ? "#10B981" : "#38BDF8"} />
 
-      {/* Inner Glowing Halo Energy Ring */}
       <mesh rotation={[0, 0, 0]}>
         <torusGeometry args={[0.58, 0.014, 16, 64]} />
         <meshBasicMaterial
@@ -204,6 +227,7 @@ function PortfolioTorus3DInner({
   style,
 }: PortfolioTorus3DProps): JSX.Element {
   const { effectiveTheme } = useTheme();
+  const { locale, t } = useLocale();
   const [internalHovered, setInternalHovered] = useState<number | null>(null);
 
   const hoveredIdx = activeSegment !== null ? activeSegment : internalHovered;
@@ -229,7 +253,7 @@ function PortfolioTorus3DInner({
         justifyContent: "center",
         ...style,
       }}
-      aria-label="Biểu đồ tỷ trọng phân bổ danh mục 3D"
+      aria-label={t("Biểu đồ tỷ trọng phân bổ danh mục 3D", "3D Portfolio Asset Allocation Torus")}
       role="img"
     >
       <Canvas
@@ -247,7 +271,7 @@ function PortfolioTorus3DInner({
         />
       </Canvas>
 
-      {/* Donut Center Info HUD (Phần tử 2D nguyên bản, triệt tiêu 100% xung đột unmount React 19) */}
+      {/* Donut Center Info HUD */}
       <div
         style={{
           position: "absolute",
@@ -286,14 +310,13 @@ function PortfolioTorus3DInner({
             letterSpacing: "0.02em",
           }}
         >
-          {hoveredItem ? hoveredItem.label : "PHÂN BỔ"}
+          {hoveredItem ? translateAllocationLabel(hoveredItem, locale) : t("PHÂN BỔ", "ALLOCATION")}
         </div>
       </div>
     </div>
   );
 }
 
-// Fallback for zero SSR blocking
 function TorusFallback({ size = 200 }: { size?: number }): JSX.Element {
   return (
     <div
@@ -313,10 +336,11 @@ function TorusFallback({ size = 200 }: { size?: number }): JSX.Element {
 }
 
 export function PortfolioTorus3D(props: PortfolioTorus3DProps): JSX.Element {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     return <TorusFallback size={props.size} />;
@@ -326,4 +350,3 @@ export function PortfolioTorus3D(props: PortfolioTorus3DProps): JSX.Element {
 }
 
 export default PortfolioTorus3D;
-

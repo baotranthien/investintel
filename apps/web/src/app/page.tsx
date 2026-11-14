@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, type FormEvent, type JSX } from "react";
+import React, { useState, useMemo, type FormEvent, type JSX } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,26 +8,35 @@ import {
   getOpportunityScanner,
   getDataProviders,
   getAssets,
-  getPortfolio,
-  getWatchlist,
   type OpportunityFilters,
-  type PortfolioDashboard,
-  type WatchlistItem,
 } from "@/lib/api";
-import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { useCachedResource, formatUpdatedAt } from "@/lib/use-cached-resource";
 import { SpatialBentoCard } from "@/components/three/spatial-bento-card";
 import { QuantCoreOrb3D } from "@/components/three/quant-core-orb-3d";
-import { PortfolioTorus3D } from "@/components/three/portfolio-torus-3d";
+import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
+import {
+  useLocale,
+  pickLocaleText,
+  translateSectorName,
+  translateOpportunityDriver,
+  type AppLocale,
+} from "@/lib/i18n";
 import styles from "./page.module.css";
 
-const PROMPT_SUGGESTIONS = [
-  "Phân tích biên LN VNM",
-  "Định giá DCF mã FPT",
-  "Độ lành mạnh BCTC HPG",
-];
+const PROMPT_SUGGESTIONS: Record<AppLocale, string[]> = {
+  vi: [
+    "Phân tích biên LN VNM",
+    "Định giá DCF mã FPT",
+    "Độ lành mạnh BCTC HPG",
+  ],
+  en: [
+    "VNM margin analysis",
+    "FPT DCF valuation",
+    "HPG balance sheet health",
+  ],
+};
 
 const DEFAULT_OPP_FILTERS: OpportunityFilters = {
   universe: "VN100",
@@ -40,62 +49,97 @@ const DEFAULT_OPP_FILTERS: OpportunityFilters = {
   valuationStatus: "",
 };
 
-function formatNumber(value: number | null | undefined, digits = 2): string {
+function formatNumber(value: number | null | undefined, digits = 2, locale: AppLocale = "vi"): string {
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return "—";
   }
-  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: digits }).format(value);
+  return new Intl.NumberFormat(locale === "en" ? "en-US" : "vi-VN", { maximumFractionDigits: digits }).format(value);
 }
 
-function translateRegime(regime?: string): string {
-  if (!regime) return "Đang phân tích";
+function translateRegime(regime: string | undefined, locale: AppLocale): string {
+  if (!regime) return locale === "en" ? "Analyzing..." : "Đang phân tích";
   switch (regime.toUpperCase()) {
     case "EXPANSION":
-      return "Tăng trưởng";
+      return locale === "en" ? "Expansion (Bullish)" : "Tăng trưởng";
     case "RECOVERY":
-      return "Phục hồi";
+      return locale === "en" ? "Recovery" : "Phục hồi";
     case "NEUTRAL":
-      return "Cân bằng / Phân hóa";
+      return locale === "en" ? "Neutral / Divergent" : "Cân bằng / Phân hóa";
     case "INFLATIONARY":
-      return "Lạm phát";
+      return locale === "en" ? "Inflationary" : "Lạm phát";
     case "TIGHTENING":
-      return "Thắt chặt";
+      return locale === "en" ? "Tightening" : "Thắt chặt";
     case "RISK_OFF":
-      return "Phòng thủ";
+      return locale === "en" ? "Risk-Off (Defensive)" : "Phòng thủ";
     case "STRESS":
-      return "Căng thẳng";
+      return locale === "en" ? "Market Stress" : "Căng thẳng";
     case "INSUFFICIENT_DATA":
-      return "Chưa đủ dữ liệu";
+      return locale === "en" ? "Insufficient Data" : "Chưa đủ dữ liệu";
     default:
       return regime.replace(/_/g, " ");
   }
 }
 
+function TacticalCornerBrackets() {
+  return (
+    <div className={styles.cornerBrackets} aria-hidden="true">
+      <span className={`${styles.cornerBracket} ${styles.cbTL}`} />
+      <span className={`${styles.cornerBracket} ${styles.cbTR}`} />
+      <span className={`${styles.cornerBracket} ${styles.cbBL}`} />
+      <span className={`${styles.cornerBracket} ${styles.cbBR}`} />
+    </div>
+  );
+}
+
+function OpportunityRowItem({
+  symbol,
+  name,
+  thesis,
+  score,
+  locale,
+}: {
+  symbol: string;
+  name: string;
+  thesis: string;
+  score: number;
+  locale: AppLocale;
+}) {
+  const targetHref = buildOpportunityAIUrl(symbol);
+
+  return (
+    <div className={styles.oppRow}>
+      <Link
+        href={targetHref}
+        className={styles.oppLeftLink}
+        title={locale === "en" ? `View quantitative analysis for ${symbol}` : `Xem phân tích định lượng mã ${symbol}`}
+      >
+        <div className={styles.oppSymbolBadge}>{symbol}</div>
+        <div className={styles.oppInfo}>
+          <span className={styles.oppName}>{name}</span>
+          <span className={styles.oppThesis}>{thesis}</span>
+        </div>
+      </Link>
+      <div className={styles.oppRight}>
+        <div className={styles.scoreContainer}>
+          <span className={styles.oppScoreValue}>
+            {locale === "en" ? "Score:" : "Điểm:"} <strong>{score}</strong>/100
+          </span>
+          <div className={styles.scoreBarTrack}>
+            <div className={styles.scoreBarFill} style={{ width: `${score}%` }} />
+          </div>
+        </div>
+        <Link href={targetHref} className={styles.oppAnalyzeLink}>
+          {`[ AI // ${symbol} → ]`}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function Home(): JSX.Element {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const [aiQuery, setAiQuery] = useState("");
-  const [hoveredTorusIdx, setHoveredTorusIdx] = useState<number | null>(null);
-  const [portfolioData, setPortfolioData] = useState<PortfolioDashboard | null>(null);
-  const [watchlistData, setWatchlistData] = useState<WatchlistItem[] | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    getPortfolio()
-      .then((data) => {
-        if (active) setPortfolioData(data);
-      })
-      .catch(() => {});
-
-    getWatchlist()
-      .then((items) => {
-        if (active) setWatchlistData(items);
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // TẦNG 1: Market Dashboard cache 60s
   const marketResource = useCachedResource(
@@ -151,13 +195,13 @@ export default function Home(): JSX.Element {
       : 0);
 
   const regimeRaw = marketData?.market_regime.regime;
-  const regimeLabel = translateRegime(regimeRaw);
+  const regimeLabel = translateRegime(regimeRaw, locale);
 
-  // Top 3 opportunities
+  // Top 5 opportunities (fills Bento panel evenly alongside Benchmark chart)
   const topOpportunities = opportunitiesResource.data?.results
     ? [...opportunitiesResource.data.results]
         .sort((a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0))
-        .slice(0, 3)
+        .slice(0, 5)
     : [];
 
   // Real Quant Benchmark Metrics computed 100% from live API
@@ -185,16 +229,16 @@ export default function Home(): JSX.Element {
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
 
   const benchmarkPoints = useMemo(() => [
-    { label: "Tháng 1", shortLabel: "Th1", x: 50, quantY: 150, benchY: 160, quantScore: 58, benchScore: "1,540", isForecast: false },
-    { label: "Tháng 2", shortLabel: "Th2", x: 120, quantY: 140, benchY: 155, quantScore: 63, benchScore: "1,572", isForecast: false },
-    { label: "Tháng 3", shortLabel: "Th3", x: 190, quantY: 110, benchY: 135, quantScore: 76, benchScore: "1,625", isForecast: false },
-    { label: "Tháng 4", shortLabel: "Th4", x: 260, quantY: 120, benchY: 140, quantScore: 72, benchScore: "1,605", isForecast: false },
-    { label: "Tháng 5", shortLabel: "Th5", x: 330, quantY: 85, benchY: 122, quantScore: 84, benchScore: "1,680", isForecast: false },
-    { label: "Phiên EOD", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Number(topQuantScore) || 88, benchScore: formatNumber(vnIndex?.metric.value ?? 1767.14), isForecast: false },
-    { label: "Dự phóng T+5", shortLabel: "T+5", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 3)), benchScore: "+3.8%", isForecast: true },
-    { label: "Dự phóng T+10", shortLabel: "T+10", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 7)), benchScore: "+8.2%", isForecast: true },
-    { label: "Dự phóng T+20", shortLabel: "T+20", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 12)), benchScore: "+14.5%", isForecast: true },
-  ], [yEodQuant, yEodBench, topQuantScore, vnIndex]);
+    { label: locale === "en" ? "Month 1" : "Tháng 1", shortLabel: locale === "en" ? "M1" : "Th1", x: 50, quantY: 150, benchY: 160, quantScore: 58, benchScore: "1,540", isForecast: false },
+    { label: locale === "en" ? "Month 2" : "Tháng 2", shortLabel: locale === "en" ? "M2" : "Th2", x: 120, quantY: 140, benchY: 155, quantScore: 63, benchScore: "1,572", isForecast: false },
+    { label: locale === "en" ? "Month 3" : "Tháng 3", shortLabel: locale === "en" ? "M3" : "Th3", x: 190, quantY: 110, benchY: 135, quantScore: 76, benchScore: "1,625", isForecast: false },
+    { label: locale === "en" ? "Month 4" : "Tháng 4", shortLabel: locale === "en" ? "M4" : "Th4", x: 260, quantY: 120, benchY: 140, quantScore: 72, benchScore: "1,605", isForecast: false },
+    { label: locale === "en" ? "Month 5" : "Tháng 5", shortLabel: locale === "en" ? "M5" : "Th5", x: 330, quantY: 85, benchY: 122, quantScore: 84, benchScore: "1,680", isForecast: false },
+    { label: locale === "en" ? "EOD Session" : "Phiên EOD", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Number(topQuantScore) || 88, benchScore: formatNumber(vnIndex?.metric.value ?? 1767.14, 2, locale), isForecast: false },
+    { label: locale === "en" ? "T+5 Forecast" : "Dự phóng T+5", shortLabel: "T+5", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 3)), benchScore: "+3.8%", isForecast: true },
+    { label: locale === "en" ? "T+10 Forecast" : "Dự phóng T+10", shortLabel: "T+10", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 7)), benchScore: "+8.2%", isForecast: true },
+    { label: locale === "en" ? "T+20 Forecast" : "Dự phóng T+20", shortLabel: "T+20", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 12)), benchScore: "+14.5%", isForecast: true },
+  ], [locale, yEodQuant, yEodBench, topQuantScore, vnIndex]);
 
   const activeScrubPoint = scrubIndex !== null ? benchmarkPoints[scrubIndex] : benchmarkPoints[5];
 
@@ -245,21 +289,26 @@ export default function Home(): JSX.Element {
     assetsResource.reload();
   };
 
+  const promptSuggestions = PROMPT_SUGGESTIONS[locale];
+
   return (
     <div className={styles.page}>
-      {/* Header chuẩn terminal workstation */}
+      {/* Header chuẩntần terminal workstation */}
       <PageHeader
-        title="Bàn làm việc Tổng quan"
-        description="Trạm phân tích định lượng & hỗ trợ quyết định đầu tư chứng khoán theo chuẩn Point-in-Time."
+        title={t("Bàn làm việc Tổng quan", "Executive Overview Workstation")}
+        description={t(
+          "Trạm phân tích định lượng & hỗ trợ quyết định đầu tư chứng khoán theo chuẩn Point-in-Time.",
+          "Institutional quantitative research and decision support workstation with Point-in-Time precision."
+        )}
         meta={
           <div className={styles.headerMeta}>
             <span className={styles.engineBadge} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
               <QuantCoreOrb3D status="ready" size={20} />
-              DETERMINISTIC QUANT ENGINE
+              {t("ĐỘNG CƠ ĐỊNH LƯỢNG", "DETERMINISTIC QUANT ENGINE")}
             </span>
             {marketResource.updatedAt ? (
               <span className={styles.updatedTime} suppressHydrationWarning>
-                {formatUpdatedAt(marketResource.updatedAt)}
+                {formatUpdatedAt(marketResource.updatedAt, locale)}
               </span>
             ) : null}
           </div>
@@ -270,9 +319,9 @@ export default function Home(): JSX.Element {
               type="button"
               className={styles.refreshButton}
               onClick={handleRefreshAll}
-              aria-label="Làm mới toàn bộ hệ thống"
+              aria-label={t("Làm mới toàn bộ hệ thống", "Refresh entire system")}
             >
-              ↻ <span>Làm mới</span>
+              ↻ <span>{t("Làm mới", "Refresh")}</span>
             </button>
           </div>
         }
@@ -281,70 +330,75 @@ export default function Home(): JSX.Element {
       {/* ====================================================================
           TẦNG 1 — 3 Thẻ KPI Chỉ số Ngang Hàng (Finotive Tier 1)
           ==================================================================== */}
-      <section aria-label="Chỉ số thị trường cốt lõi">
+      <section aria-label={t("Chỉ số thị trường cốt lõi", "Core market benchmark indices")}>
         <div className={styles.finotiveKpiGrid}>
           {/* KPI 1: VN-Index */}
           <Link
             href="/market#indices"
             className={styles.kpiCard}
-            title="Xem chi tiết Chỉ số Thị trường và Độ rộng dòng tiền"
+            title={t("Xem chi tiết Chỉ số Thị trường và Độ rộng dòng tiền", "View detailed market indices and liquidity breadth")}
           >
+            <TacticalCornerBrackets />
             <div className={styles.kpiHeader}>
-              <span className={styles.kpiTitle}>Chỉ số VN-Index</span>
-              <span className={styles.kpiActionHint} aria-hidden="true">Thị trường →</span>
+              <span className={styles.kpiTitle}>{t("Chỉ số VN-Index", "VN-Index Benchmark")}</span>
+              <span className={styles.kpiActionHint} aria-hidden="true">{t("Thị trường →", "Market →")}</span>
             </div>
             <div className={styles.kpiMain}>
               <strong className={`${styles.kpiValue} tabular-nums`}>
-                {formatNumber(vnIndex?.metric.value ?? 1284.5)}
+                {formatNumber(vnIndex?.metric.value ?? 1284.5, 2, locale)}
               </strong>
               <span className="badge-pill-up">
                 ↗ +1.42%
               </span>
             </div>
-            <span className={styles.kpiSub}>Sàn HOSE · Dữ liệu chuẩn mốc EOD</span>
+            <span className={styles.kpiSub}>{t("Sàn HOSE · Dữ liệu chuẩn mốc EOD", "HOSE Exchange · Point-in-Time EOD Data")}</span>
           </Link>
 
           {/* KPI 2: VN30 */}
           <Link
             href="/market#vn30"
             className={styles.kpiCard}
-            title="Xem chi tiết Chỉ số VN30 và danh mục 30 cổ phiếu dẫn dắt"
+            title={t("Xem chi tiết Chỉ số VN30 và danh mục 30 cổ phiếu dẫn dắt", "View VN30 index and top 30 blue-chip constituents")}
           >
+            <TacticalCornerBrackets />
             <div className={styles.kpiHeader}>
-              <span className={styles.kpiTitle}>Chỉ số VN30</span>
-              <span className={styles.kpiActionHint} aria-hidden="true">Chi tiết →</span>
+              <span className={styles.kpiTitle}>{t("Chỉ số VN30", "VN30 Blue-Chip Index")}</span>
+              <span className={styles.kpiActionHint} aria-hidden="true">{t("Chi tiết →", "Details →")}</span>
             </div>
             <div className={styles.kpiMain}>
               <strong className={`${styles.kpiValue} tabular-nums`}>
-                {formatNumber(vn30?.metric.value ?? 1312.8)}
+                {formatNumber(vn30?.metric.value ?? 1312.8, 2, locale)}
               </strong>
               <span className="badge-pill-up">
                 ↗ +1.85%
               </span>
             </div>
-            <span className={styles.kpiSub}>Top 30 cổ phiếu vốn hóa & thanh khoản cao</span>
+            <span className={styles.kpiSub}>{t("Top 30 cổ phiếu vốn hóa & thanh khoản cao", "Top 30 large-cap & high-liquidity equities")}</span>
           </Link>
 
           {/* KPI 3: Market Breadth & Regime */}
           <Link
             href="/market#regime"
             className={styles.kpiCard}
-            title="Xem chi tiết Phân bổ Độ rộng dòng tiền & Market Regime"
+            title={t("Xem chi tiết Phân bổ Độ rộng dòng tiền & Market Regime", "View liquidity breadth distribution and market regime")}
           >
+            <TacticalCornerBrackets />
             <div className={styles.kpiHeader}>
-              <span className={styles.kpiTitle}>Độ rộng & Regime</span>
-              <span className={styles.kpiActionHint} aria-hidden="true">Regime →</span>
+              <span className={styles.kpiTitle}>{t("Độ rộng & Regime", "Breadth & Regime")}</span>
+              <span className={styles.kpiActionHint} aria-hidden="true">{t("Regime →", "Regime →")}</span>
             </div>
             <div className={styles.kpiMain}>
               <strong className={`${styles.kpiValue} tabular-nums`} style={{ fontSize: "20px" }}>
-                {advancing} Tăng · {declining} Giảm
+                {advancing} {t("Tăng", "Adv")} · {declining} {t("Giảm", "Dec")}
               </strong>
               <StatusBadge
                 status={regimeRaw === "INSUFFICIENT_DATA" ? "warn" : "ok"}
                 label={regimeLabel}
               />
             </div>
-            <span className={styles.kpiSub}>{unchanged} mã đứng giá · Thanh khoản tích cực</span>
+            <span className={styles.kpiSub}>
+              {unchanged} {t("mã đứng giá · Thanh khoản tích cực", "unchanged · Active liquidity")}
+            </span>
           </Link>
         </div>
       </section>
@@ -352,196 +406,126 @@ export default function Home(): JSX.Element {
       {/* ====================================================================
           TẦNG 2 — BENTO GRID 2 CỘT: CƠ HỘI ĐỊNH LƯỢNG & ĐỐI SÁNH HIỆU SUẤT
           ==================================================================== */}
-      <section className={styles.quantWorkstationGrid} aria-label="Trung tâm nghiên cứu định lượng">
+      <section className={styles.quantWorkstationGrid} aria-label={t("Trung tâm nghiên cứu định lượng", "Quantitative research workstation")}>
         {/* Cột Trái (1.25fr): Top Cơ hội Định lượng VN100 */}
         <div className={styles.opportunitiesPanel}>
+          <TacticalCornerBrackets />
           <div className={styles.panelHeader}>
             <div className={styles.panelTitleGroup}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span className={styles.quantIndicatorDot} aria-hidden="true" />
                 <span className={styles.panelEyebrow}>QUANT EQUITY RESEARCH</span>
               </div>
-              <h2 className={styles.panelTitle}>Top Cơ hội Định lượng VN100</h2>
+              <h2 className={styles.panelTitle}>{t("Top Cơ hội Định lượng VN100", "Top VN100 Quantitative Opportunities")}</h2>
             </div>
             <span className={styles.panelMetaBadge}>EOD Point-in-Time</span>
           </div>
 
           <div className={styles.oppList}>
             {topOpportunities.length > 0 ? (
-              topOpportunities.slice(0, 4).map((opp) => (
-                <div key={opp.symbol} className={styles.oppRow}>
-                  <Link
-                    href={`/ai?symbol=${encodeURIComponent(opp.symbol)}&source=opportunities`}
-                    className={styles.oppLeftLink}
-                    title={`Xem phân tích định lượng & luận điểm đầu tư mã ${opp.symbol}`}
-                  >
-                    <div className={styles.oppSymbolBadge}>
-                      {opp.symbol}
-                    </div>
-                    <div className={styles.oppInfo}>
-                      <span className={styles.oppName}>
-                        {opp.symbol} · {opp.sector ?? opp.name ?? "VN100"}
-                      </span>
-                      <span className={styles.oppThesis}>
-                        {opp.why_now?.[0]?.description ?? `Biên an toàn định giá ${opp.margin_of_safety ? `${opp.margin_of_safety.toFixed(1)}%` : "dương"} · Định giá ${opp.valuation_status ?? "HẤP DẪN"}`}
-                      </span>
-                    </div>
-                  </Link>
-                  <div className={styles.oppRight}>
-                    <div className={styles.scoreContainer}>
-                      <span className={styles.oppScoreValue}>
-                        Score: <strong>{opp.opportunity_score ?? 85}</strong>/100
-                      </span>
-                      <div className={styles.scoreBarTrack}>
-                        <div
-                          className={styles.scoreBarFill}
-                          style={{ width: `${Math.min(100, opp.opportunity_score ?? 85)}%` }}
-                        />
-                      </div>
-                    </div>
-                    <Link
-                      href={`/ai?symbol=${encodeURIComponent(opp.symbol)}&source=opportunities`}
-                      className={styles.oppAnalyzeLink}
-                      title={`Tra cứu & Phân tích AI chuyên sâu mã ${opp.symbol}`}
-                    >
-                      Hỏi AI →
-                    </Link>
-                  </div>
-                </div>
-              ))
+              topOpportunities.slice(0, 5).map((opp) => {
+                const sectorLabel = opp.sector
+                  ? translateSectorName(opp.sector, locale)
+                  : opp.name ?? "VN100";
+                const mosText =
+                  typeof opp.margin_of_safety === "number" && !Number.isNaN(opp.margin_of_safety)
+                    ? ` · MoS ${opp.margin_of_safety >= 0 ? "+" : ""}${opp.margin_of_safety.toFixed(1)}%`
+                    : "";
+                return (
+                  <OpportunityRowItem
+                    key={opp.symbol}
+                    symbol={opp.symbol}
+                    name={`${opp.symbol} · ${sectorLabel}${mosText}`}
+                    thesis={
+                      opp.why_now?.[0]?.description
+                        ? translateOpportunityDriver(opp.why_now[0].description, locale)
+                        : pickLocaleText(
+                            locale,
+                            `Biên an toàn định giá ${opp.margin_of_safety ? `${opp.margin_of_safety.toFixed(1)}%` : "dương"} · Định giá ${opp.valuation_status ?? "HẤP DẪN"}`,
+                            `Margin of safety ${opp.margin_of_safety ? `${opp.margin_of_safety.toFixed(1)}%` : "positive"} · Valuation: ${opp.valuation_status ?? "ATTRACTIVE"}`
+                          )
+                    }
+                    score={Math.round(opp.opportunity_score ?? 85)}
+                    locale={locale}
+                  />
+                );
+              })
             ) : (
               <>
-                <div className={styles.oppRow}>
-                  <Link
-                    href="/ai?symbol=FPT"
-                    className={styles.oppLeftLink}
-                    title="Xem phân tích định lượng mã FPT"
-                  >
-                    <div className={styles.oppSymbolBadge}>FPT</div>
-                    <div className={styles.oppInfo}>
-                      <span className={styles.oppName}>FPT · Công nghệ</span>
-                      <span className={styles.oppThesis}>Tăng trưởng doanh thu Cloud/AI +28% YoY · P/E 19.8x</span>
-                    </div>
-                  </Link>
-                  <div className={styles.oppRight}>
-                    <div className={styles.scoreContainer}>
-                      <span className={styles.oppScoreValue}>Score: <strong>88</strong>/100</span>
-                      <div className={styles.scoreBarTrack}>
-                        <div className={styles.scoreBarFill} style={{ width: "88%" }} />
-                      </div>
-                    </div>
-                    <Link href="/ai?symbol=FPT" className={styles.oppAnalyzeLink}>
-                      Hỏi AI →
-                    </Link>
-                  </div>
-                </div>
-
-                <div className={styles.oppRow}>
-                  <Link
-                    href="/ai?symbol=HPG"
-                    className={styles.oppLeftLink}
-                    title="Xem phân tích định lượng mã HPG"
-                  >
-                    <div className={styles.oppSymbolBadge}>HPG</div>
-                    <div className={styles.oppInfo}>
-                      <span className={styles.oppName}>HPG · Vật liệu cơ bản</span>
-                      <span className={styles.oppThesis}>Dung Quất 2 chạy thử · Biên lợi nhuận thép HRC phục hồi</span>
-                    </div>
-                  </Link>
-                  <div className={styles.oppRight}>
-                    <div className={styles.scoreContainer}>
-                      <span className={styles.oppScoreValue}>Score: <strong>84</strong>/100</span>
-                      <div className={styles.scoreBarTrack}>
-                        <div className={styles.scoreBarFill} style={{ width: "84%" }} />
-                      </div>
-                    </div>
-                    <Link href="/ai?symbol=HPG" className={styles.oppAnalyzeLink}>
-                      Hỏi AI →
-                    </Link>
-                  </div>
-                </div>
-
-                <div className={styles.oppRow}>
-                  <Link
-                    href="/ai?symbol=MWG"
-                    className={styles.oppLeftLink}
-                    title="Xem phân tích định lượng mã MWG"
-                  >
-                    <div className={styles.oppSymbolBadge}>MWG</div>
-                    <div className={styles.oppInfo}>
-                      <span className={styles.oppName}>MWG · Bán lẻ</span>
-                      <span className={styles.oppThesis}>Bách Hóa Xanh bắt đầu đóng góp lợi nhuận ròng dương</span>
-                    </div>
-                  </Link>
-                  <div className={styles.oppRight}>
-                    <div className={styles.scoreContainer}>
-                      <span className={styles.oppScoreValue}>Score: <strong>81</strong>/100</span>
-                      <div className={styles.scoreBarTrack}>
-                        <div className={styles.scoreBarFill} style={{ width: "81%" }} />
-                      </div>
-                    </div>
-                    <Link href="/ai?symbol=MWG" className={styles.oppAnalyzeLink}>
-                      Hỏi AI →
-                    </Link>
-                  </div>
-                </div>
-
-                <div className={styles.oppRow}>
-                  <Link
-                    href="/ai?symbol=VCB"
-                    className={styles.oppLeftLink}
-                    title="Xem phân tích định lượng mã VCB"
-                  >
-                    <div className={styles.oppSymbolBadge}>VCB</div>
-                    <div className={styles.oppInfo}>
-                      <span className={styles.oppName}>VCB · Ngân hàng</span>
-                      <span className={styles.oppThesis}>Tỷ lệ bao phủ nợ xấu dẫn đầu hệ thống 230% · NIM ổn định</span>
-                    </div>
-                  </Link>
-                  <div className={styles.oppRight}>
-                    <div className={styles.scoreContainer}>
-                      <span className={styles.oppScoreValue}>Score: <strong>79</strong>/100</span>
-                      <div className={styles.scoreBarTrack}>
-                        <div className={styles.scoreBarFill} style={{ width: "79%" }} />
-                      </div>
-                    </div>
-                    <Link href="/ai?symbol=VCB" className={styles.oppAnalyzeLink}>
-                      Hỏi AI →
-                    </Link>
-                  </div>
-                </div>
+                <OpportunityRowItem
+                  symbol="FPT"
+                  name={t("FPT · Công nghệ", "FPT · Technology")}
+                  thesis={t("Tăng trưởng doanh thu Cloud/AI +28% YoY · P/E 19.8x", "Cloud/AI revenue growth +28% YoY · P/E 19.8x")}
+                  score={88}
+                  locale={locale}
+                />
+                <OpportunityRowItem
+                  symbol="HPG"
+                  name={t("HPG · Vật liệu cơ bản", "HPG · Basic Materials")}
+                  thesis={t("Dung Quất 2 chạy thử · Biên lợi nhuận thép HRC phục hồi", "Dung Quat 2 trial run · HRC steel gross margin recovering")}
+                  score={84}
+                  locale={locale}
+                />
+                <OpportunityRowItem
+                  symbol="MWG"
+                  name={t("MWG · Bán lẻ", "MWG · Retail")}
+                  thesis={t("Bách Hóa Xanh bắt đầu đóng góp lợi nhuận ròng dương", "Bach Hoa Xanh grocery begins positive net profit contribution")}
+                  score={81}
+                  locale={locale}
+                />
+                <OpportunityRowItem
+                  symbol="VCB"
+                  name={t("VCB · Ngân hàng", "VCB · Banking")}
+                  thesis={t("Tỷ lệ bao phủ nợ xấu dẫn đầu hệ thống 230% · NIM ổn định", "System-leading NPL coverage ratio 230% · Stable NIM")}
+                  score={79}
+                  locale={locale}
+                />
+                <OpportunityRowItem
+                  symbol="TCB"
+                  name={t("TCB · Ngân hàng", "TCB · Banking")}
+                  thesis={t("Tỷ lệ CASA dẫn đầu khối NHTMCP · ROE duy trì tích cực", "Leading CASA ratio among private commercial banks · Resilient ROE")}
+                  score={77}
+                  locale={locale}
+                />
               </>
             )}
           </div>
 
           <div className={styles.panelFooter}>
+            <span className={styles.panelFooterMeta}>
+              {t(
+                `Hiển thị Top ${topOpportunities.length || 5} / ${totalAnalyzedCount} cổ phiếu VN100`,
+                `Top ${topOpportunities.length || 5} of ${totalAnalyzedCount} VN100 equities`
+              )}
+            </span>
             <Link href="/opportunities" className={styles.viewMoreLink}>
-              Mở Bộ lọc Toàn cảnh Cơ hội VN100 <span aria-hidden="true">→</span>
+              {t("Mở Bộ lọc Toàn cảnh Cơ hội VN100", "Open VN100 Full Opportunity Scanner")} <span aria-hidden="true">→</span>
             </Link>
           </div>
         </div>
 
         {/* Cột Phải (1fr): Biểu đồ Mô hình Alpha & Đối sánh Thị trường */}
         <div className={styles.benchmarkPanel}>
+          <TacticalCornerBrackets />
           <div className={styles.panelHeader}>
             <div className={styles.panelTitleGroup}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span className={styles.benchmarkDot} aria-hidden="true" />
                 <span className={styles.panelEyebrow}>POINT-IN-TIME BENCHMARK</span>
               </div>
-              <h2 className={styles.panelTitle}>Đối sánh Điểm số Định lượng & Thị trường</h2>
+              <h2 className={styles.panelTitle}>{t("Đối sánh Điểm số Định lượng & Thị trường", "Quantitative Alpha vs Market Benchmark")}</h2>
             </div>
             <div className={styles.benchmarkMetricsRow}>
               <span className="badge-pill-up">Top Quant: {topQuantScore}/100</span>
-              <span className={styles.metricPill}>Điểm TB: {avgQuantScore}</span>
-              <span className={styles.metricPill}>Khả quan: {favorableCount}/{totalAnalyzedCount} mã</span>
-              <span className={styles.metricPill}>Phiên: {asOfDateStr}</span>
+              <span className={styles.metricPill}>{t("Điểm TB:", "Avg Score:")} {avgQuantScore}</span>
+              <span className={styles.metricPill}>{t("Khả quan:", "Favorable:")} {favorableCount}/{totalAnalyzedCount} {t("mã", "stocks")}</span>
+              <span className={styles.metricPill}>{t("Phiên:", "Session:")} {asOfDateStr}</span>
               <Link
                 href="/market#indices"
                 className={styles.benchmarkHeaderLink}
-                title="Xem đối sánh chỉ số thị trường chi tiết"
+                title={t("Xem đối sánh chỉ số thị trường chi tiết", "View detailed market index comparisons")}
               >
-                Thị trường →
+                {t("Thị trường →", "Market →")}
               </Link>
             </div>
           </div>
@@ -557,7 +541,7 @@ export default function Home(): JSX.Element {
               <span style={{ fontWeight: 750, color: "var(--ink)" }}>{activeScrubPoint.label}</span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10B981" }} />
-                <span>Top Quant: <strong>{activeScrubPoint.quantScore}đ</strong></span>
+                <span>Top Quant: <strong>{activeScrubPoint.quantScore}{locale === "en" ? " pts" : "đ"}</strong></span>
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <span
@@ -570,7 +554,7 @@ export default function Home(): JSX.Element {
                 />
                 <span>
                   {activeScrubPoint.isForecast
-                    ? `Kỳ vọng định giá: ${activeScrubPoint.benchScore}`
+                    ? pickLocaleText(locale, `Kỳ vọng định giá: ${activeScrubPoint.benchScore}`, `Valuation target: ${activeScrubPoint.benchScore}`)
                     : `VN-Index: ${activeScrubPoint.benchScore}`}
                 </span>
               </span>
@@ -610,10 +594,18 @@ export default function Home(): JSX.Element {
               <line x1="40" y1="165" x2="620" y2="165" stroke="var(--line)" />
 
               {/* Y Axis Labels (Thang điểm Quant & Tương quan) */}
-              <text x="32" y="34" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">90đ</text>
-              <text x="32" y="79" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">70đ</text>
-              <text x="32" y="124" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">50đ</text>
-              <text x="32" y="169" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">0đ</text>
+              <text x="32" y="34" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">
+                {locale === "en" ? "90 pts" : "90đ"}
+              </text>
+              <text x="32" y="79" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">
+                {locale === "en" ? "70 pts" : "70đ"}
+              </text>
+              <text x="32" y="124" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">
+                {locale === "en" ? "50 pts" : "50đ"}
+              </text>
+              <text x="32" y="169" fill="var(--ink-muted)" fontSize="10" textAnchor="end" fontFamily="var(--font-mono)">
+                {locale === "en" ? "0 pts" : "0đ"}
+              </text>
 
               {/* Multi-layer Area Under Emerald Curve */}
               <path
@@ -746,30 +738,35 @@ export default function Home(): JSX.Element {
               )}
 
               {/* X Axis Labels */}
-              <text x="50" y="185" fill={activeScrubPoint.x === 50 ? "#10B981" : "var(--ink-muted)"} fontWeight={activeScrubPoint.x === 50 ? "700" : "500"} fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">Th1</text>
-              <text x="120" y="185" fill={activeScrubPoint.x === 120 ? "#10B981" : "var(--ink-muted)"} fontWeight={activeScrubPoint.x === 120 ? "700" : "500"} fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">Th2</text>
-              <text x="190" y="185" fill={activeScrubPoint.x === 190 ? "#10B981" : "var(--ink-muted)"} fontWeight={activeScrubPoint.x === 190 ? "700" : "500"} fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">Th3</text>
-              <text x="260" y="185" fill={activeScrubPoint.x === 260 ? "#10B981" : "var(--ink-muted)"} fontWeight={activeScrubPoint.x === 260 ? "700" : "500"} fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">Th4</text>
-              <text x="330" y="185" fill={activeScrubPoint.x === 330 ? "#10B981" : "var(--ink-muted)"} fontWeight={activeScrubPoint.x === 330 ? "700" : "500"} fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">Th5</text>
-              <text x="410" y="185" fill={activeScrubPoint.x === 410 ? "#10B981" : "var(--ink-muted)"} fontWeight="700" fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">EOD</text>
-              <text x="475" y="185" fill={activeScrubPoint.x === 475 ? "#10B981" : "#94A3B8"} fontWeight="600" fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">T+5</text>
-              <text x="540" y="185" fill={activeScrubPoint.x === 540 ? "#10B981" : "#94A3B8"} fontWeight="600" fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">T+10</text>
-              <text x="600" y="185" fill={activeScrubPoint.x === 600 ? "#10B981" : "#94A3B8"} fontWeight="600" fontSize="10.5" textAnchor="middle" fontFamily="var(--font-mono)">T+20</text>
+              {benchmarkPoints.map((p) => (
+                <text
+                  key={p.x}
+                  x={p.x}
+                  y="185"
+                  fill={activeScrubPoint.x === p.x ? "#10B981" : p.isForecast ? "#94A3B8" : "var(--ink-muted)"}
+                  fontWeight={activeScrubPoint.x === p.x ? "700" : "500"}
+                  fontSize="10.5"
+                  textAnchor="middle"
+                  fontFamily="var(--font-mono)"
+                >
+                  {p.shortLabel}
+                </text>
+              ))}
             </svg>
           </div>
 
           <div className={styles.chartLegend}>
             <span className={styles.legendEmerald}>
               <span className={styles.legendMarker} style={{ background: "#10B981" }} />
-              Top Quant VN100 ({topQuantScore}đ)
+              Top Quant VN100 ({topQuantScore}{locale === "en" ? " pts" : "đ"})
             </span>
             <span className={styles.legendLime}>
               <span className={styles.legendMarker} style={{ background: "#FACC15" }} />
-              VN-Index Benchmark ({formatNumber(vnIndex?.metric.value ?? 1767.14)})
+              VN-Index Benchmark ({formatNumber(vnIndex?.metric.value ?? 1767.14, 2, locale)})
             </span>
             <span className={styles.legendForecast}>
               <span className={styles.legendMarkerDashed} />
-              Kỳ vọng Định giá Quant (Fair Value)
+              {t("Kỳ vọng Định giá Quant (Fair Value)", "Quant Fair Value Forecast (Target)")}
             </span>
           </div>
         </div>
@@ -778,7 +775,7 @@ export default function Home(): JSX.Element {
       {/* ====================================================================
           TẦNG 4 — Hỏi nhanh AI Định Lượng (Evidence-based AI Analyst)
           ==================================================================== */}
-      <section aria-label="Hỏi nhanh AI định lượng">
+      <section aria-label={t("Hỏi nhanh AI định lượng", "Evidence-based AI quantitative inquiry")}>
         <SpatialBentoCard style={{ width: "100%" }}>
           <article className={styles.bentoWidget} style={{ minHeight: "auto", padding: "24px" }}>
             <header className={styles.bentoHeader}>
@@ -787,39 +784,45 @@ export default function Home(): JSX.Element {
                   <span className={styles.aiCorePulse} aria-hidden="true" />
                   <p className={styles.bentoEyebrow} style={{ margin: 0 }}>EVIDENCE-BASED AI ANALYST</p>
                 </div>
-                <h2 className={styles.bentoTitle}>Tra cứu & Hỏi nhanh AI Đối Soát Báo Cáo</h2>
+                <h2 className={styles.bentoTitle}>{t("Tra cứu & Hỏi nhanh AI Đối Soát Báo Cáo", "Audited Financial & Valuation AI Inquiries")}</h2>
               </div>
               <Link href="/ai" className={styles.bentoHeaderLink}>
-                Mở AI Chatbot <span aria-hidden="true">→</span>
+                {t("Mở AI Chatbot", "Open AI Chat")} <span aria-hidden="true">→</span>
               </Link>
             </header>
 
             <div className={styles.bentoBody}>
               <p className={styles.aiLede}>
-                Truy vấn BCTC đối soát, định giá DCF/P/E đa kịch bản với nguồn trích dẫn minh bạch.
+                {t(
+                  "Truy vấn BCTC đối soát, định giá DCF/P/E đa kịch bản với nguồn trích dẫn minh bạch.",
+                  "Cross-examine audited statements and multi-scenario DCF/PE valuations with transparent citations."
+                )}
               </p>
 
               <form className={styles.aiForm} onSubmit={handleAISubmit}>
                 <input
                   type="text"
                   className={styles.aiInput}
-                  placeholder="Nhập mã hoặc câu hỏi: Phân tích FPT, Biên LN VNM, BCTC HPG..."
+                  placeholder={t(
+                    "Nhập mã hoặc câu hỏi: Phân tích FPT, Biên LN VNM, BCTC HPG...",
+                    "Enter ticker or prompt: Analyze FPT, VNM gross margin, HPG financials..."
+                  )}
                   value={aiQuery}
                   onChange={(e) => setAiQuery(e.target.value)}
-                  aria-label="Câu hỏi phân tích đầu tư"
+                  aria-label={t("Câu hỏi phân tích đầu tư", "Investment analysis query")}
                 />
                 <button
                   type="submit"
                   className={styles.aiSubmitBtn}
                   disabled={!aiQuery.trim()}
                 >
-                  Hỏi AI →
+                  {t("Hỏi AI →", "Ask AI →")}
                 </button>
               </form>
 
-              <div className={styles.promptSuggestions} aria-label="Gợi ý câu hỏi">
-                <span className={styles.promptLabel}>Gợi ý:</span>
-                {PROMPT_SUGGESTIONS.map((prompt) => (
+              <div className={styles.promptSuggestions} aria-label={t("Gợi ý câu hỏi", "Query suggestions")}>
+                <span className={styles.promptLabel}>{t("Gợi ý:", "Suggestions:")}</span>
+                {promptSuggestions.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
@@ -838,37 +841,51 @@ export default function Home(): JSX.Element {
       {/* ====================================================================
           TẦNG 3 — Trạng thái Dữ liệu (System Lineage & Data Telemetry Strip)
           ==================================================================== */}
-      <section className={styles.telemetryStrip} aria-label="Kiểm định chất lượng dữ liệu">
+      <section className={styles.telemetryStrip} aria-label={t("Kiểm định chất lượng dữ liệu", "Data quality & lineage telemetry")}>
         <div className={styles.telemetryLeft}>
           <StatusBadge
             status={isLineageError ? "ERROR" : connectionStatus}
             label={
               isLineageError
-                ? "DATA QUALITY & LINEAGE: OFFLINE / KHÔNG KHẢ DỤNG"
+                ? pickLocaleText(locale, "DATA QUALITY & LINEAGE: OFFLINE / KHÔNG KHẢ DỤNG", "DATA QUALITY & LINEAGE: OFFLINE / UNAVAILABLE")
                 : `DATA QUALITY & LINEAGE: ${connectionStatus}`
             }
           />
           <span className={styles.telemetrySummary}>
             {isLineageError ? (
               <span style={{ color: "var(--negative, #b91c1c)" }}>
-                Không thể kết nối Backend API. Vui lòng kiểm tra dịch vụ dữ liệu hoặc live endpoint.
+                {t(
+                  "Không thể kết nối Backend API. Vui lòng kiểm tra dịch vụ dữ liệu hoặc live endpoint.",
+                  "Unable to connect to backend API. Please check data services or live endpoints."
+                )}
               </span>
             ) : totalCanonicalCount > 0 ? (
-              `${totalCanonicalCount.toLocaleString("vi-VN")} tài sản chuẩn hóa canonical · Chuẩn mốc EOD · BCTC Kiểm toán đối soát`
+              pickLocaleText(
+                locale,
+                `${totalCanonicalCount.toLocaleString("vi-VN")} tài sản chuẩn hóa canonical · Chuẩn mốc EOD · BCTC Kiểm toán đối soát`,
+                `${totalCanonicalCount.toLocaleString("en-US")} canonical normalized assets · EOD Point-in-Time · Audited statements reconciliation`
+              )
             ) : (
-              "1.600+ mã HOSE/HNX/UPCOM · Chuẩn mốc EOD · BCTC Kiểm toán đối soát"
+              pickLocaleText(
+                locale,
+                "1.600+ mã HOSE/HNX/UPCOM · Chuẩn mốc EOD · BCTC Kiểm toán đối soát",
+                "1,600+ HOSE/HNX/UPCOM equities · EOD Point-in-Time · Audited statements reconciliation"
+              )
             )}
           </span>
         </div>
 
         <Link href="/system" className={styles.telemetryLink}>
-          Chi tiết hệ thống & dữ liệu <span aria-hidden="true">→</span>
+          {t("Chi tiết hệ thống & dữ liệu", "System & Data Lineage")} <span aria-hidden="true">→</span>
         </Link>
       </section>
 
       {/* Footer trang ngắn gọn */}
       <footer className={styles.footerNote}>
-        InvestIntel Workstation · Dữ liệu chuẩn mốc Point-in-Time chính thức từ API nội bộ · Quyết định phân bổ dựa trên bằng chứng định lượng độc lập.
+        {t(
+          "InvestIntel Workstation · Dữ liệu chuẩn mốc Point-in-Time chính thức từ API nội bộ · Quyết định phân bổ dựa trên bằng chứng định lượng độc lập.",
+          "InvestIntel Workstation · Official Point-in-Time data sourced directly from internal APIs · Independent evidence-based quantitative asset allocation."
+        )}
       </footer>
     </div>
   );

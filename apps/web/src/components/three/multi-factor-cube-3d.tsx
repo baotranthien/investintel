@@ -1,10 +1,42 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useMemo, type JSX } from "react";
+import React, { useRef, useState, useEffect, useMemo, useSyncExternalStore, type JSX } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useTheme } from "@/lib/theme";
+import { useLocale, type AppLocale } from "@/lib/i18n";
+
+function NativeOrbitControls() {
+  const { camera, gl } = useThree();
+  const controlsRef = useRef<OrbitControls | null>(null);
+
+  useEffect(() => {
+    const controls = new OrbitControls(camera, gl.domElement);
+    controls.target.set(0, 0, 0);
+    controls.enableZoom = false;
+    controls.minDistance = 2.5;
+    controls.maxDistance = 7;
+    controls.enablePan = false;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.35;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.5;
+    controls.update();
+    controlsRef.current = controls;
+    return () => {
+      controls.dispose();
+      controlsRef.current = null;
+    };
+  }, [camera, gl.domElement]);
+
+  useFrame(() => {
+    controlsRef.current?.update();
+  });
+
+  return null;
+}
 
 export interface StockFactorPoint {
   symbol: string;
@@ -47,15 +79,36 @@ const DEFAULT_STOCKS: StockFactorPoint[] = [
   { symbol: "STB", name: "Sacombank", pe: -0.2, roe: 0.7, rs: 0.6, score: 75, sector: "Ngân hàng" },
 ];
 
+function translateSector(sector: string | null | undefined, locale: AppLocale): string {
+  if (!sector) return locale === "en" ? "General" : "Chung";
+  const map: Record<string, { vi: string; en: string }> = {
+    "Công nghệ": { vi: "Công nghệ", en: "Technology" },
+    "Bán lẻ": { vi: "Bán lẻ", en: "Retail" },
+    "Ngân hàng": { vi: "Ngân hàng", en: "Banking" },
+    "Thép": { vi: "Thép", en: "Steel" },
+    "Tiêu dùng": { vi: "Tiêu dùng", en: "Consumer Goods" },
+    "Hạ tầng": { vi: "Hạ tầng", en: "Infrastructure" },
+    "Năng lượng": { vi: "Năng lượng", en: "Energy" },
+    "Tài chính": { vi: "Tài chính", en: "Financial Services" },
+    "Hóa chất": { vi: "Hóa chất", en: "Chemicals" },
+    "Bất động sản": { vi: "Bất động sản", en: "Real Estate" },
+    "Cảng biển": { vi: "Cảng biển", en: "Seaports & Logistics" },
+  };
+  return map[sector]?.[locale] || sector;
+}
+
 function AmbientDust({ isDark }: { isDark: boolean }) {
   const pointsRef = useRef<THREE.Points>(null);
   const dustGeo = useMemo(() => {
     const count = 42;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 1.85;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 1.85;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 1.85;
+      const fx = Math.sin(i * 12.9898 + 1.23) * 43758.5453;
+      const fy = Math.sin(i * 78.233 + 4.56) * 24634.6345;
+      const fz = Math.sin(i * 39.346 + 7.89) * 19432.1234;
+      positions[i * 3] = (fx - Math.floor(fx) - 0.5) * 1.85;
+      positions[i * 3 + 1] = (fy - Math.floor(fy) - 0.5) * 1.85;
+      positions[i * 3 + 2] = (fz - Math.floor(fz) - 0.5) * 1.85;
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -112,24 +165,20 @@ function StockNode({
 
   const baseRadius = isCompact ? 0.052 : isSelected ? 0.096 : 0.066;
 
-  // Individual phase offset for harmonic micro-levitation
   const phase = useMemo(() => {
-    return (stock.symbol.charCodeAt(0) * 0.73 + (stock.symbol.charCodeAt(1) || 0) * 0.41);
+    return stock.symbol.charCodeAt(0) * 0.73 + (stock.symbol.charCodeAt(1) || 0) * 0.41;
   }, [stock.symbol]);
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
-    // Harmonic micro-floating
     const floatY = posY + Math.sin(clock.elapsedTime * 1.5 + phase) * 0.022;
     groupRef.current.position.y = floatY;
 
-    // Smooth hover/selection scaling
     const targetScale = isSelected ? 1.35 : 1.0;
     scaleRef.current = THREE.MathUtils.lerp(scaleRef.current, targetScale, 0.14);
     groupRef.current.scale.setScalar(scaleRef.current);
   });
 
-  // 3-Plane Laser Projection lines
   const dropToFloor = useMemo(
     () => new Float32Array([posX, -1.0, posZ, posX, posY, posZ]),
     [posX, posY, posZ]
@@ -145,7 +194,6 @@ function StockNode({
 
   return (
     <>
-      {/* Vertical Drop Line to Floor */}
       {!isCompact && (
         <lineSegments>
           <bufferGeometry>
@@ -159,7 +207,6 @@ function StockNode({
         </lineSegments>
       )}
 
-      {/* Projection Lines to Back and Side Planes when Selected */}
       {isSelected && !isCompact && (
         <>
           <lineSegments>
@@ -175,7 +222,6 @@ function StockNode({
             <lineBasicMaterial color={pointColor} transparent opacity={0.65} />
           </lineSegments>
 
-          {/* Coordinate Target Rings on Wall/Floor */}
           <mesh position={[posX, -0.99, posZ]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.025, 0.045, 16]} />
             <meshBasicMaterial color={pointColor} transparent opacity={0.75} side={THREE.DoubleSide} />
@@ -191,9 +237,7 @@ function StockNode({
         </>
       )}
 
-      {/* Physical Optical Sphere + Holographic Glow Atmosphere */}
       <group ref={groupRef} position={[posX, posY, posZ]}>
-        {/* Core Luminous Crystal */}
         <mesh
           onPointerOver={(e) => {
             e.stopPropagation();
@@ -226,7 +270,6 @@ function StockNode({
           />
         </mesh>
 
-        {/* Volumetric Atmospheric Corona Shell (Outer Glow) */}
         <mesh scale={1.55}>
           <sphereGeometry args={[baseRadius, 16, 16]} />
           <meshBasicMaterial
@@ -264,7 +307,6 @@ function CubeScene({
 
   const isCompact = variant === "compact";
 
-  // Slow auto-rotation for preview
   useFrame((_, delta) => {
     if (typeof document !== "undefined" && document.hidden) return;
     if (isCompact && groupRef.current) {
@@ -275,11 +317,8 @@ function CubeScene({
   });
 
   const wireColor = isDark ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.18)";
-
-  // Clean 12 outer edges only — NO messy diagonal triangles
   const boxEdges = useMemo(() => new THREE.EdgesGeometry(new THREE.BoxGeometry(2.0, 2.0, 2.0)), []);
 
-  // Colored 3D coordinate axes through center origin
   const xAxis = useMemo(() => new Float32Array([-1.0, 0, 0, 1.0, 0, 0]), []);
   const yAxis = useMemo(() => new Float32Array([0, -1.0, 0, 0, 1.0, 0]), []);
   const zAxis = useMemo(() => new Float32Array([0, 0, -1.0, 0, 0, 1.0]), []);
@@ -288,35 +327,18 @@ function CubeScene({
     <>
       <ambientLight intensity={isDark ? 0.95 : 1.3} />
       <directionalLight position={[4, 6, 5]} intensity={isDark ? 2.2 : 2.6} />
-      {/* Dual Rim Lights for specular highlights */}
       <pointLight position={[-4, 3, -4]} intensity={1.4} color="#10B981" />
       <pointLight position={[3, -2, 4]} intensity={0.9} color="#38BDF8" />
 
-      {!isCompact && (
-        <OrbitControls
-          target={[0, 0, 0]}
-          enableZoom={false}
-          minDistance={2.5}
-          maxDistance={7}
-          enablePan={false}
-          autoRotate
-          autoRotateSpeed={0.35}
-          enableDamping={true}
-          dampingFactor={0.05}
-          rotateSpeed={0.5}
-        />
-      )}
+      {!isCompact && <NativeOrbitControls />}
 
       <group ref={groupRef} scale={1.0}>
-        {/* Architectural 12-edge Bounding Wireframe */}
         <lineSegments geometry={boxEdges}>
           <lineBasicMaterial color={wireColor} transparent opacity={isDark ? 0.45 : 0.3} />
         </lineSegments>
 
-        {/* Ambient Floating Stardust */}
         {!isCompact && <AmbientDust isDark={isDark} />}
 
-        {/* Spatial Floor Grid at Y = -1.0 (Grounding perspective) */}
         {!isCompact && (
           <gridHelper
             args={[
@@ -329,7 +351,7 @@ function CubeScene({
           />
         )}
 
-        {/* X Axis: Định giá P/E (Blue) */}
+        {/* X Axis: Value P/E */}
         <lineSegments>
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[xAxis, 3]} />
@@ -337,7 +359,7 @@ function CubeScene({
           <lineBasicMaterial color="#3b82f6" transparent opacity={isDark ? 0.6 : 0.45} />
         </lineSegments>
 
-        {/* Y Axis: Chất lượng ROE (Green) */}
+        {/* Y Axis: Quality ROE */}
         <lineSegments>
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[yAxis, 3]} />
@@ -345,7 +367,7 @@ function CubeScene({
           <lineBasicMaterial color="#10b981" transparent opacity={isDark ? 0.6 : 0.45} />
         </lineSegments>
 
-        {/* Z Axis: Động lượng RS (Amber) */}
+        {/* Z Axis: Momentum RS */}
         <lineSegments>
           <bufferGeometry>
             <bufferAttribute attach="attributes-position" args={[zAxis, 3]} />
@@ -353,7 +375,6 @@ function CubeScene({
           <lineBasicMaterial color="#f59e0b" transparent opacity={isDark ? 0.6 : 0.45} />
         </lineSegments>
 
-        {/* High-Performance Holographic Stock Nodes */}
         {stocks.map((stock) => (
           <StockNode
             key={stock.symbol}
@@ -387,6 +408,7 @@ function MultiFactorCube3DInner({
   onSelectStock,
 }: MultiFactorCube3DProps): JSX.Element {
   const { effectiveTheme } = useTheme();
+  const { locale, t } = useLocale();
   const [hoveredStock, setHoveredStock] = useState<StockFactorPoint | null>(null);
 
   const isCompact = variant === "compact";
@@ -406,7 +428,7 @@ function MultiFactorCube3DInner({
         justifyContent: "center",
         ...style,
       }}
-      aria-label="Biểu đồ đa nhân tố không gian 3D"
+      aria-label={t("Biểu đồ đa nhân tố không gian 3D", "3D Multi-Factor Space Chart")}
       role="img"
     >
       <Canvas
@@ -450,13 +472,16 @@ function MultiFactorCube3DInner({
           }}
         >
           <span>
-            <strong style={{ color: "#3b82f6" }}>X:</strong> P/E (Trái: Đắt → Phải: Rẻ)
+            <strong style={{ color: "#3b82f6" }}>X:</strong>{" "}
+            {t("P/E (Trái: Đắt → Phải: Rẻ)", "P/E (Left: Expensive → Right: Value)")}
           </span>
           <span>
-            <strong style={{ color: "#10b981" }}>Y:</strong> ROE (Dưới: Thấp → Trên: Cao)
+            <strong style={{ color: "#10b981" }}>Y:</strong>{" "}
+            {t("ROE (Dưới: Thấp → Trên: Cao)", "ROE (Bottom: Low → Top: High Quality)")}
           </span>
           <span>
-            <strong style={{ color: "#f59e0b" }}>Z:</strong> RS (Gần: Yếu → Sâu: Khỏe)
+            <strong style={{ color: "#f59e0b" }}>Z:</strong>{" "}
+            {t("RS (Gần: Yếu → Sâu: Khỏe)", "RS (Near: Low Momentum → Deep: Strong)")}
           </span>
         </div>
       )}
@@ -512,15 +537,15 @@ function MultiFactorCube3DInner({
           </div>
           {hoveredStock.name && (
             <div style={{ fontSize: "11px", color: "var(--ink-secondary)" }}>
-              {hoveredStock.name} · {hoveredStock.sector ?? "VN100"}
+              {hoveredStock.name} · {translateSector(hoveredStock.sector, locale)}
             </div>
           )}
           <div style={{ fontSize: "11px", color: "var(--ink-muted)", marginTop: "2px" }}>
-            P/E: {hoveredStock.pe > 0 ? "Hấp dẫn (Rẻ)" : "Định giá cao"} · ROE:{" "}
-            {hoveredStock.roe > 0 ? "Chất lượng cao" : "Trung bình"}
+            P/E: {hoveredStock.pe > 0 ? t("Hấp dẫn (Rẻ)", "Attractive (Value)") : t("Định giá cao", "Elevated")} · ROE:{" "}
+            {hoveredStock.roe > 0 ? t("Chất lượng cao", "High Quality") : t("Trung bình", "Moderate")}
           </div>
           <div style={{ fontSize: "10.5px", color: "var(--accent-apple, #0071e3)", marginTop: "3px", fontWeight: 650 }}>
-            ✦ Nhấp để mở AI Analyst →
+            {t("✦ Nhấp để mở AI Analyst →", "✦ Click to open AI Analyst →")}
           </div>
         </div>
       )}
@@ -528,7 +553,7 @@ function MultiFactorCube3DInner({
   );
 }
 
-function CubeFallback({ size = 160 }: { size?: number }): JSX.Element {
+function CubeFallback({ size = 160, label }: { size?: number; label: string }): JSX.Element {
   return (
     <div
       style={{
@@ -543,20 +568,22 @@ function CubeFallback({ size = 160 }: { size?: number }): JSX.Element {
         color: "var(--ink-secondary)",
       }}
     >
-      Đang tải biểu đồ 3D...
+      {label}
     </div>
   );
 }
 
 export function MultiFactorCube3D(props: MultiFactorCube3DProps): JSX.Element {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { t } = useLocale();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     const fallbackSize = props.variant === "full" ? (props.height ?? 420) : (props.size ?? 160);
-    return <CubeFallback size={fallbackSize} />;
+    return <CubeFallback size={fallbackSize} label={t("Đang tải biểu đồ 3D...", "Loading 3D visualization...")} />;
   }
 
   return <MultiFactorCube3DInner {...props} />;

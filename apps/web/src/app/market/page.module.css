@@ -372,6 +372,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: 100%;
 }
 
 .panelHeader {
@@ -427,6 +428,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-top: 2px;
+  flex: 1;
+  align-items: stretch;
+}
+
+.signalCol {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 @media (max-width: 600px) {
@@ -471,7 +484,7 @@
 }
 
 .historyContext {
-  margin-top: 6px;
+  margin-top: auto;
   padding: 8px 12px;
   border-radius: 6px;
   background: var(--surface-muted, #f8fafc);
@@ -502,6 +515,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
 }
 
 .sectorChips,
@@ -592,7 +606,8 @@
 }
 
 .oppsActionRow {
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .btnExplore {
@@ -620,14 +635,8 @@
 /* TRỤ CỘT 3: MACRO & EVENTS GRID */
 .macroEventsGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 960px) {
-  .macroEventsGrid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
 }
 
 .macroGroupWrap {
@@ -653,12 +662,27 @@
 
 .macroSeriesGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
-@media (max-width: 600px) {
+.macroSeriesTwoCol {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.macroRowFull {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1024px) {
   .macroSeriesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .macroSeriesGrid,
+  .macroSeriesTwoCol {
     grid-template-columns: 1fr;
   }
 }
@@ -732,21 +756,31 @@
 
 /* MAJOR EVENTS LIST */
 .eventList {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+@media (max-width: 820px) {
+  .eventList {
+    grid-template-columns: 1fr;
+  }
 }
 
 .eventCard {
-  padding: 12px 0;
-  border-radius: 0;
-  border: none;
-  border-top: 1px solid var(--line-subtle);
-  background: transparent;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-muted);
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.eventCard:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .eventTop {

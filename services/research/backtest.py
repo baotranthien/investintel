@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import math
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from database.models import Asset, Price, IndexMembership
+from database.models import Asset, CorporateAction, Price, IndexMembership
+from services.market.adjustment import PriceAdjustmentEngine
 
 
 class BacktestConfig(BaseModel):
@@ -30,6 +32,7 @@ class BacktestConfig(BaseModel):
     tax_pct: float = Field(default=0.001, ge=0.0, le=0.05)  # 0.10% tax on sales
     slippage_pct: float = Field(default=0.001, ge=0.0, le=0.05)  # 0.10% slippage
     strategy: str = Field(default="EQUAL_WEIGHT")
+    price_basis: Literal["ADJUSTED", "RAW"] = Field(default="ADJUSTED")
 
 
 class BacktestPoint(BaseModel):
@@ -98,24 +101,73 @@ class HistoricalBacktestEngine:
             Price.asset_id.in_(asset_map.values()),
             Price.observation_date >= config.start_date,
             Price.observation_date <= config.end_date,
+            Price.status == "VALID",
         ).order_by(Price.observation_date.asc()).all()
 
         if not prices_query:
             return self._empty_result(config, "INSUFFICIENT_DATA", "No historical price observations available in range.")
 
-        # Group prices by (date, symbol)
+        # Audit dual price series (adjusted_close vs raw_close) against PIT CorporateActions
         id_to_symbol = {v: k for k, v in asset_map.items()}
+        bars_by_sym: Dict[str, List[Price]] = {}
+        for p in prices_query:
+            sym = id_to_symbol.get(p.asset_id)
+            if sym:
+                bars_by_sym.setdefault(sym, []).append(p)
+
+        dual_audits: Dict[str, Any] = {}
+        for sym, sym_bars in bars_by_sym.items():
+            sym_cas = self.session.query(CorporateAction).filter(
+                CorporateAction.symbol == sym,
+                func.coalesce(CorporateAction.ex_date, CorporateAction.action_date) <= config.end_date,
+            ).order_by(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date).asc()).all()
+            dual_audits[sym] = PriceAdjustmentEngine.audit_price_series(
+                sym, sym_bars, sym_cas, as_of=config.end_date
+            ).to_dict()
+
+        # Group prices by (date, symbol) honoring explicit price_basis
         prices_by_date: Dict[date, Dict[str, float]] = {}
+        adjusted_bars_count = 0
+        raw_only_bars_count = 0
         for p in prices_query:
             sym = id_to_symbol.get(p.asset_id)
             if sym and p.raw_close is not None and p.raw_close > 0:
                 # PIT verification: observation_date must be <= config.end_date
                 assert p.observation_date <= config.end_date, "PIT Violation: future bar detected!"
-                prices_by_date.setdefault(p.observation_date, {})[sym] = float(p.adjusted_close or p.raw_close)
+                if config.price_basis == "RAW":
+                    eff_px = float(p.raw_close)
+                else:
+                    if p.adjusted_close is not None and p.adjusted_close > 0:
+                        eff_px = float(p.adjusted_close)
+                        adjusted_bars_count += 1
+                    else:
+                        eff_px = float(p.raw_close)
+                        raw_only_bars_count += 1
+                prices_by_date.setdefault(p.observation_date, {})[sym] = eff_px
 
         sorted_dates = sorted(prices_by_date.keys())
         if len(sorted_dates) < 2:
             return self._empty_result(config, "INSUFFICIENT_DATA", "Not enough trading dates for backtest.")
+
+        # Optional real benchmark price series (e.g. VNINDEX)
+        bm_prices_by_date: Dict[date, float] = {}
+        bm_sym_clean = (config.benchmark or "").strip().upper()
+        if bm_sym_clean:
+            bm_asset = self.session.query(Asset).filter(Asset.symbol == bm_sym_clean).first()
+            if bm_asset:
+                bm_rows = self.session.query(Price).filter(
+                    Price.asset_id == bm_asset.id,
+                    Price.observation_date >= sorted_dates[0],
+                    Price.observation_date <= config.end_date,
+                    Price.status == "VALID",
+                ).order_by(Price.observation_date.asc()).all()
+                for bp in bm_rows:
+                    px = bp.raw_close if config.price_basis == "RAW" else (bp.adjusted_close or bp.raw_close)
+                    if px and px > 0:
+                        bm_prices_by_date[bp.observation_date] = float(px)
+        use_index_bm = sorted_dates[0] in bm_prices_by_date and len(bm_prices_by_date) >= 2
+        benchmark_mode = f"INDEX_SERIES:{bm_sym_clean}" if use_index_bm else "EQUAL_WEIGHT_UNIVERSE_PROXY"
+        initial_index_bm_val = bm_prices_by_date.get(sorted_dates[0]) if use_index_bm else None
 
         # Horizon / Rebalance step in trading days
         rebalance_interval = 21  # 1M default
@@ -146,9 +198,16 @@ class HistoricalBacktestEngine:
 
         daily_returns: List[float] = []
         prev_portfolio_val = capital
+        last_known_prices: Dict[str, float] = {}
+        last_known_bm_price: Optional[float] = initial_index_bm_val
 
         for i, current_date in enumerate(sorted_dates):
             day_prices = prices_by_date[current_date]
+            for s, px in day_prices.items():
+                last_known_prices[s] = px
+            if current_date in bm_prices_by_date:
+                last_known_bm_price = bm_prices_by_date[current_date]
+
             available_symbols = [s for s in valid_symbols if s in day_prices]
 
             # Rebalance on first day or every interval
@@ -156,8 +215,12 @@ class HistoricalBacktestEngine:
 
             if is_rebalance_day and available_symbols:
                 target_weight = 1.0 / len(available_symbols)
-                # Compute current equity before rebalancing
-                current_holdings_val = sum(holdings[s] * day_prices[s] for s in available_symbols if holdings[s] > 0)
+                # Compute current equity before rebalancing (carrying forward last known price for non-trading held symbols)
+                current_holdings_val = sum(
+                    holdings[s] * day_prices.get(s, last_known_prices.get(s, 0.0))
+                    for s in valid_symbols
+                    if holdings[s] > 0
+                )
                 total_equity = cash + current_holdings_val
 
                 # Target value per asset
@@ -191,18 +254,22 @@ class HistoricalBacktestEngine:
                             slippage=round(slippage, 2),
                         ))
 
-                # Execute buys with available cash
+                # Execute buys with available cash (account for fee + slippage on notional)
+                cost_multiplier = 1.0 + config.transaction_cost_pct + config.slippage_pct
                 for s in available_symbols:
                     px = day_prices[s]
                     cur_val = holdings[s] * px
                     if cur_val < target_val and cash > 0:
-                        buy_val = min(target_val - cur_val, cash)
+                        max_affordable = cash / cost_multiplier if cost_multiplier > 0 else cash
+                        buy_val = min(target_val - cur_val, max_affordable)
+                        if buy_val <= 1.0:
+                            continue
                         fee = buy_val * config.transaction_cost_pct
                         slippage = buy_val * config.slippage_pct
                         total_cost = buy_val + fee + slippage
-                        if total_cost <= cash:
+                        if total_cost <= cash + 1e-6:
                             shares_to_buy = buy_val / px
-                            cash -= total_cost
+                            cash = max(0.0, cash - total_cost)
                             holdings[s] += shares_to_buy
                             total_fees += fee
                             total_slippage += slippage
@@ -218,17 +285,27 @@ class HistoricalBacktestEngine:
                                 slippage=round(slippage, 2),
                             ))
 
-            # Daily portfolio value
-            holdings_val = sum(holdings.get(s, 0.0) * day_prices[s] for s in available_symbols)
+            # Daily portfolio value (carrying forward last known price on missing bars)
+            holdings_val = sum(
+                holdings.get(s, 0.0) * day_prices.get(s, last_known_prices.get(s, 0.0))
+                for s in valid_symbols
+                if holdings.get(s, 0.0) > 0
+            )
             portfolio_val = cash + holdings_val
 
             if portfolio_val > peak_value:
                 peak_value = portfolio_val
             drawdown = (portfolio_val - peak_value) / peak_value if peak_value > 0 else 0.0
 
-            # Benchmark value
-            current_bm_avg = sum(day_prices.get(s, initial_bm_prices.get(s, 0)) for s in bm_symbols) / max(1, len(bm_symbols))
-            benchmark_val = config.initial_capital * (current_bm_avg / initial_bm_index) if initial_bm_index > 0 else config.initial_capital
+            # Benchmark value (never fall back to universe proxy mid-series when index benchmark is active)
+            if use_index_bm and initial_index_bm_val and last_known_bm_price:
+                benchmark_val = config.initial_capital * (last_known_bm_price / initial_index_bm_val)
+            else:
+                current_bm_avg = sum(
+                    day_prices.get(s, last_known_prices.get(s, initial_bm_prices.get(s, 0)))
+                    for s in bm_symbols
+                ) / max(1, len(bm_symbols))
+                benchmark_val = config.initial_capital * (current_bm_avg / initial_bm_index) if initial_bm_index > 0 else config.initial_capital
 
             if i > 0:
                 ret = (portfolio_val - prev_portfolio_val) / prev_portfolio_val if prev_portfolio_val > 0 else 0.0
@@ -300,6 +377,11 @@ class HistoricalBacktestEngine:
                 "total_trading_dates": len(sorted_dates),
                 "symbols_evaluated": valid_symbols,
                 "data_source": "CANONICAL_PRICES",
+                "price_basis": config.price_basis,
+                "adjusted_bars_count": adjusted_bars_count,
+                "raw_only_bars_count": raw_only_bars_count,
+                "benchmark_mode": benchmark_mode,
+                "dual_series_audit": dual_audits,
             },
         )
 

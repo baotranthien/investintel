@@ -1,4 +1,7 @@
+"use client";
+
 import React, { type JSX } from "react";
+import { useLocale } from "@/lib/i18n";
 import styles from "./skeleton.module.css";
 
 export function Skeleton({
@@ -41,10 +44,11 @@ export function SkeletonText({
   lineHeight?: number;
   gap?: number;
 }): JSX.Element {
+  const { t } = useLocale();
   return (
     <div
       role="status"
-      aria-label="Đang tải"
+      aria-label={t("Đang tải", "Loading")}
       className={styles.textWrapper}
       style={{ gap: `${gap}px` }}
     >
@@ -69,12 +73,13 @@ export function SkeletonCard({
   height?: number;
   className?: string;
 }): JSX.Element {
+  const { t } = useLocale();
   const cardStyle: React.CSSProperties = height !== undefined ? { height: `${height}px` } : {};
 
   return (
     <div
       role="status"
-      aria-label="Đang tải"
+      aria-label={t("Đang tải", "Loading")}
       className={`${styles.card}${className ? ` ${className}` : ""}`}
       style={cardStyle}
     >

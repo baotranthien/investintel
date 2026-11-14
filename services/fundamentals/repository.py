@@ -13,6 +13,7 @@ from sqlalchemy import desc
 from database.connection import SessionLocal
 from database.models import (
     Asset,
+    CorporateAction,
     FinancialStatement,
     NormalizedIncome,
     NormalizedBalanceSheet,
@@ -360,6 +361,38 @@ class FinancialRepository:
             if share_cap and share_cap > 0:
                 shares_outstanding = int(round(share_cap * 100_000))
 
+        # Load Point-in-Time CorporateActions and historical share checkpoints for IAS 33 weighted shares
+        from sqlalchemy import func
+        ca_query = self._session.query(CorporateAction).filter(CorporateAction.symbol == sym)
+        if cutoff_date:
+            ca_query = ca_query.filter(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date) <= cutoff_date)
+        ca_rows = ca_query.order_by(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date).asc()).all()
+        corporate_actions = [
+            {
+                "action_date": ca.action_date,
+                "ex_date": ca.ex_date,
+                "payment_date": ca.payment_date,
+                "action_type": ca.action_type,
+                "ratio": float(ca.ratio) if ca.ratio is not None else None,
+                "value": float(ca.value) if ca.value is not None else None,
+                "notes": ca.notes,
+                "source": ca.source,
+            }
+            for ca in ca_rows
+        ]
+
+        sh_history_rows = sh_query.order_by(FundamentalMetric.fiscal_period_end.asc()).all()
+        shares_history = [
+            {
+                "metric_id": m.metric_id,
+                "fiscal_period_end": m.fiscal_period_end,
+                "effective_date": m.as_of_publication_date or m.fiscal_period_end,
+                "value": float(m.value),
+            }
+            for m in sh_history_rows
+            if m.value is not None and float(m.value) > 0
+        ]
+
         return {
             "symbol": sym,
             "profile": profile,
@@ -369,6 +402,8 @@ class FinancialRepository:
             "balance_annual": bal_annual,
             "cashflow_annual": cf_annual,
             "shares_outstanding": shares_outstanding,
+            "corporate_actions": corporate_actions,
+            "shares_history": shares_history,
             "sources": list(sources) if sources else ["CANONICAL_DATABASE"],
             "as_of": as_of_date.isoformat() if as_of_date else (latest_pub_date.isoformat() if latest_pub_date else None),
             "latest_publication_date": latest_pub_date.isoformat() if latest_pub_date else None,

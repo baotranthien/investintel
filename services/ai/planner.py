@@ -79,6 +79,19 @@ class QueryPlanner:
             resolved = UniverseRegistry.resolve_instrument(session, explicit_symbol)
             sym = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(explicit_symbol) or explicit_symbol.upper())
             symbols = [sym]
+            if session is not None and hasattr(session, "query"):
+                text_symbols = UniverseRegistry.extract_all_symbols_from_text(q_clean, session)
+                for extra in text_symbols:
+                    if extra in symbols:
+                        continue
+                    extra_res = UniverseRegistry.resolve_instrument(session, extra)
+                    if extra_res and extra_res.source in {
+                        "DATABASE_ASSET",
+                        "VN100_CONSTITUENTS_JSON",
+                        "VN30_CONSTITUENTS_JSON",
+                        "CANONICAL_DATABASE",
+                    }:
+                        symbols.append(extra_res.symbol)
         else:
             symbols = UniverseRegistry.extract_all_symbols_from_text(q_clean, session)
 

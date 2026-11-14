@@ -13,6 +13,7 @@ import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { MultiFactorCube3D } from "@/components/three/multi-factor-cube-3d";
+import { useLocale, pickLocaleText, translateQuantEnum, type AppLocale } from "@/lib/i18n";
 import styles from "./page.module.css";
 
 const defaultFilters: OpportunityFilters = {
@@ -27,6 +28,7 @@ const defaultFilters: OpportunityFilters = {
 };
 
 export default function OpportunitiesPage() {
+  const { locale, t } = useLocale();
   const [filters, setFilters] = useState<OpportunityFilters>(defaultFilters);
   const [data, setData] = useState<OpportunityScanner | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -38,28 +40,55 @@ export default function OpportunitiesPage() {
   const [activeChip, setActiveChip] = useState<string>("all");
 
   const loadData = useCallback(async (currentFilters: OpportunityFilters) => {
-    setLoading(true);
-    setError(null);
     try {
       const res = await getOpportunityScanner(currentFilters);
       setData(res);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải dữ liệu bộ lọc cơ hội.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : pickLocaleText(locale, "Không thể tải dữ liệu bộ lọc cơ hội.", "Unable to load opportunity scanner data.")
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
-    loadData(filters);
-  }, [filters, loadData]);
+    let active = true;
+    getOpportunityScanner(filters)
+      .then((res) => {
+        if (active) {
+          setData(res);
+          setError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : pickLocaleText(locale, "Không thể tải dữ liệu bộ lọc cơ hội.", "Unable to load opportunity scanner data.")
+          );
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [filters, locale]);
 
   const handleFilterChange = <K extends keyof OpportunityFilters>(key: K, value: OpportunityFilters[K]) => {
+    setLoading(true);
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleChipClick = (chip: string) => {
     setActiveChip(chip);
+    setLoading(true);
     if (chip === "all") {
       setFilters(defaultFilters);
     } else if (chip === "high_score") {
@@ -71,6 +100,11 @@ export default function OpportunitiesPage() {
     } else if (chip === "technology") {
       setFilters((prev) => ({ ...prev, sector: "Technology" }));
     }
+  };
+
+  const handleRefresh = () => {
+    setLoading(true);
+    loadData(filters);
   };
 
   const filteredAndSortedResults = useMemo(() => {
@@ -139,23 +173,33 @@ export default function OpportunitiesPage() {
       {/* Header */}
       <header className={styles.pageHeader}>
         <div>
-          <h1>Sàng lọc cơ hội đầu tư</h1>
+          <h1>{t("Sàng lọc cơ hội đầu tư", "Opportunity Scanner")}</h1>
           <p className={styles.subTitle}>
-            Bộ lọc phát hiện cơ hội đầu tư dựa trên mô hình định lượng đa nhân tố (định giá, chất lượng tài chính ROE /
-            tăng trưởng, vĩ mô và quản trị rủi ro). Mọi kết luận đều gắn liền với bằng chứng thực tế và nguồn dữ liệu.
+            {t(
+              "Bộ lọc phát hiện cơ hội đầu tư dựa trên mô hình định lượng đa nhân tố (định giá, chất lượng tài chính ROE / tăng trưởng, vĩ mô và quản trị rủi ro). Mọi kết luận đều gắn liền với bằng chứng thực tế và nguồn dữ liệu.",
+              "Systematic multi-factor equity screening engine (Valuation, Financial Quality ROE / Growth, Macro Alignment, Risk Governance). All conclusions backed by empirical data and verified lineage."
+            )}
           </p>
         </div>
         <div className={styles.headerActions}>
           <button
             type="button"
             className={styles.refreshBtn}
-            onClick={() => loadData(filters)}
-            title="Tải lại kết quả bộ lọc"
+            onClick={handleRefresh}
+            title={t("Tải lại kết quả bộ lọc", "Reload scanner results")}
           >
-            ↻ Làm mới
+            ↻ {t("Làm mới", "Refresh")}
           </button>
-          <Link href="/ai?q=Tổng quan các cổ phiếu có cơ hội đầu tư tốt nhất hiện nay" className={styles.aiLinkBtn}>
-            ✦ Hỏi AI Analyst
+          <Link
+            href={`/ai?q=${encodeURIComponent(
+              t(
+                "Tổng quan các cổ phiếu có cơ hội đầu tư tốt nhất hiện nay",
+                "Overview of top quantitative investment opportunities today"
+              )
+            )}`}
+            className={styles.aiLinkBtn}
+          >
+            ✦ {t("Hỏi AI Analyst", "Ask AI Analyst")}
           </Link>
         </div>
       </header>
@@ -163,24 +207,24 @@ export default function OpportunitiesPage() {
       {/* Summary KPI Cards */}
       <section className={styles.statGrid}>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Tổng số cơ hội quét</span>
+          <span className={styles.statLabel}>{t("Tổng số cơ hội quét", "Total Screened Equities")}</span>
           <span className={styles.statValue}>{stats.total}</span>
-          <span className={styles.statDesc}>Thuộc vũ trụ {filters.universe}</span>
+          <span className={styles.statDesc}>{t("Thuộc vũ trụ", "Within universe")} {filters.universe}</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Điểm cơ hội cao nhất</span>
+          <span className={styles.statLabel}>{t("Điểm cơ hội cao nhất", "Top Opportunity Score")}</span>
           <span className={styles.statValue}>{stats.topStock}</span>
-          <span className={styles.statDesc}>Mô hình trung hạn (1-12 tháng)</span>
+          <span className={styles.statDesc}>{t("Mô hình trung hạn (1-12 tháng)", "Medium-term model (1–12 months)")}</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Điểm trung bình vũ trụ</span>
+          <span className={styles.statLabel}>{t("Điểm trung bình vũ trụ", "Universe Mean Score")}</span>
           <span className={styles.statValue}>{stats.avgScore}</span>
-          <span className={styles.statDesc}>Thang điểm chuẩn hóa 0–100</span>
+          <span className={styles.statDesc}>{t("Thang điểm chuẩn hóa 0–100", "Normalized 0–100 scale")}</span>
         </div>
         <div className={styles.statCard}>
-          <span className={styles.statLabel}>Độ phủ định giá</span>
+          <span className={styles.statLabel}>{t("Độ phủ định giá", "Valuation Coverage")}</span>
           <span className={styles.statValue}>{stats.valCoverage}</span>
-          <span className={styles.statDesc}>Dữ liệu P/E & BCTC xác thực</span>
+          <span className={styles.statDesc}>{t("Dữ liệu P/E & BCTC xác thực", "Audited P/E & financial statements")}</span>
         </div>
       </section>
 
@@ -193,35 +237,35 @@ export default function OpportunitiesPage() {
               className={`${styles.chip} ${activeChip === "all" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("all")}
             >
-              Tất cả
+              {t("Tất cả", "All")}
             </button>
             <button
               type="button"
               className={`${styles.chip} ${activeChip === "high_score" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("high_score")}
             >
-              Điểm cao (≥ 50)
+              {t("Điểm cao (≥ 50)", "High Score (≥ 50)")}
             </button>
             <button
               type="button"
               className={`${styles.chip} ${activeChip === "val_available" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("val_available")}
             >
-              Định giá khả dụng
+              {t("Định giá khả dụng", "Valuation Available")}
             </button>
             <button
               type="button"
               className={`${styles.chip} ${activeChip === "banking" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("banking")}
             >
-              Ngành ngân hàng
+              {t("Ngành ngân hàng", "Banking Sector")}
             </button>
             <button
               type="button"
               className={`${styles.chip} ${activeChip === "technology" ? styles.chipActive : ""}`}
               onClick={() => handleChipClick("technology")}
             >
-              Ngành công nghệ
+              {t("Ngành công nghệ", "Technology Sector")}
             </button>
           </div>
 
@@ -231,7 +275,7 @@ export default function OpportunitiesPage() {
             </span>
             <input
               type="text"
-              placeholder="Tìm theo mã hoặc tên (FPT, MWG...)"
+              placeholder={t("Tìm theo mã hoặc tên (FPT, MWG...)", "Search by symbol or name (FPT, MWG...)")}
               className={styles.searchBar}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -241,21 +285,21 @@ export default function OpportunitiesPage() {
 
         <div className={styles.filterControls}>
           <div className={styles.filterField}>
-            <label>Vũ trụ đầu tư</label>
+            <label>{t("Vũ trụ đầu tư", "Investment Universe")}</label>
             <select
               value={filters.universe}
               onChange={(e) => handleFilterChange("universe", e.target.value as OpportunityFilters["universe"])}
             >
-              <option value="VN100">VN100 (100 mã lớn nhất)</option>
-              <option value="ALL">Tất cả tài sản</option>
+              <option value="VN100">{t("VN100 (100 mã lớn nhất)", "VN100 (Top 100 Large-Cap)")}</option>
+              <option value="ALL">{t("Tất cả tài sản", "All Assets")}</option>
               <option value="VN300">VN300</option>
             </select>
           </div>
 
           <div className={styles.filterField}>
-            <label>Ngành nghề</label>
+            <label>{t("Ngành nghề", "Industry Sector")}</label>
             <select value={filters.sector} onChange={(e) => handleFilterChange("sector", e.target.value)}>
-              <option value="">Tất cả các ngành</option>
+              <option value="">{t("Tất cả các ngành", "All Sectors")}</option>
               {data?.sector_options?.map((sector) => (
                 <option key={sector} value={sector}>
                   {sector}
@@ -265,18 +309,18 @@ export default function OpportunitiesPage() {
           </div>
 
           <div className={styles.filterField}>
-            <label>Khung thời gian</label>
+            <label>{t("Khung thời gian", "Investment Horizon")}</label>
             <select
               value={filters.horizon}
               onChange={(e) => handleFilterChange("horizon", e.target.value as OpportunityFilters["horizon"])}
             >
-              <option value="MEDIUM_TERM">Trung hạn (1–12 tháng)</option>
-              <option value="LONG_TERM">Dài hạn (3–10 năm)</option>
+              <option value="MEDIUM_TERM">{t("Trung hạn (1–12 tháng)", "Medium-Term (1–12 months)")}</option>
+              <option value="LONG_TERM">{t("Dài hạn (3–10 năm)", "Long-Term (3–10 years)")}</option>
             </select>
           </div>
 
           <div className={styles.filterField}>
-            <label>Điểm tối thiểu</label>
+            <label>{t("Điểm tối thiểu", "Min Score")}</label>
             <input
               type="number"
               placeholder="0-100"
@@ -288,23 +332,23 @@ export default function OpportunitiesPage() {
           </div>
 
           <div className={styles.filterField}>
-            <label>Độ tin cậy</label>
+            <label>{t("Độ tin cậy", "Confidence Hurdle")}</label>
             <select value={filters.confidence} onChange={(e) => handleFilterChange("confidence", e.target.value)}>
-              <option value="">Tất cả</option>
-              <option value="HIGH">Cao</option>
-              <option value="MODERATE">Khá</option>
-              <option value="LOW">Thấp</option>
-              <option value="INSUFFICIENT">Chưa đủ dữ liệu</option>
+              <option value="">{t("Tất cả", "All")}</option>
+              <option value="HIGH">{t("Cao", "High")}</option>
+              <option value="MODERATE">{t("Khá", "Moderate")}</option>
+              <option value="LOW">{t("Thấp", "Low")}</option>
+              <option value="INSUFFICIENT">{t("Chưa đủ dữ liệu", "Insufficient Data")}</option>
             </select>
           </div>
 
           <div className={styles.filterField}>
-            <label>Sắp xếp theo</label>
+            <label>{t("Sắp xếp theo", "Sort By")}</label>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-              <option value="score_desc">Điểm cơ hội (cao → thấp)</option>
-              <option value="score_asc">Điểm cơ hội (thấp → cao)</option>
-              <option value="roe_desc">ROE (cao → thấp)</option>
-              <option value="symbol_asc">Mã cổ phiếu (A → Z)</option>
+              <option value="score_desc">{t("Điểm cơ hội (cao → thấp)", "Opportunity Score (High → Low)")}</option>
+              <option value="score_asc">{t("Điểm cơ hội (thấp → cao)", "Opportunity Score (Low → High)")}</option>
+              <option value="roe_desc">{t("ROE (cao → thấp)", "ROE (High → Low)")}</option>
+              <option value="symbol_asc">{t("Mã cổ phiếu (A → Z)", "Ticker Symbol (A → Z)")}</option>
             </select>
           </div>
         </div>
@@ -313,8 +357,8 @@ export default function OpportunitiesPage() {
       {/* View Mode Bar */}
       <div className={styles.viewBar}>
         <span className={styles.resultCount}>
-          Hiển thị <strong>{filteredAndSortedResults.length}</strong> cơ hội đủ điều kiện
-          {data?.as_of_date && <> · Ngày tính toán: {data.as_of_date}</>}
+          {t("Hiển thị", "Showing")} <strong>{filteredAndSortedResults.length}</strong> {t("cơ hội đủ điều kiện", "qualified opportunities")}
+          {data?.as_of_date && <> · {t("Ngày tính toán:", "As of date:")} {data.as_of_date}</>}
         </span>
         <div className={styles.viewToggle}>
           <button
@@ -322,54 +366,61 @@ export default function OpportunitiesPage() {
             className={`${styles.toggleBtn} ${viewMode === "cards" ? styles.toggleActive : ""}`}
             onClick={() => setViewMode("cards")}
           >
-            ▦ Thẻ phân tích
+            ▦ {t("Thẻ phân tích", "Cards View")}
           </button>
           <button
             type="button"
             className={`${styles.toggleBtn} ${viewMode === "table" ? styles.toggleActive : ""}`}
             onClick={() => setViewMode("table")}
           >
-            ☰ Bảng dữ liệu
+            ☰ {t("Bảng dữ liệu", "Table View")}
           </button>
           <button
             type="button"
             className={`${styles.toggleBtn} ${viewMode === "cube" ? styles.toggleActive : ""}`}
             onClick={() => setViewMode("cube")}
           >
-            🧊 Không gian 3D
+            🧊 {t("Không gian 3D", "3D Space")}
           </button>
         </div>
       </div>
 
       {/* Content Area */}
       {loading ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", padding: "16px 0" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: "16px", padding: "16px 0" }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} height={260} />
           ))}
         </div>
       ) : error ? (
         <div className={styles.errorState}>
-          <h3>Không thể tải dữ liệu</h3>
+          <h3>{t("Không thể tải dữ liệu", "Unable to Load Data")}</h3>
           <p>{error}</p>
-          <button type="button" className={styles.resetBtn} onClick={() => loadData(filters)}>
-            Thử lại
+          <button type="button" className={styles.resetBtn} onClick={handleRefresh}>
+            {t("Thử lại", "Retry")}
           </button>
         </div>
       ) : filteredAndSortedResults.length === 0 ? (
         <div className={styles.emptyState}>
-          <h3>Không tìm thấy cơ hội phù hợp</h3>
-          <p>Không có cổ phiếu nào đáp ứng đầy đủ tiêu chí lọc hiện tại. Thử nới lỏng bộ lọc hoặc chọn "Tất cả".</p>
+          <h3>{t("Không tìm thấy cơ hội phù hợp", "No Matching Opportunities Found")}</h3>
+          <p>
+            {t(
+              "Không có cổ phiếu nào đáp ứng đầy đủ tiêu chí lọc hiện tại. Thử nới lỏng bộ lọc hoặc chọn",
+              "No stocks currently match the specified screening hurdles. Try relaxing your filters or selecting"
+            )}{" "}
+            &quot;{t("Tất cả", "All")}&quot;.
+          </p>
           <button
             type="button"
             className={styles.resetBtn}
             onClick={() => {
+              setLoading(true);
               setFilters(defaultFilters);
               setSearch("");
               setActiveChip("all");
             }}
           >
-            Đặt lại bộ lọc mặc định
+            {t("Đặt lại bộ lọc mặc định", "Reset to Default Filters")}
           </button>
         </div>
       ) : viewMode === "cube" ? (
@@ -404,27 +455,27 @@ export default function OpportunitiesPage() {
           >
             <div>
               <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 700, color: "var(--ink)" }}>
-                Không gian Định lượng Đa nhân tố 3D (VN100 Multi-Factor Space)
+                {t("Không gian Định lượng Đa nhân tố 3D (VN100 Multi-Factor Space)", "3D Multi-Factor Quantitative Space (VN100)")}
               </h3>
               <p style={{ margin: 0, fontSize: "12.5px", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
-                Định vị tương quan rổ cổ phiếu theo 3 trục không gian:{" "}
-                <span style={{ color: "#3b82f6", fontWeight: 600 }}>Trục X (Định giá P/E)</span> ·{" "}
-                <span style={{ color: "#10b981", fontWeight: 600 }}>Trục Y (Chất lượng ROE)</span> ·{" "}
-                <span style={{ color: "#f59e0b", fontWeight: 600 }}>Trục Z (Động lượng RS)</span>.
+                {t("Định vị tương quan rổ cổ phiếu theo 3 trục không gian:", "Relative equity positioning across 3 dimensional axes:")}{" "}
+                <span style={{ color: "#3b82f6", fontWeight: 600 }}>{t("Trục X (Định giá P/E)", "X-Axis (P/E Valuation)")}</span> ·{" "}
+                <span style={{ color: "#10b981", fontWeight: 600 }}>{t("Trục Y (Chất lượng ROE)", "Y-Axis (ROE Quality)")}</span> ·{" "}
+                <span style={{ color: "#f59e0b", fontWeight: 600 }}>{t("Trục Z (Động lượng RS)", "Z-Axis (RS Momentum)")}</span>.
               </p>
             </div>
             <div style={{ display: "flex", gap: "10px", fontSize: "11.5px", color: "var(--ink-secondary)" }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981" }} />
-                Điểm cao (≥ 75)
+                {t("Điểm cao (≥ 75)", "High Score (≥ 75)")}
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#3b82f6" }} />
-                Khá (60–74)
+                {t("Khá (60–74)", "Moderate (60–74)")}
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b" }} />
-                Trung bình (&lt; 60)
+                {t("Trung bình (< 60)", "Average (< 60)")}
               </span>
             </div>
           </div>
@@ -487,14 +538,17 @@ export default function OpportunitiesPage() {
             onSelectStock={(sym) => router.push(`/ai?symbol=${encodeURIComponent(sym)}&source=opportunities`)}
           />
           <p style={{ margin: "14px 0 0 0", fontSize: "12px", color: "var(--ink-secondary)", textAlign: "center" }}>
-            Kéo chuột để xoay đa chiều · Hover để xem chỉ số chi tiết · Nhấp vào điểm cổ phiếu để chuyển giao trực tiếp sang AI Analyst
+            {t(
+              "Kéo chuột để xoay đa chiều · Hover để xem chỉ số chi tiết · Nhấp vào điểm cổ phiếu để chuyển giao trực tiếp sang AI Analyst",
+              "Drag to rotate in 3D · Hover to inspect metrics · Click any node to open in AI Analyst"
+            )}
           </p>
         </div>
       ) : viewMode === "cards" ? (
         /* Card Grid View */
         <div className={styles.cardGrid}>
           {filteredAndSortedResults.map((item) => (
-            <OpportunityCard key={item.symbol} item={item} />
+            <OpportunityCard key={item.symbol} item={item} locale={locale} />
           ))}
         </div>
       ) : (
@@ -503,16 +557,16 @@ export default function OpportunitiesPage() {
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                <th>Mã CP</th>
-                <th>Doanh nghiệp</th>
-                <th>Ngành</th>
-                <th>Điểm cơ hội</th>
-                <th>Độ tin cậy</th>
-                <th>Điểm rủi ro</th>
-                <th>Trạng thái định giá</th>
+                <th>{t("Mã CP", "Symbol")}</th>
+                <th>{t("Doanh nghiệp", "Company")}</th>
+                <th>{t("Ngành", "Sector")}</th>
+                <th>{t("Điểm cơ hội", "Opportunity Score")}</th>
+                <th>{t("Độ tin cậy", "Confidence")}</th>
+                <th>{t("Điểm rủi ro", "Risk Score")}</th>
+                <th>{t("Trạng thái định giá", "Valuation Status")}</th>
                 <th>ROE</th>
-                <th>Luận điểm chính</th>
-                <th>Thao tác</th>
+                <th>{t("Luận điểm chính", "Core Thesis")}</th>
+                <th>{t("Thao tác", "Actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -539,17 +593,20 @@ export default function OpportunitiesPage() {
                       }`}
                     >
                       {item.confidence === "MODERATE"
-                        ? "Khá"
+                        ? t("Khá", "Moderate")
                         : item.confidence === "HIGH"
-                        ? "Cao"
+                        ? t("Cao", "High")
                         : item.confidence === "LOW"
-                        ? "Thấp"
-                        : "Chưa đủ"}
+                        ? t("Thấp", "Low")
+                        : t("Chưa đủ", "Insufficient")}
                     </span>
                   </td>
                   <td>{item.risk_score !== null ? item.risk_score.toFixed(1) : "—"}</td>
                   <td>
-                    <StatusBadge status={item.valuation_status} />
+                    <StatusBadge
+                      status={item.valuation_status}
+                      label={translateQuantEnum(item.valuation_status, locale)}
+                    />
                   </td>
                   <td>
                     {item.factor_summary?.roe !== undefined && item.factor_summary?.roe !== null
@@ -559,18 +616,18 @@ export default function OpportunitiesPage() {
                   <td style={{ maxWidth: 260 }}>
                     {item.why_now && item.why_now.length > 0
                       ? item.why_now[0].description
-                      : "Dữ liệu đang được phân tích."}
+                      : t("Dữ liệu đang được phân tích.", "Data analysis in progress.")}
                   </td>
                   <td className={styles.tableActions}>
                     <Link
                       href={buildOpportunityAIUrl(item.symbol)}
                       className={styles.actionBtnAiSmall}
-                      title={`Hỏi AI Analyst về mã ${item.symbol}`}
+                      title={locale === "en" ? `Ask AI Analyst about ${item.symbol}` : `Hỏi AI Analyst về mã ${item.symbol}`}
                     >
-                      ✦ Hỏi AI
+                      ✦ {t("Hỏi AI", "Ask AI")}
                     </Link>
                     <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
-                      Nghiên cứu →
+                      {t("Nghiên cứu →", "Research →")}
                     </Link>
                   </td>
                 </tr>
@@ -583,7 +640,7 @@ export default function OpportunitiesPage() {
   );
 }
 
-function OpportunityCard({ item }: { item: OpportunityItem }) {
+function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppLocale }) {
   const score = item.opportunity_score;
   const isHigh = score !== null && score >= 55;
   const isMid = score !== null && score >= 48 && score < 55;
@@ -605,7 +662,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
 
         <div className={`${styles.scoreBadge} ${scoreClass}`}>
           <span className={styles.scoreValue}>{score !== null ? score.toFixed(1) : "—"}</span>
-          <span className={styles.scoreLabel}>Điểm</span>
+          <span className={styles.scoreLabel}>{locale === "en" ? "Score" : "Điểm"}</span>
         </div>
       </div>
 
@@ -616,11 +673,19 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
           <strong>{roeDisplay !== null ? `${roeDisplay.toFixed(1)}%` : "—"}</strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Định giá</span>
-          <strong>{item.valuation_status === "AVAILABLE" ? "Khả dụng" : "Chưa đủ"}</strong>
+          <span>{locale === "en" ? "Valuation" : "Định giá"}</span>
+          <strong>
+            {item.valuation_status === "AVAILABLE"
+              ? locale === "en"
+                ? "Available"
+                : "Khả dụng"
+              : locale === "en"
+              ? "Pending"
+              : "Chưa đủ"}
+          </strong>
         </div>
         <div className={styles.metricItem}>
-          <span>Điểm rủi ro</span>
+          <span>{locale === "en" ? "Risk Score" : "Điểm rủi ro"}</span>
           <strong>{item.risk_score !== null ? item.risk_score.toFixed(0) : "50"}</strong>
         </div>
       </div>
@@ -632,9 +697,27 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
             item.confidence === "HIGH" || item.confidence === "MODERATE" ? styles.pillGood : styles.pillNeutral
           }`}
         >
-          Độ tin cậy: {item.confidence === "HIGH" ? "Cao" : item.confidence === "MODERATE" ? "Khá" : item.confidence === "LOW" ? "Thấp" : "Chưa đủ"}
+          {locale === "en" ? "Confidence:" : "Độ tin cậy:"}{" "}
+          {item.confidence === "HIGH"
+            ? locale === "en"
+              ? "High"
+              : "Cao"
+            : item.confidence === "MODERATE"
+            ? locale === "en"
+              ? "Moderate"
+              : "Khá"
+            : item.confidence === "LOW"
+            ? locale === "en"
+              ? "Low"
+              : "Thấp"
+            : locale === "en"
+            ? "Insufficient"
+            : "Chưa đủ"}
         </span>
-        <StatusBadge status={item.data_freshness.status} label={`Nguồn: ${item.data_freshness.source ?? "LOTUSMARKET"}`} />
+        <StatusBadge
+          status={item.data_freshness.status}
+          label={`${locale === "en" ? "Source:" : "Nguồn:"} ${item.data_freshness.source ?? "LOTUSMARKET"}`}
+        />
       </div>
 
       {/* Claims / Why Now */}
@@ -642,7 +725,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         {item.why_now && item.why_now.length > 0 && (
           <div>
             <div className={styles.whyNowTitle}>
-              <span aria-hidden="true">✔</span> Luận điểm đầu tư chính
+              <span aria-hidden="true">✔</span> {locale === "en" ? "Core Investment Thesis" : "Luận điểm đầu tư chính"}
             </div>
             <div className={styles.whyNowItem}>{item.why_now.map((w) => w.description).join(" ")}</div>
           </div>
@@ -651,7 +734,7 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         {/* Risk factors */}
         {item.what_could_go_wrong && item.what_could_go_wrong.length > 0 && (
           <details className={styles.riskAccordion}>
-            <summary>Yếu tố rủi ro ({item.what_could_go_wrong.length})</summary>
+            <summary>{locale === "en" ? "Risk Factors" : "Yếu tố rủi ro"} ({item.what_could_go_wrong.length})</summary>
             <ul>
               {item.what_could_go_wrong.map((risk, idx) => (
                 <li key={idx}>{risk}</li>
@@ -666,12 +749,12 @@ function OpportunityCard({ item }: { item: OpportunityItem }) {
         <Link
           href={buildOpportunityAIUrl(item.symbol)}
           className={styles.actionBtnSecondary}
-          title={`Hỏi AI Analyst về mã ${item.symbol}`}
+          title={locale === "en" ? `Ask AI Analyst about ${item.symbol}` : `Hỏi AI Analyst về mã ${item.symbol}`}
         >
-          ✦ Hỏi AI
+          ✦ {locale === "en" ? "Ask AI" : "Hỏi AI"}
         </Link>
         <Link href={`/research/${item.symbol}`} className={styles.actionBtnPrimary}>
-          Nghiên cứu & định giá →
+          {locale === "en" ? "Research & Valuate →" : "Nghiên cứu & định giá →"}
         </Link>
       </div>
     </article>

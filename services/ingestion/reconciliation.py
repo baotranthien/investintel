@@ -12,6 +12,7 @@ Invariants:
 import logging
 from dataclasses import dataclass, field, asdict
 from datetime import date, datetime, timezone
+from itertools import combinations
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 
@@ -60,6 +61,66 @@ class ReconciliationReport:
     dates_only_in_b: List[str] = field(default_factory=list)
     discrepancy_details: List[DateDiscrepancy] = field(default_factory=list)
     status: str = "INSUFFICIENT_OVERLAP"  # CONSISTENT, MINOR_DISCREPANCY, SOURCE_DISAGREEMENT, INSUFFICIENT_OVERLAP
+    summary_message: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class ThreeWayDateDiscrepancy:
+    observation_date: str
+    closes_by_provider: Dict[str, Optional[float]]
+    consensus_close: Optional[float] = None
+    max_spread_pct: float = 0.0
+    agreeing_providers: List[str] = field(default_factory=list)
+    outlier_providers: List[str] = field(default_factory=list)
+    quorum_status: str = "INSUFFICIENT_SOURCES"  # THREE_WAY_CONSENSUS, TWO_OF_THREE_CONSENSUS, THREE_WAY_DIVERGENCE
+
+
+@dataclass
+class ThreeWayCandleReport:
+    symbol: str
+    providers: List[str]
+    start_date: str
+    end_date: str
+    overlapping_dates_count: int = 0
+    three_way_consensus_count: int = 0
+    two_of_three_consensus_count: int = 0
+    divergence_count: int = 0
+    max_spread_pct: float = 0.0
+    outlier_counts_by_provider: Dict[str, int] = field(default_factory=dict)
+    consensus_close_by_date: Dict[str, float] = field(default_factory=dict)
+    discrepancy_details: List[ThreeWayDateDiscrepancy] = field(default_factory=list)
+    status: str = "INSUFFICIENT_OVERLAP"
+    summary_message: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class RatioMetricConsensus:
+    metric: str
+    values_by_provider: Dict[str, Optional[float]]
+    consensus_value: Optional[float] = None
+    consensus_status: str = "MISSING"  # THREE_WAY_CONSENSUS, TWO_OF_THREE_CONSENSUS, TWO_SOURCE_AGREEMENT, CONFLICTING_SOURCES, SINGLE_SOURCE_UNVERIFIED, MISSING
+    agreeing_providers: List[str] = field(default_factory=list)
+    outlier_providers: List[str] = field(default_factory=list)
+    missing_providers: List[str] = field(default_factory=list)
+    max_spread_pct: float = 0.0
+    resolution_source: Optional[str] = None
+
+
+@dataclass
+class ThreeWayRatioReport:
+    symbol: str
+    as_of_date: str
+    providers: List[str]
+    metrics: Dict[str, RatioMetricConsensus] = field(default_factory=dict)
+    overall_status: str = "INSUFFICIENT_SOURCES"
+    reconciled_metrics_count: int = 0
+    conflicting_metrics_count: int = 0
     summary_message: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -263,6 +324,234 @@ class MarketDataReconciliationEngine:
         session.add(qr)
         session.commit()
         return qr
+
+    @staticmethod
+    def _solve_quorum(
+        values: Dict[str, Optional[float]],
+        all_providers: List[str],
+        tol_match: float,
+        tol_major: float,
+    ) -> tuple[str, Optional[float], List[str], List[str], List[str], float]:
+        """
+        Deterministic 2-of-3 / N-way consensus quorum solver across independent providers.
+        Returns: (quorum_status, consensus_val, agreeing, outliers, missing, max_spread_pct).
+        """
+        present = {p: float(v) for p, v in values.items() if v is not None and float(v) > 0}
+        missing = [p for p in all_providers if p not in present]
+        p_names = sorted(present.keys())
+        if not p_names:
+            return ("MISSING", None, [], [], missing, 0.0)
+        if len(p_names) == 1:
+            p0 = p_names[0]
+            return ("SINGLE_SOURCE_UNVERIFIED", present[p0], [p0], [], missing, 0.0)
+
+        # Pairwise agreement edges within tol_match
+        adj: Dict[str, List[str]] = {p: [p] for p in p_names}
+        max_spread = 0.0
+        for i, pa in enumerate(p_names):
+            for pb in p_names[i + 1:]:
+                va, vb = present[pa], present[pb]
+                denom = max(min(va, vb), 1e-6)
+                spread = abs(va - vb) / denom
+                if spread > max_spread:
+                    max_spread = spread
+                if spread <= tol_match:
+                    adj[pa].append(pb)
+                    adj[pb].append(pa)
+
+        max_spread_pct = round(max_spread * 100, 4)
+
+        # Largest clique where every pair agrees within tol_match (reject ties across disjoint clusters)
+        adj_sets = {p: set(neighbors) for p, neighbors in adj.items()}
+        best_cluster: List[str] = []
+        tie_at_best = False
+        for k in range(len(p_names), 1, -1):
+            cliques_k: List[List[str]] = []
+            for comb in combinations(p_names, k):
+                if all(pb in adj_sets[pa] for i, pa in enumerate(comb) for pb in comb[i + 1:]):
+                    cliques_k.append(sorted(comb))
+            if cliques_k:
+                if len(cliques_k) > 1:
+                    tie_at_best = True
+                else:
+                    best_cluster = cliques_k[0]
+                break
+
+        if not tie_at_best and len(best_cluster) == len(p_names) and len(p_names) >= 3:
+            cons_val = round(sum(present[p] for p in best_cluster) / len(best_cluster), 4)
+            return ("THREE_WAY_CONSENSUS", cons_val, best_cluster, [], missing, max_spread_pct)
+
+        if not tie_at_best and len(best_cluster) >= 2:
+            outliers = [p for p in p_names if p not in best_cluster]
+            cons_val = round(sum(present[p] for p in best_cluster) / len(best_cluster), 4)
+            if len(p_names) >= 3 and outliers:
+                return ("TWO_OF_THREE_CONSENSUS", cons_val, best_cluster, outliers, missing, max_spread_pct)
+            return ("TWO_SOURCE_AGREEMENT", cons_val, best_cluster, [], missing, max_spread_pct)
+
+        status = "THREE_WAY_DIVERGENCE" if len(p_names) >= 3 else "CONFLICTING_SOURCES"
+        return (status, None, [], p_names, missing, max_spread_pct)
+
+    def reconcile_three_way_candles(
+        self,
+        symbol: str,
+        series_by_provider: Dict[str, List[MarketDataPoint]],
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> ThreeWayCandleReport:
+        """
+        Deterministically reconciles OHLCV close candles across 3 independent sources
+        (e.g., VIETCAP, VNDIRECT, VIETSTOCK/LOTUSMARKET) via 2-of-3 quorum consensus.
+        """
+        norm_sym = normalize_symbol(symbol)
+        provider_names = list(series_by_provider.keys())
+        date_maps: Dict[str, Dict[date, float]] = {}
+        all_dates: set[date] = set()
+
+        for prov, bars in series_by_provider.items():
+            dmap = {b.observation_date: float(b.close) for b in (bars or []) if b.close and b.close > 0}
+            date_maps[prov] = dmap
+            all_dates.update(dmap.keys())
+
+        sorted_all = sorted(all_dates)
+        s_str = start_date.isoformat() if start_date else (sorted_all[0].isoformat() if sorted_all else "")
+        e_str = end_date.isoformat() if end_date else (sorted_all[-1].isoformat() if sorted_all else "")
+
+        overlapping = [d for d in sorted_all if sum(1 for p in provider_names if d in date_maps[p]) >= 2]
+        report = ThreeWayCandleReport(
+            symbol=norm_sym,
+            providers=provider_names,
+            start_date=s_str,
+            end_date=e_str,
+            overlapping_dates_count=len(overlapping),
+            outlier_counts_by_provider={p: 0 for p in provider_names},
+        )
+
+        if not overlapping:
+            report.status = "INSUFFICIENT_OVERLAP"
+            report.summary_message = f"Insufficient multi-provider overlap across {provider_names} for {norm_sym}."
+            return report
+
+        max_spread = 0.0
+        for d in overlapping:
+            vals = {p: date_maps[p].get(d) for p in provider_names}
+            q_status, cons_val, agree, outliers, _, spread_pct = self._solve_quorum(
+                vals, provider_names, DISCREPANCY_TOLERANCE_MINOR, DISCREPANCY_TOLERANCE_MAJOR
+            )
+            if spread_pct > max_spread:
+                max_spread = spread_pct
+            if cons_val is not None:
+                report.consensus_close_by_date[d.isoformat()] = cons_val
+
+            if q_status == "THREE_WAY_CONSENSUS":
+                report.three_way_consensus_count += 1
+            elif q_status == "TWO_OF_THREE_CONSENSUS":
+                report.two_of_three_consensus_count += 1
+                for out_p in outliers:
+                    report.outlier_counts_by_provider[out_p] = report.outlier_counts_by_provider.get(out_p, 0) + 1
+            elif q_status == "TWO_SOURCE_AGREEMENT":
+                # Only 2 sources active on this date; agreeing, but not a 3-way consensus
+                pass
+            else:
+                report.divergence_count += 1
+
+            if outliers or q_status in ("THREE_WAY_DIVERGENCE", "CONFLICTING_SOURCES"):
+                report.discrepancy_details.append(ThreeWayDateDiscrepancy(
+                    observation_date=d.isoformat(),
+                    closes_by_provider=vals,
+                    consensus_close=cons_val,
+                    max_spread_pct=spread_pct,
+                    agreeing_providers=agree,
+                    outlier_providers=outliers,
+                    quorum_status=q_status,
+                ))
+
+        report.max_spread_pct = round(max_spread, 4)
+        if report.divergence_count > 0:
+            report.status = "THREE_WAY_DIVERGENCE"
+            report.summary_message = (
+                f"{norm_sym}: {report.divergence_count}/{len(overlapping)} overlapping dates had no 2-of-3 consensus "
+                f"(max spread {report.max_spread_pct:.2f}%)."
+            )
+        elif report.two_of_three_consensus_count > 0:
+            report.status = "TWO_OF_THREE_CONSENSUS"
+            report.summary_message = (
+                f"{norm_sym}: 2-of-3 consensus resolved {report.two_of_three_consensus_count} outlier sessions; "
+                f"outlier counts={report.outlier_counts_by_provider}."
+            )
+        elif report.three_way_consensus_count == 0 and len(overlapping) > 0:
+            report.status = "TWO_SOURCE_AGREEMENT"
+            report.summary_message = (
+                f"{norm_sym}: {len(overlapping)} overlapping sessions agreed across available provider pair {provider_names}."
+            )
+        else:
+            report.status = "THREE_WAY_CONSENSUS"
+            report.summary_message = (
+                f"{norm_sym}: {len(overlapping)} overlapping sessions reached full consensus across {provider_names}."
+            )
+        return report
+
+    def reconcile_three_way_ratios(
+        self,
+        symbol: str,
+        ratios_by_provider: Dict[str, Dict[str, Optional[float]]],
+        *,
+        as_of: Optional[date] = None,
+        rel_tol: float = 0.05,
+        metrics: tuple[str, ...] = ("pe", "pb", "roe", "eps", "bvps"),
+    ) -> ThreeWayRatioReport:
+        """
+        Cross-reconciles valuation ratios (P/E, P/B, ROE, EPS, BVPS) across 3 providers
+        (e.g., VIETCAP, VNDIRECT, VIETSTOCK/LOTUSMARKET) to resolve missing/stale P/B comparators.
+        """
+        norm_sym = normalize_symbol(symbol)
+        providers = list(ratios_by_provider.keys())
+        as_of_d = as_of or date.today()
+        report = ThreeWayRatioReport(
+            symbol=norm_sym,
+            as_of_date=as_of_d.isoformat(),
+            providers=providers,
+        )
+
+        reconciled = 0
+        conflicting = 0
+        for m in metrics:
+            vals = {p: (ratios_by_provider.get(p) or {}).get(m) for p in providers}
+            q_status, cons_val, agree, outliers, missing, spread_pct = self._solve_quorum(
+                vals, providers, rel_tol, rel_tol * 3.0
+            )
+            res_source = "+".join(agree) if agree else None
+            if q_status in ("THREE_WAY_CONSENSUS", "TWO_OF_THREE_CONSENSUS", "TWO_SOURCE_AGREEMENT"):
+                reconciled += 1
+            elif q_status in ("THREE_WAY_DIVERGENCE", "CONFLICTING_SOURCES"):
+                conflicting += 1
+
+            report.metrics[m] = RatioMetricConsensus(
+                metric=m,
+                values_by_provider=vals,
+                consensus_value=cons_val,
+                consensus_status=q_status,
+                agreeing_providers=agree,
+                outlier_providers=outliers,
+                missing_providers=missing,
+                max_spread_pct=spread_pct,
+                resolution_source=res_source,
+            )
+
+        report.reconciled_metrics_count = reconciled
+        report.conflicting_metrics_count = conflicting
+        if conflicting > 0:
+            report.overall_status = "PARTIAL_WITH_CONFLICTS"
+        elif reconciled > 0:
+            report.overall_status = "RECONCILED_MULTI_SOURCE"
+        elif any(rc.consensus_status == "SINGLE_SOURCE_UNVERIFIED" for rc in report.metrics.values()):
+            report.overall_status = "SINGLE_SOURCE_ONLY"
+        else:
+            report.overall_status = "INSUFFICIENT_SOURCES"
+        report.summary_message = (
+            f"{norm_sym} 3-way ratios across {providers}: "
+            f"{reconciled} consensus metrics, {conflicting} conflicts."
+        )
+        return report
 
 
 @dataclass

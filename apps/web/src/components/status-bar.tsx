@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore, type JSX } from "react";
 import { describeStatus } from "@/components/ui/status-badge";
+import { useLocale } from "@/lib/i18n";
 import styles from "./status-bar.module.css";
 
 function subscribeOnline(callback: () => void) {
@@ -22,6 +23,7 @@ function getServerOnlineSnapshot() {
 }
 
 export function StatusBar(): JSX.Element {
+  const { locale, t } = useLocale();
   const isOnline = useSyncExternalStore(
     subscribeOnline,
     getOnlineSnapshot,
@@ -32,18 +34,28 @@ export function StatusBar(): JSX.Element {
   const [time, setTime] = useState("");
   const [healthStatus, setHealthStatus] = useState<string | null>(null);
   const [latency, setLatency] = useState<number | null>(null);
+  const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    // Mark as mounted
     const mountTimeout = setTimeout(() => {
       setMounted(true);
     }, 0);
+
+    // Mouse coordinates tracker
+    let rafId: number;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setMouseCoord({ x: e.clientX, y: e.clientY });
+      });
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
 
     // Clock
     const updateClock = () => {
       const now = new Date();
       setTime(
-        now.toLocaleTimeString("vi-VN", {
+        now.toLocaleTimeString(locale === "en" ? "en-GB" : "vi-VN", {
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
@@ -97,31 +109,55 @@ export function StatusBar(): JSX.Element {
       clearTimeout(mountTimeout);
       clearInterval(clockTimer);
       clearInterval(pollInterval);
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("mousemove", onMove);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [locale]);
 
-  const meta = describeStatus(healthStatus ?? (mounted ? "AVAILABLE" : null));
+  const meta = describeStatus(healthStatus ?? (mounted ? "AVAILABLE" : null), locale);
 
   return (
-    <footer className={styles.statusBar} aria-label="Trạng thái hệ thống">
+    <footer className={styles.statusBar} aria-label={t("Trạng thái hệ thống", "System telemetry")}>
       <div className={styles.leftGroup}>
         <div className={styles.engineSection} title={meta.tooltip}>
           <span className={`${styles.dot} ${styles[meta.tone]}`} aria-hidden="true" />
-          <span>Engine: {meta.label}</span>
+          <span>{t("Hệ thống", "Engine")}: {meta.label}</span>
         </div>
         <span className={styles.divider}>·</span>
-        <span className="tabular-nums">
-          API {latency !== null ? `${latency} ms` : "-- ms"}
-        </span>
+        <div className={styles.latencyGroup}>
+          <svg
+            width="24"
+            height="10"
+            viewBox="0 0 24 10"
+            fill="none"
+            className={styles.ecgWave}
+            aria-hidden="true"
+          >
+            <path
+              d="M1 5 L5 5 L7 2 L9 8 L12 1 L14 9 L16 5 L23 5"
+              stroke="var(--finotive-emerald, #10B981)"
+              strokeWidth="1.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="tabular-nums">
+            API {latency !== null ? `${latency} ms` : "-- ms"}
+          </span>
+        </div>
         <span className={styles.divider}>·</span>
-        <span>Local-first</span>
+        <span>{t("Xử lý cục bộ", "Local-first")}</span>
+        <span className={styles.divider}>·</span>
+        <span className={styles.coordDisplay}>
+          COORD X: {mouseCoord.x.toString().padStart(4, "0")} {"//"} Y: {mouseCoord.y.toString().padStart(4, "0")}
+        </span>
       </div>
 
       <div className={styles.rightGroup}>
         {mounted && (
           <>
-            <span>{isOnline ? "Trực tuyến" : "Ngoại tuyến"}</span>
+            <span>{isOnline ? t("Trực tuyến", "Online") : t("Ngoại tuyến", "Offline")}</span>
             {time && (
               <>
                 <span className={styles.divider}>·</span>

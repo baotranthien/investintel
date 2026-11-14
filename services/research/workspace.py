@@ -198,6 +198,24 @@ def build_research_workspace(
 
     has_financials = bool(dataset["income_annual"] or dataset["income_quarters"] or dataset["balance_annual"])
     if has_financials:
+        ref_prices: dict[date, float] | None = None
+        corp_actions = dataset.get("corporate_actions") or []
+        if any(str(ca.get("action_type") or "").strip().upper() == "RIGHTS_ISSUE" for ca in corp_actions):
+            price_rows = (
+                session.query(Price.observation_date, Price.raw_close)
+                .filter(
+                    Price.asset_id == asset.id,
+                    Price.status == "VALID",
+                    Price.observation_date <= as_of_d,
+                    Price.raw_close.isnot(None),
+                )
+                .all()
+            )
+            ref_prices = {
+                obs_d: float(raw_c)
+                for obs_d, raw_c in price_rows
+                if obs_d is not None and raw_c and raw_c > 0
+            }
         snapshot = FundamentalSnapshotBuilder(normalized_symbol, sector).build_snapshot(
             income_quarters=dataset["income_quarters"],
             income_annual=dataset["income_annual"],
@@ -206,6 +224,9 @@ def build_research_workspace(
             as_of_date=as_of_d,
             shares_outstanding=dataset.get("shares_outstanding"),
             sources=source_names,
+            corporate_actions=corp_actions,
+            shares_history=dataset.get("shares_history"),
+            reference_prices=ref_prices,
         )
     else:
         snapshot = {}
@@ -474,9 +495,16 @@ def build_research_workspace(
     if as_of_d:
         db_metrics_q = db_metrics_q.filter(FundamentalMetric.fiscal_period_end <= as_of_d)
     db_metrics = db_metrics_q.order_by(FundamentalMetric.fiscal_period_end.desc()).all()
-    db_metric_map = {m.metric_id: float(m.value) for m in db_metrics}
-    db_pe = db_metric_map.get("PRICE_TO_EARNINGS") or db_metric_map.get("P_E")
-    db_pb = db_metric_map.get("PRICE_TO_BOOK") or db_metric_map.get("P_B")
+    db_metric_map: dict[str, float] = {}
+    for m in db_metrics:
+        if m.value is not None and m.metric_id not in db_metric_map:
+            db_metric_map[m.metric_id] = float(m.value)
+    db_pe = db_metric_map.get("PRICE_TO_EARNINGS")
+    if db_pe is None:
+        db_pe = db_metric_map.get("P_E")
+    db_pb = db_metric_map.get("PRICE_TO_BOOK")
+    if db_pb is None:
+        db_pb = db_metric_map.get("P_B")
 
     eps_val = eps_metric.value if eps_metric else None
     bvps_val = bvps_metric.value if bvps_metric else None
@@ -548,9 +576,14 @@ def build_research_workspace(
         val_diag_rsn = None
         if metric_id == "pe" and eps_metric and getattr(eps_metric, "is_estimate", False):
             is_val_est = True
-            val_diag_rsn = "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"
+            eps_diag = getattr(eps_metric, "diagnostic_reason", None)
+            val_diag_rsn = (
+                "EPS_DENOMINATOR_ESTIMATE_PERIOD_END_SHARES"
+                if eps_diag in (None, "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING")
+                else eps_diag
+            )
             if meaningful and "Denominator uses period-end shares fallback" not in calc_note:
-                calc_note += " (Denominator uses period-end shares fallback; multiple is an estimate.)"
+                calc_note += " (Denominator uses period-end or partial IAS 33 share basis; multiple is an estimate.)"
 
         valuation_metrics[metric_id] = WorkspaceMetric(
             value=calc_val,

@@ -1,5 +1,6 @@
 .page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   animation: enter 220ms var(--ease-apple) both;
   padding-bottom: 90px;
@@ -291,7 +292,7 @@
 
 .tableWrap th,
 .tableWrap td {
-  padding: 12px 14px;
+  padding: 10px 10px;
   border-top: 1px solid var(--line-subtle);
   font-size: 12.5px;
   vertical-align: middle;
@@ -489,6 +490,10 @@
   transform: translateY(-1px);
 }
 
+.form > button {
+  width: 100%;
+}
+
 .notesField {
   grid-column: span 2;
 }
@@ -500,6 +505,7 @@
 }
 
 .card {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -531,6 +537,7 @@
   gap: 16px;
   align-items: center;
   margin: 8px 0 12px 0;
+  flex: 1;
 }
 
 @media (max-width: 900px) {
@@ -595,6 +602,12 @@
   line-height: 1.5;
 }
 
+.sectionNoteFooter {
+  margin: auto 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-subtle);
+}
+
 .fitRow {
   padding: 10px 0;
   border-top: 1px solid var(--line-subtle);
@@ -634,7 +647,8 @@
 }
 
 .thresholdForm {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
   margin-top: 16px;
   border-top: 1px solid var(--line);
 }
@@ -645,20 +659,46 @@
 }
 
 .dcaForm {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr) minmax(0, 0.85fr) auto;
+  align-items: end;
 }
 
 .dcaForm button {
-  grid-column: 1 / -1;
-  justify-self: flex-start;
+  align-self: end;
+  white-space: nowrap;
 }
 
 .dcaResult {
-  margin-top: 14px;
-  padding: 14px 0 0 0;
-  border-top: 1px dashed var(--line);
-  background: transparent;
+  flex: 1;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12.5px;
+}
+
+.dcaResult small {
+  margin-top: auto;
+}
+
+.dcaFooterBtn {
+  margin-top: auto;
+  width: 100%;
+}
+
+@media (max-width: 1080px) {
+  .thresholdForm,
+  .dcaForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dcaForm button {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+  }
 }
 
 .dcaResult p {
@@ -702,4 +742,74 @@
   .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview > div:nth-child(2) { border-right: 0; }
   .overview > div:nth-child(n + 3) { border-top: 1px solid var(--line-subtle); }
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .refresh,
+  .secondaryButton {
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .overview {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .overview > div {
+    padding: 16px;
+  }
+
+  .overview strong {
+    font-size: clamp(1.15rem, 5vw, 1.45rem);
+    overflow-wrap: anywhere;
+  }
+
+  .form,
+  .dcaForm,
+  .thresholdForm {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .notesField {
+    grid-column: auto;
+  }
+
+  .form input,
+  .form select,
+  .dcaForm input,
+  .thresholdForm input,
+  .targetRow input,
+  .tableWrap td select {
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  .iconButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tableWrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .form button,
+  .dcaForm button,
+  .thresholdForm button,
+  .buttonRow > button:first-child {
+    min-height: 42px;
+    width: 100%;
+  }
+
+  .targetRow {
+    grid-template-columns: minmax(70px, 1fr) minmax(80px, 100px) 18px 40px;
+  }
 }

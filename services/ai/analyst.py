@@ -656,57 +656,337 @@ class AIAnalyst:
 
         # Multi-ticker comparisons (e.g. MBB vs VCB)
         comparisons: dict[str, Any] = {}
+        comparison_cards: list[dict[str, Any]] = []
+        comparison_rows: list[dict[str, Any]] = []
         if len(target_symbols) >= 2:
             s1, s2 = target_symbols[0], target_symbols[1]
             m1 = symbols_summary.get(s1, {}).get("metrics", {})
             m2 = symbols_summary.get(s2, {}).get("metrics", {})
 
-            # P/E comparison
-            pe1_item = m1.get("pe") or m1.get("pe_ratio")
-            pe2_item = m2.get("pe") or m2.get("pe_ratio")
-            if pe1_item and pe2_item and pe1_item.get("value") is not None and pe2_item.get("value") is not None:
+            def _add_cmp(
+                key: str,
+                label: str,
+                item1: dict[str, Any] | None,
+                item2: dict[str, Any] | None,
+                unit: str,
+                *,
+                include_ratio: bool = False,
+                flat_diff_key: str | None = None,
+                flat_ratio_key: str | None = None,
+            ) -> None:
+                if not item1 or not item2 or item1.get("value") is None or item2.get("value") is None:
+                    return
                 try:
-                    v1 = float(pe1_item["value"])
-                    v2 = float(pe2_item["value"])
-                    comparisons["pe_diff"] = round(v1 - v2, 2)
-                    comparisons["pe_ratio"] = round(v1 / v2, 2) if v2 != 0 else None
-                except (ValueError, TypeError, ZeroDivisionError):
-                    pass
-
-            # P/B comparison
-            pb1_item = m1.get("pb") or m1.get("pb_ratio")
-            pb2_item = m2.get("pb") or m2.get("pb_ratio")
-            if pb1_item and pb2_item and pb1_item.get("value") is not None and pb2_item.get("value") is not None:
-                try:
-                    v1 = float(pb1_item["value"])
-                    v2 = float(pb2_item["value"])
-                    comparisons["pb_diff"] = round(v1 - v2, 2)
-                    comparisons["pb_ratio"] = round(v1 / v2, 2) if v2 != 0 else None
-                except (ValueError, TypeError, ZeroDivisionError):
-                    pass
-
-            # ROE comparison
-            roe1_item = m1.get("roe")
-            roe2_item = m2.get("roe")
-            if roe1_item and roe2_item and roe1_item.get("value") is not None and roe2_item.get("value") is not None:
-                try:
-                    comparisons["roe_diff"] = round(float(roe1_item["value"]) - float(roe2_item["value"]), 2)
+                    v1 = float(item1["value"])
+                    v2 = float(item2["value"])
                 except (ValueError, TypeError):
-                    pass
+                    return
+                if unit == "%":
+                    if str(item1.get("unit") or "").lower() in {"ratio", "decimal"}:
+                        v1 *= 100.0
+                    if str(item2.get("unit") or "").lower() in {"ratio", "decimal"}:
+                        v2 *= 100.0
+                diff = round(v1 - v2, 2)
+                ratio_val = round(v1 / v2, 2) if (include_ratio and v2 != 0) else None
+                if flat_diff_key:
+                    comparisons[flat_diff_key] = diff
+                if flat_ratio_key and ratio_val is not None:
+                    comparisons[flat_ratio_key] = ratio_val
+                comparison_cards.append({
+                    "key": key,
+                    "label": label,
+                    "symbol_a": s1,
+                    "symbol_b": s2,
+                    "value_a": round(v1, 2),
+                    "value_b": round(v2, 2),
+                    "diff": diff,
+                    "ratio": ratio_val,
+                    "unit": unit,
+                })
+                comparison_rows.append({
+                    "metric": key,
+                    "label": label,
+                    "unit": unit,
+                    "values": {s1: round(v1, 2), s2: round(v2, 2)},
+                    "diff": diff,
+                })
 
-            # Bank comparisons (NIM, CASA, Credit Growth, NPL, LLR)
-            for b_key in ("nim", "casa_ratio", "credit_growth", "npl_ratio", "llr_ratio"):
-                b1 = m1.get(b_key)
-                b2 = m2.get(b_key)
-                if b1 and b2 and b1.get("value") is not None and b2.get("value") is not None:
-                    try:
-                        comparisons[f"{b_key}_diff"] = round(float(b1["value"]) - float(b2["value"]), 2)
-                    except (ValueError, TypeError):
-                        pass
+            _add_cmp(
+                "pe", "P/E", m1.get("pe") or m1.get("pe_ratio"), m2.get("pe") or m2.get("pe_ratio"),
+                "x", include_ratio=True, flat_diff_key="pe_diff", flat_ratio_key="pe_ratio",
+            )
+            _add_cmp(
+                "pb", "P/B", m1.get("pb") or m1.get("pb_ratio"), m2.get("pb") or m2.get("pb_ratio"),
+                "x", include_ratio=True, flat_diff_key="pb_diff", flat_ratio_key="pb_ratio",
+            )
+            _add_cmp("roe", "ROE", m1.get("roe"), m2.get("roe"), "%", flat_diff_key="roe_diff")
+            for b_key, b_label in (
+                ("nim", "NIM"),
+                ("casa_ratio", "CASA"),
+                ("credit_growth", "Tăng trưởng tín dụng"),
+                ("npl_ratio", "Nợ xấu (NPL)"),
+                ("llr_ratio", "Bao phủ nợ xấu (LLR)"),
+            ):
+                _add_cmp(b_key, b_label, m1.get(b_key), m2.get(b_key), "%", flat_diff_key=f"{b_key}_diff")
+
+            # Net profit margin comparison from calculated_indicators if both exist
+            npm1 = symbols_summary.get(s1, {}).get("calculated_indicators", {}).get("net_profit_margin_pct")
+            npm2 = symbols_summary.get(s2, {}).get("calculated_indicators", {}).get("net_profit_margin_pct")
+            if npm1 is not None and npm2 is not None:
+                _add_cmp("net_margin", "Biên LN ròng", {"value": npm1}, {"value": npm2}, "%")
+
+        # Interactive Recharts payloads built strictly from grounded context/citations
+        charts: list[dict[str, Any]] = []
+        chart_ctx = context.get("chart_context") if isinstance(context, dict) else {}
+        chart_ctx = chart_ctx if isinstance(chart_ctx, dict) else {}
+
+        # 1. Valuation Bear / Base / Bull vs Spot Price bridge
+        tools_list = context.get("tools", []) if isinstance(context, dict) else []
+        tools_by_name = {
+            t.get("name"): t.get("data")
+            for t in tools_list
+            if isinstance(t, dict) and t.get("name")
+        }
+        primary_sym = next(
+            (s for s in target_symbols if s not in {"MARKET", "ALL", "UNIVERSE", "UNIVERSE_ALL", "VNINDEX", "VN100"}),
+            None,
+        )
+        if primary_sym:
+            m_prim = symbols_summary.get(primary_sym, {}).get("metrics", {})
+            spot_item = m_prim.get("close") or m_prim.get("latest_close") or m_prim.get("price")
+            spot_px = float(spot_item["value"]) if spot_item and spot_item.get("value") is not None else None
+            val_mod = tools_by_name.get("valuation")
+            bear_v = base_v = bull_v = None
+            if isinstance(val_mod, dict):
+                comp = val_mod.get("composite_fair_value") or {}
+                rng = comp.get("range") if isinstance(comp, dict) else {}
+                if isinstance(rng, dict) and rng.get("base"):
+                    bear_v = float(rng["bear"]) if rng.get("bear") is not None else None
+                    base_v = float(rng["base"]) if rng.get("base") is not None else None
+                    bull_v = float(rng["bull"]) if rng.get("bull") is not None else None
+                if not spot_px and val_mod.get("price_as_of"):
+                    spot_px = float(val_mod["price_as_of"])
+            if base_v is None:
+                # Extract from grounded composite_fair_value_base citation note if valuation module omitted
+                for c in citations:
+                    if (c.symbol or primary_sym) == primary_sym and c.metric in {"composite_fair_value_base", "dcf_base"} and c.value is not None:
+                        base_v = float(c.value)
+                        note_s = c.note or ""
+                        m_b = re.search(r"Bear:\s*([\d,]+)", note_s)
+                        m_u = re.search(r"Bull:\s*([\d,]+)", note_s)
+                        if m_b:
+                            bear_v = float(m_b.group(1).replace(",", ""))
+                        if m_u:
+                            bull_v = float(m_u.group(1).replace(",", ""))
+                        break
+            if base_v is not None and base_v > 0:
+                val_points: list[dict[str, Any]] = []
+                if spot_px and spot_px > 0:
+                    val_points.append({"label": "Thị giá", "value": round(spot_px, 0), "kind": "spot"})
+                if bear_v and bear_v > 0:
+                    val_points.append({"label": "Bear", "value": round(bear_v, 0), "kind": "bear"})
+                val_points.append({"label": "Base", "value": round(base_v, 0), "kind": "base"})
+                if bull_v and bull_v > 0:
+                    val_points.append({"label": "Bull", "value": round(bull_v, 0), "kind": "bull"})
+                if len(val_points) >= 2:
+                    charts.append({
+                        "id": f"valuation_bridge_{primary_sym}",
+                        "type": "valuation_range",
+                        "title": f"Khung định giá {primary_sym} vs Thị giá",
+                        "symbol": primary_sym,
+                        "unit": "VND",
+                        "current_price": round(spot_px, 0) if spot_px else None,
+                        "data": val_points,
+                    })
+
+        # 2. Historical EOD price mini-chart(s)
+        for sym, pts in (chart_ctx.get("price_series") or {}).items():
+            if isinstance(pts, list) and len(pts) >= 2:
+                charts.append({
+                    "id": f"price_series_{sym}",
+                    "type": "area",
+                    "title": f"Diễn biến giá {sym} ({len(pts)} phiên)",
+                    "symbol": sym,
+                    "unit": "VND",
+                    "data": [
+                        {
+                            "label": str(p.get("date") or "")[-5:],
+                            "date": p.get("date"),
+                            "value": p.get("close"),
+                            "raw_close": p.get("raw_close"),
+                        }
+                        for p in pts
+                        if p.get("close") is not None
+                    ],
+                })
+
+        # 3. Multi-period Revenue & Net Income grouped bar chart
+        for sym, fin_pts in (chart_ctx.get("financial_history") or {}).items():
+            if isinstance(fin_pts, list) and len(fin_pts) >= 2:
+                charts.append({
+                    "id": f"financial_trend_{sym}",
+                    "type": "grouped_bar",
+                    "title": f"Doanh thu & Lợi nhuận {sym}",
+                    "symbol": sym,
+                    "unit": "Tỷ VND",
+                    "series_keys": [
+                        {"key": "revenue", "label": "Doanh thu"},
+                        {"key": "net_income", "label": "LN ròng"},
+                    ],
+                    "data": [
+                        {
+                            "label": str(fp.get("period") or ""),
+                            "revenue": fp.get("revenue"),
+                            "net_income": fp.get("net_income"),
+                        }
+                        for fp in fin_pts
+                    ],
+                })
+
+        # 4. Multi-ticker or Peer Median comparison bar chart (grouped by homogeneous unit scale)
+        if comparison_cards:
+            s1, s2 = target_symbols[0], target_symbols[1]
+            mult_pts = [
+                {
+                    "label": card["label"],
+                    "a": card["value_a"],
+                    "b": card["value_b"],
+                    "unit": card["unit"],
+                }
+                for card in comparison_cards
+                if card.get("unit") == "x"
+            ][:6]
+            pct_pts = [
+                {
+                    "label": card["label"],
+                    "a": card["value_a"],
+                    "b": card["value_b"],
+                    "unit": card["unit"],
+                }
+                for card in comparison_cards
+                if card.get("unit") == "%"
+            ][:6]
+            if mult_pts:
+                charts.append({
+                    "id": f"peer_compare_mult_{s1}_{s2}",
+                    "type": "comparison_bar",
+                    "title": f"Định giá {s1} vs {s2} (Bội số x)",
+                    "symbols": [s1, s2],
+                    "unit": "x",
+                    "data": mult_pts,
+                })
+            if pct_pts:
+                charts.append({
+                    "id": f"peer_compare_pct_{s1}_{s2}",
+                    "type": "comparison_bar",
+                    "title": f"Hiệu quả & An toàn {s1} vs {s2} (%)",
+                    "symbols": [s1, s2],
+                    "unit": "%",
+                    "data": pct_pts,
+                })
+        elif primary_sym:
+            m_prim = symbols_summary.get(primary_sym, {}).get("metrics", {})
+            peer_mult_pts: list[dict[str, Any]] = []
+            peer_pct_pts: list[dict[str, Any]] = []
+            pe_val = (m_prim.get("pe") or m_prim.get("pe_ratio") or {}).get("value")
+            pe_med = (m_prim.get("peer_median_pe") or {}).get("value")
+            if pe_val is not None and pe_med is not None:
+                peer_mult_pts.append({"label": "P/E (x)", "a": round(float(pe_val), 2), "b": round(float(pe_med), 2), "unit": "x"})
+            pb_val = (m_prim.get("pb") or m_prim.get("pb_ratio") or {}).get("value")
+            pb_med = (m_prim.get("peer_median_pb") or {}).get("value")
+            if pb_val is not None and pb_med is not None:
+                peer_mult_pts.append({"label": "P/B (x)", "a": round(float(pb_val), 2), "b": round(float(pb_med), 2), "unit": "x"})
+            roe_item = m_prim.get("roe") or {}
+            roe_med_item = m_prim.get("peer_median_roe") or {}
+            roe_val = roe_item.get("value")
+            roe_med = roe_med_item.get("value")
+            if roe_val is not None and roe_med is not None:
+                rv = float(roe_val) * (100.0 if str(roe_item.get("unit") or "").lower() in {"ratio", "decimal"} else 1.0)
+                rm = float(roe_med) * (100.0 if str(roe_med_item.get("unit") or "").lower() in {"ratio", "decimal"} else 1.0)
+                peer_pct_pts.append({"label": "ROE (%)", "a": round(rv, 2), "b": round(rm, 2), "unit": "%"})
+            if peer_mult_pts:
+                charts.append({
+                    "id": f"sector_peer_mult_{primary_sym}",
+                    "type": "comparison_bar",
+                    "title": f"{primary_sym} vs Trung vị Ngành (Bội số x)",
+                    "symbols": [primary_sym, "Trung vị ngành"],
+                    "unit": "x",
+                    "data": peer_mult_pts,
+                })
+            if peer_pct_pts:
+                charts.append({
+                    "id": f"sector_peer_pct_{primary_sym}",
+                    "type": "comparison_bar",
+                    "title": f"{primary_sym} vs Trung vị Ngành (ROE %)",
+                    "symbols": [primary_sym, "Trung vị ngành"],
+                    "unit": "%",
+                    "data": peer_pct_pts,
+                })
+
+        # 5. Hybrid RAG Document Highlights with section & page anchors
+        doc_payload = tools_by_name.get("document_retrieval")
+        document_highlights: list[dict[str, Any]] = []
+        rag_retrieval_mode = None
+        if isinstance(doc_payload, dict) and doc_payload.get("status") == "AVAILABLE":
+            rag_retrieval_mode = doc_payload.get("retrieval_mode")
+            for doc_hit in (doc_payload.get("documents") or [])[:5]:
+                if not isinstance(doc_hit, dict):
+                    continue
+                document_highlights.append({
+                    "citation_id": doc_hit.get("citation_id") or doc_hit.get("chunk_id"),
+                    "document_id": doc_hit.get("document_id"),
+                    "ticker": doc_hit.get("ticker"),
+                    "title": doc_hit.get("title"),
+                    "section": doc_hit.get("section"),
+                    "page_reference": doc_hit.get("page_reference"),
+                    "publication_date": doc_hit.get("publication_date"),
+                    "document_type": doc_hit.get("document_type"),
+                    "source": doc_hit.get("source"),
+                    "retrieval_mode": doc_hit.get("retrieval_mode") or rag_retrieval_mode,
+                    "chunk_type": doc_hit.get("chunk_type") or "prose",
+                    "score": doc_hit.get("score"),
+                    "is_synthetic": bool(doc_hit.get("is_synthetic")),
+                    "snippet": str(doc_hit.get("text") or "")[:360],
+                })
+
+        # 6. One-click deep-link quick actions
+        quick_actions: list[dict[str, str]] = []
+        seen_action_syms: set[str] = set()
+        for sym in target_symbols:
+            clean_s = sym.strip().upper()
+            if not clean_s or clean_s in {"MARKET", "ALL", "UNIVERSE", "UNIVERSE_ALL", "VNINDEX", "VN100"} or clean_s in seen_action_syms:
+                continue
+            seen_action_syms.add(clean_s)
+            quick_actions.extend([
+                {
+                    "label": f"Nghiên cứu {clean_s}",
+                    "href": f"/research/{clean_s}",
+                    "kind": "research",
+                    "symbol": clean_s,
+                },
+                {
+                    "label": f"Định giá {clean_s}",
+                    "href": f"/valuation?symbol={clean_s}",
+                    "kind": "valuation",
+                    "symbol": clean_s,
+                },
+            ])
+        if quick_actions:
+            quick_actions.append({
+                "label": "Danh mục theo dõi",
+                "href": "/watchlist",
+                "kind": "watchlist",
+                "symbol": primary_sym or "",
+            })
 
         structured_summary = {
             "symbols": symbols_summary,
             "comparisons": comparisons if comparisons else None,
+            "comparison_cards": comparison_cards or None,
+            "comparison_table": {"symbols": target_symbols[:2], "rows": comparison_rows} if comparison_rows else None,
+            "charts": charts or None,
+            "document_highlights": document_highlights or None,
+            "quick_actions": quick_actions or None,
         }
 
         # Metadata flags
@@ -715,7 +995,7 @@ class AIAnalyst:
         )
         metadata_flags = {
             "eps_is_estimate": has_estimate_eps,
-            "shares_basis": "PERIOD_END_SHARES" if has_estimate_eps else "WEIGHTED_AVERAGE_SHARES",
+            "shares_basis": "PERIOD_END_SHARES" if has_estimate_eps else "IAS33_WEIGHTED_AVERAGE_SHARES",
             "accounting_standard_warning": (
                 "Chỉ số EPS và P/E được ước tính trên số lượng cổ phiếu lưu hành cuối kỳ theo dữ liệu BCTC thực tế; chưa áp dụng số lượng bình quân gia quyền theo chuẩn mực IAS 33 do thiếu dữ liệu phát hành quyền chọn/cổ tức nội quý."
                 if has_estimate_eps else None
@@ -723,6 +1003,9 @@ class AIAnalyst:
             "data_origin": "CANONICAL_DATABASE",
             "deterministic_validation": "PASSED_STRICT",
             "total_verifiable_citations": sum(1 for c in citations if self._has_verifiable_evidence([c])),
+            "rag_status": doc_payload.get("status") if isinstance(doc_payload, dict) else "INSUFFICIENT_DATA",
+            "rag_retrieval_mode": rag_retrieval_mode,
+            "chart_count": len(charts),
         }
         return structured_summary, metadata_flags
 

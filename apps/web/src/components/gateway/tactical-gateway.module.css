@@ -1,0 +1,1265 @@
+/* ==========================================================================
+   3-Slide Cosmic Scrollytelling Gateway for InvestIntel
+   Composite-Only GPU Animations (transform translate3d & opacity) · Zero Layout/Blur Jank
+   ========================================================================== */
+
+.gatewayOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background-color: #160e38;
+  color: #ffffff;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 114, 182, 0.45) rgba(18, 9, 46, 0.7);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+  transition:
+    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gatewayOverlay::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gatewayOverlay::-webkit-scrollbar-track {
+  background: rgba(15, 8, 38, 0.75);
+}
+
+.gatewayOverlay::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f472b6, #67e8f9);
+  border-radius: 999px;
+}
+
+.gatewayBreaching {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.contentRoot {
+  position: relative;
+  width: 100%;
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    #18103c 0%,
+    #291c5f 15%,
+    #3d2a7e 29%,
+    #6d459e 40%,
+    #de8cb9 51%,
+    #6c469b 61%,
+    #3b237a 74%,
+    #241459 88%,
+    #150a3a 100%
+  );
+}
+
+/* Starfield Canvas (Twinkling stars & geometric cosmos dust) */
+.starfieldCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* ==========================================================================
+   TOP FIXED NAVBAR (Clean Brand Left + PIPELINE & CONNECT Right, No Center Tabs)
+   ========================================================================== */
+.topNavbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 76px;
+  padding: 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 60;
+  background: linear-gradient(180deg, rgba(19, 11, 50, 0.88) 0%, rgba(19, 11, 50, 0.32) 78%, transparent 100%);
+  transition: background-color 240ms ease, border-color 240ms ease;
+}
+
+.topNavbarScrolled {
+  background: rgba(18, 10, 48, 0.94);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brandBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #ffffff;
+}
+
+.brandSpinIcon {
+  width: 32px;
+  height: 32px;
+  animation: slowSpinY 10s linear infinite;
+  will-change: transform;
+}
+
+@keyframes slowSpinY {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.brandWordmark {
+  font-size: 20px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+  text-shadow: 2px 2px 0 rgba(9, 4, 24, 0.85);
+}
+
+.navRightActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.navDocsBtn {
+  height: 40px;
+  padding: 0 22px;
+  border: none;
+  background: #ffffff;
+  color: #1e1548;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(9, 4, 24, 0.35);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.navDocsBtn:hover {
+  transform: translateY(-2px);
+  background: #f5f3ff;
+  box-shadow: 0 10px 24px rgba(9, 4, 24, 0.45);
+}
+
+.navConnectBtn {
+  position: relative;
+  height: 40px;
+  padding: 0 28px;
+  border: none;
+  background: #ffffff;
+  color: #1e1548;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+  box-shadow: 0 8px 24px rgba(244, 114, 182, 0.25);
+  transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.navConnectBtn:hover {
+  transform: translateY(-2px);
+  background: #fdf2f8;
+  color: #9d174d;
+}
+
+/* ==========================================================================
+   SCROLL-DRIVEN REVEAL CHOREOGRAPHY (Smooth GPU Entrance Across All Slides)
+   ========================================================================== */
+.revealBlock {
+  opacity: 0;
+  transform: translate3d(0, 30px, 0) scale(0.985);
+  transition:
+    opacity 680ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.revealBlock[data-visible="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+/* ==========================================================================
+   SHARED CHAMFERED BUTTONS & 3D TYPOGRAPHY
+   ========================================================================== */
+.ctaRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pinkChamferBtn {
+  position: relative;
+  min-width: 204px;
+  height: 50px;
+  padding: 0 32px;
+  border: none;
+  background: linear-gradient(180deg, #f99bc9 0%, #f062a7 52%, #db2777 100%);
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    inset 0 -4px 0 rgba(131, 24, 67, 0.55),
+    0 12px 32px rgba(236, 72, 153, 0.45);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), filter 200ms ease, box-shadow 200ms ease;
+}
+
+.pinkChamferBtn:hover {
+  transform: translateY(-2px) scale(1.03);
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -4px 0 rgba(131, 24, 67, 0.6),
+    0 16px 38px rgba(236, 72, 153, 0.6);
+}
+
+.whiteRectBtn {
+  position: relative;
+  min-width: 196px;
+  height: 50px;
+  padding: 0 32px;
+  border: none;
+  background: #ffffff;
+  color: #1e1548;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow:
+    inset 0 -3px 0 rgba(196, 181, 253, 0.55),
+    0 12px 28px rgba(9, 4, 24, 0.35);
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease;
+}
+
+.whiteRectBtn:hover {
+  transform: translateY(-2px) scale(1.02);
+  background: #f5f3ff;
+}
+
+.slantedHeroTitle {
+  margin: 0;
+  font-size: clamp(3.2rem, 8.4vw, 6.6rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  line-height: 0.96;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow:
+    5px 5px 0 #090418,
+    0 14px 40px rgba(9, 4, 24, 0.55);
+  user-select: none;
+}
+
+.slantedSectionTitle {
+  margin: 0;
+  font-size: clamp(2.1rem, 4.8vw, 3.6rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  line-height: 1.04;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow:
+    4px 4px 0 #090418,
+    0 10px 30px rgba(9, 4, 24, 0.48);
+}
+
+.eyebrowCaption {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 10px rgba(9, 4, 24, 0.65);
+}
+
+/* ==========================================================================
+   SLIDE 1: HIGH-DETAIL COSMIC SPACE HERO (No Mouse Parallax, Rich Animations)
+   ========================================================================== */
+.heroSection {
+  position: relative;
+  min-height: 100svh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 24px 72px;
+  overflow: hidden;
+}
+
+.planetParallaxWrap {
+  position: absolute;
+  top: -74px;
+  left: -76px;
+  width: clamp(330px, 35vw, 540px);
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform;
+}
+
+.planetTopLeft {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: planetFloat 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes planetFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 10px, 0);
+  }
+}
+
+.moonParallaxWrap {
+  position: absolute;
+  top: 24px;
+  right: -34px;
+  width: clamp(290px, 31vw, 480px);
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform;
+}
+
+.moonTopRight {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.corePulse {
+  animation: coreGlowAnim 3.2s ease-in-out infinite;
+}
+
+@keyframes coreGlowAnim {
+  0%, 100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.shardDriftSlow {
+  animation: shardFloatA 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.shardDriftFast {
+  animation: shardFloatB 4.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes shardFloatA {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -9px, 0) rotate(4deg);
+  }
+}
+
+@keyframes shardFloatB {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, 8px, 0) rotate(-5deg);
+  }
+}
+
+.asteroidParallaxWrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform;
+}
+
+.asteroidDiagonal {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.asteroidFloat1 {
+  animation: asteroidDrift1 8s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.asteroidFloat2 {
+  animation: asteroidDrift2 10.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes asteroidDrift1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(6px, -10px, 0) rotate(3deg);
+  }
+}
+
+@keyframes asteroidDrift2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-8px, 9px, 0) rotate(-4deg);
+  }
+}
+
+.spaceshipBottomRight {
+  position: absolute;
+  right: 4.5%;
+  bottom: 5.5%;
+  width: clamp(250px, 25vw, 390px);
+  height: auto;
+  pointer-events: none;
+  z-index: 5;
+  animation: shipHover 4.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes shipHover {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-12px, -14px, 0) rotate(-1.8deg);
+  }
+}
+
+.thrusterFlame {
+  animation: thrusterFlicker 0.16s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: top left;
+}
+
+@keyframes thrusterFlicker {
+  from {
+    transform: scale3d(0.96, 0.96, 1);
+    opacity: 0.88;
+  }
+  to {
+    transform: scale3d(1.06, 1.06, 1);
+    opacity: 1;
+  }
+}
+
+.shockDiamonds {
+  animation: shockDiamondPulse 0.32s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes shockDiamondPulse {
+  from {
+    opacity: 0.72;
+    transform: scale3d(0.94, 0.94, 1);
+  }
+  to {
+    opacity: 1;
+    transform: scale3d(1.06, 1.06, 1);
+  }
+}
+
+.sparkStream {
+  animation: sparkBlink 1.8s ease-in-out infinite;
+}
+
+@keyframes sparkBlink {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(8px, 5px, 0);
+  }
+}
+
+.heroCenterContent {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  max-width: 820px;
+  animation: heroReveal 750ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes heroReveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.heroSubtitle {
+  margin: 0;
+  font-size: clamp(1rem, 1.8vw, 1.32rem);
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 2px 14px rgba(9, 4, 24, 0.72);
+  max-width: 620px;
+}
+
+.scrollDownPrompt {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  max-width: 460px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.74);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  animation: promptPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes promptPulse {
+  0%, 100% {
+    opacity: 0.65;
+    transform: translate3d(-50%, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(-50%, 5px, 0);
+  }
+}
+
+/* ==========================================================================
+   SLIDE 2: WHY INVESTINTEL? + OUR PRODUCTS SUNSET MOUNTAIN HORIZON
+   ========================================================================== */
+.whyAndProductsSection {
+  position: relative;
+  width: 100%;
+  padding-top: 84px;
+  overflow: hidden;
+}
+
+.whyBlock {
+  position: relative;
+  z-index: 6;
+  max-width: 740px;
+  margin: 0 auto 72px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+}
+
+.whyBody {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 2px 12px rgba(15, 8, 38, 0.65);
+}
+
+.productsHorizonWrapper {
+  position: relative;
+  min-height: 94vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 64px 24px 128px;
+}
+
+.horizonBackdropSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cloudLeft {
+  animation: cloudMoveL 18s ease-in-out infinite alternate;
+}
+
+.cloudRight {
+  animation: cloudMoveR 22s ease-in-out infinite alternate;
+}
+
+@keyframes cloudMoveL {
+  from {
+    transform: translate3d(-18px, 0, 0);
+  }
+  to {
+    transform: translate3d(24px, 0, 0);
+  }
+}
+
+@keyframes cloudMoveR {
+  from {
+    transform: translate3d(22px, 0, 0);
+  }
+  to {
+    transform: translate3d(-20px, 0, 0);
+  }
+}
+
+.sunPulseGroup {
+  animation: sunPulseAnim 5.5s ease-in-out infinite;
+}
+
+@keyframes sunPulseAnim {
+  0%, 100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.podHoverA {
+  animation: podFloatA 4.8s ease-in-out infinite;
+}
+
+.podHoverB {
+  animation: podFloatB 5.6s ease-in-out infinite;
+}
+
+@keyframes podFloatA {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(12px, -9px, 0);
+  }
+}
+
+@keyframes podFloatB {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-14px, -7px, 0);
+  }
+}
+
+.towerConduit {
+  animation: conduitGlow 2.8s ease-in-out infinite;
+}
+
+@keyframes conduitGlow {
+  0%, 100% {
+    opacity: 0.58;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.productsCardContent {
+  position: relative;
+  z-index: 6;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.productSwapWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: productFadeIn 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes productFadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.pinkDashDivider {
+  width: 34px;
+  height: 3.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f472b6, #ec4899);
+  box-shadow: 0 0 14px rgba(244, 114, 182, 0.85);
+}
+
+.productDesc {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.68;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 2px 14px rgba(18, 9, 46, 0.72);
+  max-width: 660px;
+}
+
+.productDots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.productDot {
+  width: 24px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  border: none;
+  cursor: pointer;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 220ms ease, opacity 220ms ease;
+}
+
+.productDotActive {
+  transform: scaleX(1.45);
+  background: #f472b6;
+  box-shadow: 0 0 12px rgba(244, 114, 182, 0.85);
+}
+
+/* ==========================================================================
+   SLIDE 3: WINDING RIVER VALLEY, MILESTONES 06-01 + END-OF-ROAD CONNECT PORTAL
+   ========================================================================== */
+.valleySection {
+  position: relative;
+  width: 100%;
+  min-height: 168vh;
+  padding: 84px 24px 96px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.valleyBgSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.riverCurrentStream {
+  animation: riverStreamOpacity 3.2s ease-in-out infinite;
+}
+
+@keyframes riverStreamOpacity {
+  0%, 100% {
+    opacity: 0.56;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.riverPulseNodes {
+  animation: crystalBeaconPulse 2.8s ease-in-out infinite;
+}
+
+.crystalBeacon {
+  animation: crystalBeaconPulse 3.6s ease-in-out infinite;
+}
+
+@keyframes crystalBeaconPulse {
+  0%, 100% {
+    opacity: 0.78;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.roadmapFlow {
+  position: relative;
+  z-index: 6;
+  width: 100%;
+  max-width: 1120px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.roadmapSlot {
+  display: flex;
+  width: 100%;
+}
+
+.roadmapSlotLeft {
+  justify-content: flex-start;
+  padding-left: 2%;
+}
+
+.roadmapSlotCenterLeft {
+  justify-content: center;
+  padding-right: 14%;
+}
+
+.roadmapSlotCenterRight {
+  justify-content: center;
+  padding-left: 16%;
+}
+
+.roadmapSlotRight {
+  justify-content: flex-end;
+  padding-right: 3%;
+}
+
+/* Milestone Card + Hologram Orb Projector Assembly */
+.milestoneStage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 394px;
+}
+
+.milestoneCard {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(237, 233, 254, 0.94) 100%
+  );
+  color: #1e1548;
+  padding: 18px 22px 22px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    14px 100%,
+    0 calc(100% - 14px)
+  );
+  box-shadow:
+    0 22px 48px rgba(12, 6, 36, 0.56),
+    inset 0 1px 0 #ffffff;
+  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 2;
+}
+
+.milestoneCard:hover {
+  transform: translate3d(0, -5px, 0);
+}
+
+.hologramCone {
+  width: 120px;
+  height: 36px;
+  margin-top: -8px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(165, 243, 252, 0.25) 55%,
+    rgba(244, 114, 182, 0.0) 100%
+  );
+  clip-path: polygon(0% 0%, 100% 0%, 64% 100%, 36% 100%);
+  pointer-events: none;
+  animation: beamPulse 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes beamPulse {
+  0%, 100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pearlOrb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  margin-top: -6px;
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, #e0e7ff 38%, #818cf8 74%, #312e81 100%);
+  box-shadow:
+    0 0 18px rgba(165, 243, 252, 0.85),
+    0 6px 14px rgba(15, 8, 38, 0.55);
+  animation: orbFloat 3.4s ease-in-out infinite;
+  z-index: 2;
+}
+
+@keyframes orbFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+.milestoneHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(49, 46, 129, 0.25);
+  margin-bottom: 12px;
+}
+
+.milestoneNumber {
+  font-size: 20px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: #1e1548;
+  padding-right: 14px;
+  border-right: 1.5px solid rgba(49, 46, 129, 0.35);
+}
+
+.milestoneTitle {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #2e1d69;
+}
+
+.milestoneList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.milestoneItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  color: #312e81;
+}
+
+.milestoneArrow {
+  color: #ec4899;
+  font-weight: 900;
+  font-size: 12px;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   HARMONIOUS END-OF-ROAD CONNECT PORTAL (Sits at bottom of Winding River)
+   ========================================================================== */
+.roadEndPortal {
+  position: relative;
+  z-index: 7;
+  margin-top: 64px;
+  width: 100%;
+  max-width: 660px;
+  padding: 38px 32px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(39, 25, 89, 0.92) 0%,
+    rgba(20, 10, 52, 0.96) 100%
+  );
+  border: 1px solid rgba(244, 114, 182, 0.42);
+  clip-path: polygon(
+    18px 0,
+    calc(100% - 18px) 0,
+    100% 18px,
+    100% calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    18px 100%,
+    0 calc(100% - 18px),
+    0 18px
+  );
+  box-shadow:
+    0 24px 64px rgba(10, 4, 30, 0.72),
+    0 0 42px rgba(244, 114, 182, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.portalNexusRing {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.portalRingOuter {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px dashed rgba(165, 243, 252, 0.65);
+  animation: slowSpinY 12s linear infinite;
+}
+
+.portalRingInner {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 114, 182, 0.85);
+  box-shadow: 0 0 18px rgba(244, 114, 182, 0.65);
+  animation: slowSpinReverse 8s linear infinite;
+}
+
+@keyframes slowSpinReverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.portalGem {
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(135deg, #a5f3fc, #f472b6);
+  transform: rotate(45deg);
+  box-shadow: 0 0 18px rgba(165, 243, 252, 0.85);
+}
+
+.portalHeading {
+  margin: 0;
+  font-size: clamp(1.5rem, 3vw, 2.15rem);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 3px 3px 0 #090418;
+}
+
+.portalSubtext {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(237, 233, 254, 0.88);
+  max-width: 500px;
+}
+
+.portalFootHint {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(165, 243, 252, 0.78);
+}
+
+/* ==========================================================================
+   RESPONSIVE BREAKPOINTS
+   ========================================================================== */
+@media (max-width: 960px) {
+  .topNavbar {
+    padding: 0 20px;
+  }
+  .roadmapSlotLeft,
+  .roadmapSlotCenterLeft,
+  .roadmapSlotCenterRight,
+  .roadmapSlotRight {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .topNavbar {
+    height: calc(60px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 16px 0;
+  }
+  .brandWordmark {
+    font-size: 16px;
+    letter-spacing: 0.05em;
+  }
+  .navRightActions {
+    gap: 10px;
+  }
+  .navDocsBtn {
+    display: none;
+  }
+  .navConnectBtn {
+    padding: 0 18px;
+    height: 40px;
+  }
+  .heroSection {
+    padding: 78px 16px 118px;
+  }
+  .heroCenterContent {
+    width: 100%;
+    padding: 0 4px;
+    gap: 14px;
+  }
+  .eyebrowCaption {
+    letter-spacing: 0.22em;
+    font-size: 11px;
+  }
+  .slantedHeroTitle {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+    letter-spacing: 0.04em;
+    text-shadow:
+      3px 3px 0 #090418,
+      0 10px 28px rgba(9, 4, 24, 0.55);
+  }
+  .slantedSectionTitle {
+    font-size: clamp(1.65rem, 8vw, 2.4rem);
+    letter-spacing: 0.04em;
+  }
+  .heroSubtitle {
+    font-size: 0.95rem;
+  }
+  .planetParallaxWrap {
+    width: 210px;
+    top: -54px;
+    left: -68px;
+    opacity: 0.85;
+  }
+  .moonParallaxWrap {
+    width: 175px;
+    top: 42px;
+    right: -46px;
+    opacity: 0.85;
+  }
+  .spaceshipBottomRight {
+    width: 150px;
+    right: 8px;
+    bottom: 84px;
+    opacity: 0.88;
+  }
+  .scrollDownPrompt {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 32px);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+  }
+  .pinkChamferBtn,
+  .whiteRectBtn {
+    width: 100%;
+    max-width: 296px;
+    min-height: 48px;
+  }
+  .productsHorizonWrapper {
+    padding: 48px 14px calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+  .roadEndPortal {
+    padding: 28px 18px;
+    margin-top: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brandSpinIcon,
+  .planetTopLeft,
+  .corePulse,
+  .shardDriftSlow,
+  .shardDriftFast,
+  .asteroidFloat1,
+  .asteroidFloat2,
+  .spaceshipBottomRight,
+  .thrusterFlame,
+  .shockDiamonds,
+  .sparkStream,
+  .heroCenterContent,
+  .scrollDownPrompt,
+  .cloudLeft,
+  .cloudRight,
+  .sunPulseGroup,
+  .podHoverA,
+  .podHoverB,
+  .towerConduit,
+  .productSwapWrap,
+  .riverCurrentStream,
+  .riverPulseNodes,
+  .crystalBeacon,
+  .hologramCone,
+  .pearlOrb,
+  .portalRingOuter,
+  .portalRingInner {
+    animation: none !important;
+  }
+  .revealBlock {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

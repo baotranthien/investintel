@@ -54,10 +54,32 @@
 }
 
 @media (max-width: 720px) {
+  .container {
+    margin-bottom: 18px;
+    gap: 6px;
+  }
+
   .mainRow {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
+  }
+
+  .leftGroup {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .description {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.5;
   }
 
   .actions {

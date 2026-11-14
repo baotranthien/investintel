@@ -5,9 +5,13 @@ import { getDataProviders, type DataProvider } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useCachedResource } from "@/lib/use-cached-resource";
+import { useLocale } from "@/lib/i18n";
 import styles from "./page.module.css";
 
 export default function DataCenter(): JSX.Element {
+  const { locale, t } = useLocale();
+  const numLocale = locale === "en" ? "en-US" : "vi-VN";
+
   const resource = useCachedResource<DataProvider[]>(
     "data-center:providers",
     (signal) => getDataProviders(signal),
@@ -22,10 +26,17 @@ export default function DataCenter(): JSX.Element {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>Hạ tầng dữ liệu · Nguồn gốc & kiểm chứng</p>
-          <h1 className={styles.title}>Chất lượng dữ liệu & nguồn gốc</h1>
+          <p className={styles.eyebrow}>
+            {t("Hạ tầng dữ liệu · Nguồn gốc & kiểm chứng", "Data Infrastructure · Lineage & Verification")}
+          </p>
+          <h1 className={styles.title}>
+            {t("Chất lượng dữ liệu & nguồn gốc", "Data Quality & Lineage")}
+          </h1>
           <p className={styles.subTitle}>
-            Giám sát độ tươi, tính liên tục và lịch sử cập nhật của các cổng dữ liệu định lượng.
+            {t(
+              "Giám sát độ tươi, tính liên tục và lịch sử cập nhật của các cổng dữ liệu định lượng.",
+              "Audit data freshness, continuity, and ingestion history across quantitative feeds."
+            )}
           </p>
         </div>
       </header>
@@ -39,30 +50,33 @@ export default function DataCenter(): JSX.Element {
       ) : error ? (
         <div className={styles.grid}>
           <div className={styles.errorBox}>
-            <StatusBadge status="ERROR" label="Không thể tải cổng dữ liệu" />
+            <StatusBadge status="ERROR" label={t("Không thể tải cổng dữ liệu", "Unable to load data providers")} />
             <p className={styles.errorText}>
-              Đã xảy ra lỗi khi kết nối máy chủ: {resource.error}
+              {t("Đã xảy ra lỗi khi kết nối máy chủ: ", "Server connection error: ")}
+              {resource.error}
             </p>
             <button
               type="button"
               className={styles.retryBtn}
               onClick={() => resource.reload()}
             >
-              ↻ Tải lại danh sách
+              {t("↻ Tải lại danh sách", "↻ Reload Provider List")}
             </button>
           </div>
         </div>
       ) : providers.length === 0 ? (
         <div className={styles.grid}>
           <div className={styles.errorBox}>
-            <StatusBadge status="WARNING" label="Chưa có dữ liệu" />
-            <p className={styles.errorText}>Không tìm thấy thông tin nhà cung cấp dữ liệu nào.</p>
+            <StatusBadge status="WARNING" label={t("Chưa có dữ liệu", "No data available")} />
+            <p className={styles.errorText}>
+              {t("Không tìm thấy thông tin nhà cung cấp dữ liệu nào.", "No quantitative data providers found.")}
+            </p>
             <button
               type="button"
               className={styles.retryBtn}
               onClick={() => resource.reload()}
             >
-              ↻ Tải lại danh sách
+              {t("↻ Tải lại danh sách", "↻ Reload Provider List")}
             </button>
           </div>
         </div>
@@ -77,29 +91,29 @@ export default function DataCenter(): JSX.Element {
 
               <div className={styles.metaList}>
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Cập nhật gần nhất:</span>
+                  <span className={styles.metaLabel}>{t("Cập nhật gần nhất:", "Last Updated:")}</span>
                   <span className={`${styles.metaValue} tabular-nums`}>
                     {p.last_success
-                      ? new Date(p.last_success).toLocaleString("vi-VN")
-                      : "Chưa ghi nhận"}
+                      ? new Date(p.last_success).toLocaleString(numLocale)
+                      : t("Chưa ghi nhận", "Never recorded")}
                   </span>
                 </div>
 
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Số bản ghi lần chạy cuối:</span>
+                  <span className={styles.metaLabel}>{t("Số bản ghi lần chạy cuối:", "Records Processed (Last Run):")}</span>
                   <span className={`${styles.metaValue} tabular-nums`}>
-                    {p.records_last_run.toLocaleString("vi-VN")}
+                    {p.records_last_run.toLocaleString(numLocale)}
                   </span>
                 </div>
 
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Độ tươi dữ liệu:</span>
+                  <span className={styles.metaLabel}>{t("Độ tươi dữ liệu:", "Data Freshness:")}</span>
                   <span className={styles.metaValue}>{p.data_freshness}</span>
                 </div>
 
                 {p.requires && (
                   <div className={styles.metaRow}>
-                    <span className={styles.metaLabel}>Yêu cầu:</span>
+                    <span className={styles.metaLabel}>{t("Yêu cầu:", "Dependencies:")}</span>
                     <span className={styles.metaValue}>{p.requires}</span>
                   </div>
                 )}
@@ -108,9 +122,16 @@ export default function DataCenter(): JSX.Element {
               <button
                 type="button"
                 className={styles.actionButton}
-                onClick={() => alert("Tính năng kích hoạt thủ công chỉ khả dụng trong quyền quản trị nội bộ.")}
+                onClick={() =>
+                  alert(
+                    t(
+                      "Tính năng kích hoạt thủ công chỉ khả dụng trong quyền quản trị nội bộ.",
+                      "Manual sync trigger is restricted to internal administrative privileges."
+                    )
+                  )
+                }
               >
-                Kích hoạt đồng bộ ngay
+                {t("Kích hoạt đồng bộ ngay", "Trigger Sync Now")}
               </button>
             </article>
           ))}

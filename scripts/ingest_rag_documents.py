@@ -182,10 +182,11 @@ def ingest_documents_from_directory(dir_path: str = DOCUMENTS_DIR) -> dict:
             }
 
             indexed_ids = vector_store.index_documents([doc_payload])
-            chunks_count = session.query(DocumentChunk).filter(DocumentChunk.document_id == doc_id).count()
+            canonical_id = indexed_ids[0] if indexed_ids else doc_id
+            chunks_count = session.query(DocumentChunk).filter(DocumentChunk.document_id == canonical_id).count()
             total_chunks += chunks_count
             ingested_count += 1
-            logger.info(f"[INDEXED] {fname} -> doc_id={doc_id}, chunks={chunks_count}, pub_date={pub_date}")
+            logger.info(f"[INDEXED] {fname} -> doc_id={canonical_id}, chunks={chunks_count}, pub_date={pub_date}")
             results.append({
                 "filename": fname,
                 "document_id": doc_id,

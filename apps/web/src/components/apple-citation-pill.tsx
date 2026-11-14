@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useId } from "react";
 import type { AICitation } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import styles from "./apple-citation-pill.module.css";
 
 const ACTIVE_CITATION_EVENT = "investintel:active-citation-popover";
@@ -12,6 +13,7 @@ interface CitationPillProps {
 }
 
 export default function AppleCitationPill({ id, citation }: CitationPillProps) {
+  const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const instanceId = useId();
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -107,7 +109,7 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
         className={`${styles.pill} ${isOpen ? styles.pillActive : ""}`}
         onClick={handleToggleClick}
         aria-expanded={isOpen}
-        title="Xem nguồn dữ liệu kiểm chứng"
+        title={t("Xem nguồn dữ liệu kiểm chứng", "View verified data source")}
       >
         <span className={styles.pillIcon} aria-hidden="true">§</span>
         <span className={`${styles.pillText} tabular-nums`}>{cleanId}</span>
@@ -140,7 +142,7 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
 
           <div className={styles.detailsGrid}>
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Nguồn công bố:</span>
+              <span className={styles.detailLabel}>{t("Nguồn công bố:", "Published Source:")}</span>
               <span className={styles.detailValue}>
                 {citation.source_url ? (
                   <a
@@ -149,21 +151,21 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
                     rel="noreferrer"
                     className={styles.sourceLink}
                   >
-                    {citation.source || "Tài liệu đính kèm"} ↗
+                    {citation.source || t("Tài liệu đính kèm", "Attached Document")} ↗
                   </a>
                 ) : (
-                  citation.source || "CSDL Chuẩn hóa"
+                  citation.source || t("CSDL Chuẩn hóa", "Standardized Database")
                 )}
               </span>
             </div>
 
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Nguồn gốc (Origin):</span>
+              <span className={styles.detailLabel}>{t("Nguồn gốc (Origin):", "Data Origin:")}</span>
               <span className={styles.detailValue}>{citation.data_origin || "VERIFIED_PRIMARY"}</span>
             </div>
 
             <div className={styles.detailRow}>
-              <span className={styles.detailLabel}>Ngày quan sát:</span>
+              <span className={styles.detailLabel}>{t("Ngày quan sát:", "Observation Date:")}</span>
               <span className={`${styles.detailValue} tabular-nums`}>
                 {citation.observation_date || "N/A"}
               </span>
@@ -171,7 +173,7 @@ export default function AppleCitationPill({ id, citation }: CitationPillProps) {
 
             {citation.publication_date && (
               <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>Ngày công bố:</span>
+                <span className={styles.detailLabel}>{t("Ngày công bố:", "Publication Date:")}</span>
                 <span className={`${styles.detailValue} tabular-nums`}>
                   {citation.publication_date}
                 </span>

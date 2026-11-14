@@ -1,15 +1,22 @@
+"use client";
+
 import React, { type JSX } from "react";
+import { useLocale, type AppLocale } from "@/lib/i18n";
 import styles from "./status-badge.module.css";
 
 export type DataStatusTone = "ok" | "warn" | "muted" | "error" | "info";
 
-export function describeStatus(code: string | null | undefined): {
+export function describeStatus(
+  code: string | null | undefined,
+  locale: AppLocale = "vi"
+): {
   label: string;
   tone: DataStatusTone;
   tooltip: string;
 } {
+  const isEn = locale === "en";
   if (!code || !code.trim()) {
-    return { label: "Không rõ", tone: "muted", tooltip: "" };
+    return { label: isEn ? "Unknown" : "Không rõ", tone: "muted", tooltip: "" };
   }
 
   const normalized = code.trim().toUpperCase();
@@ -23,53 +30,65 @@ export function describeStatus(code: string | null | undefined): {
     case "HEALTHY":
     case "API RESPONDED":
       return {
-        label: "Sẵn sàng",
+        label: isEn ? "Operational" : "Sẵn sàng",
         tone: "ok",
-        tooltip: "Dữ liệu đã được kiểm chứng và cập nhật.",
+        tooltip: isEn
+          ? "Dataset verified and synchronized to latest Point-in-Time cutoff."
+          : "Dữ liệu đã được kiểm chứng và cập nhật.",
       };
     case "STALE":
       return {
-        label: "Dữ liệu trễ",
+        label: isEn ? "Stale Feed" : "Dữ liệu trễ",
         tone: "warn",
-        tooltip: "Dữ liệu chưa được cập nhật trong kỳ gần nhất; con số vẫn đúng tại mốc thời gian hiển thị.",
+        tooltip: isEn
+          ? "Not updated in the latest session; figures remain accurate as of displayed cutoff."
+          : "Dữ liệu chưa được cập nhật trong kỳ gần nhất; con số vẫn đúng tại mốc thời gian hiển thị.",
       };
     case "INSUFFICIENT_DATA":
       return {
-        label: "Chưa đủ dữ liệu BCTC",
+        label: isEn ? "Insufficient Filings" : "Chưa đủ dữ liệu BCTC",
         tone: "muted",
-        tooltip: "Chưa có đủ kỳ báo cáo tài chính để tính chỉ số này.",
+        tooltip: isEn
+          ? "Not enough historical reporting periods to compute this metric reliably."
+          : "Chưa có đủ kỳ báo cáo tài chính để tính chỉ số này.",
       };
     case "NOT_CONFIGURED":
     case "NOT_IMPLEMENTED":
       return {
-        label: "Chưa kết nối",
+        label: isEn ? "Unconfigured" : "Chưa kết nối",
         tone: "muted",
-        tooltip: "Nguồn dữ liệu này chưa được cấu hình.",
+        tooltip: isEn
+          ? "This data feed is not currently configured."
+          : "Nguồn dữ liệu này chưa được cấu hình.",
       };
     case "PARTIAL":
     case "PARTIAL_DATA_ONLY":
     case "DEGRADED":
       return {
-        label: "Dữ liệu một phần",
+        label: isEn ? "Partial Coverage" : "Dữ liệu một phần",
         tone: "warn",
-        tooltip: "Chỉ một phần dữ liệu khả dụng.",
+        tooltip: isEn
+          ? "Only partial dataset coverage is currently available."
+          : "Chỉ một phần dữ liệu khả dụng.",
       };
     case "BLOCKED":
     case "ERROR":
     case "FAILED":
     case "UNAVAILABLE":
       return {
-        label: "Không khả dụng",
+        label: isEn ? "Unavailable" : "Không khả dụng",
         tone: "error",
-        tooltip: "Không thể lấy dữ liệu từ nguồn này.",
+        tooltip: isEn
+          ? "Unable to retrieve telemetry from this data source."
+          : "Không thể lấy dữ liệu từ nguồn này.",
       };
     case "LOADING":
     case "CHECKING":
     case "RUNNING":
       return {
-        label: "Đang đồng bộ",
+        label: isEn ? "Syncing" : "Đang đồng bộ",
         tone: "info",
-        tooltip: "Đang lấy dữ liệu mới nhất.",
+        tooltip: isEn ? "Fetching latest telemetry." : "Đang lấy dữ liệu mới nhất.",
       };
     default: {
       const raw = code.trim().replace(/_/g, " ").toLowerCase();
@@ -94,7 +113,8 @@ export function StatusBadge({
   title?: string;
   className?: string;
 }): JSX.Element {
-  const meta = describeStatus(status);
+  const { locale } = useLocale();
+  const meta = describeStatus(status, locale);
   const displayLabel = label ?? meta.label;
   const displayTooltip = title ?? meta.tooltip;
 

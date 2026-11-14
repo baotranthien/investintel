@@ -60,6 +60,9 @@ class FundamentalSnapshotBuilder:
         shares_outstanding: Optional[float] = None,
         publication_dates: Optional[dict] = None,  # {fiscal_period_end: pub_date}
         sources: Optional[list[str]] = None,
+        corporate_actions: Optional[list[dict]] = None,
+        shares_history: Optional[list[dict]] = None,
+        reference_prices: Optional[dict[date, float]] = None,
     ) -> dict[str, Any]:
         """
         Main entry point. Returns full snapshot dict.
@@ -291,26 +294,28 @@ class FundamentalSnapshotBuilder:
         if total_eq and shares and shares > 0:
             equity_vnd = total_eq * 1_000_000_000 if (total_eq < 10_000_000 and shares > 100_000) else total_eq
             bvps_val = equity_vnd / shares
-        eps_ttm_val = None
-        is_eps_estimate = False
-        eps_diagnostic = None
-        ni_ttm = ttm.get("net_income_parent") if ttm.get("net_income_parent") is not None else ttm.get("net_income")
-        if ni_ttm is not None and shares and shares > 0:
-            eps_ttm_val = (ni_ttm * 1_000_000_000) / shares
-            # IAS 33 Basic EPS: Requires weighted-average ordinary shares for the specific reporting period.
-            # An older annual statement (e.g. 2023) CANNOT qualify a current quarterly TTM window (e.g. 2026 TTM).
-            # For a rolling 4-quarter TTM calculation, all 4 active quarters must have verified shares_basic.
-            active_ttm_quarters = income_quarters[-4:] if (income_quarters and len(income_quarters) >= 4) else []
-            if active_ttm_quarters:
-                has_statement_shares_basic = all(bool(q.get("shares_basic")) for q in active_ttm_quarters)
-            elif latest_income_a and not income_quarters:
-                has_statement_shares_basic = bool(latest_income_a.get("shares_basic"))
-            else:
-                has_statement_shares_basic = False
 
-            if not has_statement_shares_basic:
-                is_eps_estimate = True
-                eps_diagnostic = "WEIGHTED_AVERAGE_UNAVAILABLE_FALLBACK_TO_PERIOD_END_OUTSTANDING"
+        from .shares import IAS33WeightedSharesEngine
+        waso_result = IAS33WeightedSharesEngine.compute(
+            symbol=self.symbol,
+            income_quarters=income_quarters,
+            income_annual=income_annual,
+            period_end_shares=shares,
+            corporate_actions=corporate_actions,
+            shares_history=shares_history,
+            as_of_date=as_of_date,
+            reference_prices=reference_prices,
+        )
+
+        eps_ttm_val = None
+        is_eps_estimate = bool(waso_result.is_estimate)
+        eps_diagnostic = waso_result.diagnostic_reason
+        ni_ttm = ttm.get("net_income_parent") if ttm.get("net_income_parent") is not None else ttm.get("net_income")
+        eps_denom = waso_result.weighted_shares or shares
+        if ni_ttm is not None and eps_denom and eps_denom > 0:
+            eps_ttm_val = (ni_ttm * 1_000_000_000) / eps_denom
+            is_eps_estimate = waso_result.is_estimate
+            eps_diagnostic = waso_result.diagnostic_reason
         elif ttm.get("eps_basic") is not None and ttm.get("eps_basic") > 0:
             eps_ttm_val = ttm.get("eps_basic")
         if eps_ttm_val is None:
@@ -519,6 +524,10 @@ class FundamentalSnapshotBuilder:
                 "eps_ttm": eps_ttm_val,
                 "bvps": bvps_val,
                 "shares_basic": shares,
+                "weighted_avg_shares_ttm": waso_result.weighted_shares,
+                "shares_basis": waso_result.shares_basis,
+                "ias33_adjustment_factor": waso_result.retrospective_adjustment_factor,
+                "ias33_events_applied": waso_result.events_applied,
                 "is_eps_estimate": is_eps_estimate,
                 "eps_diagnostic_reason": eps_diagnostic,
             },

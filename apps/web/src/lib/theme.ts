@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 export type ThemePreference = "system" | "light" | "dark";
 export type EffectiveTheme = "light" | "dark";
@@ -64,55 +64,86 @@ export function setThemePreference(theme: ThemePreference): void {
   );
 }
 
+function subscribeTheme(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  const handleCustomChange = () => callback();
+  const handleMediaChange = () => {
+    if (getThemePreference() === "system") {
+      applyThemeToDocument("system");
+      callback();
+    }
+  };
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === THEME_STORAGE_KEY || e.key === null) {
+      applyThemeToDocument(getThemePreference());
+      callback();
+    }
+  };
+
+  window.addEventListener(THEME_CHANGE_EVENT, handleCustomChange);
+  window.addEventListener("storage", handleStorage);
+  mediaQuery.addEventListener("change", handleMediaChange);
+  return () => {
+    window.removeEventListener(THEME_CHANGE_EVENT, handleCustomChange);
+    window.removeEventListener("storage", handleStorage);
+    mediaQuery.removeEventListener("change", handleMediaChange);
+  };
+}
+
+function getThemeSnapshot(): ThemePreference {
+  return getThemePreference();
+}
+
+function getServerThemeSnapshot(): ThemePreference {
+  return "dark";
+}
+
+function getEffectiveThemeSnapshot(): EffectiveTheme {
+  return resolveEffectiveTheme(getThemePreference());
+}
+
+function getServerEffectiveThemeSnapshot(): EffectiveTheme {
+  return "dark";
+}
+
+function subscribeMounted(): () => void {
+  return () => {};
+}
+
+function getClientMounted(): boolean {
+  return true;
+}
+
+function getServerMounted(): boolean {
+  return false;
+}
+
 // Hook to subscribe to theme state across components
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemePreference>("dark");
-  const [effectiveTheme, setEffectiveThemeState] = useState<EffectiveTheme>("dark");
-  const [mounted, setMounted] = useState(false);
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    getThemeSnapshot,
+    getServerThemeSnapshot
+  );
+  const effectiveTheme = useSyncExternalStore(
+    subscribeTheme,
+    getEffectiveThemeSnapshot,
+    getServerEffectiveThemeSnapshot
+  );
+  const mounted = useSyncExternalStore(
+    subscribeMounted,
+    getClientMounted,
+    getServerMounted
+  );
 
   useEffect(() => {
-    setMounted(true);
-    const initialPref = getThemePreference();
-    const initialEffective = resolveEffectiveTheme(initialPref);
-    setThemeState(initialPref);
-    setEffectiveThemeState(initialEffective);
-    applyThemeToDocument(initialPref);
-
-    const handleCustomChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ theme: ThemePreference; effectiveTheme: EffectiveTheme }>;
-      if (customEvent.detail) {
-        setThemeState(customEvent.detail.theme);
-        setEffectiveThemeState(customEvent.detail.effectiveTheme);
-      } else {
-        const currentPref = getThemePreference();
-        setThemeState(currentPref);
-        setEffectiveThemeState(resolveEffectiveTheme(currentPref));
-      }
-    };
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleMediaChange = () => {
-      const currentPref = getThemePreference();
-      if (currentPref === "system") {
-        const newEffective = mediaQuery.matches ? "dark" : "light";
-        setEffectiveThemeState(newEffective);
-        applyThemeToDocument("system");
-      }
-    };
-
-    window.addEventListener(THEME_CHANGE_EVENT, handleCustomChange);
-    mediaQuery.addEventListener("change", handleMediaChange);
-
-    return () => {
-      window.removeEventListener(THEME_CHANGE_EVENT, handleCustomChange);
-      mediaQuery.removeEventListener("change", handleMediaChange);
-    };
-  }, []);
+    applyThemeToDocument(theme);
+  }, [theme]);
 
   const setTheme = useCallback((newTheme: ThemePreference) => {
     setThemePreference(newTheme);
-    setThemeState(newTheme);
-    setEffectiveThemeState(resolveEffectiveTheme(newTheme));
   }, []);
 
   return {
@@ -122,4 +153,3 @@ export function useTheme() {
     mounted,
   };
 }
-

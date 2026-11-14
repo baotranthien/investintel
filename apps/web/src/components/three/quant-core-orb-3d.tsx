@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useRef, useState, useEffect, type JSX } from "react";
+import React, { useRef, useSyncExternalStore, type JSX } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { MeshDistortMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { useTheme } from "@/lib/theme";
+import { useLocale, type AppLocale } from "@/lib/i18n";
 
 export type QuantCoreStatus = "idle" | "checking" | "streaming" | "ready";
 
@@ -13,6 +13,22 @@ export interface QuantCoreOrb3DProps {
   size?: number; // Size in pixels (default: 36)
   className?: string;
   style?: React.CSSProperties;
+}
+
+function getStatusLabel(status: QuantCoreStatus, locale: AppLocale): string {
+  const isEn = locale === "en";
+  switch (status) {
+    case "idle":
+      return isEn ? "Standby" : "Sẵn sàng";
+    case "checking":
+      return isEn ? "Auditing" : "Đang kiểm tra";
+    case "streaming":
+      return isEn ? "Streaming" : "Đang xử lý luồng";
+    case "ready":
+      return isEn ? "Ready" : "Hoàn tất";
+    default:
+      return status;
+  }
 }
 
 function OrbScene({
@@ -37,8 +53,7 @@ function OrbScene({
   const coreColor = isActive ? amber : emerald;
   const wireColor = isActive ? indigo : cyan;
 
-  useFrame((_, delta) => {
-    // Battery & CPU saving: pause when tab is hidden
+  useFrame((state, delta) => {
     if (typeof document !== "undefined" && document.hidden) return;
 
     const speed = isActive ? 2.6 : 0.7;
@@ -49,6 +64,9 @@ function OrbScene({
     if (innerRef.current) {
       innerRef.current.rotation.y -= delta * 0.7 * speed;
       innerRef.current.rotation.z += delta * 0.25 * speed;
+      const t = state.clock.getElapsedTime();
+      const pulse = 1 + Math.sin(t * (isActive ? 5.2 : 2.1)) * (isActive ? 0.11 : 0.045);
+      innerRef.current.scale.set(pulse, pulse * 0.96, pulse);
     }
   });
 
@@ -65,19 +83,17 @@ function OrbScene({
         />
       </mesh>
 
-      {/* Inner Distort Core Sphere */}
+      {/* Inner Luminous Core Sphere */}
       <mesh ref={innerRef}>
-        <sphereGeometry args={[0.72, 32, 32]} />
-        <MeshDistortMaterial
+        <icosahedronGeometry args={[0.72, 2]} />
+        <meshStandardMaterial
           color={coreColor}
           emissive={coreColor}
-          emissiveIntensity={isDark ? 0.4 : 0.2}
-          distort={isActive ? 0.36 : 0.1}
-          speed={isActive ? 2.5 : 1.0}
+          emissiveIntensity={isActive ? (isDark ? 0.72 : 0.48) : (isDark ? 0.4 : 0.2)}
           roughness={0.25}
-          metalness={0.15}
+          metalness={0.18}
           transparent
-          opacity={isDark ? 0.85 : 0.75}
+          opacity={isDark ? 0.88 : 0.78}
         />
       </mesh>
 
@@ -87,6 +103,19 @@ function OrbScene({
   );
 }
 
+function subscribeReducedMotion(callback: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot() {
+  return typeof window !== "undefined"
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    : false;
+}
+
 function QuantCoreOrb3DInner({
   status = "idle",
   size = 36,
@@ -94,19 +123,16 @@ function QuantCoreOrb3DInner({
   style,
 }: QuantCoreOrb3DProps): JSX.Element {
   const { effectiveTheme } = useTheme();
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const { locale, t } = useLocale();
+  const reducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    () => false
+  );
 
   const isActive = status === "checking" || status === "streaming";
   const glowColor = isActive ? "rgba(245, 158, 11, 0.25)" : "rgba(16, 185, 129, 0.25)";
+  const label = getStatusLabel(status, locale);
 
   return (
     <div
@@ -122,7 +148,7 @@ function QuantCoreOrb3DInner({
         transition: "filter 0.3s ease",
         ...style,
       }}
-      aria-label={`Trạng thái lõi tính toán: ${status}`}
+      aria-label={t(`Trạng thái lõi tính toán: ${label}`, `Quant core engine status: ${label}`)}
       role="img"
     >
       <Canvas
@@ -137,7 +163,6 @@ function QuantCoreOrb3DInner({
   );
 }
 
-// Fallback for zero SSR blocking
 function OrbFallback({ size = 36 }: { size?: number }): JSX.Element {
   return (
     <div
@@ -154,10 +179,11 @@ function OrbFallback({ size = 36 }: { size?: number }): JSX.Element {
 }
 
 export function QuantCoreOrb3D(props: QuantCoreOrb3DProps): JSX.Element {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     return <OrbFallback size={props.size} />;
@@ -167,4 +193,3 @@ export function QuantCoreOrb3D(props: QuantCoreOrb3DProps): JSX.Element {
 }
 
 export default QuantCoreOrb3D;
-

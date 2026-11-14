@@ -12,6 +12,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonTableRows } from "@/components/ui/skeleton";
 import { MultiFactorCube3D } from "@/components/three/multi-factor-cube-3d";
+import { useLocale, pickLocaleText, type AppLocale } from "@/lib/i18n";
 import styles from "./page.module.css";
 
 const defaultFilters: ScreenerFilterParams = {
@@ -35,14 +36,14 @@ type PresetKey = "growth" | "value" | "defensive" | "margin";
 
 interface PresetConfig {
   id: PresetKey;
-  label: string;
+  label: { vi: string; en: string };
   filters: Partial<ScreenerFilterParams>;
 }
 
 const PRESETS: PresetConfig[] = [
   {
     id: "growth",
-    label: "⭐ Tăng trưởng chất lượng",
+    label: { vi: "⭐ Tăng trưởng chất lượng", en: "⭐ Quality Growth" },
     filters: {
       roe_min: "15",
       de_ratio_max: "1.2",
@@ -51,7 +52,7 @@ const PRESETS: PresetConfig[] = [
   },
   {
     id: "value",
-    label: "💎 Định giá hấp dẫn",
+    label: { vi: "💎 Định giá hấp dẫn", en: "💎 Undervalued Value" },
     filters: {
       pe_max: "12",
       pb_max: "1.5",
@@ -60,7 +61,7 @@ const PRESETS: PresetConfig[] = [
   },
   {
     id: "defensive",
-    label: "🛡️ Phòng thủ & Cổ tức",
+    label: { vi: "🛡️ Phòng thủ & Cổ tức", en: "🛡️ Defensive & Dividends" },
     filters: {
       de_ratio_max: "0.8",
       current_ratio_min: "1.5",
@@ -69,7 +70,7 @@ const PRESETS: PresetConfig[] = [
   },
   {
     id: "margin",
-    label: "🚀 Bứt phá biên lợi nhuận",
+    label: { vi: "🚀 Bứt phá biên lợi nhuận", en: "🚀 Margin Expansion" },
     filters: {
       net_margin_min: "15",
       gross_margin_min: "30",
@@ -77,9 +78,10 @@ const PRESETS: PresetConfig[] = [
   },
 ];
 
-function formatMoney(value: number | null) {
+function formatMoney(value: number | null, locale: AppLocale = "vi") {
   if (value === null || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(value) + " ₫";
+  const num = new Intl.NumberFormat(locale === "en" ? "en-US" : "vi-VN", { maximumFractionDigits: 0 }).format(value);
+  return locale === "en" ? `${num} VND` : `${num} ₫`;
 }
 
 function formatPercent(value: number | null) {
@@ -94,6 +96,7 @@ function formatMultiple(value: number | null) {
 
 export default function StockScreenerPage() {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const [filters, setFilters] = useState<ScreenerFilterParams>(defaultFilters);
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
   const [result, setResult] = useState<ScreenerResult | null>(null);
@@ -108,15 +111,41 @@ export default function StockScreenerPage() {
       const data = await getStockScreener(params);
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể tải kết quả bộ lọc cổ phiếu.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : pickLocaleText(locale, "Không thể tải kết quả bộ lọc cổ phiếu.", "Unable to load stock screener results.")
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
-    fetchResults(filters);
-  }, []); // Run on initial mount
+    let active = true;
+    getStockScreener(defaultFilters)
+      .then((data) => {
+        if (active) {
+          setResult(data);
+          setError(null);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : pickLocaleText(locale, "Không thể tải kết quả bộ lọc cổ phiếu.", "Unable to load stock screener results.")
+          );
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [locale]);
 
   const handleTextChange = (field: keyof ScreenerFilterParams, value: string) => {
     setActivePreset(null);
@@ -148,21 +177,38 @@ export default function StockScreenerPage() {
     const stocks = result?.matches ?? [];
     if (stocks.length === 0) return;
 
-    const headers = [
-      "Mã CP",
-      "Tên doanh nghiệp",
-      "Ngành",
-      "Giá hiện tại (VND)",
-      "Vốn hóa (Tỷ VND)",
-      "P/E",
-      "P/B",
-      "ROE (%)",
-      "Biên lãi gộp (%)",
-      "Biên lãi ròng (%)",
-      "D/E",
-      "Thanh toán HH",
-      "Biên an toàn (%)",
-    ];
+    const headers =
+      locale === "en"
+        ? [
+            "Symbol",
+            "Company Name",
+            "Sector",
+            "Current Price (VND)",
+            "Market Cap (Billion VND)",
+            "P/E",
+            "P/B",
+            "ROE (%)",
+            "Gross Margin (%)",
+            "Net Margin (%)",
+            "D/E",
+            "Current Ratio",
+            "Margin of Safety (%)",
+          ]
+        : [
+            "Mã CP",
+            "Tên doanh nghiệp",
+            "Ngành",
+            "Giá hiện tại (VND)",
+            "Vốn hóa (Tỷ VND)",
+            "P/E",
+            "P/B",
+            "ROE (%)",
+            "Biên lãi gộp (%)",
+            "Biên lãi ròng (%)",
+            "D/E",
+            "Thanh toán HH",
+            "Biên an toàn (%)",
+          ];
 
     const escapeCell = (val: unknown) => {
       if (val === null || val === undefined) return "";
@@ -194,7 +240,10 @@ export default function StockScreenerPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `screener_stocks_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download =
+      locale === "en"
+        ? `screener_stocks_${new Date().toISOString().slice(0, 10)}.csv`
+        : `bo_loc_co_phieu_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -205,10 +254,10 @@ export default function StockScreenerPage() {
     <div className={styles.page}>
       {/* 1. COMPACT PAGE HEADER */}
       <PageHeader
-        title="Bộ lọc cổ phiếu định lượng"
+        title={t("Bộ lọc cổ phiếu định lượng", "Quantitative Stock Screener")}
         meta={
           <span className={styles.countBadge}>
-            {loading ? "Đang lọc..." : result ? `${result.matched_count} / ${result.total_screened} mã` : "—"}
+            {loading ? t("Đang lọc...", "Filtering...") : result ? `${result.matched_count} / ${result.total_screened} ${t("mã", "stocks")}` : "—"}
           </span>
         }
         actions={
@@ -218,25 +267,25 @@ export default function StockScreenerPage() {
               className={styles.btnSecondary}
               onClick={handleExportCsv}
               disabled={!result || result.matches.length === 0}
-              title="Xuất bảng kết quả thành file CSV"
+              title={t("Xuất bảng kết quả thành file CSV", "Export results table to CSV")}
             >
-              📥 Xuất CSV
+              📥 {t("Xuất CSV", "Export CSV")}
             </button>
             <button
               type="button"
               className={styles.btnSecondary}
               onClick={handleReset}
-              title="Khôi phục các tiêu chí lọc về mặc định"
+              title={t("Khôi phục các tiêu chí lọc về mặc định", "Reset all filter criteria to default")}
             >
-              ↺ Đặt lại
+              ↺ {t("Đặt lại", "Reset")}
             </button>
           </div>
         }
       />
 
       {/* 2. 1-CLICK STRATEGY PRESETS */}
-      <div className={styles.presetSection} aria-label="Chiến lược định lượng mẫu">
-        <span className={styles.presetLabel}>Chiến lược mẫu:</span>
+      <div className={styles.presetSection} aria-label={t("Chiến lược định lượng mẫu", "Quantitative strategy presets")}>
+        <span className={styles.presetLabel}>{t("Chiến lược mẫu:", "Strategy Presets:")}</span>
         <div className={styles.presetList}>
           {PRESETS.map((preset) => {
             const isActive = activePreset === preset.id;
@@ -247,7 +296,7 @@ export default function StockScreenerPage() {
                 className={`${styles.presetBtn}${isActive ? ` ${styles.presetBtnActive}` : ""}`}
                 onClick={() => handleApplyPreset(preset)}
               >
-                {preset.label}
+                {preset.label[locale]}
               </button>
             );
           })}
@@ -258,120 +307,120 @@ export default function StockScreenerPage() {
       <form className={styles.filterCard} onSubmit={handleSubmit}>
         <div className={styles.filterGrid}>
           <div className={styles.filterField}>
-            <label htmlFor="universe">Vũ trụ cổ phiếu</label>
+            <label htmlFor="universe">{t("Vũ trụ cổ phiếu", "Stock Universe")}</label>
             <select
               id="universe"
               value={filters.universe || "ALL"}
               onChange={(e) => handleTextChange("universe", e.target.value)}
             >
-              <option value="ALL">Tất cả (ALL)</option>
+              <option value="ALL">{t("Tất cả (ALL)", "All Stocks (ALL)")}</option>
               <option value="VN30">VN30</option>
               <option value="VN100">VN100</option>
             </select>
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="sector">Ngành (Sector)</label>
+            <label htmlFor="sector">{t("Ngành (Sector)", "Industry Sector")}</label>
             <input
               id="sector"
               type="text"
-              placeholder="VD: Materials, Banking"
+              placeholder={t("VD: Materials, Banking", "e.g. Materials, Banking")}
               value={filters.sector || ""}
               onChange={(e) => handleTextChange("sector", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="pe_max">P/E tối đa</label>
+            <label htmlFor="pe_max">{t("P/E tối đa", "Max P/E")}</label>
             <input
               id="pe_max"
               type="number"
               step="0.5"
-              placeholder="VD: 12"
+              placeholder={t("VD: 12", "e.g. 12")}
               value={filters.pe_max ?? ""}
               onChange={(e) => handleTextChange("pe_max", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="pb_max">P/B tối đa</label>
+            <label htmlFor="pb_max">{t("P/B tối đa", "Max P/B")}</label>
             <input
               id="pb_max"
               type="number"
               step="0.1"
-              placeholder="VD: 1.5"
+              placeholder={t("VD: 1.5", "e.g. 1.5")}
               value={filters.pb_max ?? ""}
               onChange={(e) => handleTextChange("pb_max", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="roe_min">ROE tối thiểu (%)</label>
+            <label htmlFor="roe_min">{t("ROE tối thiểu (%)", "Min ROE (%)")}</label>
             <input
               id="roe_min"
               type="number"
               step="1"
-              placeholder="VD: 15"
+              placeholder={t("VD: 15", "e.g. 15")}
               value={filters.roe_min ?? ""}
               onChange={(e) => handleTextChange("roe_min", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="gross_margin_min">Biên lãi gộp Min (%)</label>
+            <label htmlFor="gross_margin_min">{t("Biên lãi gộp Min (%)", "Min Gross Margin (%)")}</label>
             <input
               id="gross_margin_min"
               type="number"
               step="1"
-              placeholder="VD: 20"
+              placeholder={t("VD: 20", "e.g. 20")}
               value={filters.gross_margin_min ?? ""}
               onChange={(e) => handleTextChange("gross_margin_min", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="net_margin_min">Biên lãi ròng Min (%)</label>
+            <label htmlFor="net_margin_min">{t("Biên lãi ròng Min (%)", "Min Net Margin (%)")}</label>
             <input
               id="net_margin_min"
               type="number"
               step="1"
-              placeholder="VD: 15"
+              placeholder={t("VD: 15", "e.g. 15")}
               value={filters.net_margin_min ?? ""}
               onChange={(e) => handleTextChange("net_margin_min", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="de_ratio_max">Nợ / Vốn CSH tối đa (D/E)</label>
+            <label htmlFor="de_ratio_max">{t("Nợ / Vốn CSH tối đa (D/E)", "Max Debt / Equity (D/E)")}</label>
             <input
               id="de_ratio_max"
               type="number"
               step="0.1"
-              placeholder="VD: 1.2"
+              placeholder={t("VD: 1.2", "e.g. 1.2")}
               value={filters.de_ratio_max ?? ""}
               onChange={(e) => handleTextChange("de_ratio_max", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="current_ratio_min">Thanh toán hiện hành Min</label>
+            <label htmlFor="current_ratio_min">{t("Thanh toán hiện hành Min", "Min Current Ratio")}</label>
             <input
               id="current_ratio_min"
               type="number"
               step="0.1"
-              placeholder="VD: 1.5"
+              placeholder={t("VD: 1.5", "e.g. 1.5")}
               value={filters.current_ratio_min ?? ""}
               onChange={(e) => handleTextChange("current_ratio_min", e.target.value)}
             />
           </div>
 
           <div className={styles.filterField}>
-            <label htmlFor="market_cap_min_bil">Vốn hóa Min (Tỷ VND)</label>
+            <label htmlFor="market_cap_min_bil">{t("Vốn hóa Min (Tỷ VND)", "Min Market Cap (Billion VND)")}</label>
             <input
               id="market_cap_min_bil"
               type="number"
               step="500"
-              placeholder="VD: 2000"
+              placeholder={t("VD: 2000", "e.g. 2000")}
               value={filters.market_cap_min_bil ?? ""}
               onChange={(e) => handleTextChange("market_cap_min_bil", e.target.value)}
             />
@@ -380,10 +429,10 @@ export default function StockScreenerPage() {
 
         <div className={styles.filterActions}>
           <button type="button" className={styles.btnReset} onClick={handleReset}>
-            Xóa tiêu chí
+            {t("Xóa tiêu chí", "Clear Filters")}
           </button>
           <button type="submit" className={styles.btnPrimary} disabled={loading}>
-            {loading ? "Đang lọc..." : "Áp dụng bộ lọc"}
+            {loading ? t("Đang lọc...", "Filtering...") : t("Áp dụng bộ lọc", "Apply Screener")}
           </button>
         </div>
       </form>
@@ -394,10 +443,10 @@ export default function StockScreenerPage() {
       <div className={styles.viewBar}>
         <div className={styles.resultSummary}>
           <span className={styles.resultCount}>
-            Tìm thấy <strong>{result?.matches.length ?? 0}</strong> mã thỏa mãn tiêu chí
+            {t("Tìm thấy", "Found")} <strong>{result?.matches.length ?? 0}</strong> {t("mã thỏa mãn tiêu chí", "equities matching criteria")}
           </span>
           {result?.as_of_date && (
-            <span className={styles.resultDate}>· Kỳ số liệu: {result.as_of_date}</span>
+            <span className={styles.resultDate}>· {t("Kỳ số liệu:", "Period:")} {result.as_of_date}</span>
           )}
         </div>
         <div className={styles.viewToggleGroup}>
@@ -406,7 +455,7 @@ export default function StockScreenerPage() {
             className={`${styles.viewToggleBtn} ${viewMode === "table" ? styles.viewToggleBtnActive : ""}`}
             onClick={() => setViewMode("table")}
           >
-            ☰ Bảng dữ liệu ({result?.matches.length ?? 0})
+            ☰ {t("Bảng dữ liệu", "Data Table")} ({result?.matches.length ?? 0})
           </button>
           <button
             type="button"
@@ -414,7 +463,7 @@ export default function StockScreenerPage() {
             onClick={() => setViewMode("cube")}
             disabled={!result || result.matches.length === 0}
           >
-            🧊 Không gian 3D
+            🧊 {t("Không gian 3D", "3D Space")}
           </button>
         </div>
       </div>
@@ -423,13 +472,19 @@ export default function StockScreenerPage() {
         <div className={styles.cubeContainer}>
           <div className={styles.cubeHeader}>
             <div className={styles.cubeTitleGroup}>
-              <h3 className={styles.cubeTitle}>Không gian Đa nhân tố 3D (Multi-Factor Scatter)</h3>
+              <h3 className={styles.cubeTitle}>{t("Không gian Đa nhân tố 3D (Multi-Factor Scatter)", "3D Multi-Factor Scatter Space")}</h3>
               <p className={styles.cubeSubtitle}>
-                Trục X: Định giá P/E · Trục Y: Chất lượng ROE · Trục Z: Động lượng RS
+                {t(
+                  "Trục X: Định giá P/E · Trục Y: Chất lượng ROE · Trục Z: Động lượng RS",
+                  "X-Axis: P/E Valuation · Y-Axis: ROE Quality · Z-Axis: RS Momentum"
+                )}
               </p>
             </div>
             <span className={styles.cubeHint}>
-              Kéo chuột để xoay 3D · Hover để xem chỉ số · Lăn chuột để cuộn xuống bảng dữ liệu
+              {t(
+                "Kéo chuột để xoay 3D · Hover để xem chỉ số · Lăn chuột để cuộn xuống bảng dữ liệu",
+                "Drag to rotate 3D · Hover to inspect metrics · Scroll to navigate data table"
+              )}
             </span>
           </div>
           <MultiFactorCube3D
@@ -452,98 +507,107 @@ export default function StockScreenerPage() {
 
       {/* RESULTS TABLE */}
       <div className={styles.tableCard}>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Mã CP</th>
-                  <th>Ngành</th>
-                  <th>Giá hiện tại</th>
-                  <th>Vốn hóa (Tỷ)</th>
-                  <th>P/E</th>
-                  <th>P/B</th>
-                  <th>ROE</th>
-                  <th>Biên Gộp</th>
-                  <th>Biên Ròng</th>
-                  <th>D/E</th>
-                  <th>Thanh toán HH</th>
-                  <th>Biên an toàn</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <SkeletonTableRows rows={8} columns={13} />
-                ) : result && result.matches.length > 0 ? (
-                  result.matches.map((stock: ScreenedStock) => (
-                    <tr key={stock.symbol}>
-                      <td className={styles.tickerCell}>
-                        <Link href={`/ai?symbol=${encodeURIComponent(stock.symbol)}`}>
-                          <strong>{stock.symbol}</strong>
-                        </Link>
-                        <span>{stock.name}</span>
-                      </td>
-                      <td>
-                        <span className={styles.badge}>{stock.sector}</span>
-                      </td>
-                      <td>{formatMoney(stock.current_price)}</td>
-                      <td>
-                        {stock.market_cap_billion_vnd
-                          ? `${stock.market_cap_billion_vnd.toLocaleString("vi-VN")} Tỷ`
-                          : "—"}
-                      </td>
-                      <td>{formatMultiple(stock.pe)}</td>
-                      <td>{formatMultiple(stock.pb)}</td>
-                      <td>
-                        <strong>{formatPercent(stock.roe)}</strong>
-                      </td>
-                      <td>{formatPercent(stock.gross_margin)}</td>
-                      <td>{formatPercent(stock.net_margin)}</td>
-                      <td>{formatMultiple(stock.de_ratio)}</td>
-                      <td>{formatMultiple(stock.current_ratio)}</td>
-                      <td>
-                        {stock.margin_of_safety_pct !== null ? (
-                          <span
-                            className={`${styles.badge} ${
-                              stock.margin_of_safety_pct >= 0 ? styles.goodBadge : ""
-                            }`}
-                          >
-                            {stock.margin_of_safety_pct >= 0 ? "+" : ""}
-                            {stock.margin_of_safety_pct}%
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td>
-                        <Link
-                          className={styles.aiLink}
-                          href={`/ai?symbol=${stock.symbol}&q=${encodeURIComponent(
-                            `Phân tích định giá và sức khỏe tài chính của ${stock.symbol}?`
-                          )}`}
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>{t("Mã CP", "Symbol")}</th>
+                <th>{t("Ngành", "Sector")}</th>
+                <th>{t("Giá hiện tại", "Current Price")}</th>
+                <th>{t("Vốn hóa (Tỷ)", "Mkt Cap (Bil)")}</th>
+                <th>P/E</th>
+                <th>P/B</th>
+                <th>ROE</th>
+                <th>{t("Biên Gộp", "Gross Margin")}</th>
+                <th>{t("Biên Ròng", "Net Margin")}</th>
+                <th>D/E</th>
+                <th>{t("Thanh toán HH", "Current Ratio")}</th>
+                <th>{t("Biên an toàn", "Safety Margin")}</th>
+                <th>{t("Thao tác", "Actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <SkeletonTableRows rows={8} columns={13} />
+              ) : result && result.matches.length > 0 ? (
+                result.matches.map((stock: ScreenedStock) => (
+                  <tr key={stock.symbol}>
+                    <td className={styles.tickerCell}>
+                      <Link href={`/ai?symbol=${encodeURIComponent(stock.symbol)}`}>
+                        <strong>{stock.symbol}</strong>
+                      </Link>
+                      <span>{stock.name}</span>
+                    </td>
+                    <td>
+                      <span className={styles.badge}>{stock.sector}</span>
+                    </td>
+                    <td>{formatMoney(stock.current_price, locale)}</td>
+                    <td>
+                      {stock.market_cap_billion_vnd
+                        ? `${stock.market_cap_billion_vnd.toLocaleString(locale === "en" ? "en-US" : "vi-VN")} ${t("Tỷ", "B")}`
+                        : "—"}
+                    </td>
+                    <td>{formatMultiple(stock.pe)}</td>
+                    <td>{formatMultiple(stock.pb)}</td>
+                    <td>
+                      <strong>{formatPercent(stock.roe)}</strong>
+                    </td>
+                    <td>{formatPercent(stock.gross_margin)}</td>
+                    <td>{formatPercent(stock.net_margin)}</td>
+                    <td>{formatMultiple(stock.de_ratio)}</td>
+                    <td>{formatMultiple(stock.current_ratio)}</td>
+                    <td>
+                      {stock.margin_of_safety_pct !== null ? (
+                        <span
+                          className={`${styles.badge} ${
+                            stock.margin_of_safety_pct >= 0 ? styles.goodBadge : ""
+                          }`}
                         >
-                          ✦ Phân tích AI
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={13} className={styles.emptyTd}>
-                      <div className={styles.emptyState}>
-                        <h3>Không tìm thấy cổ phiếu nào</h3>
-                        <p>
-                          Không có mã cổ phiếu nào đáp ứng đồng thời tất cả các tiêu chí lọc đã chọn.
-                          Hãy thử nới lỏng các ngưỡng sàng lọc hoặc bấm vào một trong các chiến lược mẫu phía trên.
-                        </p>
-                      </div>
+                          {stock.margin_of_safety_pct >= 0 ? "+" : ""}
+                          {stock.margin_of_safety_pct}%
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td>
+                      <Link
+                        className={styles.aiLink}
+                        href={`/ai?symbol=${stock.symbol}&q=${encodeURIComponent(
+                          locale === "en"
+                            ? `Valuation and financial health analysis for ${stock.symbol}?`
+                            : `Phân tích định giá và sức khỏe tài chính của ${stock.symbol}?`
+                        )}`}
+                        title={
+                          locale === "en"
+                            ? `Analyze valuation and financial health of ${stock.symbol}`
+                            : `Phân tích định giá và sức khỏe tài chính của ${stock.symbol}`
+                        }
+                      >
+                        ✦ {t("Phân tích AI", "AI Analysis")}
+                      </Link>
                     </td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={13} className={styles.emptyTd}>
+                    <div className={styles.emptyState}>
+                      <h3>{t("Không tìm thấy cổ phiếu nào", "No Equities Found")}</h3>
+                      <p>
+                        {t(
+                          "Không có mã cổ phiếu nào đáp ứng đồng thời tất cả các tiêu chí lọc đã chọn. Hãy thử nới lỏng các ngưỡng sàng lọc hoặc bấm vào một trong các chiến lược mẫu phía trên.",
+                          "No stocks currently satisfy all selected filter criteria simultaneously. Try relaxing your threshold values or selecting one of the strategy presets above."
+                        )}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
   );
 }

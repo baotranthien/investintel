@@ -3,7 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any, Optional
 from datetime import date
 
-from database.connection import SessionLocal
+from database.connection import SessionLocal, get_db
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 from database.models import Asset, Price, DataRun, DataSource, DataQualityReportRecord, DataLineage, MacroSeries, MacroObservation
 
 router = APIRouter(prefix="/api/v1", tags=["data"])
@@ -312,4 +314,96 @@ def get_symbol_coverage(symbol: str, as_of: Optional[str] = Query(None, descript
         return rep.to_dict()
     finally:
         session.close()
+
+
+@router.get("/data/price-adjustment-audit/{symbol}")
+def get_price_adjustment_audit(
+    symbol: str,
+    as_of: Optional[str] = Query(None, description="As-of date YYYY-MM-DD"),
+    session: Session = Depends(get_db),
+):
+    """Audits raw_close vs adjusted_close against Point-in-Time CorporateActions."""
+    from database.models import CorporateAction
+    from services.market.adjustment import PriceAdjustmentEngine
+
+    target_d = None
+    if as_of:
+        try:
+            target_d = date.fromisoformat(as_of)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+
+    sym = symbol.strip().upper()
+    asset = session.query(Asset).filter(Asset.symbol == sym).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail=f"Asset {sym} not found.")
+
+    q_p = session.query(Price).filter(Price.asset_id == asset.id, Price.status == "VALID")
+    q_ca = session.query(CorporateAction).filter(CorporateAction.symbol == sym)
+    if target_d:
+        q_p = q_p.filter(Price.observation_date <= target_d)
+        q_ca = q_ca.filter(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date) <= target_d)
+
+    prices = q_p.order_by(Price.observation_date.asc()).all()
+    actions = q_ca.order_by(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date).asc()).all()
+    audit = PriceAdjustmentEngine.audit_price_series(sym, prices, actions, as_of=target_d)
+    return audit.to_dict()
+
+
+@router.get("/data/reconciliation/three-way/{symbol}")
+def get_three_way_ratio_reconciliation(
+    symbol: str,
+    as_of: Optional[str] = Query(None, description="As-of date YYYY-MM-DD"),
+    session: Session = Depends(get_db),
+):
+    """
+    Runs 3-way valuation ratio reconciliation (VNDIRECT vs VIETCAP vs VIETSTOCK/KBS + INTERNAL)
+    using locally stored metrics and canonical calculations.
+    """
+    from database.models import FundamentalMetric
+    from services.ingestion.reconciliation import MarketDataReconciliationEngine
+    from services.research.workspace import build_research_workspace
+
+    target_d = None
+    if as_of:
+        try:
+            target_d = date.fromisoformat(as_of)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
+
+    sym = symbol.strip().upper()
+    as_of_d = target_d or date.today()
+    ws = build_research_workspace(session, sym, as_of=as_of_d)
+    if not ws:
+        raise HTTPException(status_code=404, detail=f"Instrument '{sym}' not found.")
+
+    val_metrics = ws.valuation.get("metrics", {})
+    pe_m = val_metrics.get("pe")
+    pb_m = val_metrics.get("pb")
+    int_pe = pe_m.get("value") if isinstance(pe_m, dict) else getattr(pe_m, "value", None)
+    int_pb = pb_m.get("value") if isinstance(pb_m, dict) else getattr(pb_m, "value", None)
+
+    rows = session.query(FundamentalMetric).filter(
+        FundamentalMetric.symbol == sym,
+        FundamentalMetric.fiscal_period_end <= as_of_d,
+        FundamentalMetric.metric_id.in_([
+            "PRICE_TO_EARNINGS", "PRICE_TO_BOOK", "P_E", "P_B",
+            "VIETCAP_PE", "VIETCAP_PB", "VIETSTOCK_PE", "VIETSTOCK_PB", "KBS_PE", "KBS_PB",
+        ]),
+        FundamentalMetric.value.isnot(None),
+    ).order_by(FundamentalMetric.fiscal_period_end.desc()).all()
+    mmap: Dict[str, float] = {}
+    for r in rows:
+        if r.value is not None and r.metric_id not in mmap:
+            mmap[r.metric_id] = float(r.value)
+
+    ratios_by_provider = {
+        "VNDIRECT": {"pe": mmap.get("PRICE_TO_EARNINGS") or mmap.get("P_E"), "pb": mmap.get("PRICE_TO_BOOK") or mmap.get("P_B")},
+        "VIETCAP": {"pe": mmap.get("VIETCAP_PE"), "pb": mmap.get("VIETCAP_PB")},
+        "VIETSTOCK": {"pe": mmap.get("VIETSTOCK_PE") or mmap.get("KBS_PE"), "pb": mmap.get("VIETSTOCK_PB") or mmap.get("KBS_PB")},
+        "INTERNAL": {"pe": int_pe, "pb": int_pb},
+    }
+    return MarketDataReconciliationEngine().reconcile_three_way_ratios(
+        sym, ratios_by_provider, as_of=as_of_d, metrics=("pe", "pb")
+    ).to_dict()
 

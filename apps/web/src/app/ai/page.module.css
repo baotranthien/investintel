@@ -12,14 +12,29 @@
   box-sizing: border-box;
 }
 
+@media (max-width: 768px) {
+  .pageWrapper {
+    min-height: calc(100dvh - 54px);
+    padding: 8px 0 32px;
+  }
+}
+
 .centerContainer {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
   transition: max-width 220ms ease;
+}
+
+.centerContainer > * {
+  margin-top: 24px;
+}
+
+.centerContainer > *:first-child,
+.centerContainer > .bottomDock {
+  margin-top: 0;
 }
 
 .wideContainer {
@@ -860,14 +875,6 @@
   transition: left var(--duration-fast) ease;
 }
 
-@media (max-width: 768px) {
-  .bottomDock {
-    left: 0;
-    bottom: 64px;
-    padding: 10px 14px 14px 14px;
-  }
-}
-
 .dockInner {
   width: 100%;
   max-width: 900px;
@@ -1187,4 +1194,55 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .centerContainer > .bottomDock {
+    margin-top: 20px;
+  }
+
+  .centerContainer > * {
+    margin-top: 20px;
+  }
+
+  .centerContainer > *:first-child {
+    margin-top: 0;
+  }
+
+  .bottomDock {
+    position: static;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    background: transparent;
+    padding: 0;
+    z-index: auto;
+  }
+
+  .promptBox {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm), var(--border-specular);
+  }
+
+  .tickerInput {
+    width: 64px;
+    height: 42px;
+    font-size: 16px;
+    padding: 0 6px;
+  }
+
+  .promptTextarea {
+    font-size: 16px;
+    min-height: 42px;
+    padding: 8px 2px 6px;
+  }
+
+  .submitBtn {
+    height: 42px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
 }

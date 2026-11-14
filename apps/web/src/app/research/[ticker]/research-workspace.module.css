@@ -1,5 +1,6 @@
 .workspace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   animation: enter 260ms ease both;
   padding-bottom: 60px;
@@ -174,12 +175,14 @@
 }
 
 .sectionNav {
+  min-width: 0;
   position: sticky;
   z-index: 20;
   top: 52px;
   display: flex;
   gap: 6px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
@@ -205,6 +208,7 @@
 }
 
 .section {
+  min-width: 0;
   scroll-margin-top: 115px;
   padding: 22px 24px;
   border-radius: var(--radius-md);
@@ -370,11 +374,15 @@
 }
 
 .historyTable {
+  min-width: 0;
   margin-top: 20px;
 }
 
 .tableScroll {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
 }
@@ -476,9 +484,14 @@
 }
 
 .factorGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+}
+
+.factorGrid article {
+  flex: 1 1 calc(25% - 12px);
+  min-width: 210px;
 }
 
 .factorGrid article,
@@ -700,14 +713,14 @@
   }
   .workspaceMeta {
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .workspaceMeta button {
-    width: 34px;
-    padding: 0;
-    font-size: 0;
-  }
-  .workspaceMeta button span {
-    display: none;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 12px;
   }
   .overview {
     grid-template-columns: 1fr;
@@ -728,7 +741,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .sectionNav {
-    top: 50px;
+    top: calc(54px + env(safe-area-inset-top, 0px));
   }
   .section {
     padding: 16px;
@@ -742,7 +755,15 @@
     gap: 6px;
   }
   .factorGrid {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .factorGrid article {
+    flex: initial;
+    min-width: 0;
+  }
+  .factorGrid article:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .riskGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -12,31 +12,32 @@ import {
   type AIStreamStep,
   type AIToolName,
 } from "@/lib/api";
+import { useLocale, type AppLocale } from "@/lib/i18n";
 import AppleCitationPill from "@/components/apple-citation-pill";
 import AppleSmartFallback from "@/components/apple-smart-fallback";
 import { normalizeTicker, buildOpportunityQuestion } from "@/lib/ai-handoff";
-import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
+import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { QuantCoreOrb3D } from "@/components/three/quant-core-orb-3d";
 import { useCachedResource } from "@/lib/use-cached-resource";
 import styles from "./page.module.css";
 
-const toolOptions: Array<{ name: AIToolName; label: string }> = [
-  { name: "asset", label: "Tài sản / Asset" },
-  { name: "fundamentals", label: "Cơ bản / Fundamentals" },
-  { name: "valuation", label: "Định giá / Valuation" },
-  { name: "factors", label: "Yếu tố / Factors" },
-  { name: "risk", label: "Rủi ro / Risk" },
-  { name: "macro", label: "Vĩ mô / Macro" },
-  { name: "regime", label: "Chế độ thị trường / Regime" },
-  { name: "events", label: "Sự kiện / Events" },
-  { name: "opportunity", label: "Cơ hội / Opportunity" },
-  { name: "portfolio", label: "Danh mục / Portfolio" },
-  { name: "watchlist", label: "Theo dõi / Watchlist" },
-  { name: "historical_snapshot", label: "Snapshot lịch sử / History" },
-  { name: "evidence", label: "Bằng chứng / Evidence" },
-  { name: "document_retrieval", label: "Tài liệu / Documents" },
+const toolOptions: Array<{ name: AIToolName; labelVi: string; labelEn: string }> = [
+  { name: "asset", labelVi: "Tài sản / Asset", labelEn: "Asset Overview" },
+  { name: "fundamentals", labelVi: "Cơ bản / Fundamentals", labelEn: "Financial Statements" },
+  { name: "valuation", labelVi: "Định giá / Valuation", labelEn: "Valuation Models" },
+  { name: "factors", labelVi: "Yếu tố / Factors", labelEn: "Factor Exposures" },
+  { name: "risk", labelVi: "Rủi ro / Risk", labelEn: "Risk & Leverage" },
+  { name: "macro", labelVi: "Vĩ mô / Macro", labelEn: "Macro & Sector" },
+  { name: "regime", labelVi: "Chế độ thị trường / Regime", labelEn: "Market Regime" },
+  { name: "events", labelVi: "Sự kiện / Events", labelEn: "Corporate Filings" },
+  { name: "opportunity", labelVi: "Cơ hội / Opportunity", labelEn: "Opportunity Rank" },
+  { name: "portfolio", labelVi: "Danh mục / Portfolio", labelEn: "Portfolio Context" },
+  { name: "watchlist", labelVi: "Theo dõi / Watchlist", labelEn: "Watchlist Context" },
+  { name: "historical_snapshot", labelVi: "Snapshot lịch sử / History", labelEn: "Historical Snapshots" },
+  { name: "evidence", labelVi: "Bằng chứng / Evidence", labelEn: "Empirical Evidence" },
+  { name: "document_retrieval", labelVi: "Tài liệu / Documents", labelEn: "Document Retrieval" },
 ];
 
 const popularTickers = ["FPT", "MWG", "VCB", "MBB", "TCB", "PLX", "HPG", "VNM", "BSR", "SSI"];
@@ -50,43 +51,117 @@ type StarterPromptItem = {
   desc: string;
 };
 
-const defaultStarterPrompts: StarterPromptItem[] = [
-  {
-    icon: "🎯",
-    tag: "Chất lượng lợi nhuận",
-    symbol: "FPT",
-    title: "Chất lượng LN & Dòng tiền FPT",
-    query: "Phân tích chất lượng lợi nhuận và dòng tiền HĐKD của FPT quý gần nhất",
-    desc: "Đối soát LNTT so với Dòng tiền thuần từ HĐKD (OCF) và các khoản phải thu",
-  },
-  {
-    icon: "⚖️",
-    tag: "Đối sánh ngành thép",
-    symbol: "HPG",
-    title: "Biên LN & Nợ vay HPG vs HSG",
-    query: "So sánh biên lợi nhuận và cấu trúc nợ vay giữa HPG và HSG",
-    desc: "So sánh biên gộp, tỷ lệ nợ vay trên vốn chủ sở hữu (D/E) và chi phí lãi vay",
-  },
-  {
-    icon: "⚠️",
-    tag: "Tầm soát rủi ro BCTC",
-    symbol: "NVL",
-    title: "Tầm soát rủi ro Bảng CĐKT NVL",
-    query: "Tầm soát các dấu hiệu rủi ro trên Bảng cân đối kế toán của NVL",
-    desc: "Kiểm tra áp lực nợ vay ngắn hạn, áp lực trái phiếu và tính thanh khoản tài sản",
-  },
-  {
-    icon: "📊",
-    tag: "Định giá lịch sử 5 năm",
-    symbol: "VCB",
-    title: "Định giá P/E & P/B 5 năm VCB",
-    query: "Đánh giá định giá P/E và P/B hiện tại của VCB so với trung bình 5 năm",
-    desc: "Đo lường độ lệch chuẩn định giá P/E, P/B và biên độ an toàn theo dữ liệu lịch sử",
-  },
-];
+function getDefaultStarterPrompts(locale: AppLocale): StarterPromptItem[] {
+  if (locale === "en") {
+    return [
+      {
+        icon: "🎯",
+        tag: "Earnings Quality",
+        symbol: "FPT",
+        title: "FPT Earnings Quality & CFO",
+        query: "Analyze FPT earnings quality and operating cash flows for the latest quarter",
+        desc: "Reconcile pre-tax profit against Operating Cash Flow (OCF) and trade receivables",
+      },
+      {
+        icon: "⚖️",
+        tag: "Steel Peer Benchmark",
+        symbol: "HPG",
+        title: "HPG vs HSG Margin & Debt",
+        query: "Compare profit margins and capital structure between HPG and HSG",
+        desc: "Benchmark gross margin, debt-to-equity (D/E) leverage, and financing expense",
+      },
+      {
+        icon: "⚠️",
+        tag: "Balance Sheet Audit",
+        symbol: "NVL",
+        title: "NVL Balance Sheet Risk Screen",
+        query: "Screen balance sheet and debt rollover vulnerabilities for NVL",
+        desc: "Inspect short-term debt maturities, bond obligations, and liquidity coverage",
+      },
+      {
+        icon: "📊",
+        tag: "5Y Historical Valuation",
+        symbol: "VCB",
+        title: "VCB 5Y Historical P/E & P/B",
+        query: "Evaluate current VCB P/E and P/B multiples against their 5-year historical average",
+        desc: "Measure multiple dispersion, standard deviation bands, and historical margin of safety",
+      },
+    ];
+  }
+  return [
+    {
+      icon: "🎯",
+      tag: "Chất lượng lợi nhuận",
+      symbol: "FPT",
+      title: "Chất lượng LN & Dòng tiền FPT",
+      query: "Phân tích chất lượng lợi nhuận và dòng tiền HĐKD của FPT quý gần nhất",
+      desc: "Đối soát LNTT so với Dòng tiền thuần từ HĐKD (OCF) và các khoản phải thu",
+    },
+    {
+      icon: "⚖️",
+      tag: "Đối sánh ngành thép",
+      symbol: "HPG",
+      title: "Biên LN & Nợ vay HPG vs HSG",
+      query: "So sánh biên lợi nhuận và cấu trúc nợ vay giữa HPG và HSG",
+      desc: "So sánh biên gộp, tỷ lệ nợ vay trên vốn chủ sở hữu (D/E) và chi phí lãi vay",
+    },
+    {
+      icon: "⚠️",
+      tag: "Tầm soát rủi ro BCTC",
+      symbol: "NVL",
+      title: "Tầm soát rủi ro Bảng CĐKT NVL",
+      query: "Tầm soát các dấu hiệu rủi ro trên Bảng cân đối kế toán của NVL",
+      desc: "Kiểm tra áp lực nợ vay ngắn hạn, áp lực trái phiếu và tính thanh khoản tài sản",
+    },
+    {
+      icon: "📊",
+      tag: "Định giá lịch sử 5 năm",
+      symbol: "VCB",
+      title: "Định giá P/E & P/B 5 năm VCB",
+      query: "Đánh giá định giá P/E và P/B hiện tại của VCB so với trung bình 5 năm",
+      desc: "Đo lường độ lệch chuẩn định giá P/E, P/B và biên độ an toàn theo dữ liệu lịch sử",
+    },
+  ];
+}
 
-function getTickerStarterPrompts(sym: string): StarterPromptItem[] {
+function getTickerStarterPrompts(sym: string, locale: AppLocale): StarterPromptItem[] {
   const symbol = sym.toUpperCase().trim();
+  if (locale === "en") {
+    return [
+      {
+        icon: "🎯",
+        tag: "Earnings Quality",
+        symbol,
+        title: `${symbol} Earnings Quality & Cash Flow`,
+        query: `Analyze earnings quality and operating cash flow for ${symbol} in the latest quarter`,
+        desc: `Cross-check operating cash flow vs net income and accounts receivable quality for ${symbol}`,
+      },
+      {
+        icon: "⚖️",
+        tag: "Margins & Capital Structure",
+        symbol,
+        title: `${symbol} Margins & Leverage`,
+        query: `Compare profit margins and leverage ratios between ${symbol} and peer competitors`,
+        desc: `Evaluate capital structure, debt-to-equity ratio, and operating margin profile for ${symbol}`,
+      },
+      {
+        icon: "⚠️",
+        tag: "Balance Sheet Stress Test",
+        symbol,
+        title: `${symbol} Balance Sheet Risk Audit`,
+        query: `Audit potential financial risks and red flags on the balance sheet of ${symbol}`,
+        desc: `Inspect short-term debt maturities, inventory turnover, and unbilled receivables`,
+      },
+      {
+        icon: "📊",
+        tag: "5Y Historical Multiples",
+        symbol,
+        title: `${symbol} 5Y P/E & P/B Multiple Audit`,
+        query: `Assess current P/E and P/B valuation for ${symbol} versus its 5-year historical average`,
+        desc: `Identify whether current multiples trade at a historical premium or margin of safety discount`,
+      },
+    ];
+  }
   return [
     {
       icon: "🎯",
@@ -123,17 +198,53 @@ function getTickerStarterPrompts(sym: string): StarterPromptItem[] {
   ];
 }
 
-const defaultMarketPrompts = [
-  { label: "📈 Toàn cảnh thị trường & dòng tiền", query: "Thị trường hôm nay thế nào và xu hướng dòng tiền ra sao?" },
-  { label: "⭐ Cơ hội VN100 hấp dẫn nhất", query: "Những cổ phiếu nào đang có điểm cơ hội và định giá hấp dẫn nhất hiện nay?" },
-  { label: "🏦 So sánh NIM & NPL (MBB, VCB)", query: "So sánh NIM, tăng trưởng tín dụng và CASA giữa MBB và VCB?" },
-  { label: "💻 Triển vọng & Định giá FPT", query: "Triển vọng và tiềm năng tăng trưởng định giá P/E của FPT trong các quý tới?" },
-  { label: "🛢️ Tương quan PLX & Giá dầu", query: "Phân tích mối tương quan giữa doanh thu PLX và biến động giá dầu Brent/WTI?" },
-  { label: "🛒 Bán lẻ (MWG, VNM)", query: "Tình hình tài chính, biên lợi nhuận và định giá của MWG và VNM?" },
-];
+function getDefaultMarketPrompts(locale: AppLocale) {
+  if (locale === "en") {
+    return [
+      { label: "📈 Market Overview & Liquidity", query: "What is today's market overview and sector capital flow dynamics?" },
+      { label: "⭐ Top VN100 Value Opportunities", query: "Which VN100 stocks feature the highest opportunity scores and attractive valuations?" },
+      { label: "🏦 Banking NIM & NPL (MBB, VCB)", query: "Compare NIM, credit growth, and CASA franchises between MBB and VCB?" },
+      { label: "💻 FPT Valuation & Tech Outlook", query: "What is the earnings outlook and P/E expansion potential for FPT?" },
+      { label: "🛢️ PLX vs Crude Oil Sensitivity", query: "Analyze how PLX revenue and inventory revaluation correlate with Brent/WTI crude prices?" },
+      { label: "🛒 Retail Giants (MWG, VNM)", query: "Benchmark financial health, operating margins, and multiples between MWG and VNM?" },
+    ];
+  }
+  return [
+    { label: "📈 Toàn cảnh thị trường & dòng tiền", query: "Thị trường hôm nay thế nào và xu hướng dòng tiền ra sao?" },
+    { label: "⭐ Cơ hội VN100 hấp dẫn nhất", query: "Những cổ phiếu nào đang có điểm cơ hội và định giá hấp dẫn nhất hiện nay?" },
+    { label: "🏦 So sánh NIM & NPL (MBB, VCB)", query: "So sánh NIM, tăng trưởng tín dụng và CASA giữa MBB và VCB?" },
+    { label: "💻 Triển vọng & Định giá FPT", query: "Triển vọng và tiềm năng tăng trưởng định giá P/E của FPT trong các quý tới?" },
+    { label: "🛢️ Tương quan PLX & Giá dầu", query: "Phân tích mối tương quan giữa doanh thu PLX và biến động giá dầu Brent/WTI?" },
+    { label: "🛒 Bán lẻ (MWG, VNM)", query: "Tình hình tài chính, biên lợi nhuận và định giá của MWG và VNM?" },
+  ];
+}
 
-function getStockPrompts(symbol: string) {
+function getStockPrompts(symbol: string, locale: AppLocale) {
   const sym = symbol.toUpperCase().trim();
+  if (locale === "en") {
+    return [
+      {
+        label: `🎯 ${sym} Opportunity & Outlook`,
+        query: `Evaluate comprehensive investment opportunity, quant ranking, and forward growth outlook for ${sym}?`,
+      },
+      {
+        label: `📊 P/E & P/B Valuation Multiples`,
+        query: `Analyze current P/E, P/B multiples and intrinsic upside/downside potential for ${sym}?`,
+      },
+      {
+        label: `💰 Margins & Operating Cash Flow`,
+        query: `Assess financial health, return metrics (ROE, ROA), and cash conversion quality for ${sym}?`,
+      },
+      {
+        label: `⚠️ Key Risks & Industry Headwinds`,
+        query: `What are the primary risk factors, regulatory headwinds, and red flags for ${sym}?`,
+      },
+      {
+        label: `⚖️ Capital Structure & Solvency`,
+        query: `Evaluate capital structure, debt safety (D/E, Net Debt/EBITDA), and interest coverage for ${sym}?`,
+      },
+    ];
+  }
   return [
     {
       label: `🎯 Cơ hội & Triển vọng ${sym}`,
@@ -192,13 +303,21 @@ function renderAnswerWithCitations(text: string, citations: AICitation[]) {
   return parts;
 }
 
-function renderClaimText(claim: AIClaim) {
+function renderClaimText(claim: AIClaim, locale: AppLocale) {
   const text = claim.text;
 
   // 1. Phân tích kết luận khuyến nghị đầu tư (KẾT LUẬN & KHUYẾN NGHỊ ĐẦU TƯ)
-  if (text.includes("KẾT LUẬN & KHUYẾN NGHỊ") || text.includes("KHUYẾN NGHỊ ĐẦU TƯ")) {
-    const basisIdx = text.indexOf("Cơ sở định lượng:");
-    const strategyIdx = text.indexOf("Chiến lược hành động:");
+  if (
+    text.includes("KẾT LUẬN & KHUYẾN NGHỊ") ||
+    text.includes("KHUYẾN NGHỊ ĐẦU TƯ") ||
+    text.includes("INVESTMENT VERDICT") ||
+    text.includes("RECOMMENDATION")
+  ) {
+    const basisMarker = text.includes("Quantitative Basis:") ? "Quantitative Basis:" : "Cơ sở định lượng:";
+    const strategyMarker = text.includes("Execution Strategy:") ? "Execution Strategy:" : "Chiến lược hành động:";
+
+    const basisIdx = text.indexOf(basisMarker);
+    const strategyIdx = text.indexOf(strategyMarker);
 
     let titlePart = text;
     let basisPart = "";
@@ -222,14 +341,18 @@ function renderClaimText(claim: AIClaim) {
         <div className={styles.verdictTitle}>{titlePart}</div>
         {basisPart && (
           <p className={styles.verdictParagraph}>
-            <span className={styles.verdictLead}>Cơ sở định lượng:</span>{" "}
-            {basisPart.replace(/^Cơ sở định lượng:\s*/i, "")}
+            <span className={styles.verdictLead}>
+              {locale === "en" ? "Quantitative Basis:" : "Cơ sở định lượng:"}
+            </span>{" "}
+            {basisPart.replace(new RegExp(`^${basisMarker}\\s*`, "i"), "")}
           </p>
         )}
         {strategyPart && (
           <p className={styles.verdictParagraph}>
-            <span className={styles.verdictLead}>Chiến lược hành động:</span>{" "}
-            {strategyPart.replace(/^Chiến lược hành động:\s*/i, "")}
+            <span className={styles.verdictLead}>
+              {locale === "en" ? "Execution Strategy:" : "Chiến lược hành động:"}
+            </span>{" "}
+            {strategyPart.replace(new RegExp(`^${strategyMarker}\\s*`, "i"), "")}
           </p>
         )}
       </div>
@@ -237,7 +360,7 @@ function renderClaimText(claim: AIClaim) {
   }
 
   // 2. Phân tích lựa chọn ưu tiên so sánh đa mã (🏆 LỰA CHỌN ƯU TIÊN)
-  if (text.includes("🏆 LỰA CHỌN ƯU TIÊN")) {
+  if (text.includes("🏆 LỰA CHỌN ƯU TIÊN") || text.includes("🏆 PREFERRED CONVICTION PICK")) {
     const colonIdx = text.indexOf(":");
     if (colonIdx !== -1) {
       const title = text.slice(0, colonIdx + 1).trim();
@@ -272,6 +395,10 @@ export type AICurrentSession = {
 
 const CURRENT_SESSION_KEY = "investintel:ai:current_session:v1";
 const HISTORY_KEY = "investintel:ai:history:v1";
+
+function getCurrentTimestamp(): number {
+  return Date.now();
+}
 
 function readCurrentSession(): AICurrentSession | null {
   if (typeof window === "undefined") return null;
@@ -310,10 +437,13 @@ function writeHistory(items: AIHistoryItem[]): void {
   } catch {}
 }
 
-function formatHistoryTime(ts: number): string {
+function formatHistoryTime(ts: number, locale: AppLocale): string {
   const diff = Date.now() - ts;
-  if (diff < 60_000) return "Vừa xong";
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)} phút trước`;
+  if (diff < 60_000) return locale === "en" ? "Just now" : "Vừa xong";
+  if (diff < 3600_000) {
+    const mins = Math.floor(diff / 60_000);
+    return locale === "en" ? `${mins}m ago` : `${mins} phút trước`;
+  }
   const d = new Date(ts);
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
@@ -361,7 +491,7 @@ class AIBackgroundStreamManager {
     };
   }
 
-  public cancel(): void {
+  public cancel(cancelMsg?: string): void {
     if (this.controller) {
       this.controller.abort();
       this.controller = null;
@@ -371,7 +501,7 @@ class AIBackgroundStreamManager {
     this.currentMessage = "";
     for (const l of this.listeners) {
       l.onBusyChange?.(false);
-      l.onStatusUpdate?.("fetching_data", "Đã hủy phân tích theo yêu cầu.");
+      l.onStatusUpdate?.("fetching_data", cancelMsg ?? "Đã hủy phân tích theo yêu cầu.");
     }
   }
 
@@ -379,7 +509,8 @@ class AIBackgroundStreamManager {
     symbol: string,
     question: string,
     asOf: string,
-    selectedTools: AIToolName[]
+    selectedTools: AIToolName[],
+    initMsg?: string
   ): Promise<void> {
     if (this.busy) return;
 
@@ -387,7 +518,7 @@ class AIBackgroundStreamManager {
     this.activeSymbol = symbol;
     this.currentQuestion = question;
     this.currentStep = "fetching_data";
-    this.currentMessage = "Đang khởi tạo kết nối luồng phân tích...";
+    this.currentMessage = initMsg ?? "Đang khởi tạo kết nối luồng phân tích...";
     this.controller = new AbortController();
 
     for (const l of this.listeners) {
@@ -416,7 +547,7 @@ class AIBackgroundStreamManager {
               activeSymbol: resultData.symbol || symbol,
               question,
               answer: resultData,
-              updatedAt: Date.now(),
+              updatedAt: getCurrentTimestamp(),
             });
             for (const l of this.listeners) {
               l.onSuccess?.(resultData);
@@ -431,14 +562,14 @@ class AIBackgroundStreamManager {
           activeSymbol: finalResponse.symbol || symbol,
           question,
           answer: finalResponse,
-          updatedAt: Date.now(),
+          updatedAt: getCurrentTimestamp(),
         });
 
         const history = readHistory();
         const itemSymbol = finalResponse.symbol || symbol || "TOÀN CẢNH";
         const newItem: AIHistoryItem = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          timestamp: Date.now(),
+          id: `${getCurrentTimestamp()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: getCurrentTimestamp(),
           symbol: itemSymbol,
           question,
           answer: finalResponse,
@@ -473,6 +604,7 @@ class AIBackgroundStreamManager {
 const backgroundStream = new AIBackgroundStreamManager();
 
 function AIWorkspaceContent() {
+  const { locale, t, mounted } = useLocale();
   const searchParams = useSearchParams();
 
   // 1. Read incoming navigation context
@@ -495,19 +627,18 @@ function AIWorkspaceContent() {
       return qParam.trim();
     }
     return "";
-  }, []);
+  }, [initialValidTicker, qParam, sourceParam]);
 
   const [activeSymbol, setActiveSymbol] = useState<string>(initialValidTicker ?? "");
   const [question, setQuestion] = useState<string>(initialQuestion);
   const [asOf] = useState("");
-  const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((t) => t.name));
+  const [selectedTools, setSelectedTools] = useState<AIToolName[]>(toolOptions.map((tItem) => tItem.name));
   const [busy, setBusy] = useState(false);
   const [, setStreamStep] = useState<AIStreamStep | null>(null);
   const [streamMessage, setStreamMessage] = useState("");
   const [answer, setAnswer] = useState<AIChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AIHistoryItem[]>([]);
-  const [isClient, setIsClient] = useState(false);
   const [scopeExpanded, setScopeExpanded] = useState(false);
 
   // Background fetch of AI Model Status via SWR Cache without blocking UI
@@ -533,78 +664,91 @@ function AIWorkspaceContent() {
   const lastHandledKeyRef = useRef<string>("");
   const isMountedRef = useRef<boolean>(false);
 
-  // 1. Initial client-side state hydration from localStorage
+  // 1. Initial client-side state hydration from localStorage (scheduled asynchronously)
   useEffect(() => {
-    setIsClient(true);
-    const storedHistory = readHistory();
-    setHistory(storedHistory);
+    const timer = setTimeout(() => {
+      const storedHistory = readHistory();
+      setHistory(storedHistory);
 
-    const session = readCurrentSession();
-    const validTicker = normalizeTicker(symbolParam);
+      const session = readCurrentSession();
+      const validTicker = normalizeTicker(symbolParam);
 
-    // Case 1: URL has no specific ticker or question (e.g. user navigated from sidebar /ai or home)
-    if (!validTicker && !qParam) {
-      if (session && session.answer) {
+      // Case 1: URL has no specific ticker or question (e.g. user navigated from sidebar /ai or home)
+      if (!validTicker && !qParam) {
+        if (session && session.answer) {
+          if (session.activeSymbol) setActiveSymbol(session.activeSymbol);
+          if (session.question) setQuestion(session.question);
+          setAnswer(session.answer);
+          return;
+        }
+        if (storedHistory.length > 0 && storedHistory[0].answer) {
+          const latest = storedHistory[0];
+          setActiveSymbol(latest.symbol === "TOÀN CẢNH" ? "" : latest.symbol);
+          setQuestion(latest.question);
+          setAnswer(latest.answer);
+          return;
+        }
+      }
+
+      // Case 2: URL has a specific ticker (e.g. from /opportunities or query)
+      if (validTicker) {
+        const targetQuestion =
+          sourceParam === "opportunities" || !qParam
+            ? buildOpportunityQuestion(validTicker)
+            : qParam.trim();
+
+        setActiveSymbol(validTicker);
+
+        // 2a: Check if current session matches this ticker
+        if (
+          session &&
+          session.answer &&
+          session.activeSymbol?.toUpperCase() === validTicker.toUpperCase()
+        ) {
+          setQuestion(qParam?.trim() || session.question || targetQuestion);
+          setAnswer(session.answer);
+          return;
+        }
+
+        // 2b: Check if history has a previous answer for this ticker
+        const matched = storedHistory.find(
+          (h) => h.symbol?.toUpperCase() === validTicker.toUpperCase()
+        );
+        if (matched && matched.answer) {
+          setQuestion(qParam?.trim() || matched.question || targetQuestion);
+          setAnswer(matched.answer);
+          return;
+        }
+
+        // 2c: No cached answer for this URL ticker — keep ticker selected cleanly
+        setQuestion(targetQuestion);
+        setAnswer(null);
+        return;
+      }
+
+      // Case 3: Fallback restore if session has any answer and no question in URL
+      if (!qParam && session?.answer) {
         if (session.activeSymbol) setActiveSymbol(session.activeSymbol);
         if (session.question) setQuestion(session.question);
         setAnswer(session.answer);
-        return;
       }
-      if (storedHistory.length > 0 && storedHistory[0].answer) {
-        const latest = storedHistory[0];
-        setActiveSymbol(latest.symbol === "TOÀN CẢNH" ? "" : latest.symbol);
-        setQuestion(latest.question);
-        setAnswer(latest.answer);
-        return;
-      }
-    }
+    }, 0);
 
-    // Case 2: URL has a specific ticker (e.g. from /opportunities or query)
-    if (validTicker) {
-      // 2a: Check if current session matches this ticker
-      if (
-        session &&
-        session.answer &&
-        session.activeSymbol?.toUpperCase() === validTicker.toUpperCase()
-      ) {
-        setActiveSymbol(session.activeSymbol);
-        if (session.question) setQuestion(session.question);
-        setAnswer(session.answer);
-        return;
-      }
-
-      // 2b: Check if history has a previous answer for this ticker
-      const matched = storedHistory.find(
-        (h) => h.symbol?.toUpperCase() === validTicker.toUpperCase()
-      );
-      if (matched && matched.answer) {
-        setActiveSymbol(validTicker);
-        setQuestion(matched.question);
-        setAnswer(matched.answer);
-        return;
-      }
-    }
-
-    // Case 3: Fallback restore if session has any answer and no question in URL
-    if (!qParam && session?.answer) {
-      if (session.activeSymbol) setActiveSymbol(session.activeSymbol);
-      if (session.question) setQuestion(session.question);
-      setAnswer(session.answer);
-    }
-  }, []);
+    return () => clearTimeout(timer);
+  }, [qParam, sourceParam, symbolParam]);
 
   // 1b. Auto-persist whenever answer, activeSymbol, or question updates
   useEffect(() => {
     if (!answer) return;
 
     const sym = answer.symbol || activeSymbol || "TOÀN CẢNH";
-    const q = question.trim() || `Phân tích ${sym}`;
+    const q = question.trim() || (locale === "en" ? `Analyze ${sym}` : `Phân tích ${sym}`);
 
     writeCurrentSession({
       activeSymbol: sym === "TOÀN CẢNH" ? "" : sym,
       question: q,
       answer,
-      updatedAt: Date.now(),
+      updatedAt: getCurrentTimestamp(),
     });
 
     const currentHistory = readHistory();
@@ -618,8 +762,8 @@ function AIWorkspaceContent() {
       id:
         existingIndex >= 0
           ? currentHistory[existingIndex].id
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      timestamp: Date.now(),
+          : `${getCurrentTimestamp()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: getCurrentTimestamp(),
       symbol: sym,
       question: q,
       answer,
@@ -631,8 +775,12 @@ function AIWorkspaceContent() {
     ].slice(0, 30);
 
     writeHistory(nextHistory);
-    setHistory(nextHistory);
-  }, [answer, activeSymbol, question]);
+
+    const timer = setTimeout(() => {
+      setHistory(nextHistory);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [answer, activeSymbol, question, locale]);
 
   // 2. Subscribe to background streaming runner
   useEffect(() => {
@@ -657,27 +805,36 @@ function AIWorkspaceContent() {
         }, 100);
       },
       onError: (err) => {
-        setError(err.message || "Đã xảy ra lỗi không mong muốn");
+        setError(err.message || t("Đã xảy ra lỗi không mong muốn", "An unexpected error occurred"));
       },
     });
 
     const currentStatus = backgroundStream.getStatus();
     if (currentStatus.busy) {
-      setBusy(true);
-      setStreamStep(currentStatus.step);
-      setStreamMessage(currentStatus.message);
-      if (currentStatus.symbol) {
-        setActiveSymbol((prev) => (prev ? prev : currentStatus.symbol));
-      }
-      if (currentStatus.question) {
-        setQuestion((prev) => (prev ? prev : currentStatus.question));
-      }
+      const timer = setTimeout(() => {
+        setBusy(true);
+        setStreamStep(currentStatus.step);
+        setStreamMessage(currentStatus.message);
+        const urlTicker = normalizeTicker(symbolParam);
+        if (!urlTicker) {
+          if (currentStatus.symbol) {
+            setActiveSymbol((prev) => (prev ? prev : currentStatus.symbol));
+          }
+          if (currentStatus.question) {
+            setQuestion((prev) => (prev ? prev : currentStatus.question));
+          }
+        }
+      }, 0);
+      return () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
     }
 
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [symbolParam, t]);
 
   // 3. Handle client-side navigation transitions (e.g. clicking different opportunities while page is open)
   useEffect(() => {
@@ -702,49 +859,53 @@ function AIWorkspaceContent() {
         ? buildOpportunityQuestion(validTicker)
         : (qParam?.trim() ?? "");
 
-    if (validTicker) {
-      setActiveSymbol(validTicker);
-    }
-    if (targetQuestion) {
-      setQuestion(targetQuestion);
-    }
+    const timer = setTimeout(() => {
+      if (validTicker) {
+        setActiveSymbol(validTicker);
+      }
+      if (targetQuestion) {
+        setQuestion(targetQuestion);
+      }
 
-    // Check if current_session already has an answer matching this ticker & question
-    const session = readCurrentSession();
-    if (
-      session &&
-      session.answer &&
-      session.activeSymbol?.toUpperCase() === (validTicker || "").toUpperCase()
-    ) {
-      setAnswer(session.answer);
-      setError(null);
-      return;
-    }
+      // Check if current_session already has an answer matching this ticker & question
+      const session = readCurrentSession();
+      if (
+        session &&
+        session.answer &&
+        session.activeSymbol?.toUpperCase() === (validTicker || "").toUpperCase()
+      ) {
+        setAnswer(session.answer);
+        setError(null);
+        return;
+      }
 
-    // Check if history already has an answer matching this ticker & question
-    const storedHistory = readHistory();
-    const matched = storedHistory.find(
-      (h) => h.symbol?.toUpperCase() === (validTicker || "").toUpperCase()
-    );
-    if (matched && matched.answer) {
-      setAnswer(matched.answer);
-      setError(null);
-    } else {
-      setAnswer(null);
-      setError(null);
-    }
+      // Check if history already has an answer matching this ticker & question
+      const storedHistory = readHistory();
+      const matched = storedHistory.find(
+        (h) => h.symbol?.toUpperCase() === (validTicker || "").toUpperCase()
+      );
+      if (matched && matched.answer) {
+        setAnswer(matched.answer);
+        setError(null);
+      } else {
+        setAnswer(null);
+        setError(null);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [symbolParam, qParam, sourceParam]);
 
   const currentStarterPrompts = useMemo(() => {
-    return activeSymbol ? getTickerStarterPrompts(activeSymbol) : defaultStarterPrompts;
-  }, [activeSymbol]);
+    return activeSymbol ? getTickerStarterPrompts(activeSymbol, locale) : getDefaultStarterPrompts(locale);
+  }, [activeSymbol, locale]);
 
   const currentPrompts = useMemo(() => {
-    return activeSymbol ? getStockPrompts(activeSymbol) : defaultMarketPrompts;
-  }, [activeSymbol]);
+    return activeSymbol ? getStockPrompts(activeSymbol, locale) : getDefaultMarketPrompts(locale);
+  }, [activeSymbol, locale]);
 
-  function handleSelectTicker(t: string) {
-    const nextTicker = activeSymbol === t ? "" : t;
+  function handleSelectTicker(ticker: string) {
+    const nextTicker = activeSymbol === ticker ? "" : ticker;
     setActiveSymbol(nextTicker);
     setQuestion("");
     setAnswer(null);
@@ -767,7 +928,7 @@ function AIWorkspaceContent() {
       activeSymbol: item.symbol === "TOÀN CẢNH" ? "" : item.symbol,
       question: item.question,
       answer: item.answer,
-      updatedAt: Date.now(),
+      updatedAt: getCurrentTimestamp(),
     });
     setTimeout(() => {
       answerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -791,7 +952,7 @@ function AIWorkspaceContent() {
   }
 
   function handleCancelStream() {
-    backgroundStream.cancel();
+    backgroundStream.cancel(t("Đã hủy phân tích theo yêu cầu.", "Analysis cancelled upon request."));
     setBusy(false);
     setStreamStep(null);
     setStreamMessage("");
@@ -811,7 +972,13 @@ function AIWorkspaceContent() {
     setError(null);
     setAnswer(null);
 
-    await backgroundStream.startStream(activeSymbol, question, asOf, selectedTools);
+    await backgroundStream.startStream(
+      activeSymbol,
+      question,
+      asOf,
+      selectedTools,
+      t("Đang khởi tạo kết nối luồng phân tích...", "Initiating analysis stream...")
+    );
   }
 
   return (
@@ -819,8 +986,11 @@ function AIWorkspaceContent() {
       <div className={`${styles.centerContainer} ${answer ? styles.wideContainer : ""}`}>
         {/* 1. Header trang chuẩn mực PageHeader */}
         <PageHeader
-          title="Trợ lý Nghiên cứu & Thẩm định Tài chính"
-          description="Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin."
+          title={t("Trợ lý Nghiên cứu & Thẩm định Tài chính", "Financial Research & AI Diligence Analyst")}
+          description={t(
+            "Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin.",
+            "Filing reconciliation, P/E multiples, IAS 33 adjustments, and macro sensitivity — 100% anchored on verified evidence with zero hallucination."
+          )}
           meta={
             <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <QuantCoreOrb3D
@@ -829,69 +999,78 @@ function AIWorkspaceContent() {
               />
               {isStatusLoading ? (
                 <span className={styles.statusBadgeWrapper}>
-                  <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
+                  <StatusBadge status="CHECKING" label={t("Đang kết nối mô hình...", "Connecting to model...")} />
                 </span>
               ) : aiStatus ? (
-              <span className={styles.statusBadgeWrapper}>
-                {(() => {
-                  const modelName = aiStatus.configured_models?.primary || "qwen3.5:9b-q4_K_M";
-                  const isCloudProvider = aiStatus.provider === "groq" || aiStatus.provider === "gemini";
-                  const providerTag =
-                    aiStatus.provider === "groq"
-                      ? "Groq Cloud"
-                      : aiStatus.provider === "gemini"
+                <span className={styles.statusBadgeWrapper}>
+                  {(() => {
+                    const modelName = aiStatus.configured_models?.primary || "qwen3.5:9b-q4_K_M";
+                    const isCloudProvider = aiStatus.provider === "groq" || aiStatus.provider === "gemini";
+                    const providerTag =
+                      aiStatus.provider === "groq"
+                        ? "Groq Cloud"
+                        : aiStatus.provider === "gemini"
                         ? "Gemini Cloud"
-                        : "Cục bộ";
-                  if (aiStatus.available) {
-                    if (isCloudProvider) {
-                      return (
-                        <StatusBadge
-                          status="HEALTHY"
-                          label={`${modelName} · ${providerTag}`}
-                          title={`Mô hình ${modelName} đang hoạt động qua ${providerTag}.`}
-                        />
-                      );
-                    }
-                    if (aiStatus.model_state === "LOADED") {
-                      return (
-                        <StatusBadge
-                          status="HEALTHY"
-                          label={`${modelName} · Sẵn sàng`}
-                          title={`Mô hình ${modelName} đã nạp VRAM & sẵn sàng suy luận.`}
-                        />
-                      );
-                    }
-                    if (aiStatus.model_state === "STANDBY" || aiStatus.status === "DEGRADED") {
+                        : t("Cục bộ", "Local");
+                    if (aiStatus.available) {
+                      if (isCloudProvider) {
+                        return (
+                          <StatusBadge
+                            status="HEALTHY"
+                            label={`${modelName} · ${providerTag}`}
+                            title={t(
+                              `Mô hình ${modelName} đang hoạt động qua ${providerTag}.`,
+                              `Model ${modelName} is active via ${providerTag}.`
+                            )}
+                          />
+                        );
+                      }
+                      if (aiStatus.model_state === "LOADED") {
+                        return (
+                          <StatusBadge
+                            status="HEALTHY"
+                            label={`${modelName} · ${t("Sẵn sàng", "Ready")}`}
+                            title={t(
+                              `Mô hình ${modelName} đã nạp VRAM & sẵn sàng suy luận.`,
+                              `Model ${modelName} is loaded into VRAM and ready for inference.`
+                            )}
+                          />
+                        );
+                      }
+                      if (aiStatus.model_state === "STANDBY" || aiStatus.status === "DEGRADED") {
+                        return (
+                          <StatusBadge
+                            status="AVAILABLE"
+                            label={`${modelName} · ${t("Chế độ chờ", "Standby")}`}
+                            title={t(
+                              `Mô hình ${modelName} đã cài đặt cục bộ (sẵn sàng tự động nạp khi nhận câu hỏi).`,
+                              `Model ${modelName} installed locally (will autoload on incoming query).`
+                            )}
+                          />
+                        );
+                      }
                       return (
                         <StatusBadge
                           status="AVAILABLE"
-                          label={`${modelName} · Chế độ chờ`}
-                          title={`Mô hình ${modelName} đã cài đặt cục bộ (sẵn sàng tự động nạp khi nhận câu hỏi).`}
+                          label={modelName}
+                          title={t("Mô hình cục bộ sẵn sàng", "Local model ready")}
                         />
                       );
                     }
                     return (
                       <StatusBadge
-                        status="AVAILABLE"
-                        label={modelName}
-                        title="Mô hình cục bộ sẵn sàng"
+                        status="UNAVAILABLE"
+                        label={t("AI Ngoại tuyến", "AI Offline")}
+                        title={aiStatus.reason || t("Dịch vụ AI chưa kết nối.", "AI service not connected.")}
                       />
                     );
-                  }
-                  return (
-                    <StatusBadge
-                      status="UNAVAILABLE"
-                      label="AI Ngoại tuyến"
-                      title={aiStatus.reason || "Dịch vụ AI chưa kết nối."}
-                    />
-                  );
-                })()}
-              </span>
-            ) : (
-              <span className={styles.statusBadgeWrapper}>
-                <StatusBadge status="AVAILABLE" label="Local-First Model" />
-              </span>
-            )}
+                  })()}
+                </span>
+              ) : (
+                <span className={styles.statusBadgeWrapper}>
+                  <StatusBadge status="AVAILABLE" label="Local-First Model" />
+                </span>
+              )}
             </div>
           }
         />
@@ -899,7 +1078,7 @@ function AIWorkspaceContent() {
         {/* 2. Dải chọn mã cổ phiếu & Gợi ý nhanh */}
         <section className={styles.suggestionsSection}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-            <span className={styles.suggestionsLabel}>Mã cổ phiếu tiêu biểu</span>
+            <span className={styles.suggestionsLabel}>{t("Mã cổ phiếu tiêu biểu", "Featured Tickers")}</span>
             {activeSymbol && (
               <button
                 type="button"
@@ -909,19 +1088,19 @@ function AIWorkspaceContent() {
                   setQuestion("");
                 }}
               >
-                Xóa bộ lọc mã ({activeSymbol})
+                {t(`Xóa bộ lọc mã (${activeSymbol})`, `Clear ticker filter (${activeSymbol})`)}
               </button>
             )}
           </div>
           <div className={styles.suggestionPills}>
-            {popularTickers.map((t) => (
+            {popularTickers.map((ticker) => (
               <button
-                key={t}
+                key={ticker}
                 type="button"
-                className={`${styles.suggestionPill} ${activeSymbol === t ? styles.suggestionPillActive : ""}`}
-                onClick={() => handleSelectTicker(t)}
+                className={`${styles.suggestionPill} ${activeSymbol === ticker ? styles.suggestionPillActive : ""}`}
+                onClick={() => handleSelectTicker(ticker)}
               >
-                {t}
+                {ticker}
               </button>
             ))}
             {activeSymbol && !popularTickers.includes(activeSymbol) && (
@@ -936,12 +1115,98 @@ function AIWorkspaceContent() {
           </div>
         </section>
 
-        {/* 2.5 Lịch sử phân tích gần đây (Local-First Persistence Bar) */}
-        {isClient && (
+        {/* Thanh nhập câu hỏi */}
+        <div className={styles.bottomDock}>
+          <div className={`${styles.dockInner} ${answer ? styles.dockInnerWide : ""}`}>
+            {busy && answer && (
+              <div className={styles.sseStatusPill}>
+                <div className={styles.pulseDot} />
+                <span>{streamMessage || t("AI đang phân tích...", "AI is analyzing...")}</span>
+                <button
+                  type="button"
+                  onClick={handleCancelStream}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--ink-muted)",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    marginLeft: "4px",
+                    padding: "0 4px",
+                  }}
+                  title={t("Hủy phân tích", "Cancel analysis")}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <form className={styles.promptBox} onSubmit={ask}>
+              <input
+                type="text"
+                className={styles.tickerInput}
+                placeholder={t("MÃ CP", "TICKER")}
+                maxLength={10}
+                value={activeSymbol}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase();
+                  setActiveSymbol(val);
+                }}
+                title={t("Mã cổ phiếu (để trống nếu hỏi toàn cảnh)", "Ticker symbol (leave empty for broad market overview)")}
+              />
+
+              <textarea
+                ref={textareaRef}
+                className={styles.promptTextarea}
+                rows={1}
+                placeholder={
+                  activeSymbol
+                    ? t(
+                        `Hỏi chuyên sâu về mã ${activeSymbol} (P/E, biên LN, nợ vay, rủi ro)...`,
+                        `Ask deep-dive questions about ${activeSymbol} (P/E, margins, leverage, risks)...`
+                      )
+                    : t(
+                        "Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô...",
+                        "Ask AI about stocks, P/E multiples, financial filings, macro trends..."
+                      )
+                }
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (question.trim() && !busy) {
+                      ask(e);
+                    }
+                  }
+                }}
+                required
+              />
+
+              <button
+                type="submit"
+                className={styles.submitBtn}
+                disabled={busy || !question.trim() || selectedTools.length === 0}
+              >
+                {busy ? t("Đang xử lý…", "Processing…") : t("Gửi câu hỏi", "Submit Query")}
+              </button>
+            </form>
+
+            <p className={styles.disclaimerText}>
+              {t(
+                "Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.",
+                "100% local-first data verification. Proprietary records never leave your environment."
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* 2.5 Lịch sử phân tích gần đây */}
+        {mounted && (
           <section className={styles.historySection}>
             <div className={styles.historyHeader}>
               <div className={styles.historyTitle}>
-                <span>🕒 Lịch sử phân tích gần đây</span>
+                <span>{t("🕒 Lịch sử phân tích gần đây", "🕒 Recent AI Analyses")}</span>
                 <span className={styles.historyCountBadge}>{history.length}</span>
               </div>
               {history.length > 0 && (
@@ -949,9 +1214,9 @@ function AIWorkspaceContent() {
                   type="button"
                   className={styles.historyClearBtn}
                   onClick={handleClearAllHistory}
-                  title="Xóa toàn bộ lịch sử"
+                  title={t("Xóa toàn bộ lịch sử", "Clear entire history")}
                 >
-                  Xóa tất cả
+                  {t("Xóa tất cả", "Clear All")}
                 </button>
               )}
             </div>
@@ -974,13 +1239,13 @@ function AIWorkspaceContent() {
                       <span className={styles.historyBadge}>{item.symbol}</span>
                       <div className={styles.historyContent}>
                         <span className={styles.historyQuestionText}>{item.question}</span>
-                        <span className={styles.historyTimeText}>{formatHistoryTime(item.timestamp)}</span>
+                        <span className={styles.historyTimeText}>{formatHistoryTime(item.timestamp, locale)}</span>
                       </div>
                       <button
                         type="button"
                         className={styles.historyDeleteBtn}
                         onClick={(e) => handleDeleteHistoryItem(e, item.id)}
-                        title="Xóa mục này"
+                        title={t("Xóa mục này", "Delete this item")}
                       >
                         ✕
                       </button>
@@ -990,18 +1255,25 @@ function AIWorkspaceContent() {
               </div>
             ) : (
               <div className={styles.historyEmpty}>
-                <span>Chưa có câu hỏi nào trong lịch sử. Khi bạn đặt câu hỏi và AI hoàn tất phân tích, kết quả sẽ tự động lưu vào đây để bạn bấm xem lại bất cứ lúc nào (kể cả khi chuyển trang).</span>
+                <span>
+                  {t(
+                    "Chưa có câu hỏi nào trong lịch sử. Khi bạn đặt câu hỏi và AI hoàn tất phân tích, kết quả sẽ tự động lưu vào đây để bạn bấm xem lại bất cứ lúc nào (kể cả khi chuyển trang).",
+                    "No queries in history yet. When you submit a question and analysis finishes, results are automatically saved here for instant retrieval across pages."
+                  )}
+                </span>
               </div>
             )}
           </section>
         )}
 
-        {/* 3. Bốn Gợi ý Phân tích Mẫu (4 Starter Prompts) Nổi bật khi màn hình chờ */}
+        {/* 3. Bốn Gợi ý Phân tích Mẫu Nổi bật khi màn hình chờ */}
         {!answer && !busy && (
           <section className={styles.starterSection}>
             <div className={styles.starterHeader}>
               <span className={styles.starterTitleLabel}>
-                {activeSymbol ? `Gợi ý phân tích chuyên sâu cho ${activeSymbol}` : "Gợi ý phân tích mẫu nổi bật"}
+                {activeSymbol
+                  ? t(`Gợi ý phân tích chuyên sâu cho ${activeSymbol}`, `In-Depth Analysis Prompts for ${activeSymbol}`)
+                  : t("Gợi ý phân tích mẫu nổi bật", "Featured Starter Analysis Prompts")}
               </span>
             </div>
             <div className={styles.starterGrid}>
@@ -1018,7 +1290,7 @@ function AIWorkspaceContent() {
                     <span className={styles.starterSymbolBadge}>{item.symbol}</span>
                   </div>
                   <div className={styles.starterTitle}>{item.title}</div>
-                  <div className={styles.starterQuery}>"{item.query}"</div>
+                  <div className={styles.starterQuery}>&ldquo;{item.query}&rdquo;</div>
                   <div className={styles.starterDesc}>{item.desc}</div>
                 </button>
               ))}
@@ -1027,7 +1299,9 @@ function AIWorkspaceContent() {
             {/* Câu hỏi gợi ý bổ sung */}
             <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <span className={styles.suggestionsLabel}>
-                {activeSymbol ? `Chủ đề khác liên quan đến ${activeSymbol}` : "Chủ đề phân tích thị trường"}
+                {activeSymbol
+                  ? t(`Chủ đề khác liên quan đến ${activeSymbol}`, `Other topics for ${activeSymbol}`)
+                  : t("Chủ đề phân tích thị trường", "Market Analysis Topics")}
               </span>
               <div className={styles.suggestionPills}>
                 {currentPrompts.map((item, idx) => (
@@ -1048,7 +1322,7 @@ function AIWorkspaceContent() {
           </section>
         )}
 
-        {/* 4. Khung Phạm vi công cụ (Collapsible Tool Scope) */}
+        {/* 4. Khung Phạm vi công cụ */}
         <section className={styles.scopeCard}>
           <div
             className={styles.scopeHeader}
@@ -1056,9 +1330,14 @@ function AIWorkspaceContent() {
             onClick={() => setScopeExpanded((prev) => !prev)}
           >
             <span className={styles.scopeTitle} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>Phạm vi công cụ phân tích ({selectedTools.length}/{toolOptions.length})</span>
+              <span>
+                {t(
+                  `Phạm vi công cụ phân tích (${selectedTools.length}/${toolOptions.length})`,
+                  `Analysis Tool Scope (${selectedTools.length}/${toolOptions.length})`
+                )}
+              </span>
               <span style={{ fontSize: "11px", color: "var(--finotive-emerald, #10B981)", fontWeight: 600 }}>
-                {scopeExpanded ? "▲ Thu gọn" : "▼ Tùy chỉnh công cụ"}
+                {scopeExpanded ? t("▲ Thu gọn", "▲ Collapse") : t("▼ Tùy chỉnh công cụ", "▼ Customize Tools")}
               </span>
             </span>
             <div className={styles.scopeActions} onClick={(e) => e.stopPropagation()}>
@@ -1066,9 +1345,9 @@ function AIWorkspaceContent() {
                 type="button"
                 className={styles.suggestionPill}
                 style={{ padding: "4px 10px", fontSize: "11px" }}
-                onClick={() => setSelectedTools(toolOptions.map((t) => t.name))}
+                onClick={() => setSelectedTools(toolOptions.map((tItem) => tItem.name))}
               >
-                Tất cả
+                {t("Tất cả", "Select All")}
               </button>
               <button
                 type="button"
@@ -1076,7 +1355,7 @@ function AIWorkspaceContent() {
                 style={{ padding: "4px 10px", fontSize: "11px" }}
                 onClick={() => setSelectedTools([])}
               >
-                Bỏ chọn
+                {t("Bỏ chọn", "Clear All")}
               </button>
             </div>
           </div>
@@ -1090,7 +1369,7 @@ function AIWorkspaceContent() {
                     checked={selectedTools.includes(tool.name)}
                     onChange={() => toggleTool(tool.name)}
                   />
-                  <span>{tool.label}</span>
+                  <span>{locale === "en" ? tool.labelEn : tool.labelVi}</span>
                 </label>
               ))}
             </div>
@@ -1101,40 +1380,40 @@ function AIWorkspaceContent() {
         {error && (
           <div className={styles.resultCard} style={{ borderColor: "var(--negative-border)" }}>
             <div style={{ color: "var(--negative)", fontSize: "14px", fontWeight: 600 }}>
-              Không thể hoàn tất phân tích
+              {t("Không thể hoàn tất phân tích", "Unable to Complete Analysis")}
             </div>
             <p style={{ margin: 0, fontSize: "13.5px", color: "var(--ink-secondary)" }}>{error}</p>
           </div>
         )}
 
-        {/* 6. Trạng thái Loading lúc đang gửi yêu cầu (Skeleton Feedback) */}
+        {/* 6. Trạng thái Loading lúc đang gửi yêu cầu */}
         {busy && !answer && (
           <div className={styles.loadingAnswerCard}>
             <div className={styles.loadingHeader}>
               <div className={styles.loadingHeaderInfo}>
                 <div className={styles.pulseDot} />
-                <span>{streamMessage || "AI đang tổng hợp và đối soát dữ liệu BCTC..."}</span>
+                <span>{streamMessage || t("AI đang tổng hợp và đối soát dữ liệu BCTC...", "AI is compiling and reconciling financial statements...")}</span>
               </div>
               <button type="button" onClick={handleCancelStream} className={styles.cancelBtn}>
-                ✕ Hủy phân tích
+                {t("✕ Hủy phân tích", "✕ Cancel Analysis")}
               </button>
             </div>
 
             {/* StellarX 3-Step Progress Stepper */}
-            <div className={styles.stellarxStepper} role="status" aria-label="Tiến trình suy luận AI">
+            <div className={styles.stellarxStepper} role="status" aria-label={t("Tiến trình suy luận AI", "AI reasoning progress")}>
               <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
                 <span className={styles.stepperNum}>01</span>
-                <span>DỮ LIỆU ĐỊNH LƯỢNG</span>
+                <span>{t("DỮ LIỆU ĐỊNH LƯỢNG", "QUANTITATIVE DATA")}</span>
               </div>
               <div className={styles.stepperDivider} />
               <div className={`${styles.stepperItem} ${styles.stepperActive}`}>
                 <span className={styles.stepperNum}>02</span>
-                <span>SUY LUẬN MÔ HÌNH</span>
+                <span>{t("SUY LUẬN MÔ HÌNH", "MODEL INFERENCE")}</span>
               </div>
               <div className={styles.stepperDivider} />
               <div className={styles.stepperItem}>
                 <span className={styles.stepperNum}>03</span>
-                <span>ĐỐI SOÁT BẰNG CHỨNG</span>
+                <span>{t("ĐỐI SOÁT BẰNG CHỨNG", "EVIDENCE RECONCILIATION")}</span>
               </div>
             </div>
 
@@ -1155,7 +1434,11 @@ function AIWorkspaceContent() {
                   <div className={styles.resultHeaderLeft}>
                     <StatusBadge
                       status={answer.status}
-                      label={answer.symbol ? `MÃ: ${answer.symbol}` : "TOÀN CẢNH"}
+                      label={
+                        answer.symbol
+                          ? (locale === "en" ? `TICKER: ${answer.symbol}` : `MÃ: ${answer.symbol}`)
+                          : (locale === "en" ? "BROAD MARKET" : "TOÀN CẢNH")
+                      }
                     />
                     <StatusBadge status={answer.status} />
                     {Boolean(answer.metadata_flags?.ias33_adjusted) && (
@@ -1168,7 +1451,9 @@ function AIWorkspaceContent() {
                         )
                     ) && (
                       <span className={styles.proxyBadge}>
-                        ⚠️ BỐI CẢNH ĐẠI DIỆN / PROXY CONTEXT (VN100)
+                        {locale === "en"
+                          ? "⚠️ PROXY CONTEXT (VN100 BENCHMARK)"
+                          : "⚠️ BỐI CẢNH ĐẠI DIỆN / PROXY CONTEXT (VN100)"}
                       </span>
                     )}
                   </div>
@@ -1181,9 +1466,9 @@ function AIWorkspaceContent() {
                       type="button"
                       className={styles.resetQuestionBtn}
                       onClick={handleResetQuestion}
-                      title="Đặt câu hỏi mới"
+                      title={t("Đặt câu hỏi mới", "New query")}
                     >
-                      + Câu hỏi mới
+                      {t("+ Câu hỏi mới", "+ New Query")}
                     </button>
                   </div>
                 </header>
@@ -1193,10 +1478,10 @@ function AIWorkspaceContent() {
                   <div className={styles.streamProgressBanner}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <div className={styles.pulseDot} />
-                      <span>{streamMessage || "AI đang tiến hành phân tích và đối soát..."}</span>
+                      <span>{streamMessage || t("AI đang tiến hành phân tích và đối soát...", "AI is performing analysis and reconciliation...")}</span>
                     </div>
                     <button type="button" onClick={handleCancelStream} className={styles.cancelButton}>
-                      ✕ Hủy
+                      {t("✕ Hủy", "✕ Cancel")}
                     </button>
                   </div>
                 )}
@@ -1210,7 +1495,7 @@ function AIWorkspaceContent() {
                 {answer.claims && answer.claims.length > 0 && (
                   <div className={styles.claimsSection}>
                     <span className={styles.sectionTitle}>
-                      Mệnh đề phân tích đã đối soát ({answer.claims.length})
+                      {t(`Mệnh đề phân tích đã đối soát (${answer.claims.length})`, `Reconciled Analytical Claims (${answer.claims.length})`)}
                     </span>
                     <div className={styles.claimsList}>
                       {answer.claims.map((claim, idx) => {
@@ -1218,7 +1503,9 @@ function AIWorkspaceContent() {
                           claim.claim_type === "MODEL_OUTPUT" &&
                           (claim.text.includes("KẾT LUẬN & KHUYẾN NGHỊ") ||
                             claim.text.includes("KHUYẾN NGHỊ ĐẦU TƯ") ||
-                            claim.text.includes("LỰA CHỌN ƯU TIÊN"));
+                            claim.text.includes("INVESTMENT VERDICT") ||
+                            claim.text.includes("LỰA CHỌN ƯU TIÊN") ||
+                            claim.text.includes("PREFERRED CONVICTION PICK"));
                         return (
                           <div
                             key={idx}
@@ -1251,7 +1538,7 @@ function AIWorkspaceContent() {
                               )}
                             </div>
                             <div className={styles.claimBodyWrapper}>
-                              {renderClaimText(claim)}
+                              {renderClaimText(claim, locale)}
                             </div>
                           </div>
                         );
@@ -1264,7 +1551,7 @@ function AIWorkspaceContent() {
                 {answer.uncertainty && answer.uncertainty.length > 0 && (
                   <div className={styles.uncertaintySection}>
                     <span className={styles.sectionTitle}>
-                      Lưu ý dữ liệu & Rủi ro ({answer.uncertainty.length})
+                      {t(`Lưu ý dữ liệu & Rủi ro (${answer.uncertainty.length})`, `Data Caveats & Risk Notes (${answer.uncertainty.length})`)}
                     </span>
                     <ul className={styles.uncertaintyList}>
                       {answer.uncertainty.map((item, idx) => (
@@ -1285,26 +1572,30 @@ function AIWorkspaceContent() {
                 <div className={styles.evidenceHeaderTop}>
                   <span className={styles.evidenceIcon}>📋</span>
                   <div>
-                    <h2 className={styles.evidenceTitle}>Bằng chứng &amp; Số liệu Đối chứng</h2>
+                    <h2 className={styles.evidenceTitle}>
+                      {t("Bằng chứng & Số liệu Đối chứng", "Empirical Evidence & Filings")}
+                    </h2>
                     <p className={styles.evidenceSubtitle}>
-                      Kiểm định trực tiếp từ BCTC &amp; Nguồn dữ liệu số hóa
+                      {t("Kiểm định trực tiếp từ BCTC & Nguồn dữ liệu số hóa", "Audited against financial filings and canonical data sources")}
                     </p>
                   </div>
                 </div>
                 <div className={styles.evidenceMetaTags}>
                   <span className={styles.evidenceCountBadge}>
-                    {answer.citations?.length || 0} Bằng chứng
+                    {t(`${answer.citations?.length || 0} Bằng chứng`, `${answer.citations?.length || 0} Citations`)}
                   </span>
                   {Boolean(answer.metadata_flags?.ias33_adjusted) && (
                     <span className={styles.iasEvidenceBadge}>⚠️ IAS 33 Adjusted</span>
                   )}
                   {Boolean(answer.metadata_flags?.eps_is_estimate) && (
-                    <span className={styles.iasEvidenceBadge}>ⓘ EPS ước lượng (IAS 33)</span>
+                    <span className={styles.iasEvidenceBadge}>
+                      {t("ⓘ EPS ước lượng (IAS 33)", "ⓘ Estimated EPS (IAS 33 Adjusted)")}
+                    </span>
                   )}
                 </div>
               </div>
 
-              {/* Bảng số liệu BCTC & Fallback Thông minh */}
+              {/* Bảng số liệu BCTC & Fallback Thông minh (CRITICAL CONTRACT PRESERVED) */}
               {(answer.status === "PARTIAL_DATA_ONLY" || answer.structured_data_summary) && (
                 <AppleSmartFallback
                   summary={answer.structured_data_summary}
@@ -1317,7 +1608,7 @@ function AIWorkspaceContent() {
               {answer.citations && answer.citations.length > 0 ? (
                 <div className={styles.evidenceList}>
                   <span className={styles.sectionTitle}>
-                    Nguồn trích dẫn BCTC &amp; Hồ sơ ({answer.citations.length})
+                    {t(`Nguồn trích dẫn BCTC & Hồ sơ (${answer.citations.length})`, `Filing Citations & Evidence Records (${answer.citations.length})`)}
                   </span>
                   {answer.citations.map((c) => (
                     <div key={c.id} className={styles.evidenceCard}>
@@ -1332,12 +1623,12 @@ function AIWorkspaceContent() {
                       <div className={styles.evidenceFooter}>
                         {c.source && (
                           <span className={styles.evidenceSource}>
-                            Nguồn: <strong>{c.source}</strong>
+                            {t("Nguồn:", "Source:")} <strong>{c.source}</strong>
                           </span>
                         )}
                         {c.publication_date && (
                           <span className={styles.evidenceDate}>
-                            Kỳ/Ngày: {c.publication_date}
+                            {t("Kỳ/Ngày:", "Period/Date:")} {c.publication_date}
                           </span>
                         )}
                       </div>
@@ -1346,89 +1637,12 @@ function AIWorkspaceContent() {
                 </div>
               ) : (
                 <div className={styles.evidenceEmpty}>
-                  <span>Chưa có trích dẫn BCTC riêng lẻ</span>
+                  <span>{t("Chưa có trích dẫn BCTC riêng lẻ", "No individual filing citations recorded")}</span>
                 </div>
               )}
             </aside>
           </div>
         )}
-      </div>
-
-      {/* 8. Thanh Nhập Liệu Nổi ở Đáy (Sticky Bottom Floating Dock) */}
-      <div className={styles.bottomDock}>
-        <div className={`${styles.dockInner} ${answer ? styles.dockInnerWide : ""}`}>
-          {busy && answer && (
-            <div className={styles.sseStatusPill}>
-              <div className={styles.pulseDot} />
-              <span>{streamMessage || "AI đang phân tích..."}</span>
-              <button
-                type="button"
-                onClick={handleCancelStream}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--ink-muted)",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  marginLeft: "4px",
-                  padding: "0 4px",
-                }}
-                title="Hủy phân tích"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <form className={styles.promptBox} onSubmit={ask}>
-            <input
-              type="text"
-              className={styles.tickerInput}
-              placeholder="MÃ CP"
-              maxLength={10}
-              value={activeSymbol}
-              onChange={(e) => {
-                const val = e.target.value.toUpperCase();
-                setActiveSymbol(val);
-              }}
-              title="Mã cổ phiếu (để trống nếu hỏi toàn cảnh)"
-            />
-
-            <textarea
-              ref={textareaRef}
-              className={styles.promptTextarea}
-              rows={1}
-              placeholder={
-                activeSymbol
-                  ? `Hỏi chuyên sâu về mã ${activeSymbol} (P/E, biên LN, nợ vay, rủi ro)...`
-                  : "Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô..."
-              }
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (question.trim() && !busy) {
-                    ask(e);
-                  }
-                }
-              }}
-              required
-            />
-
-            <button
-              type="submit"
-              className={styles.submitBtn}
-              disabled={busy || !question.trim() || selectedTools.length === 0}
-            >
-              {busy ? "Đang xử lý…" : "Gửi câu hỏi"}
-            </button>
-          </form>
-
-          <p className={styles.disclaimerText}>
-            Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.
-          </p>
-        </div>
       </div>
     </div>
   );
@@ -1436,28 +1650,67 @@ function AIWorkspaceContent() {
 
 /**
  * Fallback App Shell tĩnh hiển thị ngay lập tức khi hydration/SSR khởi tạo
- * Loại bỏ hoàn toàn màn hình trắng "Đang chuẩn bị không gian làm việc..."
+ * Loại bỏ hoàn toàn màn hình trắng
  */
 function AIShellFallback(): JSX.Element {
+  const { locale, t } = useLocale();
+  const defaultPrompts = getDefaultStarterPrompts(locale);
+
   return (
     <div className={styles.pageWrapper}>
       <div className={styles.centerContainer}>
         <PageHeader
-          title="Trợ lý Nghiên cứu & Thẩm định Tài chính"
-          description="Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin."
+          title={t("Trợ lý Nghiên cứu & Thẩm định Tài chính", "Financial Research & AI Diligence Analyst")}
+          description={t(
+            "Đối soát BCTC, định giá P/E, mô hình IAS 33 và độ nhạy vĩ mô — dựa 100% trên số liệu kiểm chứng, không bịa đặt thông tin.",
+            "Filing reconciliation, P/E multiples, IAS 33 adjustments, and macro sensitivity — 100% anchored on verified evidence with zero hallucination."
+          )}
           meta={
             <span className={styles.statusBadgeWrapper}>
-              <StatusBadge status="CHECKING" label="Đang kết nối mô hình..." />
+              <StatusBadge status="CHECKING" label={t("Đang kết nối mô hình...", "Connecting to model...")} />
             </span>
           }
         />
 
+        <div className={styles.bottomDock}>
+          <div className={styles.dockInner}>
+            <div className={styles.promptBox}>
+              <input
+                type="text"
+                className={styles.tickerInput}
+                placeholder={t("MÃ CP", "TICKER")}
+                readOnly
+              />
+              <textarea
+                className={styles.promptTextarea}
+                rows={1}
+                placeholder={t(
+                  "Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô...",
+                  "Ask AI about stocks, P/E multiples, financial filings, macro trends..."
+                )}
+                readOnly
+              />
+              <button type="button" className={styles.submitBtn} disabled>
+                {t("Gửi câu hỏi", "Submit Query")}
+              </button>
+            </div>
+            <p className={styles.disclaimerText}>
+              {t(
+                "Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.",
+                "100% local-first data verification. Proprietary records never leave your environment."
+              )}
+            </p>
+          </div>
+        </div>
+
         <section className={styles.starterSection}>
           <div className={styles.starterHeader}>
-            <span className={styles.starterTitleLabel}>Gợi ý phân tích mẫu nổi bật</span>
+            <span className={styles.starterTitleLabel}>
+              {t("Gợi ý phân tích mẫu nổi bật", "Featured Starter Analysis Prompts")}
+            </span>
           </div>
           <div className={styles.starterGrid}>
-            {defaultStarterPrompts.map((item, idx) => (
+            {defaultPrompts.map((item, idx) => (
               <div key={idx} className={styles.starterCard}>
                 <div className={styles.starterCardTop}>
                   <span className={styles.starterIcon}>{item.icon}</span>
@@ -1465,37 +1718,12 @@ function AIShellFallback(): JSX.Element {
                   <span className={styles.starterSymbolBadge}>{item.symbol}</span>
                 </div>
                 <div className={styles.starterTitle}>{item.title}</div>
-                <div className={styles.starterQuery}>"{item.query}"</div>
+                <div className={styles.starterQuery}>&ldquo;{item.query}&rdquo;</div>
                 <div className={styles.starterDesc}>{item.desc}</div>
               </div>
             ))}
           </div>
         </section>
-      </div>
-
-      <div className={styles.bottomDock}>
-        <div className={styles.dockInner}>
-          <div className={styles.promptBox}>
-            <input
-              type="text"
-              className={styles.tickerInput}
-              placeholder="MÃ CP"
-              readOnly
-            />
-            <textarea
-              className={styles.promptTextarea}
-              rows={1}
-              placeholder="Hỏi AI về cổ phiếu, định giá P/E, BCTC, vĩ mô..."
-              readOnly
-            />
-            <button type="button" className={styles.submitBtn} disabled>
-              Gửi câu hỏi
-            </button>
-          </div>
-          <p className={styles.disclaimerText}>
-            Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.
-          </p>
-        </div>
       </div>
     </div>
   );

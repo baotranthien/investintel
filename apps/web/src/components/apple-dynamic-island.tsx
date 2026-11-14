@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { AIStreamStep } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import styles from "./apple-dynamic-island.module.css";
 
 interface DynamicIslandProps {
@@ -12,24 +13,6 @@ interface DynamicIslandProps {
   onCancel?: () => void;
 }
 
-const STEP_METADATA: Record<AIStreamStep, { label: string; phase: string; phaseNum: string }> = {
-  fetching_data: {
-    label: "Trích xuất BCTC & Chuỗi giá định lượng",
-    phase: "EXTRACTING",
-    phaseNum: "01/03",
-  },
-  llm_reasoning: {
-    label: "Phân tích suy luận tài chính & định giá",
-    phase: "REASONING",
-    phaseNum: "02/03",
-  },
-  validating: {
-    label: "Kiểm chứng đối chiếu chống Hallucination",
-    phase: "VALIDATING",
-    phaseNum: "03/03",
-  },
-};
-
 export default function AppleDynamicIsland({
   isStreaming,
   step,
@@ -37,25 +20,53 @@ export default function AppleDynamicIsland({
   heartbeatCount,
   onCancel,
 }: DynamicIslandProps) {
+  const { t } = useLocale();
   const [prevMessage, setPrevMessage] = useState(message);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (message !== prevMessage) {
-      setIsTransitioning(true);
-      const timer = setTimeout(() => {
+      const startTimer = setTimeout(() => {
+        setIsTransitioning(true);
+      }, 0);
+      const endTimer = setTimeout(() => {
         setPrevMessage(message);
         setIsTransitioning(false);
       }, 120);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(endTimer);
+      };
     }
   }, [message, prevMessage]);
 
   if (!isStreaming) return null;
 
+  const stepMetaMap: Record<AIStreamStep, { label: string; phase: string; phaseNum: string }> = {
+    fetching_data: {
+      label: t("Trích xuất BCTC & Chuỗi giá định lượng", "Extracting Financial Statements & Price Series"),
+      phase: "EXTRACTING",
+      phaseNum: "01/03",
+    },
+    llm_reasoning: {
+      label: t("Phân tích suy luận tài chính & định giá", "Financial Reasoning & Valuation Synthesis"),
+      phase: "REASONING",
+      phaseNum: "02/03",
+    },
+    validating: {
+      label: t("Kiểm chứng đối chiếu chống Hallucination", "Audit Reconciling & Anti-Hallucination Check"),
+      phase: "VALIDATING",
+      phaseNum: "03/03",
+    },
+  };
+
   const currentMeta = step
-    ? STEP_METADATA[step]
-    : { label: "Đang khởi tạo kết nối SSE...", phase: "INITIALIZING", phaseNum: "00/03" };
+    ? stepMetaMap[step]
+    : {
+        label: t("Đang khởi tạo kết nối SSE...", "Initializing SSE streaming connection..."),
+        phase: "INITIALIZING",
+        phaseNum: "00/03",
+      };
 
   return (
     <aside className={styles.statusPill} role="status" aria-live="polite">
@@ -79,7 +90,10 @@ export default function AppleDynamicIsland({
 
       {/* Telemetry Right: Heartbeat Counter + Cancel */}
       <div className={styles.telemetryRight}>
-        <span className={`${styles.heartbeatTime} tabular-nums`} title="SSE Heartbeat latency">
+        <span
+          className={`${styles.heartbeatTime} tabular-nums`}
+          title={t("Độ trễ nhịp tim kết nối SSE", "SSE Heartbeat latency")}
+        >
           {heartbeatCount > 0 ? `${heartbeatCount * 3}s` : "0s"}
         </span>
 
@@ -88,8 +102,8 @@ export default function AppleDynamicIsland({
             type="button"
             onClick={onCancel}
             className={styles.cancelBtn}
-            title="Dừng luồng phản hồi"
-            aria-label="Hủy tạo"
+            title={t("Dừng luồng phản hồi", "Stop streaming response")}
+            aria-label={t("Hủy tạo", "Cancel stream")}
           >
             ✕
           </button>

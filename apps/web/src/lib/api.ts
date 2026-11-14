@@ -485,9 +485,99 @@ export type AIChatRequest = {
   tool_names: AIToolName[];
 };
 
+export type AIComparisonCard = {
+  key: string;
+  label: string;
+  symbol_a: string;
+  symbol_b: string;
+  value_a: number | null;
+  value_b: number | null;
+  diff: number | null;
+  ratio?: number | null;
+  unit?: string;
+};
+
+export type AIComparisonTable = {
+  symbols: string[];
+  rows: Array<{
+    metric: string;
+    label: string;
+    unit?: string;
+    values: Record<string, number | null>;
+    diff?: number | null;
+  }>;
+};
+
+export type AIChartDataPoint = {
+  label: string;
+  date?: string;
+  value?: number;
+  raw_close?: number;
+  kind?: string;
+  revenue?: number | null;
+  net_income?: number | null;
+  a?: number;
+  b?: number;
+  unit?: string;
+};
+
+export type AIChartSpec = {
+  id: string;
+  type: "area" | "grouped_bar" | "valuation_range" | "comparison_bar";
+  title: string;
+  symbol?: string;
+  symbols?: string[];
+  unit?: string;
+  current_price?: number | null;
+  series_keys?: Array<{ key: string; label: string }>;
+  data: AIChartDataPoint[];
+};
+
+export type AIDocumentHighlight = {
+  citation_id: string;
+  document_id: string;
+  ticker?: string | null;
+  title?: string | null;
+  section?: string | null;
+  page_reference?: string | null;
+  publication_date?: string | null;
+  document_type?: string | null;
+  source?: string | null;
+  retrieval_mode?: string | null;
+  chunk_type?: string | null;
+  score?: number | null;
+  is_synthetic?: boolean;
+  snippet: string;
+};
+
+export type AIQuickAction = {
+  label: string;
+  href: string;
+  kind: string;
+  symbol: string;
+};
+
+export type AIStructuredDataSummary = {
+  symbols?: Record<
+    string,
+    {
+      metrics?: Record<string, unknown>;
+      calculated_indicators?: Record<string, unknown>;
+    }
+  >;
+  comparisons?: Record<string, unknown> | null;
+  comparison_cards?: AIComparisonCard[] | null;
+  comparison_table?: AIComparisonTable | null;
+  charts?: AIChartSpec[] | null;
+  document_highlights?: AIDocumentHighlight[] | null;
+  quick_actions?: AIQuickAction[] | null;
+  [key: string]: unknown;
+};
+
 export type AIChatResponse = {
   status: "AVAILABLE" | "PARTIAL" | "INSUFFICIENT_DATA" | "PARTIAL_DATA_ONLY" | "WRONG_SCOPE";
   symbol: string | null;
+  resolved_symbol?: string | null;
   as_of_date: string;
   prompt_version: string;
   model: string | null;
@@ -497,7 +587,7 @@ export type AIChatResponse = {
   uncertainty: string[];
   tools_used: AIToolName[];
   usage: Record<string, unknown>;
-  structured_data_summary?: Record<string, unknown> | null;
+  structured_data_summary?: AIStructuredDataSummary | null;
   metadata_flags?: Record<string, unknown> | null;
 };
 

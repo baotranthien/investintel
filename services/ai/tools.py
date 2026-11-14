@@ -1,4 +1,5 @@
 from datetime import date
+import os
 from typing import Any, Optional
 
 from sqlalchemy import func
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import SessionLocal
 from database.models import (
     Asset, AssetDecisionSnapshot, WatchlistItem,
-    BankMetric, MacroCommodity, Price
+    BankMetric, FinancialStatement, MacroCommodity, NormalizedIncome, Price
 )
 from services.decision.engine import build_decision_context
 from services.events.engine import EventEngine
@@ -699,6 +700,102 @@ def _get_screener_evidence(db: Session, screener_spec: Any, as_of: date, questio
     return evidence
 
 
+def _get_chart_context(db: Session, symbols: list[str], as_of: date) -> dict[str, Any]:
+    """
+    Collects strictly grounded PIT historical series (daily prices + multi-period revenue/net_income)
+    for interactive AI mini-charts without altering citation IDs.
+    """
+    price_series: dict[str, list[dict[str, Any]]] = {}
+    financial_history: dict[str, list[dict[str, Any]]] = {}
+
+    clean_syms = [
+        s.strip().upper()
+        for s in (symbols or [])
+        if s and s.strip().upper() not in ("ALL", "UNIVERSE", "UNIVERSE_ALL", "VNINDEX", "VN100", "VN30")
+    ][:3]
+
+    for sym in clean_syms:
+        asset = db.query(Asset).filter(Asset.symbol == sym).first()
+        if not asset:
+            continue
+
+        price_rows = (
+            db.query(Price)
+            .filter(
+                Price.asset_id == asset.id,
+                Price.status == "VALID",
+                Price.observation_date <= as_of,
+                Price.raw_close.isnot(None),
+                Price.raw_close > 0,
+            )
+            .order_by(Price.observation_date.desc())
+            .limit(45)
+            .all()
+        )
+        if len(price_rows) >= 2:
+            ordered = list(reversed(price_rows))
+            price_series[sym] = [
+                {
+                    "date": r.observation_date.isoformat(),
+                    "close": round(float(r.adjusted_close if r.adjusted_close and r.adjusted_close > 0 else r.raw_close), 2),
+                    "raw_close": round(float(r.raw_close), 2),
+                }
+                for r in ordered
+            ]
+
+        stmt_rows = (
+            db.query(FinancialStatement, NormalizedIncome)
+            .join(NormalizedIncome, NormalizedIncome.statement_id == FinancialStatement.id)
+            .filter(
+                FinancialStatement.asset_id == asset.id,
+                FinancialStatement.statement_type == "INCOME_STATEMENT",
+                FinancialStatement.publication_date <= as_of,
+                FinancialStatement.status == "VALID",
+            )
+            .order_by(FinancialStatement.fiscal_period_end.asc())
+            .all()
+        )
+        annual_map: dict[int, dict[str, Any]] = {}
+        quarter_map: dict[tuple[int, int], dict[str, Any]] = {}
+        for fs, inc in stmt_rows:
+            rev = float(inc.revenue) if inc.revenue is not None else None
+            ni_raw = inc.net_income_parent if inc.net_income_parent is not None else inc.net_income
+            ni = float(ni_raw) if ni_raw is not None else None
+            if rev is None and ni is None:
+                continue
+            ptype = (fs.period_type or "").upper()
+            if ptype == "ANNUAL" and fs.fiscal_year:
+                if fs.fiscal_year not in annual_map or fs.consolidation == "CONSOLIDATED":
+                    annual_map[fs.fiscal_year] = {
+                        "period": f"FY{fs.fiscal_year}",
+                        "fiscal_period_end": fs.fiscal_period_end.isoformat() if fs.fiscal_period_end else None,
+                        "revenue": round(rev, 2) if rev is not None else None,
+                        "net_income": round(ni, 2) if ni is not None else None,
+                    }
+            elif ptype in ("QUARTERLY", "QUARTER") and fs.fiscal_year and fs.fiscal_quarter:
+                q_key = (fs.fiscal_year, fs.fiscal_quarter)
+                if q_key not in quarter_map or fs.consolidation == "CONSOLIDATED":
+                    quarter_map[q_key] = {
+                        "period": f"Q{fs.fiscal_quarter}-{str(fs.fiscal_year)[-2:]}",
+                        "fiscal_period_end": fs.fiscal_period_end.isoformat() if fs.fiscal_period_end else None,
+                        "revenue": round(rev, 2) if rev is not None else None,
+                        "net_income": round(ni, 2) if ni is not None else None,
+                    }
+
+        series_pts = (
+            [annual_map[y] for y in sorted(annual_map.keys())[-5:]]
+            if len(annual_map) >= 2
+            else [quarter_map[k] for k in sorted(quarter_map.keys())[-6:]]
+        )
+        if len(series_pts) >= 2:
+            financial_history[sym] = series_pts
+
+    return {
+        "price_series": price_series,
+        "financial_history": financial_history,
+    }
+
+
 class AITools:
     """Whitelisted read-only data tools; quantitative scores are never computed here."""
 
@@ -967,6 +1064,23 @@ class AITools:
                     ev_copy.setdefault("symbol", "VN100")
                     combined_evidence.append(ev_copy)
 
+                rag_service = DocumentRAGService(session=db)
+                rag_query = f"{' '.join(norm_symbols)} {question or ''}".strip() or "corporate update"
+                rag_docs = rag_service.retrieve_documents(
+                    query=rag_query,
+                    ticker=",".join(norm_symbols),
+                    as_of_date=as_of,
+                    limit=6,
+                    auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ),
+                )
+                doc_payload = rag_docs if rag_docs["status"] == "AVAILABLE" else {
+                    "status": "INSUFFICIENT_DATA",
+                    "documents": [],
+                    "retrieval_mode": rag_docs.get("retrieval_mode", "BM25_LEXICAL_ONLY"),
+                    "embedding_provider": rag_docs.get("embedding_provider", {"status": "NOT_CONFIGURED"}),
+                    "note": "No local document index is currently available; retrieval remains insufficient until a local corpus is indexed.",
+                }
+
                 results = []
                 for name in requested:
                     if name == "asset":
@@ -977,6 +1091,8 @@ class AITools:
                         results.append({"name": name, "status": _status(market_context.get("market", {}).get("market_regime")), "data": market_context.get("market", {}).get("market_regime")})
                     elif name == "evidence":
                         results.append({"name": name, "status": "AVAILABLE" if combined_evidence else "INSUFFICIENT_DATA", "data": combined_evidence})
+                    elif name == "document_retrieval":
+                        results.append({"name": name, "status": doc_payload.get("status", "INSUFFICIENT_DATA"), "data": doc_payload})
                     else:
                         results.append({"name": name, "status": "INSUFFICIENT_DATA", "data": None})
 
@@ -989,6 +1105,7 @@ class AITools:
                     "evidence": combined_evidence,
                     "commodity_series": c_series,
                     "stock_price_series": s_series,
+                    "chart_context": _get_chart_context(db, norm_symbols, as_of),
                 }
 
             # Single symbol path (or no symbol)
@@ -1072,15 +1189,22 @@ class AITools:
             evidence.extend(comm_ev)
 
             rag_service = DocumentRAGService(session=db)
+            rag_query = (
+                f"{normalized} {question}".strip()
+                if (normalized and question and question.strip())
+                else ((question or "").strip() or normalized or "corporate update")
+            )
             rag_docs = rag_service.retrieve_documents(
-                query=normalized if normalized else "corporate update",
+                query=rag_query,
                 ticker=normalized,
                 as_of_date=as_of,
                 limit=5,
+                auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ),
             )
             document_payload = rag_docs if rag_docs["status"] == "AVAILABLE" else {
                 "status": "INSUFFICIENT_DATA",
                 "documents": [],
+                "retrieval_mode": rag_docs.get("retrieval_mode", "BM25_LEXICAL_ONLY"),
                 "embedding_provider": rag_docs.get("embedding_provider", {"status": "NOT_CONFIGURED"}),
                 "note": "No local document index is currently available; retrieval remains insufficient until a local corpus is indexed.",
             }
@@ -1125,6 +1249,7 @@ class AITools:
                 "evidence": evidence,
                 "commodity_series": c_series,
                 "stock_price_series": s_series,
+                "chart_context": _get_chart_context(db, [normalized] if normalized else [], as_of),
             }
         finally:
             if close_session:

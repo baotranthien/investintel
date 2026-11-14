@@ -46,21 +46,24 @@ export function readCachedValue<T>(key: string): { data: T; updatedAt: number } 
   return undefined;
 }
 
-export function formatUpdatedAt(updatedAt: number | null): string {
+export function formatUpdatedAt(
+  updatedAt: number | null,
+  locale: "vi" | "en" = "vi"
+): string {
   if (updatedAt === null) {
     return "";
   }
   const date = new Date(updatedAt);
-  const timeStr = date.toLocaleTimeString("vi-VN", {
+  const timeStr = date.toLocaleTimeString(locale === "en" ? "en-GB" : "vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
   });
-  return `Cập nhật ${timeStr}`;
+  return locale === "en" ? `Updated ${timeStr}` : `Cập nhật ${timeStr}`;
 }
 
-export type UseCachedResourceOptions<T = unknown> = {
+export type UseCachedResourceOptions = {
   maxAgeMs?: number;
   timeoutMs?: number;
 };
@@ -77,7 +80,7 @@ type InternalState<T> = {
 export function useCachedResource<T>(
   key: string | null,
   fetcher: (signal: AbortSignal) => Promise<T>,
-  options?: UseCachedResourceOptions<T>
+  options?: UseCachedResourceOptions
 ): CachedResource<T> {
   const maxAge = options?.maxAgeMs ?? 60_000;
   const timeoutMs = options?.timeoutMs ?? 25_000;

@@ -132,12 +132,18 @@ namespace InvestIntelLauncher
                 return 1;
             }
 
-            if (args.Length > 0 && args[0] == "--test")
+            bool testMode = Array.Exists(args, a => string.Equals(a, "--test", StringComparison.OrdinalIgnoreCase));
+            bool noBrowser = Array.Exists(args, a => string.Equals(a, "--no-browser", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(Environment.GetEnvironmentVariable("INVESTINTEL_NO_BROWSER"), "1", StringComparison.OrdinalIgnoreCase);
+
+            if (testMode)
             {
+                string buildId = Path.Combine(projectRoot, "apps", "web", ".next", "BUILD_ID");
                 PrintColor("[TEST PASS] InvestIntel.exe binary test mode OK.", ConsoleColor.Green);
                 PrintColor(string.Format("Project root: {0}", projectRoot), ConsoleColor.DarkGray);
                 PrintColor(string.Format("Python virtualenv: {0}", File.Exists(Path.Combine(projectRoot, ".venv", "Scripts", "python.exe"))), ConsoleColor.DarkGray);
                 PrintColor(string.Format("Next.js frontend: {0}", Directory.Exists(Path.Combine(projectRoot, "apps", "web"))), ConsoleColor.DarkGray);
+                PrintColor(string.Format("Next.js production build: {0}", File.Exists(buildId)), ConsoleColor.DarkGray);
                 return 0;
             }
 
@@ -198,15 +204,22 @@ namespace InvestIntelLauncher
                 PrintColor("[OK] Next.js Terminal:  http://localhost:3000", ConsoleColor.White);
             }
 
-            // 6. Tự động mở trình duyệt web
-            PrintColor("\n[>>] Đang tự động mở trình duyệt đến http://localhost:3000 ...", ConsoleColor.Green);
-            try
+            // 6. Tự động mở trình duyệt web (trừ khi chạy chế độ --no-browser)
+            if (!noBrowser)
             {
-                Process.Start(new ProcessStartInfo("http://localhost:3000") { UseShellExecute = true });
+                PrintColor("\n[>>] Đang tự động mở trình duyệt đến http://localhost:3000 ...", ConsoleColor.Green);
+                try
+                {
+                    Process.Start(new ProcessStartInfo("http://localhost:3000") { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    PrintColor(string.Format("[!] Không thể tự mở trình duyệt: {0}. Vui lòng mở thủ công http://localhost:3000", ex.Message), ConsoleColor.DarkYellow);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                PrintColor(string.Format("[!] Không thể tự mở trình duyệt: {0}. Vui lòng mở thủ công http://localhost:3000", ex.Message), ConsoleColor.DarkYellow);
+                PrintColor("\n[>>] Chế độ --no-browser: bỏ qua mở trình duyệt tự động.", ConsoleColor.DarkGray);
             }
 
             // 7. Interactive Monitor loop
@@ -313,29 +326,28 @@ namespace InvestIntelLauncher
                     string output = p.StandardOutput.ReadToEnd();
                     p.WaitForExit();
 
-                    string match = string.Format(":{0} ", port);
+                    string portSuffix = string.Format(":{0}", port);
                     foreach (string line in output.Split('\n'))
                     {
-                        if (line.Contains(match) && line.Contains("LISTENING"))
+                        string[] tokens = line.Trim().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokens.Length >= 5 &&
+                            tokens[3].Equals("LISTENING", StringComparison.OrdinalIgnoreCase) &&
+                            tokens[1].EndsWith(portSuffix, StringComparison.OrdinalIgnoreCase))
                         {
-                            string[] tokens = line.Trim().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                            if (tokens.Length >= 5)
+                            int pid;
+                            if (int.TryParse(tokens[tokens.Length - 1], out pid) && pid > 0 && pid != Process.GetCurrentProcess().Id)
                             {
-                                int pid;
-                                if (int.TryParse(tokens[tokens.Length - 1], out pid) && pid > 0 && pid != Process.GetCurrentProcess().Id)
+                                PrintColor(string.Format("    -> Đang giải phóng tiến trình cũ (PID {0}) đang giữ cổng {1}...", pid, port), ConsoleColor.DarkYellow);
+                                try
                                 {
-                                    PrintColor(string.Format("    -> Đang giải phóng tiến trình cũ (PID {0}) đang giữ cổng {1}...", pid, port), ConsoleColor.DarkYellow);
-                                    try
+                                    Process kp = Process.Start(new ProcessStartInfo("taskkill", string.Format("/F /T /PID {0}", pid))
                                     {
-                                        Process kp = Process.Start(new ProcessStartInfo("taskkill", string.Format("/F /T /PID {0}", pid))
-                                        {
-                                            CreateNoWindow = true,
-                                            UseShellExecute = false
-                                        });
-                                        if (kp != null) kp.WaitForExit();
-                                    }
-                                    catch { }
+                                        CreateNoWindow = true,
+                                        UseShellExecute = false
+                                    });
+                                    if (kp != null) kp.WaitForExit();
                                 }
+                                catch { }
                             }
                         }
                     }
@@ -496,6 +508,7 @@ namespace InvestIntelLauncher
                 psi.EnvironmentVariables["ENABLE_IN_PROCESS_SCHEDULER"] = "false";
                 psi.EnvironmentVariables["INGESTION_SCHEDULER_ENABLED"] = "false";
                 psi.EnvironmentVariables["PYTHONUNBUFFERED"] = "1";
+                psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
 
                 s_backendProcess = Process.Start(psi);
                 BindToJob(s_backendProcess);

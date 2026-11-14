@@ -93,7 +93,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
   gap: 24px;
   margin-bottom: 32px;
 }
@@ -220,4 +220,70 @@
   text-align: center;
   font-size: 16px;
   color: var(--ink-secondary);
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 4px 0 24px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .btnPrimary,
+  .btnSecondary {
+    min-height: 42px;
+    white-space: nowrap;
+  }
+
+  .grid {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .card,
+  .fullCard {
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .cardHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .metricRow {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 13px;
+  }
+
+  .metricValue {
+    word-break: break-word;
+  }
+
+  .runbookTable {
+    min-width: 560px;
+  }
 }

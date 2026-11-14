@@ -82,9 +82,12 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
     conflicting_cohort: List[str] = []
     insufficient_cohort: List[str] = []
     strict_eps_count: int = 0
+    ias33_weighted_eps_count: int = 0
     estimate_based_eps_count: int = 0
     unavailable_eps_count: int = 0
     current_q_shares_basic_count: int = 0
+    three_way_reconciled_count: int = 0
+    three_way_pb_resolved_count: int = 0
     ticker_reconciliation_table: List[Dict[str, Any]] = []
 
     for eq in equities:
@@ -140,14 +143,21 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
         if pb_val is not None:
             eq_stats["pb_calculated"] += 1
 
-        # Fetch provider metrics to inspect discrepancy root causes
+        # Fetch multi-provider metrics to inspect discrepancy root causes and 3-way consensus
         db_metrics = session.query(FundamentalMetric).filter(
             FundamentalMetric.symbol == sym,
-            FundamentalMetric.metric_id.in_(["PRICE_TO_EARNINGS", "PRICE_TO_BOOK", "P_E", "P_B", "BVPS_CR", "BVPS"]),
+            FundamentalMetric.metric_id.in_([
+                "PRICE_TO_EARNINGS", "PRICE_TO_BOOK", "P_E", "P_B", "BVPS_CR", "BVPS",
+                "VIETCAP_PE", "VIETCAP_PB", "VIETSTOCK_PE", "VIETSTOCK_PB", "KBS_PE", "KBS_PB",
+            ]),
             FundamentalMetric.value.isnot(None),
-            FundamentalMetric.value > 0
+            FundamentalMetric.value > 0,
+            FundamentalMetric.fiscal_period_end <= as_of,
         ).order_by(FundamentalMetric.fiscal_period_end.desc()).all()
-        db_metric_map = {m.metric_id: float(m.value) for m in db_metrics}
+        db_metric_map: Dict[str, float] = {}
+        for m in db_metrics:
+            if m.value is not None and m.metric_id not in db_metric_map:
+                db_metric_map[m.metric_id] = float(m.value)
         db_pe_fm = next((m for m in db_metrics if m.metric_id in ("PRICE_TO_EARNINGS", "P_E")), None)
         db_pb_fm = next((m for m in db_metrics if m.metric_id in ("PRICE_TO_BOOK", "P_B")), None)
         db_bvps_fm = next((m for m in db_metrics if m.metric_id in ("BVPS_CR", "BVPS")), None)
@@ -156,10 +166,37 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
         db_pb = float(db_pb_fm.value) if db_pb_fm else None
         db_bvps = float(db_bvps_fm.value) if db_bvps_fm else None
 
+        # Multi-source ratio consensus across VNDIRECT, VIETCAP, VIETSTOCK/KBS + INTERNAL
+        from services.ingestion.reconciliation import MarketDataReconciliationEngine
+        ratios_by_prov = {
+            "VNDIRECT": {"pe": db_pe, "pb": db_pb},
+            "VIETCAP": {"pe": db_metric_map.get("VIETCAP_PE"), "pb": db_metric_map.get("VIETCAP_PB")},
+            "VIETSTOCK": {
+                "pe": db_metric_map.get("VIETSTOCK_PE") or db_metric_map.get("KBS_PE"),
+                "pb": db_metric_map.get("VIETSTOCK_PB") or db_metric_map.get("KBS_PB"),
+            },
+            "INTERNAL": {"pe": pe_val, "pb": pb_val},
+        }
+        three_way_rep = MarketDataReconciliationEngine().reconcile_three_way_ratios(
+            sym, ratios_by_prov, as_of=as_of, metrics=("pe", "pb")
+        )
+        pb_cons = three_way_rep.metrics.get("pb")
+        if three_way_rep.reconciled_metrics_count > 0:
+            three_way_reconciled_count += 1
+        # If primary VNDIRECT P/B was missing, try secondary multi-source P/B comparator cleanly
+        secondary_pb_source = None
+        if db_pb is None and pb_cons and pb_cons.consensus_value and "INTERNAL" in pb_cons.agreeing_providers:
+            other_provs = [p for p in pb_cons.agreeing_providers if p != "INTERNAL"]
+            if other_provs:
+                db_pb = pb_cons.consensus_value
+                secondary_pb_source = "+".join(other_provs)
+                three_way_pb_resolved_count += 1
+
         p_close = p_val
         p_obs = ws.price.get("observation_date")
         eps_m = ws.fundamentals.get("metrics", {}).get("eps_ttm") if ws.fundamentals else None
         eps_val = eps_m.get("value") if isinstance(eps_m, dict) else (eps_m.value if eps_m else None)
+        eps_diag = (eps_m.get("diagnostic_reason") if isinstance(eps_m, dict) else getattr(eps_m, "diagnostic_reason", None)) or ""
         is_est = True
         if eps_val is not None:
             is_est = eps_m.get("is_estimate", False) if isinstance(eps_m, dict) else getattr(eps_m, "is_estimate", False)
@@ -167,6 +204,8 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
                 estimate_based_eps_count += 1
             else:
                 strict_eps_count += 1
+                if eps_diag != "AUDIT_ONLY":
+                    ias33_weighted_eps_count += 1
         else:
             unavailable_eps_count += 1
             is_est = True
@@ -712,9 +751,11 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
         "estimate_based_eps_count": estimate_based_eps_count,
         "eps_estimate_coverage_pct": round(estimate_based_eps_count / max(pe_calc_cnt, 1) * 100, 1) if pe_calc_cnt > 0 else 0.0,
         "strict_ttm_eps_count": strict_eps_count,
+        "ias33_weighted_ttm_eps_count": ias33_weighted_eps_count,
         "estimate_based_ttm_eps_count": estimate_based_eps_count,
         "unavailable_ttm_eps_count": unavailable_eps_count,
         "strict_ttm_eps_pct": round(strict_eps_count / max(pe_calc_cnt, 1) * 100, 1) if pe_calc_cnt > 0 else 0.0,
+        "ias33_weighted_ttm_eps_pct": round(ias33_weighted_eps_count / max(pe_calc_cnt, 1) * 100, 1) if pe_calc_cnt > 0 else 0.0,
         "estimate_based_ttm_eps_pct": round(estimate_based_eps_count / max(pe_calc_cnt, 1) * 100, 1) if pe_calc_cnt > 0 else 0.0,
         "current_quarter_weighted_average_shares_coverage_pct": round(current_q_shares_basic_count / max(pe_universe, 1) * 100, 1) if pe_universe > 0 else 0.0,
         "period_end_shares_fallback_count": estimate_based_eps_count,
@@ -867,6 +908,8 @@ def audit_dynamic_universe(session: Session, as_of: Optional[date] = None) -> Di
             "pe_metric": pe_metric_report,
             "pb_metric": pb_metric_report,
             # Legacy aggregate keys preserved for full backward compatibility
+            "reconciled_ratio_equities_count": three_way_reconciled_count,
+            "pb_secondary_resolved_count": three_way_pb_resolved_count,
             "pe_reconciled_count": pe_matched,
             "pe_reconciled_pct": round(pe_matched / max(num_eq, 1) * 100, 1),
             "pe_unreconciled_count": len(pe_unreconciled_list),

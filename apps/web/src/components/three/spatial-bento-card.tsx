@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect, type JSX } from "react";
+import React, { useRef, useState, useSyncExternalStore, type JSX } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useTheme } from "@/lib/theme";
 import styles from "./spatial-bento-widget.module.css";
@@ -13,6 +13,22 @@ export interface SpatialBentoCardProps extends React.HTMLAttributes<HTMLDivEleme
   disabled?: boolean;
 }
 
+function subscribeReducedMotion(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getReducedMotionSnapshot(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getServerReducedMotionSnapshot(): boolean {
+  return false;
+}
+
 export function SpatialBentoCard({
   children,
   className = "",
@@ -20,11 +36,14 @@ export function SpatialBentoCard({
   spotlightRadius = 350,
   disabled = false,
   style,
-  ...rest
 }: SpatialBentoCardProps): JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null);
   const { effectiveTheme } = useTheme();
-  const [isReducedMotion, setIsReducedMotion] = useState(false);
+  const isReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getServerReducedMotionSnapshot
+  );
   const [isHovered, setIsHovered] = useState(false);
 
   // Motion values for normalized cursor coordinates [-0.5, 0.5]
@@ -34,16 +53,6 @@ export function SpatialBentoCard({
   // Pixel coordinates for radial gradient spotlight
   const spotlightX = useMotionValue(0);
   const spotlightY = useMotionValue(0);
-
-  // Check user prefers-reduced-motion
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setIsReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   // Apple-grade physical spring configurations
   const springConfig = { stiffness: 280, damping: 28, mass: 0.5 };
@@ -103,7 +112,6 @@ export function SpatialBentoCard({
         rotateY: isReducedMotion || disabled ? 0 : rotateY,
         ...style,
       }}
-      {...(rest as any)}
     >
       <div className={styles.tiltViewport}>
         {/* 2.5D Specular Spotlight Layer */}
@@ -122,4 +130,3 @@ export function SpatialBentoCard({
 }
 
 export default SpatialBentoCard;
-

@@ -151,3 +151,58 @@ class VietstockNewsProvider(BaseProvider):
             source_id=source_id
         )
         return result
+
+
+def extract_vietstock_ratios(payload: Dict[str, Any]) -> Dict[str, Optional[float]]:
+    """
+    Normalizes a Vietstock financial/statistics payload into canonical ratio keys:
+    `pe`, `pb`, `eps`, `bvps`, `roe`, `market_cap`.
+    """
+    if not isinstance(payload, dict):
+        return {}
+
+    def _pick(*keys: str) -> Optional[float]:
+        for k in keys:
+            val = payload.get(k)
+            if val is not None:
+                try:
+                    num = float(val)
+                    if num == num:  # guard NaN
+                        return num
+                except (TypeError, ValueError):
+                    continue
+        return None
+
+    return {
+        "pe": _pick("PE", "pe", "priceToEarning", "PRICE_TO_EARNINGS", "P_E"),
+        "pb": _pick("PB", "pb", "priceToBook", "PRICE_TO_BOOK", "P_B"),
+        "eps": _pick("EPS", "eps", "EPS4Q", "trailingEps"),
+        "bvps": _pick("BVPS", "bvps", "BVPS4Q", "bookValuePerShare"),
+        "roe": _pick("ROE", "roe"),
+        "market_cap": _pick("MarketCap", "MarketCapital", "market_cap"),
+    }
+
+
+def fetch_vietstock_public_ratios(symbol: str, timeout: float = _DEFAULT_TIMEOUT) -> Optional[Dict[str, Optional[float]]]:
+    """
+    Best-effort fetch of public valuation summary from Vietstock finance endpoint.
+    Returns None cleanly when offline, rate-limited, or schema changes.
+    """
+    clean = str(symbol or "").strip().upper()
+    if not clean:
+        return None
+
+    url = f"https://finance.vietstock.vn/company/tradinginfo?code={clean}"
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, data={"code": clean, "s": 0}, headers=_HEADERS)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if isinstance(data, dict):
+                normalized = extract_vietstock_ratios(data)
+                if any(v is not None for v in normalized.values()):
+                    return normalized
+    except Exception as exc:
+        logger.info("Vietstock public ratios request unavailable for %s: %s", clean, exc)
+    return None

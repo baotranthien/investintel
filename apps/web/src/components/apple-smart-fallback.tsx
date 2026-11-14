@@ -1,10 +1,13 @@
 "use client";
 
 import React from "react";
+import type { AIComparisonCard, AIStructuredDataSummary } from "@/lib/api";
+import { useLocale, type AppLocale } from "@/lib/i18n";
+import AIRichCards from "./ai-rich-cards";
 import styles from "./apple-smart-fallback.module.css";
 
 interface SmartFallbackProps {
-  summary?: Record<string, unknown> | null;
+  summary?: AIStructuredDataSummary | Record<string, unknown> | null;
   metadataFlags?: Record<string, unknown> | null;
   isFallbackMode?: boolean;
 }
@@ -31,27 +34,42 @@ const BANK_TICKERS = new Set([
   "NVB", "PGB", "SGB", "VBB"
 ]);
 
-function formatMetricKey(key: string, isBank: boolean = false): string {
+function formatMetricKey(key: string, isBank: boolean = false, locale: AppLocale = "vi"): string {
   const kUpper = key.replace(/_/g, " ").toUpperCase();
+  const isEn = locale === "en";
   if (isBank) {
-    if (kUpper === "REVENUE") return "TỔNG THU NHẬP HĐ (TOI)";
-    if (kUpper === "REVENUE YOY") return "TOI YOY (TĂNG TRƯỞNG THU NHẬP HĐ)";
+    if (kUpper === "REVENUE") {
+      return isEn ? "TOTAL OPERATING INCOME (TOI)" : "TỔNG THU NHẬP HĐ (TOI)";
+    }
+    if (kUpper === "REVENUE YOY") {
+      return isEn ? "TOI YOY GROWTH" : "TOI YOY (TĂNG TRƯỞNG THU NHẬP HĐ)";
+    }
     if (kUpper === "REVENUE CAGR 3Y") return "TOI CAGR 3Y";
     if (kUpper === "REVENUE CAGR 5Y") return "TOI CAGR 5Y";
     if (kUpper === "GROSS MARGIN") return "NIM (Net Interest Margin)";
-    if (kUpper === "DEBT TO ASSETS" || kUpper === "DE RATIO") return "ĐÒN BẨY TÀI SẢN";
+    if (kUpper === "DEBT TO ASSETS" || kUpper === "DE RATIO") {
+      return isEn ? "FINANCIAL LEVERAGE" : "ĐÒN BẨY TÀI SẢN";
+    }
   }
   return kUpper;
 }
 
-function formatMetricValue(val: number | null | undefined, metric: string, unit?: string): string {
+function formatMetricValue(
+  val: number | null | undefined,
+  metric: string,
+  unit?: string,
+  locale: AppLocale = "vi"
+): string {
   if (val === null || val === undefined || isNaN(val)) return "N/A";
+  const isEn = locale === "en";
+  const numLocale = isEn ? "en-US" : "vi-VN";
   const mLower = metric.toLowerCase();
   const uUpper = (unit || "").toUpperCase();
+  const billionSuffix = isEn ? "B VND" : "tỷ VND";
 
   // Explicit unit-based formatting for Billions VND
   if (uUpper === "BILLION_VND" || uUpper === "VND BILLION" || uUpper === "TỶ VND") {
-    return `${val.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} tỷ VND`;
+    return `${val.toLocaleString(numLocale, { maximumFractionDigits: 2 })} ${billionSuffix}`;
   }
 
   // Price & Fair Value formatting
@@ -64,7 +82,7 @@ function formatMetricValue(val: number | null | undefined, metric: string, unit?
     mLower === "eps_ttm" ||
     mLower === "bvps"
   ) {
-    return `${val.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} VND`;
+    return `${val.toLocaleString(numLocale, { maximumFractionDigits: 0 })} VND`;
   }
 
   // Growth, Margins & Percentage ratios (guard against raw level series > 1000 misnamed as growth)
@@ -92,7 +110,7 @@ function formatMetricValue(val: number | null | undefined, metric: string, unit?
     return `${val > 0 && (mLower.includes("yoy") || mLower.includes("cagr") || mLower.includes("growth") || mLower.includes("change")) ? "+" : ""}${val.toFixed(2)}%`;
   }
 
-  // Valuation Multiples (P/E, P/B, EV/EBITDA, D/E, Coverage) — use word boundary so 'operating' or 'capex' never match 'pe'
+  // Valuation Multiples (P/E, P/B, EV/EBITDA, D/E, Coverage)
   if (
     /(?:^|_)(?:pe|pb|ev_ebitda|de_ratio|net_debt_ebitda)(?:_|$)/.test(mLower) ||
     mLower.includes("p/e") ||
@@ -104,14 +122,16 @@ function formatMetricValue(val: number | null | undefined, metric: string, unit?
 
   // Large values (billions VND)
   if (Math.abs(val) >= 1_000_000_000) {
-    return `${(val / 1_000_000_000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ VND`;
+    return `${(val / 1_000_000_000).toLocaleString(numLocale, { maximumFractionDigits: 1 })} ${billionSuffix}`;
   }
 
   // Default number formatting
-  return val.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+  return val.toLocaleString(numLocale, { maximumFractionDigits: 2 });
 }
 
 export default function AppleSmartFallback({ summary, metadataFlags, isFallbackMode = true }: SmartFallbackProps) {
+  const { locale, t } = useLocale();
+
   if (!summary) return null;
 
   const comparisons = (summary.comparisons as Record<string, unknown>) || {};
@@ -120,21 +140,38 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
 
   const diffItems: DiffComparison[] = [];
   let pearsonItem: PearsonComparison | null = null;
+  const seenKeys = new Set<string>();
+
+  if (Array.isArray(summary.comparison_cards)) {
+    for (const rawCard of summary.comparison_cards as AIComparisonCard[]) {
+      if (!rawCard || typeof rawCard !== "object") continue;
+      seenKeys.add(rawCard.key);
+      diffItems.push({
+        metric: rawCard.label || rawCard.key.toUpperCase(),
+        symbol_a: rawCard.symbol_a || t("Tài sản A", "Asset A"),
+        symbol_b: rawCard.symbol_b || t("Tài sản B", "Asset B"),
+        value_a: typeof rawCard.value_a === "number" ? rawCard.value_a : null,
+        value_b: typeof rawCard.value_b === "number" ? rawCard.value_b : null,
+        difference: typeof rawCard.diff === "number" ? rawCard.diff : null,
+        unit: rawCard.unit,
+      });
+    }
+  }
 
   for (const [key, val] of Object.entries(comparisons)) {
     if (!val || typeof val !== "object") continue;
     const v = val as Record<string, unknown>;
     if ("correlation" in v) {
       pearsonItem = {
-        series_x: String(v.series_x || "Chuỗi X"),
-        series_y: String(v.series_y || "Chuỗi Y"),
+        series_x: String(v.series_x || t("Chuỗi X", "Series X")),
+        series_y: String(v.series_y || t("Chuỗi Y", "Series Y")),
         correlation: typeof v.correlation === "number" ? v.correlation : null,
       };
-    } else if ("difference" in v || "symbol_a" in v) {
+    } else if (("difference" in v || "symbol_a" in v) && !seenKeys.has(key.replace("_diff", ""))) {
       diffItems.push({
         metric: String(v.metric || key.replace("_diff", "").toUpperCase()),
-        symbol_a: String(v.symbol_a || "Tài sản A"),
-        symbol_b: String(v.symbol_b || "Tài sản B"),
+        symbol_a: String(v.symbol_a || t("Tài sản A", "Asset A")),
+        symbol_b: String(v.symbol_b || t("Tài sản B", "Asset B")),
         value_a: typeof v.value_a === "number" ? v.value_a : null,
         value_b: typeof v.value_b === "number" ? v.value_b : null,
         difference: typeof v.difference === "number" ? v.difference : null,
@@ -148,22 +185,43 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
       {isFallbackMode && (
         <div className={styles.banner}>
           <div className={styles.bannerIconWrapper}>
-            <span className={styles.bannerIcon}>🛡️</span>
+            <svg
+              className={styles.bannerIcon}
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
           </div>
           <div className={styles.bannerContent}>
             <div className={styles.bannerHeaderRow}>
-              <span className={styles.bannerBadge}>Chế độ Dữ liệu Đối chứng Chuẩn xác</span>
+              <span className={styles.bannerBadge}>
+                {t("Chế độ Dữ liệu Đối chứng Chuẩn xác", "Ground-Truth Reference Mode")}
+              </span>
               {epsIsEstimate && (
                 <span
                   className={styles.epsEstimatePill}
-                  title="Số liệu EPS được tính dựa trên Khối lượng Cổ phiếu Lưu hành Cuối kỳ (theo chuẩn mực IAS 33)"
+                  title={t(
+                    "Số liệu EPS được tính dựa trên Khối lượng Cổ phiếu Lưu hành Cuối kỳ (theo chuẩn mực IAS 33)",
+                    "EPS calculated based on Period-End Outstanding Shares (IAS 33 Standard)"
+                  )}
                 >
-                  ⓘ EPS ước tính (KLCP cuối kỳ - IAS 33)
+                  {t("ⓘ EPS ước tính (KLCP cuối kỳ - IAS 33)", "ⓘ Estimated EPS (Period-End Shares - IAS 33)")}
                 </span>
               )}
             </div>
             <p className={styles.bannerMessage}>
-              AI tự động chuyển sang chế độ Dữ liệu Đối chứng Chuẩn xác để đảm bảo an toàn số liệu và ngăn ngừa Hallucination.
+              {t(
+                "AI tự động chuyển sang chế độ Dữ liệu Đối chứng Chuẩn xác để đảm bảo an toàn số liệu và ngăn ngừa Hallucination.",
+                "AI automatically engaged Ground-Truth Benchmark Mode to safeguard financial integrity and eliminate hallucinations."
+              )}
             </p>
           </div>
         </div>
@@ -173,8 +231,10 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
       {diffItems.length > 0 && (
         <section className={styles.bentoSection}>
           <div className={styles.sectionHeader}>
-            <h3>Đối sánh Chỉ số Tài chính (Comparative Metrics)</h3>
-            <span className={styles.sectionSub}>Tính toán trực tiếp từ BCTC kiểm toán đã chuẩn hóa</span>
+            <h3>{t("Đối sánh Chỉ số Tài chính (Comparative Metrics)", "Comparative Financial Metrics")}</h3>
+            <span className={styles.sectionSub}>
+              {t("Tính toán trực tiếp từ BCTC kiểm toán đã chuẩn hóa", "Directly computed from normalized audited financial statements")}
+            </span>
           </div>
 
           <div className={styles.comparisonsGrid}>
@@ -195,7 +255,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                       }`}
                     >
                       {isPositive ? "+" : ""}
-                      {formatMetricValue(item.difference, item.metric)}
+                      {formatMetricValue(item.difference, item.metric, item.unit, locale)}
                     </span>
                   </div>
 
@@ -210,7 +270,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                         />
                       </div>
                       <span className={`${styles.entityValue} tabular-nums`}>
-                        {formatMetricValue(item.value_a, item.metric)}
+                        {formatMetricValue(item.value_a, item.metric, item.unit, locale)}
                       </span>
                     </div>
 
@@ -224,7 +284,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                         />
                       </div>
                       <span className={`${styles.entityValue} tabular-nums`}>
-                        {formatMetricValue(item.value_b, item.metric)}
+                        {formatMetricValue(item.value_b, item.metric, item.unit, locale)}
                       </span>
                     </div>
                   </div>
@@ -239,23 +299,25 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
       {pearsonItem && (
         <section className={styles.bentoSection}>
           <div className={styles.sectionHeader}>
-            <h3>Hệ số Tương quan Chuỗi thời gian (Pearson Correlation)</h3>
-            <span className={styles.sectionSub}>Kiểm định mức độ phụ thuộc giữa doanh thu và giá hàng hóa vĩ mô</span>
+            <h3>{t("Hệ số Tương quan Chuỗi thời gian (Pearson Correlation)", "Time-Series Pearson Correlation")}</h3>
+            <span className={styles.sectionSub}>
+              {t("Kiểm định mức độ phụ thuộc giữa doanh thu và giá hàng hóa vĩ mô", "Statistical correlation between fundamentals and macroeconomic commodity series")}
+            </span>
           </div>
 
           <div className={styles.bentoCard}>
             <div className={styles.pearsonCardContent}>
               <div className={styles.pearsonStat}>
-                <span className={styles.pearsonLabel}>Hệ số tương quan r</span>
+                <span className={styles.pearsonLabel}>{t("Hệ số tương quan r", "Correlation Coefficient r")}</span>
                 <span className={`${styles.pearsonValue} tabular-nums`}>
                   {pearsonItem.correlation !== null ? pearsonItem.correlation.toFixed(4) : "N/A"}
                 </span>
                 <span className={styles.pearsonStatus}>
                   {pearsonItem.correlation !== null && Math.abs(pearsonItem.correlation) >= 0.7
-                    ? "Tương quan mạnh (Strong Correlation)"
+                    ? t("Tương quan mạnh (Strong Correlation)", "Strong Correlation")
                     : pearsonItem.correlation !== null && Math.abs(pearsonItem.correlation) >= 0.4
-                    ? "Tương quan trung bình"
-                    : "Tương quan yếu hoặc không phụ thuộc"}
+                    ? t("Tương quan trung bình", "Moderate Correlation")
+                    : t("Tương quan yếu hoặc không phụ thuộc", "Weak or Negligible Correlation")}
                 </span>
               </div>
 
@@ -275,12 +337,20 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
         </section>
       )}
 
+      {/* Interactive Charts, Comparison Matrix, Hybrid RAG Highlights & Quick Links */}
+      <AIRichCards summary={summary as AIStructuredDataSummary} />
+
       {/* Structured Multi-Symbol Financial Cards */}
       {Object.keys(symbolsData).length > 0 && (
         <section className={styles.bentoSection}>
           <div className={styles.sectionHeader}>
-            <h3>Dữ liệu Đối chứng Chuẩn xác (Reference Benchmark Data)</h3>
-            <span className={styles.sectionSub}>Dữ liệu chuẩn hóa trích xuất trực tiếp từ Báo cáo Tài chính đối soát độc lập, không phải suy luận AI</span>
+            <h3>{t("Dữ liệu Đối chứng Chuẩn xác (Reference Benchmark Data)", "Ground-Truth Reference Benchmark Data")}</h3>
+            <span className={styles.sectionSub}>
+              {t(
+                "Dữ liệu chuẩn hóa trích xuất trực tiếp từ Báo cáo Tài chính đối soát độc lập, không phải suy luận AI",
+                "Normalized financial metrics extracted directly from independently audited filings, zero AI inference"
+              )}
+            </span>
           </div>
 
           <div className={styles.symbolsGrid}>
@@ -295,7 +365,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                   <div className={styles.symbolCardHeader}>
                     <span className={styles.cardSymbolTitle}>{sym}</span>
                     <span className={styles.cardMetricCount}>
-                      {metricEntries.length} chỉ số
+                      {t(`${metricEntries.length} chỉ số`, `${metricEntries.length} metrics`)}
                     </span>
                   </div>
 
@@ -303,16 +373,17 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                     {metricEntries.map(([k, v]) => (
                       <div key={k} className={styles.metricRow}>
                         <span className={styles.metricKey}>
-                          {formatMetricKey(k, isBank)}
+                          {formatMetricKey(k, isBank, locale)}
                         </span>
                         <span className={`${styles.metricVal} tabular-nums`}>
                           {typeof v === "number"
-                            ? formatMetricValue(v, k)
+                            ? formatMetricValue(v, k, undefined, locale)
                             : typeof v === "object" && v !== null && "value" in v
                             ? formatMetricValue(
                                 (v as Record<string, unknown>).value as number,
                                 k,
-                                (v as Record<string, unknown>).unit as string | undefined
+                                (v as Record<string, unknown>).unit as string | undefined,
+                                locale
                               )
                             : String(v ?? "N/A")}
                         </span>

@@ -47,37 +47,37 @@
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  /* Typography Contrast (Apple Charcoal & Neutral Grays - WCAG AA 4.5:1 Compliant) */
+  /* Typography Contrast (Apple Obsidian & Titanium Grays - WCAG AA 4.5:1 Compliant) */
   --ink: #1D1D1F;
-  --ink-secondary: #475569;
-  --ink-muted: #52525B;
-  --ink-faint: #64748B;
+  --ink-secondary: #515154;
+  --ink-muted: #86868B;
+  --ink-faint: #A1A1A6;
 
-  /* Interactive Accent */
-  --accent: #059669;
+  /* Interactive Accent (Refined Apple Monochrome Primary Controls) */
+  --accent: #1D1D1F;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #047857;
+  --accent-hover: #000000;
   --accent-apple: #059669;
   --accent-apple-soft: rgba(5, 150, 105, 0.10);
   --accent-soft: rgba(0, 0, 0, 0.05);
   --accent-cyan: #0284C7;
   --accent-cyan-soft: rgba(2, 132, 199, 0.08);
-  --accent-blue: #059669;
-  --accent-blue-soft: rgba(5, 150, 105, 0.08);
+  --accent-blue: #0071E3;
+  --accent-blue-soft: rgba(0, 113, 227, 0.08);
 
-  /* Standardized Interactive Button Tokens (Default / Light) */
-  --btn-primary-bg: #059669;
+  /* Standardized Interactive Button Tokens (Default / Light Monochrome Luxury) */
+  --btn-primary-bg: #1D1D1F;
   --btn-primary-color: #FFFFFF;
-  --btn-primary-hover: #047857;
-  --btn-primary-border: 1px solid #047857;
-  --btn-primary-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+  --btn-primary-hover: #000000;
+  --btn-primary-border: 1px solid #1D1D1F;
+  --btn-primary-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 
   --btn-secondary-bg: var(--surface-card);
   --btn-secondary-color: var(--ink);
   --btn-secondary-border: 1px solid var(--line-strong);
   --btn-secondary-hover: var(--surface-card-hover);
 
-  --btn-pill-active-bg: #0F172A;
+  --btn-pill-active-bg: #1D1D1F;
   --btn-pill-active-color: #FFFFFF;
   --btn-pill-inactive-bg: var(--surface-muted);
   --btn-pill-inactive-color: var(--ink-secondary);
@@ -203,16 +203,35 @@ html {
   color-scheme: light;
   width: 100%;
   min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
+button,
+a,
+[role="button"],
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 768px), (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 /* ==========================================================================
-   Light Mode Explicit Declaration (Overrides when user selects Light)
+   Light Mode Explicit Declaration (Apple Alabaster & Silver Minimalist)
    ========================================================================== */
 html[data-theme="light"],
 html[data-effective-theme="light"] {
   color-scheme: light;
-  --canvas: #F5F6F8;
-  --canvas-base: #F5F6F8;
+  --canvas: #F5F5F7;
+  --canvas-base: #F5F5F7;
   --canvas-subtle: #EBEBEF;
   --canvas-inset: #E5E5EA;
   --canvas-sidebar: #FAFAFC;
@@ -220,154 +239,154 @@ html[data-effective-theme="light"] {
   --surface: #FFFFFF;
   --surface-panel: #FFFFFF;
   --surface-card: #FFFFFF;
-  --surface-card-hover: #F8FAFC;
+  --surface-card-hover: #FAFAFC;
   --surface-elevated: #FFFFFF;
   --surface-muted: #F2F2F7;
   --surface-active: #E8E8ED;
   --surface-secondary: #EFEFF4;
   --surface-hover: #FAFAFC;
 
-  --bg-alt: #F8FAFC;
-  --bg-hover: #F1F5F9;
+  --bg-alt: #FAFAFC;
+  --bg-hover: #F2F2F7;
   --badge-bg: #F2F2F7;
-  --badge-ink: #475569;
+  --badge-ink: #515154;
 
-  --surface-glass: rgba(255, 255, 255, 0.88);
-  --surface-glass-border: rgba(0, 0, 0, 0.08);
-  --surface-glass-highlight: rgba(255, 255, 255, 0.95);
+  --surface-glass: rgba(255, 255, 255, 0.86);
+  --surface-glass-border: rgba(0, 0, 0, 0.07);
+  --surface-glass-highlight: rgba(255, 255, 255, 0.96);
 
-  --line: rgba(0, 0, 0, 0.08);
-  --line-strong: rgba(0, 0, 0, 0.16);
+  --line: rgba(0, 0, 0, 0.07);
+  --line-strong: rgba(0, 0, 0, 0.14);
   --line-subtle: rgba(0, 0, 0, 0.04);
-  --line-titanium: rgba(0, 0, 0, 0.08);
-  --line-focus: rgba(5, 150, 105, 0.45);
-  --border-specular: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --line-titanium: rgba(0, 0, 0, 0.07);
+  --line-focus: rgba(29, 29, 31, 0.35);
+  --border-specular: 0 1px 2px rgba(0, 0, 0, 0.03);
   --border-specular-cyan: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --border-specular-emerald: 0 1px 2px rgba(5, 150, 105, 0.15);
+  --border-specular-emerald: 0 1px 3px rgba(0, 0, 0, 0.06);
 
-  --ink: #0F172A;
-  --ink-secondary: #475569;
-  --ink-muted: #64748B;
-  --ink-faint: #94A3B8;
+  --ink: #1D1D1F;
+  --ink-secondary: #515154;
+  --ink-muted: #86868B;
+  --ink-faint: #A1A1A6;
 
-  --accent: #059669;
+  --accent: #1D1D1F;
   --accent-contrast: #FFFFFF;
-  --accent-hover: #047857;
+  --accent-hover: #000000;
   --accent-apple: #059669;
   --accent-apple-soft: rgba(5, 150, 105, 0.10);
   --accent-soft: rgba(0, 0, 0, 0.05);
 
-  /* Standardized Interactive Button Tokens (Light) */
-  --btn-primary-bg: #059669;
+  /* Standardized Interactive Button Tokens (Light Monochrome Luxury) */
+  --btn-primary-bg: #1D1D1F;
   --btn-primary-color: #FFFFFF;
-  --btn-primary-hover: #047857;
-  --btn-primary-border: 1px solid #047857;
-  --btn-primary-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+  --btn-primary-hover: #000000;
+  --btn-primary-border: 1px solid #1D1D1F;
+  --btn-primary-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 
   --btn-secondary-bg: #FFFFFF;
-  --btn-secondary-color: #0F172A;
+  --btn-secondary-color: #1D1D1F;
   --btn-secondary-border: 1px solid rgba(0, 0, 0, 0.14);
-  --btn-secondary-hover: #F8FAFC;
+  --btn-secondary-hover: #FAFAFC;
 
-  --btn-pill-active-bg: #0F172A;
+  --btn-pill-active-bg: #1D1D1F;
   --btn-pill-active-color: #FFFFFF;
-  --btn-pill-inactive-bg: #F1F5F9;
-  --btn-pill-inactive-color: #475569;
-  --btn-pill-inactive-border: 1px solid rgba(0, 0, 0, 0.08);
+  --btn-pill-inactive-bg: #F2F2F7;
+  --btn-pill-inactive-color: #515154;
+  --btn-pill-inactive-border: 1px solid rgba(0, 0, 0, 0.07);
 
-  --finotive-canvas: #F5F6F8;
+  --finotive-canvas: #F5F5F7;
   --finotive-surface: #FFFFFF;
   --finotive-card: #FFFFFF;
-  --finotive-card-hover: #F8FAFC;
+  --finotive-card-hover: #FAFAFC;
   --finotive-elevated: #FFFFFF;
   --finotive-emerald: #059669;
-  --finotive-emerald-soft: rgba(5, 150, 105, 0.12);
+  --finotive-emerald-soft: rgba(5, 150, 105, 0.10);
   --finotive-emerald-border: rgba(5, 150, 105, 0.22);
-  --finotive-emerald-glow: rgba(5, 150, 105, 0.10);
+  --finotive-emerald-glow: rgba(0, 0, 0, 0.08);
 }
 
 /* ==========================================================================
-   Finotive Obsidian / Apple Financial Design System (Dark Mode)
-   Canvas #080A09, Bento Cards #121614, Ambient Emerald Radial Glow #10B981
+   Apple Pro Obsidian & Brushed Titanium Luxury (Dark Mode)
+   Canvas #0B0B0C, Bento Cards #161618, Titanium Borders, Crisp Monochrome UI
    ========================================================================== */
 
 html[data-theme="dark"],
 html[data-effective-theme="dark"] {
   color-scheme: dark;
 
-  /* Finotive Pure Obsidian Foundation */
-  --canvas: #080A09;
-  --canvas-base: #080A09;
-  --canvas-sidebar: #0B0E0C;
-  --canvas-subtle: #0F1411;
-  --canvas-inset: #121614;
+  /* Apple Pro Obsidian Foundation */
+  --canvas: #0B0B0C;
+  --canvas-base: #0B0B0C;
+  --canvas-sidebar: #0E0E10;
+  --canvas-subtle: #121214;
+  --canvas-inset: #141416;
 
   /* Elevated Surfaces & Bento Cards */
-  --surface: #0D110F;
-  --surface-panel: #0D110F;
-  --surface-card: #121614;
-  --surface-card-hover: #171E1A;
-  --surface-elevated: #171D1A;
-  --surface-muted: #101412;
-  --surface-active: #1C2420;
-  --surface-secondary: #131815;
-  --surface-hover: #171E1A;
+  --surface: #121214;
+  --surface-panel: #121214;
+  --surface-card: #161618;
+  --surface-card-hover: #1C1C1F;
+  --surface-elevated: #1E1E22;
+  --surface-muted: #1C1C1F;
+  --surface-active: #242428;
+  --surface-secondary: #18181B;
+  --surface-hover: #1C1C1F;
 
   /* Additional Surface Tokens */
-  --bg-alt: #0C100E;
-  --bg-hover: #161D19;
-  --badge-bg: #131A16;
-  --badge-ink: #A1A1AA;
+  --bg-alt: #101012;
+  --bg-hover: #1D1D20;
+  --badge-bg: #1C1C1F;
+  --badge-ink: #A1A1A6;
 
   /* Translucent Vibrancy */
-  --surface-glass: rgba(8, 10, 9, 0.85);
-  --surface-glass-border: rgba(255, 255, 255, 0.07);
+  --surface-glass: rgba(11, 11, 12, 0.84);
+  --surface-glass-border: rgba(255, 255, 255, 0.08);
   --surface-glass-highlight: rgba(255, 255, 255, 0.05);
 
-  /* Hairlines & Specular Edge Highlights */
-  --line: rgba(255, 255, 255, 0.06);
-  --line-strong: rgba(255, 255, 255, 0.12);
+  /* Hairlines & Specular Titanium Edge Highlights */
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.14);
   --line-subtle: rgba(255, 255, 255, 0.04);
-  --line-titanium: rgba(255, 255, 255, 0.09);
-  --line-focus: rgba(16, 185, 129, 0.45);
+  --line-titanium: rgba(255, 255, 255, 0.10);
+  --line-focus: rgba(245, 245, 247, 0.42);
   --border-specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --border-specular-cyan: inset 0 1px 0 rgba(16, 185, 129, 0.20);
-  --border-specular-emerald: inset 0 1px 0 rgba(16, 185, 129, 0.28), 0 0 0 1px rgba(16, 185, 129, 0.18);
+  --border-specular-cyan: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --border-specular-emerald: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.10);
 
-  /* Crisp Typography */
-  --ink: #FFFFFF;
-  --ink-secondary: #9CA3AF;
-  --ink-muted: #6B7280;
-  --ink-faint: #4B5563;
+  /* Crisp Titanium Typography */
+  --ink: #F5F5F7;
+  --ink-secondary: #A1A1A6;
+  --ink-muted: #86868B;
+  --ink-faint: #636366;
 
-  /* Interactive Accent */
-  --accent: #10B981;
-  --accent-contrast: #041E15;
-  --accent-hover: #34D399;
+  /* Interactive Accent (High-Contrast White-on-Obsidian Monochrome) */
+  --accent: #F5F5F7;
+  --accent-contrast: #0B0B0C;
+  --accent-hover: #FFFFFF;
   --accent-apple: #10B981;
   --accent-apple-soft: rgba(16, 185, 129, 0.14);
   --accent-soft: rgba(255, 255, 255, 0.08);
   --accent-cyan: #06B6D4;
   --accent-cyan-soft: rgba(6, 182, 212, 0.14);
-  --accent-blue: #10B981;
-  --accent-blue-soft: rgba(16, 185, 129, 0.14);
+  --accent-blue: #2997FF;
+  --accent-blue-soft: rgba(41, 151, 255, 0.14);
 
-  /* Standardized Interactive Button Tokens (Dark) */
-  --btn-primary-bg: #10B981;
-  --btn-primary-color: #041E15;
-  --btn-primary-hover: #34D399;
-  --btn-primary-border: 1px solid rgba(16, 185, 129, 0.4);
-  --btn-primary-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+  /* Standardized Interactive Button Tokens (Dark Apple Monochrome) */
+  --btn-primary-bg: #F5F5F7;
+  --btn-primary-color: #0B0B0C;
+  --btn-primary-hover: #FFFFFF;
+  --btn-primary-border: 1px solid rgba(255, 255, 255, 0.85);
+  --btn-primary-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 
-  --btn-secondary-bg: #121614;
-  --btn-secondary-color: #FFFFFF;
+  --btn-secondary-bg: #161618;
+  --btn-secondary-color: #F5F5F7;
   --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.14);
-  --btn-secondary-hover: #171E1A;
+  --btn-secondary-hover: #1F1F23;
 
-  --btn-pill-active-bg: #10B981;
-  --btn-pill-active-color: #041E15;
-  --btn-pill-inactive-bg: #131A16;
-  --btn-pill-inactive-color: #9CA3AF;
+  --btn-pill-active-bg: #F5F5F7;
+  --btn-pill-active-color: #0B0B0C;
+  --btn-pill-inactive-bg: #1C1C1F;
+  --btn-pill-inactive-color: #A1A1A6;
   --btn-pill-inactive-border: 1px solid rgba(255, 255, 255, 0.08);
 
   /* Semantic Financial (Vietnam Stock Market 5-color Standard) */
@@ -404,79 +423,79 @@ html[data-effective-theme="dark"] {
   html:not([data-theme="light"]):not([data-effective-theme="light"]) {
     color-scheme: dark;
 
-    /* Finotive Pure Obsidian Foundation */
-    --canvas: #080A09;
-    --canvas-base: #080A09;
-    --canvas-sidebar: #0B0E0C;
-    --canvas-subtle: #0F1411;
-    --canvas-inset: #121614;
+    /* Apple Pro Obsidian Foundation */
+    --canvas: #0B0B0C;
+    --canvas-base: #0B0B0C;
+    --canvas-sidebar: #0E0E10;
+    --canvas-subtle: #121214;
+    --canvas-inset: #141416;
 
     /* Elevated Surfaces & Bento Cards */
-    --surface: #0D110F;
-    --surface-panel: #0D110F;
-    --surface-card: #121614;
-    --surface-card-hover: #171E1A;
-    --surface-elevated: #171D1A;
-    --surface-muted: #101412;
-    --surface-active: #1C2420;
-    --surface-secondary: #131815;
-    --surface-hover: #171E1A;
+    --surface: #121214;
+    --surface-panel: #121214;
+    --surface-card: #161618;
+    --surface-card-hover: #1C1C1F;
+    --surface-elevated: #1E1E22;
+    --surface-muted: #1C1C1F;
+    --surface-active: #242428;
+    --surface-secondary: #18181B;
+    --surface-hover: #1C1C1F;
 
     /* Additional Surface Tokens */
-    --bg-alt: #0C100E;
-    --bg-hover: #161D19;
-    --badge-bg: #131A16;
-    --badge-ink: #A1A1AA;
+    --bg-alt: #101012;
+    --bg-hover: #1D1D20;
+    --badge-bg: #1C1C1F;
+    --badge-ink: #A1A1A6;
 
     /* Translucent Vibrancy */
-    --surface-glass: rgba(8, 10, 9, 0.85);
-    --surface-glass-border: rgba(255, 255, 255, 0.07);
+    --surface-glass: rgba(11, 11, 12, 0.84);
+    --surface-glass-border: rgba(255, 255, 255, 0.08);
     --surface-glass-highlight: rgba(255, 255, 255, 0.05);
 
-    /* Hairlines */
-    --line: rgba(255, 255, 255, 0.06);
-    --line-strong: rgba(255, 255, 255, 0.12);
+    /* Hairlines & Titanium Edge Highlights */
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.14);
     --line-subtle: rgba(255, 255, 255, 0.04);
-    --line-titanium: rgba(255, 255, 255, 0.09);
-    --line-focus: rgba(16, 185, 129, 0.45);
+    --line-titanium: rgba(255, 255, 255, 0.10);
+    --line-focus: rgba(245, 245, 247, 0.42);
     --border-specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    --border-specular-cyan: inset 0 1px 0 rgba(16, 185, 129, 0.20);
-    --border-specular-emerald: inset 0 1px 0 rgba(16, 185, 129, 0.28), 0 0 0 1px rgba(16, 185, 129, 0.18);
+    --border-specular-cyan: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    --border-specular-emerald: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.10);
 
     /* Typography */
-    --ink: #FFFFFF;
-    --ink-secondary: #9CA3AF;
-    --ink-muted: #6B7280;
-    --ink-faint: #4B5563;
+    --ink: #F5F5F7;
+    --ink-secondary: #A1A1A6;
+    --ink-muted: #86868B;
+    --ink-faint: #636366;
 
-    /* Accent */
-    --accent: #10B981;
-    --accent-contrast: #041E15;
-    --accent-hover: #34D399;
+    /* Accent (Obsidian Monochrome) */
+    --accent: #F5F5F7;
+    --accent-contrast: #0B0B0C;
+    --accent-hover: #FFFFFF;
     --accent-apple: #10B981;
     --accent-apple-soft: rgba(16, 185, 129, 0.14);
     --accent-soft: rgba(255, 255, 255, 0.08);
     --accent-cyan: #06B6D4;
     --accent-cyan-soft: rgba(6, 182, 212, 0.14);
-    --accent-blue: #10B981;
-    --accent-blue-soft: rgba(16, 185, 129, 0.14);
+    --accent-blue: #2997FF;
+    --accent-blue-soft: rgba(41, 151, 255, 0.14);
 
-    /* Standardized Interactive Button Tokens (Dark) */
-    --btn-primary-bg: #10B981;
-    --btn-primary-color: #041E15;
-    --btn-primary-hover: #34D399;
-    --btn-primary-border: 1px solid rgba(16, 185, 129, 0.4);
-    --btn-primary-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
+    /* Standardized Interactive Button Tokens (Dark Apple Monochrome) */
+    --btn-primary-bg: #F5F5F7;
+    --btn-primary-color: #0B0B0C;
+    --btn-primary-hover: #FFFFFF;
+    --btn-primary-border: 1px solid rgba(255, 255, 255, 0.85);
+    --btn-primary-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 
-    --btn-secondary-bg: #121614;
-    --btn-secondary-color: #FFFFFF;
+    --btn-secondary-bg: #161618;
+    --btn-secondary-color: #F5F5F7;
     --btn-secondary-border: 1px solid rgba(255, 255, 255, 0.14);
-    --btn-secondary-hover: #171E1A;
+    --btn-secondary-hover: #1F1F23;
 
-    --btn-pill-active-bg: #10B981;
-    --btn-pill-active-color: #041E15;
-    --btn-pill-inactive-bg: #131A16;
-    --btn-pill-inactive-color: #9CA3AF;
+    --btn-pill-active-bg: #F5F5F7;
+    --btn-pill-active-color: #0B0B0C;
+    --btn-pill-inactive-bg: #1C1C1F;
+    --btn-pill-inactive-color: #A1A1A6;
     --btn-pill-inactive-border: 1px solid rgba(255, 255, 255, 0.08);
 
     /* Semantic Financial (Vietnam Stock Market 5-color Standard) */
@@ -657,17 +676,30 @@ a.action-btn:active,
    Finotive Obsidian & SEGESTA HUD & StellarX Motion Utilities
    ========================================================================== */
 
-/* Ambient Radial Glow Effect */
+/* Ambient Radial Glow Effect (Subtle Brushed Titanium Sheen) */
 .ambient-emerald-glow {
   position: absolute;
   top: 0;
   right: 0;
   width: 540px;
   height: 420px;
-  background: radial-gradient(circle at top right, rgba(16, 185, 129, 0.14) 0%, rgba(16, 185, 129, 0.04) 45%, transparent 75%);
+  background: radial-gradient(circle at top right, rgba(255, 255, 255, 0.04) 0%, rgba(161, 161, 166, 0.02) 45%, transparent 75%);
   pointer-events: none;
   z-index: 0;
   filter: blur(48px);
+}
+
+/* Zero-Flash Synchronous Gateway Hiding Before Hydration */
+html[data-gateway-active="true"],
+html[data-gateway-active="true"] body {
+  background-color: #160e38 !important;
+  overflow: hidden !important;
+}
+
+html[data-gateway-active="true"] [data-app-shell-frame="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 /* Finotive Circular / Pill Metric Change Badges */
@@ -762,9 +794,11 @@ a.action-btn:active,
   transition: border-color var(--duration-fast) var(--ease-spring), box-shadow var(--duration-fast) var(--ease-spring), transform var(--duration-fast) var(--ease-spring);
 }
 
-.finotive-bento-card:hover {
-  border-color: rgba(16, 185, 129, 0.24);
-  box-shadow: var(--shadow-md), var(--border-specular-emerald);
+@media (hover: hover) and (pointer: fine) {
+  .finotive-bento-card:hover {
+    border-color: rgba(16, 185, 129, 0.24);
+    box-shadow: var(--shadow-md), var(--border-specular-emerald);
+  }
 }
 
 /* SEGESTA Holographic HUD Glass Styling */

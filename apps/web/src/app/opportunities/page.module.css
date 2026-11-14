@@ -239,10 +239,16 @@
 
 .filterControls {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   padding-top: 10px;
   border-top: 1px dashed var(--line);
+}
+
+@media (max-width: 1180px) {
+  .filterControls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .filterField {
@@ -326,7 +332,7 @@
 /* Card Grid */
 .cardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr));
   gap: 16px;
 }
 
@@ -737,9 +743,60 @@
 
 @media (max-width: 900px) {
   .statGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .pageHeader h1 {
+    font-size: 24px;
+  }
+
+  .headerActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .refreshBtn,
+  .aiLinkBtn {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .searchWrap {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .searchBar {
+    height: 42px;
+    font-size: 16px;
+  }
+
+  .filterControls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filterField select,
+  .filterField input {
+    height: 42px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .statGrid,
+  .filterControls {
     grid-template-columns: 1fr;
   }
 }
