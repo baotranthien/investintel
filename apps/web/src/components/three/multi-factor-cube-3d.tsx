@@ -1,22 +1,67 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useMemo, useSyncExternalStore, type JSX } from "react";
+import React, { useRef, useState, useEffect, useMemo, useCallback, useSyncExternalStore, type JSX } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { useTheme } from "@/lib/theme";
 import { useLocale, type AppLocale } from "@/lib/i18n";
+import styles from "./multi-factor-cube-3d.module.css";
 
-function NativeOrbitControls() {
+const DEFAULT_CAMERA_POSITION: [number, number, number] = [3.4, 2.8, 3.9];
+const DEFAULT_CAMERA_DISTANCE = Math.hypot(...DEFAULT_CAMERA_POSITION);
+const MIN_ZOOM_DISTANCE = 1.95;
+const MAX_ZOOM_DISTANCE = 9.0;
+const ZOOM_STEP_FACTOR = 0.82;
+const MIN_ZOOM_PCT = Math.round((DEFAULT_CAMERA_DISTANCE / MAX_ZOOM_DISTANCE) * 100);
+const MAX_ZOOM_PCT = Math.round((DEFAULT_CAMERA_DISTANCE / MIN_ZOOM_DISTANCE) * 100);
+
+interface OrbitControlsHandle {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+}
+
+function NativeOrbitControls({
+  controlsHandleRef,
+  onZoomChange,
+}: {
+  controlsHandleRef: React.MutableRefObject<OrbitControlsHandle | null>;
+  onZoomChange: (pct: number) => void;
+}) {
   const { camera, gl } = useThree();
   const controlsRef = useRef<OrbitControls | null>(null);
+  const onZoomChangeRef = useRef(onZoomChange);
+  const targetDistanceRef = useRef<number | null>(null);
+  const resetCameraPosRef = useRef<THREE.Vector3 | null>(null);
+  const lastPctRef = useRef<number>(100);
+  const scratchDirRef = useRef(new THREE.Vector3());
+  const originTargetRef = useRef(new THREE.Vector3(0, 0, 0));
+
+  useEffect(() => {
+    onZoomChangeRef.current = onZoomChange;
+  }, [onZoomChange]);
+
+  const emitZoom = useCallback(
+    (controls: OrbitControls) => {
+      const dist = camera.position.distanceTo(controls.target);
+      const rawPct = Math.round((DEFAULT_CAMERA_DISTANCE / Math.max(dist, 0.01)) * 100);
+      const clampedPct = THREE.MathUtils.clamp(rawPct, MIN_ZOOM_PCT, MAX_ZOOM_PCT);
+      if (clampedPct !== lastPctRef.current) {
+        lastPctRef.current = clampedPct;
+        onZoomChangeRef.current(clampedPct);
+      }
+    },
+    [camera]
+  );
 
   useEffect(() => {
     const controls = new OrbitControls(camera, gl.domElement);
     controls.target.set(0, 0, 0);
-    controls.enableZoom = false;
-    controls.minDistance = 2.5;
-    controls.maxDistance = 7;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.85;
+    controls.minDistance = MIN_ZOOM_DISTANCE;
+    controls.maxDistance = MAX_ZOOM_DISTANCE;
     controls.enablePan = false;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.35;
@@ -25,14 +70,83 @@ function NativeOrbitControls() {
     controls.rotateSpeed = 0.5;
     controls.update();
     controlsRef.current = controls;
+    emitZoom(controls);
+
+    const handleControlStart = () => {
+      targetDistanceRef.current = null;
+      resetCameraPosRef.current = null;
+    };
+
+    const handleControlChange = () => {
+      emitZoom(controls);
+    };
+
+    controls.addEventListener("start", handleControlStart);
+    controls.addEventListener("change", handleControlChange);
+
+    controlsHandleRef.current = {
+      zoomIn: () => {
+        resetCameraPosRef.current = null;
+        const current = targetDistanceRef.current ?? camera.position.distanceTo(controls.target);
+        targetDistanceRef.current = THREE.MathUtils.clamp(
+          current * ZOOM_STEP_FACTOR,
+          MIN_ZOOM_DISTANCE,
+          MAX_ZOOM_DISTANCE
+        );
+      },
+      zoomOut: () => {
+        resetCameraPosRef.current = null;
+        const current = targetDistanceRef.current ?? camera.position.distanceTo(controls.target);
+        targetDistanceRef.current = THREE.MathUtils.clamp(
+          current / ZOOM_STEP_FACTOR,
+          MIN_ZOOM_DISTANCE,
+          MAX_ZOOM_DISTANCE
+        );
+      },
+      resetView: () => {
+        targetDistanceRef.current = null;
+        resetCameraPosRef.current = new THREE.Vector3(...DEFAULT_CAMERA_POSITION);
+      },
+    };
+
     return () => {
+      controls.removeEventListener("start", handleControlStart);
+      controls.removeEventListener("change", handleControlChange);
       controls.dispose();
       controlsRef.current = null;
+      controlsHandleRef.current = null;
     };
-  }, [camera, gl.domElement]);
+  }, [camera, gl.domElement, controlsHandleRef, emitZoom]);
 
-  useFrame(() => {
-    controlsRef.current?.update();
+  useFrame((_, delta) => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    if (resetCameraPosRef.current) {
+      const alpha = Math.min(1, delta * 9);
+      camera.position.lerp(resetCameraPosRef.current, alpha);
+      controls.target.lerp(originTargetRef.current, alpha);
+      if (camera.position.distanceTo(resetCameraPosRef.current) < 0.015) {
+        camera.position.copy(resetCameraPosRef.current);
+        controls.target.copy(originTargetRef.current);
+        resetCameraPosRef.current = null;
+      }
+      emitZoom(controls);
+    } else if (targetDistanceRef.current !== null) {
+      const dir = scratchDirRef.current.copy(camera.position).sub(controls.target);
+      const currentDist = Math.max(dir.length(), 0.01);
+      const nextDist = THREE.MathUtils.lerp(currentDist, targetDistanceRef.current, Math.min(1, delta * 12));
+      if (Math.abs(nextDist - targetDistanceRef.current) < 0.008) {
+        dir.normalize().multiplyScalar(targetDistanceRef.current);
+        targetDistanceRef.current = null;
+      } else {
+        dir.normalize().multiplyScalar(nextDist);
+      }
+      camera.position.copy(controls.target).add(dir);
+      emitZoom(controls);
+    }
+
+    controls.update();
   });
 
   return null;
@@ -321,6 +435,8 @@ function CubeScene({
   activeStock,
   setHoveredStock,
   setSelectedStock,
+  controlsHandleRef,
+  onZoomChange,
 }: {
   stocks: StockFactorPoint[];
   variant: "compact" | "full";
@@ -328,6 +444,8 @@ function CubeScene({
   activeStock: StockFactorPoint | null;
   setHoveredStock: React.Dispatch<React.SetStateAction<StockFactorPoint | null>>;
   setSelectedStock: React.Dispatch<React.SetStateAction<StockFactorPoint | null>>;
+  controlsHandleRef: React.MutableRefObject<OrbitControlsHandle | null>;
+  onZoomChange: (pct: number) => void;
 }) {
   const isDark = effectiveTheme === "dark";
   const groupRef = useRef<THREE.Group>(null);
@@ -358,7 +476,12 @@ function CubeScene({
       <pointLight position={[-4, 3, -4]} intensity={1.4} color="#10B981" />
       <pointLight position={[3, -2, 4]} intensity={0.9} color="#38BDF8" />
 
-      {!isCompact && <NativeOrbitControls />}
+      {!isCompact && (
+        <NativeOrbitControls
+          controlsHandleRef={controlsHandleRef}
+          onZoomChange={onZoomChange}
+        />
+      )}
 
       <group ref={groupRef} scale={1.0}>
         <lineSegments geometry={boxEdges}>
@@ -442,6 +565,10 @@ function MultiFactorCube3DInner({
   const { locale, t } = useLocale();
   const [hoveredStock, setHoveredStock] = useState<StockFactorPoint | null>(null);
   const [selectedStock, setSelectedStock] = useState<StockFactorPoint | null>(null);
+  const [zoomPct, setZoomPct] = useState<number>(100);
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const controlsHandleRef = useRef<OrbitControlsHandle | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const activeStock = selectedStock ?? hoveredStock;
 
   const isCompact = variant === "compact";
@@ -449,25 +576,44 @@ function MultiFactorCube3DInner({
   const targetWidth = size ?? defaultDim;
   const targetHeight = height ?? (isCompact ? 160 : 420);
 
-  return (
-    <div
-      className={className}
-      style={{
-        width: typeof targetWidth === "number" ? `${targetWidth}px` : targetWidth,
-        height: typeof targetHeight === "number" ? `${targetHeight}px` : targetHeight,
-        position: "relative",
-        display: isCompact ? "inline-flex" : "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        ...style,
-      }}
-      aria-label={t("Biểu đồ đa nhân tố không gian 3D", "3D Multi-Factor Space Chart")}
-      role="img"
-    >
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || isCompact) return;
+
+    if (isExpanded && !dialog.open) {
+      dialog.showModal();
+    } else if (!isExpanded && dialog.open) {
+      dialog.close();
+    }
+  }, [isExpanded, isCompact]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || isCompact) return;
+
+    const handleClose = () => setIsExpanded(false);
+    dialog.addEventListener("close", handleClose);
+    return () => {
+      dialog.removeEventListener("close", handleClose);
+      if (dialog.open) dialog.close();
+    };
+  }, [isCompact]);
+
+  useEffect(() => {
+    if (!isExpanded || isCompact) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isExpanded, isCompact]);
+
+  const stageContent = (
+    <>
       <Canvas
         frameloop="always"
         dpr={[1, 1.5]}
-        camera={{ position: [3.4, 2.8, 3.9], fov: 36 }}
+        camera={{ position: DEFAULT_CAMERA_POSITION, fov: 36 }}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
         style={{ width: "100%", height: "100%" }}
         onPointerMissed={() => setSelectedStock(null)}
@@ -479,8 +625,94 @@ function MultiFactorCube3DInner({
           activeStock={activeStock}
           setHoveredStock={setHoveredStock}
           setSelectedStock={setSelectedStock}
+          controlsHandleRef={controlsHandleRef}
+          onZoomChange={setZoomPct}
         />
       </Canvas>
+
+      {/* Top-Left Zoom, Reset & Fullscreen Expand HUD */}
+      {!isCompact && (
+        <div
+          className={styles.zoomHud}
+          role="toolbar"
+          aria-label={t("Điều khiển thu phóng không gian 3D", "3D space zoom controls")}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className={styles.hudBtn}
+            onClick={() => controlsHandleRef.current?.zoomOut()}
+            disabled={zoomPct <= MIN_ZOOM_PCT}
+            aria-label={t("Thu nhỏ", "Zoom out")}
+            title={t("Thu nhỏ (−)", "Zoom out (−)")}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+
+          <span
+            className={styles.zoomPctBadge}
+            title={t("Mức thu phóng hiện tại", "Current zoom level")}
+            aria-live="polite"
+          >
+            {zoomPct}%
+          </span>
+
+          <button
+            type="button"
+            className={styles.hudBtn}
+            onClick={() => controlsHandleRef.current?.zoomIn()}
+            disabled={zoomPct >= MAX_ZOOM_PCT}
+            aria-label={t("Phóng to", "Zoom in")}
+            title={t("Phóng to (+)", "Zoom in (+)")}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+
+          <span className={styles.hudDivider} aria-hidden="true" />
+
+          <button
+            type="button"
+            className={styles.hudBtn}
+            onClick={() => controlsHandleRef.current?.resetView()}
+            aria-label={t("Đặt lại góc nhìn 3D", "Reset 3D camera view")}
+            title={t("Đặt lại góc nhìn (100%)", "Reset view (100%)")}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.hudBtn} ${isExpanded ? styles.hudBtnActive : ""}`}
+            onClick={() => setIsExpanded((prev) => !prev)}
+            aria-label={isExpanded ? t("Thu gọn toàn màn hình", "Exit fullscreen") : t("Mở rộng toàn màn hình", "Expand fullscreen")}
+            title={isExpanded ? t("Thu gọn (Esc)", "Collapse (Esc)") : t("Mở rộng toàn màn hình", "Expand fullscreen")}
+          >
+            {isExpanded ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="4 14 10 14 10 20" />
+                <polyline points="20 10 14 10 14 4" />
+                <line x1="14" y1="10" x2="21" y2="3" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 3 21 3 21 9" />
+                <polyline points="9 21 3 21 3 15" />
+                <line x1="21" y1="3" x2="14" y2="10" />
+                <line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Axis Legend HUD Overlay */}
       {!isCompact && (
@@ -527,29 +759,7 @@ function MultiFactorCube3DInner({
 
       {/* Active (Hovered or Selected) Stock Tooltip HUD Overlay */}
       {activeStock && !isCompact && (
-        <div
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 14,
-            maxWidth: "calc(100% - 28px)",
-            boxSizing: "border-box",
-            pointerEvents: "auto",
-            backgroundColor: "var(--surface-elevated, #ffffff)",
-            color: "var(--ink, #1d1d1f)",
-            padding: "8px 14px",
-            borderRadius: "10px",
-            fontSize: "12px",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-            border: "1px solid var(--line)",
-            backdropFilter: "blur(14px)",
-            zIndex: 10,
-            display: "flex",
-            flexDirection: "column",
-            gap: "3px",
-            minWidth: "170px",
-          }}
-        >
+        <div className={styles.tooltipHud}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
             <strong
               style={{
@@ -619,6 +829,7 @@ function MultiFactorCube3DInner({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                setIsExpanded(false);
                 onSelectStock(activeStock.symbol);
               }}
               style={{
@@ -640,6 +851,52 @@ function MultiFactorCube3DInner({
           )}
         </div>
       )}
+    </>
+  );
+
+  const frameStyle: React.CSSProperties = {
+    width: typeof targetWidth === "number" ? `${targetWidth}px` : targetWidth,
+    height: typeof targetHeight === "number" ? `${targetHeight}px` : targetHeight,
+    ...style,
+  };
+
+  if (isCompact) {
+    return (
+      <div
+        className={`${styles.stageFrame} ${styles.stageFrameCompact} ${className}`.trim()}
+        style={frameStyle}
+        aria-label={t("Biểu đồ đa nhân tố không gian 3D", "3D Multi-Factor Space Chart")}
+        role="img"
+      >
+        {stageContent}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${styles.stageFrame} ${className}`.trim()}
+      style={frameStyle}
+      aria-label={t("Biểu đồ đa nhân tố không gian 3D", "3D Multi-Factor Space Chart")}
+      role="img"
+    >
+      <dialog
+        ref={dialogRef}
+        className={[
+          styles.dialogStage,
+          isExpanded ? styles.dialogExpanded : "",
+          isExpanded ? (effectiveTheme === "dark" ? styles.dialogExpandedDark : styles.dialogExpandedLight) : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={(e) => {
+          if (isExpanded && e.target === dialogRef.current) {
+            setIsExpanded(false);
+          }
+        }}
+      >
+        {stageContent}
+      </dialog>
     </div>
   );
 }

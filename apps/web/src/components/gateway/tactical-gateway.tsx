@@ -77,7 +77,7 @@ function getMilestoneMeta(num: string, locale: AppLocale): { layer: string; metr
 const LAYER_NUMBERS = ["06", "05", "04", "03", "02", "01"] as const;
 
 const PIPELINE_PATH_D =
-  "M 720 0 L 720 40 C 720 125, 912 160, 892 275 C 872 390, 555 375, 570 485 C 585 595, 905 605, 880 735 C 855 865, 530 915, 560 1050 C 581 1145, 720 1150, 720 1245 L 720 1420";
+  "M 720 40 C 720 125, 912 160, 892 275 C 872 390, 555 375, 570 485 C 585 595, 905 605, 880 735 C 855 865, 530 915, 560 1050 C 581 1145, 720 1150, 720 1245 L 720 1420";
 
 const DEFAULT_SVG_WAYPOINTS: WaypointMarker[] = [
   { num: "06", x: 891, y: 270, svgLenFrac: 0.16 },
@@ -132,6 +132,7 @@ interface FlightTrackData {
   entryRampPath: string;
   entryRampStart: { x: number; y: number } | null;
   roadPathD: string;
+  intakeStemPathD: string;
   roadStart: { x: number; y: number };
   roadEnd: { x: number; y: number };
   svgPerPxX: number;
@@ -239,6 +240,7 @@ function buildDenseFlightTrack(
   roadLockStartP = 1.0,
   roadGeometry?: {
     roadPathD: string;
+    intakeStemPathD: string;
     roadStart: { x: number; y: number };
     roadEnd: { x: number; y: number };
     svgPerPxX: number;
@@ -420,6 +422,7 @@ function buildDenseFlightTrack(
     entryRampPath,
     entryRampStart,
     roadPathD: roadGeometry?.roadPathD ?? PIPELINE_PATH_D,
+    intakeStemPathD: roadGeometry?.intakeStemPathD ?? "M 720 0 L 720 40",
     roadStart: roadGeometry?.roadStart ?? { x: 720, y: 40 },
     roadEnd: roadGeometry?.roadEnd ?? { x: 720, y: 1350 },
     svgPerPxX: roadGeometry?.svgPerPxX ?? 1,
@@ -780,19 +783,19 @@ function TacticalGatewayExperience({
       isLight
         ? {
           baseBg: "#F4F6FA",
-          sphereBase: "#E2E8F2",
-          facet1: "#EAEFF7",
-          facet2: "#DDE5F2",
-          facet3: "#E4EBF5",
-          facet4: "#D6DFF0",
-          facet5: "#EDF2F8",
-          facet6: "#D9E1EE",
-          facet7: "#CFD8E6",
-          facet8: "#CBD5E1",
+          sphereBase: "#D4DEEE",
+          facet1: "#DEE6F3",
+          facet2: "#CBD6E8",
+          facet3: "#D6E0EF",
+          facet4: "#C0CDE2",
+          facet5: "#E6ECF6",
+          facet6: "#C9D4E7",
+          facet7: "#BAC6DC",
+          facet8: "#AEBCD4",
           ringFill: "#FFFFFF",
-          ringArm: "#CBD5E1",
-          stroke: "#CBD5E1",
-          strokeSubtle: "#94A3B8",
+          ringArm: "#AEBCD4",
+          stroke: "#8FA1BC",
+          strokeSubtle: "#64748B",
           accent: "#6355E8",
           accentBright: "#4F46E5",
           accentLight: "#818CF8",
@@ -899,11 +902,13 @@ function TacticalGatewayExperience({
     const isTablet = rootW > 600 && rootW <= 960;
     const isDesktop = !isMobile && !isTablet;
 
-    // Nimble aerospace silhouette scaled cleanly to fit inside responsive road bed (48px mobile / 54px tablet / 80px desktop)
-    const cruiseScale = isMobile ? 0.305 : isTablet ? 0.365 : 0.385;
-    const dockScale = isMobile ? 0.295 : isTablet ? 0.345 : 0.365;
+    // Nimble aerospace silhouette scaled cleanly to fit inside responsive road bed (46px mobile / 52px tablet / 78px desktop)
+    const cruiseScale = isMobile ? 0.455 : isTablet ? 0.365 : 0.385;
+    const dockScale = isMobile ? 0.42 : isTablet ? 0.345 : 0.365;
     const cruiseHalfW = shipW * cruiseScale * 0.5;
     const cruiseHalfH = shipH * cruiseScale * 0.5;
+    const effCruiseHalfW = isMobile ? shipW * cruiseScale * 0.31 : cruiseHalfW;
+    const effCruiseHalfH = isMobile ? shipH * cruiseScale * 0.42 : cruiseHalfH;
 
     // Exact Hero bottom-right rest center matching static CSS layout with zero Hero panel overlap
     const rightPx = isMobile ? 6 : clampNum(rootW * 0.035, 12, 72);
@@ -987,6 +992,7 @@ function TacticalGatewayExperience({
 
     // Build responsive SVG pipeline road (Desktop preserves signature conduit; Tablet & Mobile route strictly through card-free open corridors)
     let roadPathD = PIPELINE_PATH_D;
+    let intakeStemPathD = "M 720 0 L 720 40";
     let generatedSamples: RoadSample[] = [];
     let roadStart = { x: 720, y: 40 };
     let roadEnd = { x: 720, y: 1350 };
@@ -1000,10 +1006,9 @@ function TacticalGatewayExperience({
       mobileHeaderLaneX = clampNum(headerRightX + cardClearMin + 4, rootW * 0.64, maxRightLane);
 
       const centerDocX = valleyLeft + valleyW * 0.5;
-      const knots: { x: number; y: number }[] = [
-        { x: docXToSvg(centerDocX), y: 0 },
-        { x: docXToSvg(centerDocX), y: docYToSvg(valleyTop + 28) },
-      ];
+      const startSvgX = docXToSvg(centerDocX);
+      const startSvgY = docYToSvg(valleyTop + 34);
+      const knots: { x: number; y: number }[] = [{ x: startSvgX, y: startSvgY }];
       const pushKnot = (docX: number, docY: number) => {
         const prevY = knots[knots.length - 1].y;
         const nextY = clampNum(docYToSvg(docY), prevY + 14, 1585);
@@ -1011,7 +1016,7 @@ function TacticalGatewayExperience({
       };
 
       // Clear top-right corner of header banner cleanly before entering right coastal corridor
-      pushKnot(mobileHeaderLaneX, Math.max(valleyTop + 72, headerTopY - 10));
+      pushKnot(mobileHeaderLaneX, Math.max(valleyTop + 82, headerTopY - 12));
       pushKnot(mobileHeaderLaneX, headerMidY + 8);
 
       let lastCardRoadX = mobileHeaderLaneX;
@@ -1046,7 +1051,8 @@ function TacticalGatewayExperience({
       const built = buildSmoothSvgRoad(knots);
       roadPathD = built.pathD;
       generatedSamples = built.samples;
-      roadStart = findRoadSampleAtY(generatedSamples, docYToSvg(valleyTop + 28));
+      roadStart = { x: startSvgX, y: startSvgY };
+      intakeStemPathD = `M ${startSvgX.toFixed(1)} 0 L ${startSvgX.toFixed(1)} ${startSvgY.toFixed(1)}`;
       const endSample = findRoadSampleAtY(generatedSamples, docYToSvg(portalTop - 14));
       roadEnd = { x: endSample.x, y: endSample.y };
     } else if (isTablet) {
@@ -1070,10 +1076,8 @@ function TacticalGatewayExperience({
       const halfSwing = Math.max(10, (safeMaxX - safeMinX) * 0.44);
       const cardOffsets = [0.9, -0.95, 0.72, 0.78, -0.88, -0.24];
 
-      const knots: { x: number; y: number }[] = [
-        { x: 720, y: 0 },
-        { x: 720, y: docYToSvg(valleyTop + 44) },
-      ];
+      const tabletStartY = docYToSvg(valleyTop + 44);
+      const knots: { x: number; y: number }[] = [{ x: 720, y: tabletStartY }];
       for (let i = 0; i < LAYER_NUMBERS.length; i++) {
         const cb = cardBoxes[i];
         const targetY = cb ? (cb.top + cb.bottom) * 0.5 : stemDocYs[i];
@@ -1095,7 +1099,8 @@ function TacticalGatewayExperience({
       const built = buildSmoothSvgRoad(knots);
       roadPathD = built.pathD;
       generatedSamples = built.samples;
-      roadStart = findRoadSampleAtY(generatedSamples, docYToSvg(valleyTop + 44));
+      roadStart = { x: 720, y: tabletStartY };
+      intakeStemPathD = `M 720 0 L 720 ${tabletStartY.toFixed(1)}`;
       const endSample = findRoadSampleAtY(generatedSamples, docYToSvg(portalTop - 18));
       roadEnd = { x: endSample.x, y: endSample.y };
     }
@@ -1143,7 +1148,7 @@ function TacticalGatewayExperience({
     // Open right corridor alongside "From Data to Decision" header banner for Hero launch on-ramp
     const edgePadX = isMobile ? 8 : isTablet ? 16 : 22;
     const rightLaneX = isMobile
-      ? rootW - cruiseHalfW - 6
+      ? rootW - effCruiseHalfW - 5
       : clampNum(headerRightX + cruiseHalfW + (isTablet ? 24 : 42), cruiseHalfW + edgePadX, rootW - cruiseHalfW - edgePadX);
 
     const rawTakeoffP = clampNum(docYToProgress(heroH * 0.88, 0.45), 0.04, 0.095);
@@ -1193,7 +1198,7 @@ function TacticalGatewayExperience({
         p: rawTakeoffP,
         x: restX + (rightLaneX - restX) * 0.46,
         y: heroH * 0.9,
-        scale: isMobile ? 0.52 : 0.72,
+        scale: isMobile ? 0.58 : 0.72,
         engine: 0.76,
         dock: 0,
         spineFrac: 0.012,
@@ -1211,7 +1216,7 @@ function TacticalGatewayExperience({
 
     // Unified On-Ramp + Road-Centerline Sampling across Desktop, Tablet, and Mobile
     const roadLockStartP = rawRampStartP;
-    const minXRoad = Math.max(edgePadX + cruiseHalfW, 24);
+    const minXRoad = Math.max(edgePadX + effCruiseHalfW, 24);
     const maxXRoad = Math.max(minXRoad + 20, rootW - minXRoad);
     const rawMergeP = clampNum(docYToProgress(mergeDocY, 0.5), rawRampStartP + 0.035, 0.245);
     const onRampSteps = 5;
@@ -1260,8 +1265,8 @@ function TacticalGatewayExperience({
       const safeX = pushSampleOutsideObstacles(
         rawRoadX,
         roadY,
-        cruiseHalfW + 2,
-        cruiseHalfH + 2,
+        effCruiseHalfW + 2,
+        effCruiseHalfH + 2,
         obstacles,
         minXRoad,
         maxXRoad
@@ -1325,7 +1330,7 @@ function TacticalGatewayExperience({
       spineFrac: Math.max(0.95, dockEndFrac),
     });
 
-    const minX = Math.max(edgePadX + cruiseHalfW, 24);
+    const minX = Math.max(edgePadX + effCruiseHalfW, 24);
     const maxX = Math.max(minX + 20, rootW - minX);
     const track = buildDenseFlightTrack(
       anchors,
@@ -1333,13 +1338,14 @@ function TacticalGatewayExperience({
       computedLayerThresholds,
       dockThreshold,
       { x: dockCenterX, y: dockCenterY },
-      { minX, maxX, cruiseHalfW, cruiseHalfH },
+      { minX, maxX, cruiseHalfW: effCruiseHalfW, cruiseHalfH: effCruiseHalfH },
       obstacles,
       entryRampPath,
       entryRampStart,
       roadLockStartP,
       {
         roadPathD,
+        intakeStemPathD,
         roadStart,
         roadEnd,
         svgPerPxX,
@@ -2167,12 +2173,12 @@ function TacticalGatewayExperience({
             </svg>
           </div>
 
-          {/* Diagonal Wireframe Vector Mesh */}
+          {/* Diagonal Wireframe Vector Mesh & Floating Asteroids */}
           <div ref={asteroidParallaxRef} className={styles.asteroidParallaxWrap} aria-hidden="true">
             <svg
               className={styles.asteroidDiagonal}
               viewBox="0 0 1440 900"
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid slice"
               fill="none"
             >
               <line x1="60" y1="840" x2="1280" y2="210" stroke={geo.strokeSubtle} strokeWidth="1" strokeDasharray="6 8" opacity="0.6" />
@@ -2201,6 +2207,46 @@ function TacticalGatewayExperience({
                 <circle cx="972" cy="384" r="2.8" fill={geo.beaconBright} opacity="0.75" className={styles.beaconBlink} />
 
                 <polygon points="1084,296 1134,272 1168,302 1130,334 1094,320" fill={geo.facet7} stroke={geo.strokeSubtle} strokeWidth="0.9" />
+              </g>
+            </svg>
+
+            {/* Mobile-Tuned Floating Asteroids in Empty Hero Sky Pockets */}
+            <svg
+              className={styles.asteroidMobileSvg}
+              viewBox="0 0 390 844"
+              preserveAspectRatio="xMidYMid slice"
+              fill="none"
+            >
+              <line x1="22" y1="684" x2="358" y2="416" stroke={geo.strokeSubtle} strokeWidth="1" strokeDasharray="5 7" opacity="0.58" />
+              <line x1="16" y1="430" x2="178" y2="544" stroke={geo.accentEdgeSoft} strokeWidth="0.9" strokeDasharray="3 6" opacity="0.55" />
+
+              {/* Lower-Left Pocket Asteroid Trio */}
+              <g className={styles.asteroidFloat1}>
+                <polygon points="28,622 66,592 104,614 82,664 38,654" fill={geo.facet6} stroke={geo.strokeSubtle} strokeWidth="1" />
+                <polygon points="28,622 66,592 72,626 38,654" fill={geo.ringFill} />
+                <polygon points="66,592 104,614 72,626" fill={geo.facet3} stroke={geo.accentEdgeMid} strokeWidth="0.85" />
+                <polygon points="54,618 72,610 74,624 58,630" fill={geo.accent} opacity="0.72" className={styles.beaconBlink} />
+
+                <polygon points="116,564 148,544 170,564 152,594 122,586" fill={geo.facet7} stroke={geo.strokeSubtle} strokeWidth="0.9" />
+                <polygon points="116,564 148,544 142,570" fill={geo.ringFill} />
+              </g>
+
+              {/* Mid-Left Floating Asteroid Above Lower Belt */}
+              <g className={styles.asteroidFloat2}>
+                <polygon points="34,424 72,402 98,426 70,458 40,446" fill={geo.facet7} stroke={geo.strokeSubtle} strokeWidth="0.95" />
+                <polygon points="34,424 72,402 66,432" fill={geo.ringFill} />
+                <polyline points="34,424 66,432 70,458" stroke={geo.accentEdgeMid} strokeWidth="1" fill="none" />
+                <circle cx="96" cy="404" r="2.4" fill={geo.beaconBright} opacity="0.78" className={styles.beaconBlink} />
+              </g>
+
+              {/* Mid-Right Orbital Crystal Shards (Safely Above Hero Parked Ship) */}
+              <g className={styles.asteroidFloat1}>
+                <polygon points="266,448 308,424 338,448 306,482 272,470" fill={geo.facet6} stroke={geo.strokeSubtle} strokeWidth="0.95" />
+                <polygon points="266,448 308,424 300,456" fill={geo.ringFill} />
+                <polyline points="308,424 300,456 306,482" stroke={geo.accentEdgeMid} strokeWidth="1" fill="none" />
+                <circle cx="304" cy="452" r="2.5" fill={geo.accent} opacity="0.82" className={styles.beaconBlink} />
+
+                <polygon points="334,394 362,380 376,400 350,418 334,408" fill={geo.facet4} stroke={geo.accentEdgeMid} strokeWidth="0.85" />
               </g>
             </svg>
           </div>
@@ -2275,7 +2321,31 @@ function TacticalGatewayExperience({
               </radialGradient>
             </defs>
 
-            {/* Architectural Winding Data Pipeline Conduit */}
+            {/* Seamless Intake Lead Connecting Hero Spine Into Circular Gateway Head */}
+            <path
+              d={flightTrack.intakeStemPathD}
+              stroke="var(--gw-road-outer)"
+              className={styles.pipelineIntakeSleeve}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+            />
+            <path
+              d={flightTrack.intakeStemPathD}
+              stroke="var(--gw-accent)"
+              className={styles.pipelineIntakeLead}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+            />
+
+            {/* Architectural Multi-Layer Winding Data Pipeline Conduit */}
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-shadow)"
+              className={styles.pipelineRoadAmbient}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             <path
               d={flightTrack.roadPathD}
               stroke="var(--gw-road-outer)"
@@ -2288,6 +2358,48 @@ function TacticalGatewayExperience({
               d={flightTrack.roadPathD}
               stroke="var(--gw-road-bed)"
               className={styles.pipelineBedInner}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Calibration Runway Edge Hash Ticks (Clipped Symmetric Along Both Curbs) */}
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-tick)"
+              className={styles.pipelineShoulderTicks}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="butt"
+              strokeLinejoin="round"
+            />
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-bed)"
+              className={styles.pipelineTickInnerMask}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Parallel Dual Inner Guardrails + Recessed Central Waveguide Trench */}
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-rail-inner)"
+              className={styles.pipelineInnerRails}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-bed)"
+              className={styles.pipelineInnerDeck}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d={flightTrack.roadPathD}
+              stroke="var(--gw-road-channel)"
+              className={styles.pipelineCenterGroove}
               vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -2394,6 +2506,59 @@ function TacticalGatewayExperience({
               </g>
             </g>
           </svg>
+
+          {/* Drifting Geometric Asteroids & Shards in Clear Sky Pockets */}
+          <div className={styles.valleyFloatingWrap} aria-hidden="true">
+            <svg
+              className={`${styles.valleyPocketSvg} ${styles.valleyPocketTopLeft}`}
+              viewBox="0 0 150 96"
+              fill="none"
+            >
+              <line x1="8" y1="78" x2="136" y2="16" stroke={geo.strokeSubtle} strokeWidth="0.9" strokeDasharray="4 6" opacity="0.62" />
+              <g className={styles.asteroidFloat1}>
+                <polygon points="16,44 46,24 72,38 56,74 24,66" fill={geo.facet6} stroke={geo.strokeSubtle} strokeWidth="1" />
+                <polygon points="16,44 46,24 48,50 24,66" fill={geo.ringFill} />
+                <polygon points="46,24 72,38 48,50" fill={geo.facet3} stroke={geo.accentEdgeMid} strokeWidth="0.85" />
+                <circle cx="48" cy="48" r="2.2" fill={geo.accent} opacity="0.82" className={styles.beaconBlink} />
+              </g>
+              <g className={styles.asteroidFloat2}>
+                <polygon points="94,26 118,12 134,26 118,46 98,40" fill={geo.facet7} stroke={geo.strokeSubtle} strokeWidth="0.9" />
+                <polygon points="94,26 118,12 114,32" fill={geo.ringFill} />
+              </g>
+            </svg>
+
+            <svg
+              className={`${styles.valleyPocketSvg} ${styles.valleyPocketTopRight}`}
+              viewBox="0 0 120 88"
+              fill="none"
+            >
+              <line x1="18" y1="68" x2="108" y2="18" stroke={geo.accentEdgeSoft} strokeWidth="0.9" strokeDasharray="3 5" opacity="0.65" />
+              <g className={styles.asteroidFloat2}>
+                <polygon points="44,30 74,14 96,32 76,58 48,50" fill={geo.facet6} stroke={geo.strokeSubtle} strokeWidth="0.95" />
+                <polygon points="44,30 74,14 68,38" fill={geo.ringFill} />
+                <polyline points="74,14 68,38 76,58" stroke={geo.accentEdgeMid} strokeWidth="0.95" fill="none" />
+                <circle cx="96" cy="18" r="2.3" fill={geo.beaconBright} opacity="0.78" className={styles.beaconBlink} />
+              </g>
+            </svg>
+
+            <svg
+              className={`${styles.valleyPocketSvg} ${styles.valleyPocketBottomLeft}`}
+              viewBox="0 0 140 100"
+              fill="none"
+            >
+              <line x1="10" y1="84" x2="128" y2="24" stroke={geo.strokeSubtle} strokeWidth="0.9" strokeDasharray="4 6" opacity="0.62" />
+              <g className={styles.asteroidFloat1}>
+                <polygon points="18,48 52,26 78,42 60,78 24,70" fill={geo.facet6} stroke={geo.strokeSubtle} strokeWidth="1" />
+                <polygon points="18,48 52,26 50,54 24,70" fill={geo.ringFill} />
+                <polygon points="52,26 78,42 50,54" fill={geo.facet3} stroke={geo.accentEdgeMid} strokeWidth="0.85" />
+                <circle cx="52" cy="50" r="2.4" fill={geo.accent} opacity="0.8" className={styles.beaconBlink} />
+              </g>
+              <g className={styles.asteroidFloat2}>
+                <polygon points="92,28 116,16 130,30 114,48 96,42" fill={geo.facet7} stroke={geo.strokeSubtle} strokeWidth="0.9" />
+                <polygon points="92,28 116,16 112,34" fill={geo.ringFill} />
+              </g>
+            </svg>
+          </div>
 
           {/* True 1:1 Circular Waypoint Markers Along Responsive Pipeline Conduit */}
           <div className={styles.pipelineWaypointOverlay} aria-hidden="true">

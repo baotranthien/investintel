@@ -34,9 +34,13 @@
   --gw-accent-ring: rgba(154, 140, 255, 0.72);
   --gw-accent-contrast: #101522;
   --gw-grid-glow: rgba(154, 140, 255, 0.06);
-  --gw-road-outer: #292F40;
-  --gw-road-bed: #151B29;
-  --gw-road-trace: #292F40;
+  --gw-road-shadow: rgba(4, 7, 15, 0.62);
+  --gw-road-outer: #303952;
+  --gw-road-bed: #141A29;
+  --gw-road-tick: rgba(154, 140, 255, 0.24);
+  --gw-road-rail-inner: rgba(154, 140, 255, 0.28);
+  --gw-road-channel: rgba(10, 14, 24, 0.72);
+  --gw-road-trace: #343D56;
   --gw-node-fill: #101522;
   --gw-card-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
   --gw-card-active-shadow: 0 14px 36px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(154, 140, 255, 0.22);
@@ -89,9 +93,13 @@
   --gw-accent-ring: rgba(99, 85, 232, 0.62);
   --gw-accent-contrast: #FFFFFF;
   --gw-grid-glow: rgba(99, 85, 232, 0.055);
-  --gw-road-outer: #CBD5E1;
-  --gw-road-bed: #E2E8F0;
-  --gw-road-trace: #CBD5E1;
+  --gw-road-shadow: rgba(15, 23, 42, 0.09);
+  --gw-road-outer: #8B9CB4;
+  --gw-road-bed: #E6ECF5;
+  --gw-road-tick: rgba(99, 85, 232, 0.34);
+  --gw-road-rail-inner: rgba(99, 85, 232, 0.36);
+  --gw-road-channel: rgba(203, 213, 225, 0.72);
+  --gw-road-trace: #94A3B8;
   --gw-node-fill: #FFFFFF;
   --gw-card-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
   --gw-card-active-shadow: 0 16px 40px rgba(99, 85, 232, 0.12), 0 0 0 1px rgba(99, 85, 232, 0.28), 0 0 24px rgba(99, 85, 232, 0.10);
@@ -560,10 +568,15 @@
   z-index: 1;
 }
 
-.asteroidDiagonal {
+.asteroidDiagonal,
+.asteroidMobileSvg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.asteroidMobileSvg {
+  display: none;
 }
 
 .asteroidFloat1 {
@@ -576,6 +589,35 @@
   transform-box: fill-box;
   transform-origin: center;
   animation: asteroidDrift2 9.6s ease-in-out infinite;
+}
+
+.valleyFloatingWrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.valleyPocketSvg {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.valleyPocketTopLeft {
+  top: 22px;
+  left: clamp(14px, 4vw, 68px);
+  width: clamp(92px, 11vw, 148px);
+}
+
+.valleyPocketTopRight {
+  top: 16px;
+  right: clamp(14px, 4vw, 68px);
+  width: clamp(78px, 9vw, 124px);
+}
+
+.valleyPocketBottomLeft {
+  display: none;
 }
 
 .spaceshipFlightStage {
@@ -843,12 +885,47 @@
   z-index: 1;
 }
 
+.pipelineIntakeSleeve {
+  stroke-width: 8px;
+  opacity: 0.72;
+}
+
+.pipelineIntakeLead {
+  stroke-width: 1.8px;
+  opacity: 0.85;
+}
+
+.pipelineRoadAmbient {
+  stroke-width: 94px;
+}
+
 .pipelineRailOuter {
   stroke-width: 86px;
 }
 
 .pipelineBedInner {
-  stroke-width: 80px;
+  stroke-width: 78px;
+}
+
+.pipelineShoulderTicks {
+  stroke-width: 72px;
+  stroke-dasharray: 2 22;
+}
+
+.pipelineTickInnerMask {
+  stroke-width: 62px;
+}
+
+.pipelineInnerRails {
+  stroke-width: 56px;
+}
+
+.pipelineInnerDeck {
+  stroke-width: 53px;
+}
+
+.pipelineCenterGroove {
+  stroke-width: 20px;
 }
 
 .pipelineTraceBase {
@@ -1454,12 +1531,37 @@
     padding: 46px 16px 28px;
   }
 
+  .pipelineRoadAmbient {
+    stroke-width: 64px;
+  }
+
   .pipelineRailOuter {
     stroke-width: 58px;
   }
 
   .pipelineBedInner {
-    stroke-width: 54px;
+    stroke-width: 52px;
+  }
+
+  .pipelineShoulderTicks {
+    stroke-width: 47px;
+    stroke-dasharray: 1.8 18;
+  }
+
+  .pipelineTickInnerMask {
+    stroke-width: 40px;
+  }
+
+  .pipelineInnerRails {
+    stroke-width: 36px;
+  }
+
+  .pipelineInnerDeck {
+    stroke-width: 33.5px;
+  }
+
+  .pipelineCenterGroove {
+    stroke-width: 15px;
   }
 
   .valleyHeader {
@@ -1527,13 +1629,21 @@
     padding: 26px 20px;
   }
 
-  .asteroidParallaxWrap {
+  .asteroidDiagonal {
     display: none;
   }
 
+  .asteroidMobileSvg {
+    display: block;
+  }
+
+  .asteroidParallaxWrap {
+    opacity: 0.88;
+  }
+
   .spaceshipFlightRig {
-    width: 165px;
-    opacity: 0.94;
+    width: 176px;
+    opacity: 0.96;
   }
 
   .spaceshipFlightRigReduced {
@@ -1541,9 +1651,23 @@
     top: calc(100svh - 84px);
   }
 
-  .planetParallaxWrap,
+  .planetParallaxWrap {
+    top: 46px;
+    left: -52px;
+    width: 215px;
+    opacity: 0.68;
+  }
+
   .moonParallaxWrap {
-    opacity: 0.42;
+    top: 56px;
+    right: -46px;
+    width: 192px;
+    opacity: 0.68;
+  }
+
+  .gatewayOverlay[data-gateway-theme="light"] .planetParallaxWrap,
+  .gatewayOverlay[data-gateway-theme="light"] .moonParallaxWrap {
+    opacity: 0.82;
   }
 
   .scrollDownText {
@@ -1555,12 +1679,67 @@
     padding: 44px 12px 24px;
   }
 
+  .valleyPocketTopLeft {
+    top: 12px;
+    left: 10px;
+    width: 112px;
+    opacity: 0.82;
+  }
+
+  .valleyPocketTopRight {
+    top: 8px;
+    right: 12px;
+    width: 88px;
+    opacity: 0.82;
+  }
+
+  .valleyPocketBottomLeft {
+    display: block;
+    left: 12px;
+    bottom: 542px;
+    width: 112px;
+    opacity: 0.85;
+  }
+
+  .pipelineIntakeSleeve {
+    stroke-width: 6.5px;
+  }
+
+  .pipelineIntakeLead {
+    stroke-width: 1.7px;
+  }
+
+  .pipelineRoadAmbient {
+    stroke-width: 58px;
+  }
+
   .pipelineRailOuter {
     stroke-width: 52px;
   }
 
   .pipelineBedInner {
-    stroke-width: 48px;
+    stroke-width: 46px;
+  }
+
+  .pipelineShoulderTicks {
+    stroke-width: 42px;
+    stroke-dasharray: 1.6 16;
+  }
+
+  .pipelineTickInnerMask {
+    stroke-width: 35px;
+  }
+
+  .pipelineInnerRails {
+    stroke-width: 31px;
+  }
+
+  .pipelineInnerDeck {
+    stroke-width: 28.5px;
+  }
+
+  .pipelineCenterGroove {
+    stroke-width: 13px;
   }
 
   .valleyBgSvg {
