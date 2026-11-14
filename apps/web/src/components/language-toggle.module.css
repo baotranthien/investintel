@@ -134,6 +134,33 @@
   font-weight: 700;
 }
 
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: #D5DCE8;
+}
+
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch:hover {
+  border-color: rgba(99, 85, 232, 0.48);
+}
+
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch:focus-visible {
+  outline-color: #6355E8;
+}
+
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch .langThumb {
+  background: #6355E8;
+  border-color: #6355E8;
+  box-shadow: 0 1px 2px rgba(99, 85, 232, 0.25);
+}
+
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch .langCode {
+  color: #475569;
+}
+
+:global(html[data-effective-theme="light"]) .gatewayLangSwitch .langCodeActive {
+  color: #FFFFFF;
+}
+
 /* Mobile Drawer Row Variant */
 .drawerRow {
   display: flex;

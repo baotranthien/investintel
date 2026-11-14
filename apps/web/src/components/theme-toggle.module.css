@@ -130,3 +130,69 @@
   font-weight: 550;
   color: var(--ink-secondary);
 }
+
+/* Gateway Matte Workstation Navbar Variant (36x36 button matching LanguageToggle height) */
+.gatewayThemeWrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.gatewayToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #292F40;
+  background: rgba(25, 31, 45, 0.72);
+  color: #E6EAF2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 120ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gatewayToggleButton:hover {
+    background: #1F273A;
+    border-color: rgba(154, 140, 255, 0.55);
+  }
+}
+
+.gatewayToggleButton:active {
+  transform: scale(0.95);
+}
+
+.gatewayToggleButton:focus-visible {
+  outline: 2px solid #9A8CFF;
+  outline-offset: 2px;
+}
+
+:global(html[data-effective-theme="light"]) .gatewayToggleButton {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: #D5DCE8;
+  color: #0F172A;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :global(html[data-effective-theme="light"]) .gatewayToggleButton:hover {
+    background: #EEF2F8;
+    border-color: rgba(99, 85, 232, 0.48);
+  }
+}
+
+:global(html[data-effective-theme="light"]) .gatewayToggleButton:focus-visible {
+  outline-color: #6355E8;
+}
+
+@media (max-width: 600px) {
+  .gatewayToggleButton {
+    width: 34px;
+    height: 34px;
+  }
+}

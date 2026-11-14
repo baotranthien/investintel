@@ -6,7 +6,7 @@ import { useLocale } from "@/lib/i18n";
 import styles from "./theme-toggle.module.css";
 
 interface ThemeToggleProps {
-  variant?: "header" | "drawer";
+  variant?: "header" | "drawer" | "gateway";
   showSettingsLink?: boolean;
 }
 
@@ -112,6 +112,23 @@ export default function ThemeToggle({
       </span>
     </button>
   );
+
+  if (variant === "gateway") {
+    return (
+      <div className={styles.gatewayThemeWrap}>
+        <button
+          type="button"
+          className={styles.gatewayToggleButton}
+          onClick={handleToggle}
+          aria-label={switchLabel}
+          title={switchLabel}
+          aria-pressed={!isDark}
+        >
+          {isDark ? <MoonVectorIcon /> : <SunVectorIcon />}
+        </button>
+      </div>
+    );
+  }
 
   if (variant === "drawer") {
     return (

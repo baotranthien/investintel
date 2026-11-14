@@ -692,8 +692,13 @@ a.action-btn:active,
 /* Zero-Flash Synchronous Gateway Hiding Before Hydration */
 html[data-gateway-active="true"],
 html[data-gateway-active="true"] body {
-  background-color: #160e38 !important;
+  background-color: #101522 !important;
   overflow: hidden !important;
+}
+
+html[data-gateway-active="true"][data-effective-theme="light"],
+html[data-gateway-active="true"][data-effective-theme="light"] body {
+  background-color: #F4F6FA !important;
 }
 
 html[data-gateway-active="true"] [data-app-shell-frame="true"] {
