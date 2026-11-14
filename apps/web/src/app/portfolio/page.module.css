@@ -652,7 +652,7 @@
 
 .allocationCardGrid {
   display: grid;
-  grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.1fr);
+  grid-template-columns: minmax(220px, 0.95fr) minmax(220px, 1.05fr);
   gap: 16px;
   align-items: center;
   margin: 8px 0 12px 0;

@@ -16,7 +16,7 @@ export interface TorusAllocationItem {
 
 export interface PortfolioTorus3DProps {
   data?: TorusAllocationItem[];
-  size?: number; // Size in px (default: 200)
+  size?: number; // Size in px (default: 220)
   interactive?: boolean;
   activeSegment?: number | null;
   onHoverSegment?: (index: number | null) => void;
@@ -72,8 +72,8 @@ function TorusSegment({
   const meshRef = useRef<THREE.Mesh>(null);
   const isDark = effectiveTheme === "dark";
 
-  const radius = 0.88;
-  const tube = 0.22;
+  const radius = 0.98;
+  const tube = 0.2;
   const segmentColor = item.color || (isDark ? "#3b82f6" : "#2563eb");
 
   const midAngle = startAngle + arcAngle / 2;
@@ -85,7 +85,7 @@ function TorusSegment({
 
   useFrame(() => {
     if (!meshRef.current) return;
-    const targetDisplace = isHovered ? 0.08 : 0;
+    const targetDisplace = isHovered ? 0.065 : 0;
     const targetScale = isHovered ? 1.05 : 1.0;
     currentDisplace.current = THREE.MathUtils.lerp(currentDisplace.current, targetDisplace, 0.14);
     scaleRef.current = THREE.MathUtils.lerp(scaleRef.current, targetScale, 0.14);
@@ -192,7 +192,7 @@ function PortfolioTorusScene({
       <pointLight position={[-3, -2, 2]} intensity={1.2} color={isDark ? "#10B981" : "#38BDF8"} />
 
       <mesh rotation={[0, 0, 0]}>
-        <torusGeometry args={[0.58, 0.014, 16, 64]} />
+        <torusGeometry args={[0.71, 0.011, 16, 64]} />
         <meshBasicMaterial
           color={isDark ? "#10B981" : "#059669"}
           transparent
@@ -219,7 +219,7 @@ function PortfolioTorusScene({
 
 function PortfolioTorus3DInner({
   data = DEFAULT_ALLOCATION,
-  size = 200,
+  size = 220,
   interactive = true,
   activeSegment = null,
   onHoverSegment,
@@ -259,7 +259,7 @@ function PortfolioTorus3DInner({
       <Canvas
         frameloop="always"
         dpr={[1, 1.5]}
-        camera={{ position: [0, 0.05, 5.2], fov: 36 }}
+        camera={{ position: [0, 0.04, 4.75], fov: 36 }}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
         style={{ width: "100%", height: "100%" }}
       >
@@ -281,17 +281,17 @@ function PortfolioTorus3DInner({
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center",
-          padding: "4px 8px",
+          padding: "4px 6px",
           borderRadius: "50%",
           zIndex: 10,
         }}
       >
         <div
           style={{
-            fontSize: "18px",
+            fontSize: "17px",
             fontWeight: 800,
             color: hoveredItem ? hoveredItem.color || "var(--ink)" : "var(--ink)",
-            lineHeight: 1.1,
+            lineHeight: 1.05,
             letterSpacing: "-0.02em",
           }}
         >
@@ -299,15 +299,15 @@ function PortfolioTorus3DInner({
         </div>
         <div
           style={{
-            fontSize: "11px",
+            fontSize: "9.5px",
             fontWeight: 650,
             color: "var(--ink-secondary)",
-            maxWidth: "85px",
+            maxWidth: "82px",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            marginTop: "3px",
-            letterSpacing: "0.02em",
+            marginTop: "2px",
+            letterSpacing: "0.03em",
           }}
         >
           {hoveredItem ? translateAllocationLabel(hoveredItem, locale) : t("PHÂN BỔ", "ALLOCATION")}
@@ -317,7 +317,7 @@ function PortfolioTorus3DInner({
   );
 }
 
-function TorusFallback({ size = 200 }: { size?: number }): JSX.Element {
+function TorusFallback({ size = 220 }: { size?: number }): JSX.Element {
   return (
     <div
       style={{

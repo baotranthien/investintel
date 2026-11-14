@@ -565,7 +565,7 @@ export default function PortfolioPage() {
               <div className={styles.allocationCardGrid}>
                 <div className={styles.allocationTorusWrapper}>
                   <PortfolioTorus3D
-                    size={185}
+                    size={220}
                     data={dashboardData.allocation.sector.length > 0 ? dashboardData.allocation.sector.map((s, idx) => ({
                       id: s.sector,
                       label: s.sector,
