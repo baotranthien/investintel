@@ -29,7 +29,7 @@ const defaultFilters: ScreenerFilterParams = {
   current_ratio_min: "",
   margin_of_safety_min: "",
   market_cap_min_bil: "",
-  limit: 50,
+  limit: 200,
 };
 
 type PresetKey = "growth" | "value" | "defensive" | "margin";

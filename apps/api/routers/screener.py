@@ -30,7 +30,7 @@ def screen_stocks(
     current_ratio_min: Optional[float] = Query(None, description="Minimum Current Ratio"),
     margin_of_safety_min: Optional[float] = Query(None, description="Minimum Margin of Safety (%)"),
     market_cap_min_bil: Optional[float] = Query(None, description="Minimum Market Cap (Billion VND)"),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(200, ge=1, le=500),
     as_of: date = Query(default_factory=get_effective_trading_date),
     session: Session = Depends(get_db),
 ) -> ScreenerResult:

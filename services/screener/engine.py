@@ -40,7 +40,7 @@ class ScreenerCriteria(BaseModel):
     current_ratio_min: Optional[float] = None
     margin_of_safety_min: Optional[float] = None
     market_cap_min_bil: Optional[float] = None
-    limit: int = 50
+    limit: int = 200
 
 
 class ScreenedStock(BaseModel):
@@ -104,7 +104,13 @@ class StockScreenerEngine:
             if criteria.sector:
                 query = query.filter(Asset.sector.ilike(f"%{criteria.sector}%"))
 
-            assets = query.all()
+            assets = [
+                a
+                for a in query.all()
+                if a.symbol
+                and not a.symbol.startswith("^")
+                and (a.asset_type or "STOCK").upper() not in ("INDEX", "ETF")
+            ]
             total_screened = len(assets)
 
             # Canonical market price batch resolution
