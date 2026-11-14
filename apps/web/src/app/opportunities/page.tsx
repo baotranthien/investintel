@@ -539,8 +539,8 @@ export default function OpportunitiesPage() {
           />
           <p style={{ margin: "14px 0 0 0", fontSize: "12px", color: "var(--ink-secondary)", textAlign: "center" }}>
             {t(
-              "Kéo chuột để xoay đa chiều · Hover để xem chỉ số chi tiết · Nhấp vào điểm cổ phiếu để chuyển giao trực tiếp sang AI Analyst",
-              "Drag to rotate in 3D · Hover to inspect metrics · Click any node to open in AI Analyst"
+              "Kéo chuột để xoay đa chiều · Nhấp vào bóng cổ phiếu để giữ hiệu ứng & chỉ số · Bấm nút trong thẻ để mở AI Analyst",
+              "Drag to rotate in 3D · Click any node to pin its effect & metrics · Click the card button to open AI Analyst"
             )}
           </p>
         </div>

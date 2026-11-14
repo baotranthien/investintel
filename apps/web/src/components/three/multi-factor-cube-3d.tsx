@@ -290,16 +290,16 @@ function CubeScene({
   stocks,
   variant,
   effectiveTheme,
-  hoveredStock,
+  activeStock,
   setHoveredStock,
-  onSelectStock,
+  setSelectedStock,
 }: {
   stocks: StockFactorPoint[];
   variant: "compact" | "full";
   effectiveTheme: string;
-  hoveredStock: StockFactorPoint | null;
-  setHoveredStock: (s: StockFactorPoint | null) => void;
-  onSelectStock?: (sym: string) => void;
+  activeStock: StockFactorPoint | null;
+  setHoveredStock: React.Dispatch<React.SetStateAction<StockFactorPoint | null>>;
+  setSelectedStock: React.Dispatch<React.SetStateAction<StockFactorPoint | null>>;
 }) {
   const isDark = effectiveTheme === "dark";
   const groupRef = useRef<THREE.Group>(null);
@@ -379,7 +379,7 @@ function CubeScene({
           <StockNode
             key={stock.symbol}
             stock={stock}
-            isSelected={hoveredStock?.symbol === stock.symbol}
+            isSelected={activeStock?.symbol === stock.symbol}
             isCompact={isCompact}
             isDark={isDark}
             onPointerOver={() => {
@@ -390,7 +390,10 @@ function CubeScene({
               setHoveredStock(null);
               invalidate();
             }}
-            onClick={() => onSelectStock && onSelectStock(stock.symbol)}
+            onClick={() => {
+              setSelectedStock((prev) => (prev?.symbol === stock.symbol ? null : stock));
+              invalidate();
+            }}
           />
         ))}
       </group>
@@ -410,6 +413,8 @@ function MultiFactorCube3DInner({
   const { effectiveTheme } = useTheme();
   const { locale, t } = useLocale();
   const [hoveredStock, setHoveredStock] = useState<StockFactorPoint | null>(null);
+  const [selectedStock, setSelectedStock] = useState<StockFactorPoint | null>(null);
+  const activeStock = selectedStock ?? hoveredStock;
 
   const isCompact = variant === "compact";
   const defaultDim = isCompact ? 160 : "100%";
@@ -437,14 +442,15 @@ function MultiFactorCube3DInner({
         camera={{ position: [3.4, 2.8, 3.9], fov: 36 }}
         gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
         style={{ width: "100%", height: "100%" }}
+        onPointerMissed={() => setSelectedStock(null)}
       >
         <CubeScene
           stocks={data}
           variant={variant}
           effectiveTheme={effectiveTheme}
-          hoveredStock={hoveredStock}
+          activeStock={activeStock}
           setHoveredStock={setHoveredStock}
-          onSelectStock={onSelectStock}
+          setSelectedStock={setSelectedStock}
         />
       </Canvas>
 
@@ -486,14 +492,14 @@ function MultiFactorCube3DInner({
         </div>
       )}
 
-      {/* Hovered Stock Tooltip HUD Overlay */}
-      {hoveredStock && !isCompact && (
+      {/* Active (Hovered or Selected) Stock Tooltip HUD Overlay */}
+      {activeStock && !isCompact && (
         <div
           style={{
             position: "absolute",
             top: 12,
             right: 14,
-            pointerEvents: "none",
+            pointerEvents: "auto",
             backgroundColor: "var(--surface-elevated, #ffffff)",
             color: "var(--ink, #1d1d1f)",
             padding: "8px 14px",
@@ -514,14 +520,14 @@ function MultiFactorCube3DInner({
               style={{
                 fontSize: "14px",
                 color:
-                  hoveredStock.score >= 80
+                  activeStock.score >= 80
                     ? "#10b981"
-                    : hoveredStock.score >= 70
+                    : activeStock.score >= 70
                     ? "#3b82f6"
                     : "#f59e0b",
               }}
             >
-              {hoveredStock.symbol}
+              {activeStock.symbol}
             </strong>
             <span
               style={{
@@ -532,21 +538,42 @@ function MultiFactorCube3DInner({
                 background: "var(--surface-muted)",
               }}
             >
-              {hoveredStock.score}/100
+              {activeStock.score}/100
             </span>
           </div>
-          {hoveredStock.name && (
+          {activeStock.name && (
             <div style={{ fontSize: "11px", color: "var(--ink-secondary)" }}>
-              {hoveredStock.name} · {translateSector(hoveredStock.sector, locale)}
+              {activeStock.name} · {translateSector(activeStock.sector, locale)}
             </div>
           )}
           <div style={{ fontSize: "11px", color: "var(--ink-muted)", marginTop: "2px" }}>
-            P/E: {hoveredStock.pe > 0 ? t("Hấp dẫn (Rẻ)", "Attractive (Value)") : t("Định giá cao", "Elevated")} · ROE:{" "}
-            {hoveredStock.roe > 0 ? t("Chất lượng cao", "High Quality") : t("Trung bình", "Moderate")}
+            P/E: {activeStock.pe > 0 ? t("Hấp dẫn (Rẻ)", "Attractive (Value)") : t("Định giá cao", "Elevated")} · ROE:{" "}
+            {activeStock.roe > 0 ? t("Chất lượng cao", "High Quality") : t("Trung bình", "Moderate")}
           </div>
-          <div style={{ fontSize: "10.5px", color: "var(--accent-apple, #0071e3)", marginTop: "3px", fontWeight: 650 }}>
-            {t("✦ Nhấp để mở AI Analyst →", "✦ Click to open AI Analyst →")}
-          </div>
+          {onSelectStock && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectStock(activeStock.symbol);
+              }}
+              style={{
+                marginTop: "6px",
+                padding: "6px 10px",
+                borderRadius: "7px",
+                border: "1px solid color-mix(in srgb, var(--accent-apple, #0071e3) 35%, transparent)",
+                background: "color-mix(in srgb, var(--accent-apple, #0071e3) 12%, transparent)",
+                color: "var(--accent-apple, #0071e3)",
+                fontSize: "11px",
+                fontWeight: 650,
+                cursor: "pointer",
+                textAlign: "center",
+                width: "100%",
+              }}
+            >
+              {t("✦ Nhấp để mở AI Analyst →", "✦ Click to see AI Analyst →")}
+            </button>
+          )}
         </div>
       )}
     </div>

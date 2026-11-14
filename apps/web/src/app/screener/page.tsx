@@ -482,8 +482,8 @@ export default function StockScreenerPage() {
             </div>
             <span className={styles.cubeHint}>
               {t(
-                "Kéo chuột để xoay 3D · Hover để xem chỉ số · Lăn chuột để cuộn xuống bảng dữ liệu",
-                "Drag to rotate 3D · Hover to inspect metrics · Scroll to navigate data table"
+                "Kéo chuột để xoay 3D · Nhấp vào bóng để giữ chỉ số · Bấm nút trên thẻ để mở AI Analyst",
+                "Drag to rotate 3D · Click a node to pin metrics · Click the card button to open AI Analyst"
               )}
             </span>
           </div>
