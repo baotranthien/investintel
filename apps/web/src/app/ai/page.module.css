@@ -957,11 +957,11 @@
   background-color: var(--surface-card);
   border: 1px solid var(--line-strong);
   border-radius: 20px;
-  padding: 8px 12px 8px 16px;
+  padding: 10px 14px 10px 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), var(--border-specular);
   display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   transition: all var(--duration-fast) ease;
   box-sizing: border-box;
   min-height: 54px;
@@ -986,7 +986,8 @@
   text-align: center;
   outline: none;
   flex-shrink: 0;
-  margin-bottom: 2px;
+  margin: 0;
+  align-self: center;
 }
 
 .tickerInput::placeholder {
@@ -1006,10 +1007,12 @@
   color: var(--ink) !important;
   font-size: 14.5px;
   line-height: 1.5;
-  padding: 8px 4px 6px;
+  padding: 7px 4px;
+  margin: 0;
+  align-self: center;
   resize: none;
   outline: none !important;
-  min-height: 38px;
+  min-height: 36px;
   max-height: 140px;
   font-family: inherit;
   box-sizing: border-box;
@@ -1032,7 +1035,11 @@
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
-  margin-bottom: 2px;
+  margin: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: var(--btn-primary-shadow, 0 2px 8px rgba(16, 185, 129, 0.3));
   transition: all var(--duration-fast) var(--ease-spring);
 }

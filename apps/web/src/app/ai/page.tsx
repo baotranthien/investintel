@@ -654,10 +654,11 @@ function AIWorkspaceContent() {
   // Auto-resize prompt textarea based on content and viewport width
   useEffect(() => {
     const syncHeight = () => {
-      if (!textareaRef.current) return;
-      textareaRef.current.style.height = "auto";
-      const nextHeight = Math.max(40, Math.min(textareaRef.current.scrollHeight, 132));
-      textareaRef.current.style.height = `${nextHeight}px`;
+      const el = textareaRef.current;
+      if (!el) return;
+      el.style.height = "0px";
+      const nextHeight = Math.max(36, Math.min(el.scrollHeight, 132));
+      el.style.height = `${nextHeight}px`;
     };
     syncHeight();
     window.addEventListener("resize", syncHeight);
