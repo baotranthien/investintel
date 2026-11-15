@@ -263,15 +263,15 @@ export default function Home(): JSX.Element {
     const qTop = numericTopQuant || 65;
     const step = (qTop - qBase) / 5;
     return [
-      { label: locale === "en" ? "T-5M" : "Tháng -5", shortLabel: "T-5", x: 50, quantY: 150, benchY: 160, quantScore: Math.round(qBase * 0.88), benchScore: fmtRelativeIdx(0.92), isForecast: false },
-      { label: locale === "en" ? "T-4M" : "Tháng -4", shortLabel: "T-4", x: 120, quantY: 140, benchY: 155, quantScore: Math.round(qBase * 0.94), benchScore: fmtRelativeIdx(0.94), isForecast: false },
-      { label: locale === "en" ? "T-3M" : "Tháng -3", shortLabel: "T-3", x: 190, quantY: 110, benchY: 135, quantScore: Math.round(qBase + step * 2), benchScore: fmtRelativeIdx(0.96), isForecast: false },
-      { label: locale === "en" ? "T-2M" : "Tháng -2", shortLabel: "T-2", x: 260, quantY: 120, benchY: 140, quantScore: Math.round(qBase + step * 1.5), benchScore: fmtRelativeIdx(0.95), isForecast: false },
-      { label: locale === "en" ? "T-1M" : "Tháng -1", shortLabel: "T-1", x: 330, quantY: 85, benchY: 122, quantScore: Math.round(qBase + step * 3.8), benchScore: fmtRelativeIdx(0.98), isForecast: false },
-      { label: locale === "en" ? "EOD Session" : "Phiên EOD", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Math.round(qTop), benchScore: vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--", isForecast: false },
-      { label: locale === "en" ? "FV Tier 25%" : "Mục tiêu 25%", shortLabel: "FV-25", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round(qTop + 3)), benchScore: fmtTargetUpside(0.25), isForecast: true },
-      { label: locale === "en" ? "FV Tier 50%" : "Mục tiêu 50%", shortLabel: "FV-50", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round(qTop + 6)), benchScore: fmtTargetUpside(0.5), isForecast: true },
-      { label: locale === "en" ? "Median Quant FV" : "Fair Value TB", shortLabel: "FV-100", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round(qTop + 10)), benchScore: fmtTargetUpside(1.0), isForecast: true },
+      { label: locale === "en" ? "Baseline (-5M)" : "Định chuẩn (-5T)", shortLabel: "-5T", x: 50, quantY: 150, benchY: 160, quantScore: Math.round(qBase * 0.88), benchScore: fmtRelativeIdx(0.92), isForecast: false },
+      { label: locale === "en" ? "Baseline (-4M)" : "Định chuẩn (-4T)", shortLabel: "-4T", x: 120, quantY: 140, benchY: 155, quantScore: Math.round(qBase * 0.94), benchScore: fmtRelativeIdx(0.94), isForecast: false },
+      { label: locale === "en" ? "Baseline (-3M)" : "Định chuẩn (-3T)", shortLabel: "-3T", x: 190, quantY: 110, benchY: 135, quantScore: Math.round(qBase + step * 2), benchScore: fmtRelativeIdx(0.96), isForecast: false },
+      { label: locale === "en" ? "Baseline (-2M)" : "Định chuẩn (-2T)", shortLabel: "-2T", x: 260, quantY: 120, benchY: 140, quantScore: Math.round(qBase + step * 1.5), benchScore: fmtRelativeIdx(0.95), isForecast: false },
+      { label: locale === "en" ? "Baseline (-1M)" : "Định chuẩn (-1T)", shortLabel: "-1T", x: 330, quantY: 85, benchY: 122, quantScore: Math.round(qBase + step * 3.8), benchScore: fmtRelativeIdx(0.98), isForecast: false },
+      { label: locale === "en" ? "Current EOD" : "Phiên hiện tại", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Math.round(qTop), benchScore: vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--", isForecast: false },
+      { label: locale === "en" ? "25% FV Convergence" : "Hội tụ 25% FV", shortLabel: "25% FV", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round(qTop + 3)), benchScore: fmtTargetUpside(0.25), isForecast: true },
+      { label: locale === "en" ? "50% FV Convergence" : "Hội tụ 50% FV", shortLabel: "50% FV", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round(qTop + 6)), benchScore: fmtTargetUpside(0.5), isForecast: true },
+      { label: locale === "en" ? "Full Quant FV (100%)" : "Giá trị hợp lý (100%)", shortLabel: "100% FV", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round(qTop + 10)), benchScore: fmtTargetUpside(1.0), isForecast: true },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale, yEodQuant, yEodBench, numericTopQuant, numericAvgQuant, vnIdxVal, normalizedTargetMos]);

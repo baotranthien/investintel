@@ -12,7 +12,6 @@ from pydantic import ValidationError
 
 from .gateway import AIGateway
 from .prompt_registry import (
-    METRIC_CATEGORY_PATTERNS,
     PROMPT_VERSION,
     SYSTEM_PROMPT,
     _strip_vietnamese_accents,
@@ -551,7 +550,7 @@ class AIAnalyst:
                     note=f"Hệ số tương quan Pearson giữa giá {target_sym} và hàng hóa được tính sẵn: {corr}",
                 ))
 
-        # 4. Bank metric differences (NIM diff, CASA diff, Credit growth diff, NPL diff)
+        # 4. Bank metric differences across N symbols (NIM, CASA, Credit growth, NPL, LLR)
         if len(target_symbols) >= 2:
             s1, s2 = target_symbols[0], target_symbols[1]
             bank_metrics_to_diff = [
@@ -562,23 +561,46 @@ class AIAnalyst:
                 ("llr_ratio", "llr_diff", "điểm %", "Tỷ lệ bao phủ nợ xấu (LLR)"),
             ]
             for m_key, diff_key, unit_str, label in bank_metrics_to_diff:
-                v1 = values_by_sym_metric.get((s1, m_key))
-                v2 = values_by_sym_metric.get((s2, m_key))
-                if v1 is not None and v2 is not None:
-                    d_val = round(v1 - v2, 2)
+                sym_vals = [(s, values_by_sym_metric.get((s, m_key))) for s in target_symbols]
+                valid_vals = [(s, v) for s, v in sym_vals if v is not None]
+                if len(target_symbols) == 2:
+                    v1 = values_by_sym_metric.get((s1, m_key))
+                    v2 = values_by_sym_metric.get((s2, m_key))
+                    if v1 is not None and v2 is not None:
+                        d_val = round(v1 - v2, 2)
+                        max_id += 1
+                        new_citations.append(AICitation(
+                            id=f"E{max_id:03d}",
+                            claim_type="MODEL_OUTPUT",
+                            responsible_module="bank_metrics",
+                            metric=diff_key,
+                            value=d_val,
+                            unit=unit_str,
+                            source="INVESTINTEL_PYTHON_CALCULATOR",
+                            data_origin="LINEAGED_INGESTION",
+                            freshness="AVAILABLE",
+                            symbol=f"{s1},{s2}",
+                            note=f"Chênh lệch {label} ({s1} - {s2}) được tính sẵn: {v1:.2f} - {v2:.2f} = {d_val:+.2f} {unit_str}",
+                        ))
+                elif len(valid_vals) >= 2:
+                    ranked_v = sorted(valid_vals, key=lambda x: x[1], reverse=True)
+                    hi_s, hi_v = ranked_v[0]
+                    lo_s, lo_v = ranked_v[-1]
+                    spread = round(hi_v - lo_v, 2)
+                    summary_vals = ", ".join(f"{s}={v:.2f}%" for s, v in valid_vals)
                     max_id += 1
                     new_citations.append(AICitation(
                         id=f"E{max_id:03d}",
                         claim_type="MODEL_OUTPUT",
                         responsible_module="bank_metrics",
                         metric=diff_key,
-                        value=d_val,
+                        value=spread,
                         unit=unit_str,
                         source="INVESTINTEL_PYTHON_CALCULATOR",
                         data_origin="LINEAGED_INGESTION",
                         freshness="AVAILABLE",
-                        symbol=f"{s1},{s2}",
-                        note=f"Chênh lệch {label} ({s1} - {s2}) được tính sẵn: {v1:.2f} - {v2:.2f} = {d_val:+.2f} {unit_str}",
+                        symbol=",".join(s for s, _ in valid_vals),
+                        note=f"So sánh {label} ({summary_vals}) — Chênh lệch cao/thấp ({hi_s} vs {lo_s}): {spread:+.2f} {unit_str}",
                     ))
 
         return new_citations
@@ -599,9 +621,11 @@ class AIAnalyst:
             }
 
         for c in citations:
-            if not c.symbol and c.responsible_module in ("macro", "regime") and target_symbols != ["MARKET"]:
-                continue
-            sym = c.symbol or (target_symbols[0] if target_symbols else "MARKET")
+            default_bucket = (
+                "PORTFOLIO" if c.responsible_module == "portfolio"
+                else ("MARKET" if c.responsible_module in ("macro", "regime") else (target_symbols[0] if target_symbols else "MARKET"))
+            )
+            sym = c.symbol or default_bucket
             if sym not in symbols_summary:
                 symbols_summary[sym] = {"metrics": {}, "calculated_indicators": {}}
             if c.metric and c.value is not None:
@@ -654,86 +678,104 @@ class AIAnalyst:
                 except (ValueError, TypeError):
                     pass
 
-        # Multi-ticker comparisons (e.g. MBB vs VCB)
+        # Multi-ticker comparisons across N symbols (e.g. VCB vs MBB vs TCB)
         comparisons: dict[str, Any] = {}
         comparison_cards: list[dict[str, Any]] = []
         comparison_rows: list[dict[str, Any]] = []
         if len(target_symbols) >= 2:
-            s1, s2 = target_symbols[0], target_symbols[1]
-            m1 = symbols_summary.get(s1, {}).get("metrics", {})
-            m2 = symbols_summary.get(s2, {}).get("metrics", {})
+            cmp_syms = [s for s in target_symbols if s not in ("MARKET", "PORTFOLIO", "VN100", "VNINDEX")][:5]
+            if len(cmp_syms) >= 2:
+                s1, s2 = cmp_syms[0], cmp_syms[1]
 
-            def _add_cmp(
-                key: str,
-                label: str,
-                item1: dict[str, Any] | None,
-                item2: dict[str, Any] | None,
-                unit: str,
-                *,
-                include_ratio: bool = False,
-                flat_diff_key: str | None = None,
-                flat_ratio_key: str | None = None,
-            ) -> None:
-                if not item1 or not item2 or item1.get("value") is None or item2.get("value") is None:
-                    return
-                try:
-                    v1 = float(item1["value"])
-                    v2 = float(item2["value"])
-                except (ValueError, TypeError):
-                    return
-                if unit == "%":
-                    if str(item1.get("unit") or "").lower() in {"ratio", "decimal"}:
-                        v1 *= 100.0
-                    if str(item2.get("unit") or "").lower() in {"ratio", "decimal"}:
-                        v2 *= 100.0
-                diff = round(v1 - v2, 2)
-                ratio_val = round(v1 / v2, 2) if (include_ratio and v2 != 0) else None
-                if flat_diff_key:
-                    comparisons[flat_diff_key] = diff
-                if flat_ratio_key and ratio_val is not None:
-                    comparisons[flat_ratio_key] = ratio_val
-                comparison_cards.append({
-                    "key": key,
-                    "label": label,
-                    "symbol_a": s1,
-                    "symbol_b": s2,
-                    "value_a": round(v1, 2),
-                    "value_b": round(v2, 2),
-                    "diff": diff,
-                    "ratio": ratio_val,
-                    "unit": unit,
-                })
-                comparison_rows.append({
-                    "metric": key,
-                    "label": label,
-                    "unit": unit,
-                    "values": {s1: round(v1, 2), s2: round(v2, 2)},
-                    "diff": diff,
-                })
+                def _pick_metric_item(sym_m: dict[str, Any], *keys: str) -> dict[str, Any] | None:
+                    for k in keys:
+                        if sym_m.get(k) and sym_m[k].get("value") is not None:
+                            return sym_m[k]
+                    return None
 
-            _add_cmp(
-                "pe", "P/E", m1.get("pe") or m1.get("pe_ratio"), m2.get("pe") or m2.get("pe_ratio"),
-                "x", include_ratio=True, flat_diff_key="pe_diff", flat_ratio_key="pe_ratio",
-            )
-            _add_cmp(
-                "pb", "P/B", m1.get("pb") or m1.get("pb_ratio"), m2.get("pb") or m2.get("pb_ratio"),
-                "x", include_ratio=True, flat_diff_key="pb_diff", flat_ratio_key="pb_ratio",
-            )
-            _add_cmp("roe", "ROE", m1.get("roe"), m2.get("roe"), "%", flat_diff_key="roe_diff")
-            for b_key, b_label in (
-                ("nim", "NIM"),
-                ("casa_ratio", "CASA"),
-                ("credit_growth", "Tăng trưởng tín dụng"),
-                ("npl_ratio", "Nợ xấu (NPL)"),
-                ("llr_ratio", "Bao phủ nợ xấu (LLR)"),
-            ):
-                _add_cmp(b_key, b_label, m1.get(b_key), m2.get(b_key), "%", flat_diff_key=f"{b_key}_diff")
+                def _norm_cmp_val(item: dict[str, Any], unit: str) -> float | None:
+                    try:
+                        v = float(item["value"])
+                    except (ValueError, TypeError):
+                        return None
+                    if unit == "%" and str(item.get("unit") or "").lower() in {"ratio", "decimal"}:
+                        v *= 100.0
+                    return round(v, 2)
 
-            # Net profit margin comparison from calculated_indicators if both exist
-            npm1 = symbols_summary.get(s1, {}).get("calculated_indicators", {}).get("net_profit_margin_pct")
-            npm2 = symbols_summary.get(s2, {}).get("calculated_indicators", {}).get("net_profit_margin_pct")
-            if npm1 is not None and npm2 is not None:
-                _add_cmp("net_margin", "Biên LN ròng", {"value": npm1}, {"value": npm2}, "%")
+                def _add_cmp_n(
+                    key: str,
+                    label: str,
+                    metric_aliases: tuple[str, ...],
+                    unit: str,
+                    *,
+                    include_ratio: bool = False,
+                    flat_diff_key: str | None = None,
+                    flat_ratio_key: str | None = None,
+                    custom_map: dict[str, dict[str, Any]] | None = None,
+                ) -> None:
+                    vals_by_sym: dict[str, float] = {}
+                    for cs in cmp_syms:
+                        if custom_map is not None:
+                            it = custom_map.get(cs)
+                        else:
+                            it = _pick_metric_item(symbols_summary.get(cs, {}).get("metrics", {}), *metric_aliases)
+                        if it and it.get("value") is not None:
+                            nv = _norm_cmp_val(it, unit)
+                            if nv is not None:
+                                vals_by_sym[cs] = nv
+                    if len(vals_by_sym) < 2:
+                        return
+
+                    ordered_vals = [vals_by_sym[cs] for cs in cmp_syms if cs in vals_by_sym]
+                    v1 = vals_by_sym.get(s1, ordered_vals[0])
+                    v2 = vals_by_sym.get(s2, ordered_vals[1])
+                    diff = round(v1 - v2, 2) if (s1 in vals_by_sym and s2 in vals_by_sym and len(vals_by_sym) == 2) else round(max(ordered_vals) - min(ordered_vals), 2)
+                    ratio_val = round(v1 / v2, 2) if (include_ratio and s1 in vals_by_sym and s2 in vals_by_sym and v2 != 0) else None
+                    if flat_diff_key:
+                        comparisons[flat_diff_key] = diff
+                    if flat_ratio_key and ratio_val is not None:
+                        comparisons[flat_ratio_key] = ratio_val
+                    comparison_cards.append({
+                        "key": key,
+                        "label": label,
+                        "symbol_a": s1,
+                        "symbol_b": s2,
+                        "value_a": v1,
+                        "value_b": v2,
+                        "values": vals_by_sym,
+                        "diff": diff,
+                        "ratio": ratio_val,
+                        "unit": unit,
+                    })
+                    comparison_rows.append({
+                        "metric": key,
+                        "label": label,
+                        "unit": unit,
+                        "values": vals_by_sym,
+                        "diff": diff,
+                    })
+
+                _add_cmp_n("pe", "P/E", ("pe", "pe_ratio"), "x", include_ratio=True, flat_diff_key="pe_diff", flat_ratio_key="pe_ratio")
+                _add_cmp_n("pb", "P/B", ("pb", "pb_ratio"), "x", include_ratio=True, flat_diff_key="pb_diff", flat_ratio_key="pb_ratio")
+                _add_cmp_n("roe", "ROE", ("roe",), "%", flat_diff_key="roe_diff")
+                for b_key, b_label in (
+                    ("nim", "NIM"),
+                    ("casa_ratio", "CASA"),
+                    ("credit_growth", "Tăng trưởng tín dụng"),
+                    ("npl_ratio", "Nợ xấu (NPL)"),
+                    ("llr_ratio", "Bao phủ nợ xấu (LLR)"),
+                    ("cfo_to_ni", "CFO / LN ròng"),
+                    ("dividend_yield", "Tỷ suất cổ tức"),
+                ):
+                    unit_b = "ratio" if b_key == "cfo_to_ni" else "%"
+                    _add_cmp_n(b_key, b_label, (b_key,), unit_b, flat_diff_key=f"{b_key}_diff")
+
+                npm_custom = {
+                    cs: {"value": symbols_summary.get(cs, {}).get("calculated_indicators", {}).get("net_profit_margin_pct")}
+                    for cs in cmp_syms
+                    if symbols_summary.get(cs, {}).get("calculated_indicators", {}).get("net_profit_margin_pct") is not None
+                }
+                _add_cmp_n("net_margin", "Biên LN ròng", ("net_margin",), "%", custom_map=npm_custom)
 
         # Interactive Recharts payloads built strictly from grounded context/citations
         charts: list[dict[str, Any]] = []
@@ -979,11 +1021,18 @@ class AIAnalyst:
                 "symbol": primary_sym or "",
             })
 
+        comparison_table_symbols = [
+            s for s in target_symbols if s not in ("MARKET", "PORTFOLIO", "VN100", "VNINDEX")
+        ][:5]
         structured_summary = {
             "symbols": symbols_summary,
             "comparisons": comparisons if comparisons else None,
             "comparison_cards": comparison_cards or None,
-            "comparison_table": {"symbols": target_symbols[:2], "rows": comparison_rows} if comparison_rows else None,
+            "comparison_table": (
+                {"symbols": comparison_table_symbols, "rows": comparison_rows}
+                if comparison_rows
+                else None
+            ),
             "charts": charts or None,
             "document_highlights": document_highlights or None,
             "quick_actions": quick_actions or None,
@@ -1340,7 +1389,6 @@ class AIAnalyst:
             return verdict_claims, used_cids
 
         evidence_by_id = {c.id: c for c in citations}
-        existing_texts = " ".join(c.text.lower() for c in (existing_claims or []))
         already_cited_metrics = {
             evidence_by_id[cid].metric
             for c in (existing_claims or [])
@@ -1395,10 +1443,10 @@ class AIAnalyst:
             roe_c = _get("roe")
             ni_yoy_c = _get("net_income_yoy")
             de_c = _get("de_ratio")
-            ic_c = _get("interest_coverage")
             fv_c = _get("composite_fair_value_base")
             dcf_c = _get("dcf_base")
             mos_c = _get("margin_of_safety")
+            cfo_ni_c = _get("cfo_to_ni")
             opp_c = _get("opportunity_score")
             risk_c = _get("risk_score")
             nim_c = _get("nim")
@@ -1561,6 +1609,18 @@ class AIAnalyst:
                     bear_points.append(f"cần theo dõi tỷ lệ nợ xấu (NPL {npl_val:.2f}%)")
                     composite_rank_score -= 4.0
 
+            has_weak_cash_quality = False
+            if cfo_ni_c:
+                cfo_ratio = float(cfo_ni_c.value)
+                verdict_cids.append(cfo_ni_c.id)
+                if cfo_ratio < 0.30:
+                    has_weak_cash_quality = True
+                    bear_points.append(f"chất lượng chuyển hóa dòng tiền yếu (CFO/LN ròng = {cfo_ratio:.2f}x < 0.30x)")
+                    composite_rank_score -= 12.0
+                elif cfo_ratio >= 0.85:
+                    bull_points.append(f"chất lượng dòng tiền kinh doanh tốt (CFO/LN ròng = {cfo_ratio:.2f}x)")
+                    composite_rank_score += 4.0
+
             dedup_verdict_cids = list(dict.fromkeys(verdict_cids))
             if dedup_verdict_cids:
                 used_cids.update(dedup_verdict_cids)
@@ -1568,7 +1628,7 @@ class AIAnalyst:
                 roe_v = float(roe_c.value) if roe_c else None
                 opp_v = float(opp_c.value) if opp_c else None
 
-                is_buy = (
+                is_buy = (not has_weak_cash_quality) and (
                     (mos_v is not None and mos_v >= 10.0 and (roe_v is None or roe_v >= 12.0))
                     or (opp_v is not None and opp_v >= 65.0 and (mos_v is None or mos_v >= -3.0))
                     or (mos_v is None and composite_rank_score >= 62.0)
@@ -1579,7 +1639,7 @@ class AIAnalyst:
                     or composite_rank_score < 45.0
                 )
 
-                ordered_points = (bear_points + bull_points) if is_caution else (bull_points + bear_points)
+                ordered_points = (bear_points + bull_points) if (is_caution or has_weak_cash_quality) else (bull_points + bear_points)
                 reasons_str = "; ".join(ordered_points[:4])
                 if is_buy:
                     action_label = "KHẢ QUAN — NÊN ĐẦU TƯ / TÍCH LŨY"
@@ -1836,8 +1896,6 @@ class AIAnalyst:
         tool_names: list[str] | None = None,
         task_type: TaskType = "USER_CHAT",
     ) -> AsyncGenerator[str, None]:
-        from services.universe.registry import UniverseRegistry
-
         requested_date = _resolve_query_date(question, as_of)
 
         # Step 1: Status fetching_data
@@ -1851,7 +1909,7 @@ class AIAnalyst:
             yield "data: [DONE]\n\n"
             return
 
-        from services.ai.planner import QueryPlanner, QueryIntent, EntityType
+        from services.ai.planner import QueryPlanner, QueryIntent
         plan = QueryPlanner.plan_query(
             question,
             session=session,
@@ -1878,13 +1936,15 @@ class AIAnalyst:
                 extracted_symbols = ["MWG"]
                 canonical_symbol = "MWG"
 
-        # Check for general portfolio or asset allocation query without specific single ticker
+        # Check for general portfolio or asset allocation / DCA query without specific single ticker
         portfolio_terms = (
             "danh mục", "danh muc", "phân bổ", "phan bo", "portfolio", "allocation",
-            "tài sản", "tai san", "100 triệu", "đa dạng hóa", "da dang hoa", "chiến lược",
+            "tài sản", "tai san", "100 triệu", "50 triệu", "đa dạng hóa", "da dang hoa",
+            "chiến lược", "giải ngân", "giai ngan", "dca", "trung bình giá", "trung binh gia",
+            "tiền mặt nhàn rỗi", "vốn nhàn rỗi", "tái cơ cấu", "tai co cau", "rebalance", "tỷ trọng",
         )
         is_portfolio_query = any(term in question.casefold() for term in portfolio_terms)
-        if not extracted_symbols and is_portfolio_query:
+        if (not extracted_symbols or all(s in {"VN100", "VNINDEX", "VN30"} for s in extracted_symbols)) and is_portfolio_query:
             extracted_symbols = ["VN100"]
             canonical_symbol = "VN100"
 

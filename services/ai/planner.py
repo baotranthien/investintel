@@ -121,12 +121,17 @@ class QueryPlanner:
             or ("vnindex" in q_lower or "vn-index" in q_lower or "vn100" in q_lower) and any(w in q_lower for w in ("chế độ", "regime", "độ rộng", "tổng quan", "xu hướng"))
         )
 
-        # 4. Check for Portfolio Allocation query
+        # 4. Check for Portfolio Allocation / DCA Cash Deployment query
         portfolio_terms = (
             "danh mục", "danh muc", "phân bổ", "phan bo", "portfolio", "allocation",
-            "tài sản", "tai san", "100 triệu", "đa dạng hóa", "da dang hoa", "chiến lược",
+            "tài sản", "tai san", "100 triệu", "50 triệu", "đa dạng hóa", "da dang hoa",
+            "chiến lược", "giải ngân", "giai ngan", "dca", "trung bình giá", "trung binh gia",
+            "tiền mặt nhàn rỗi", "vốn nhàn rỗi", "tái cơ cấu", "tai co cau", "rebalance",
+            "tỷ trọng", "ty trong",
         )
-        is_portfolio_query = any(term in q_lower for term in portfolio_terms) and not symbols
+        is_portfolio_query = any(term in q_lower for term in portfolio_terms) and (
+            not symbols or all(s in {"VN100", "VNINDEX", "VN30"} for s in symbols)
+        )
 
         # 5. Check for Peer Comparison (Q6, Q17: trung vị ngành, so với ngành, peers)
         is_peer_comparison_query = bool(

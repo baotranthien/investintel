@@ -1,6 +1,16 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, Optional
 from datetime import date
 from .models import FactorScore, FactorProfile
+
+
+def _z_to_score(z: Optional[float], invert: bool = False) -> Optional[float]:
+    """Map Winsorized industry Z-score (-2.5..+2.5) to bounded 0-100 score centered at 50."""
+    if z is None:
+        return None
+    signed_z = -float(z) if invert else float(z)
+    clipped = max(-2.5, min(2.5, signed_z))
+    return round(50.0 + clipped * 18.0, 2)
+
 
 class FactorEngine:
     @staticmethod
@@ -105,3 +115,82 @@ class FactorEngine:
             cyclical=cyclical,
             conflicts=conflicts
         )
+
+    def calculate_cross_sectional_profile(
+        self,
+        symbol: str,
+        as_of: date,
+        session: Any = None,
+        fundamentals: Optional[Dict[str, Any]] = None,
+    ) -> FactorProfile:
+        """
+        Compute sector-relative factor scores using Postgres `rpc_get_cross_sectional_features`
+        (Industry Z-scores) when running on PostgreSQL, falling back cleanly to `calculate_profile`
+        on SQLite or missing peer distributions.
+        """
+        base_profile = self.calculate_profile(symbol, fundamentals or {}, as_of)
+        if session is None:
+            return base_profile
+
+        try:
+            from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+            if not is_postgres_session(session):
+                return base_profile
+
+            rows = call_pg_rpc(
+                session,
+                "rpc_get_cross_sectional_features",
+                {"p_as_of": as_of, "p_symbol": symbol.upper()},
+            )
+            if not isinstance(rows, list) or not rows:
+                return base_profile
+
+            row = rows[0]
+            peer_n = int(row.get("peer_count") or 0)
+            if peer_n < 2:
+                return base_profile
+
+            sector_name = row.get("sector") or "GENERAL"
+
+            # Sector-normalized Quality (Z-score blend of ROE, Net Margin, low Leverage)
+            z_qual_parts = [z for z in (row.get("z_roe"), row.get("z_net_margin"), (-float(row["z_de_ratio"]) if row.get("z_de_ratio") is not None else None)) if z is not None]
+            if z_qual_parts:
+                z_q = sum(float(z) for z in z_qual_parts) / len(z_qual_parts)
+                q_score = _z_to_score(z_q)
+                if q_score is not None:
+                    base_profile.quality.score = q_score
+                    base_profile.quality.drivers.append(
+                        f"Sector Z-Score ({sector_name}, N={peer_n}): ROE={row.get('roe')}% vs peer mean {row.get('sector_mean_roe')}%"
+                    )
+
+            # Sector-normalized Value (low Z_PE & low Z_PB -> higher Value score)
+            z_val_parts = [z for z in (row.get("z_pe"), row.get("z_pb")) if z is not None]
+            if z_val_parts:
+                z_v = sum(float(z) for z in z_val_parts) / len(z_val_parts)
+                v_score = _z_to_score(z_v, invert=True)
+                if v_score is not None:
+                    base_profile.value.score = v_score
+                    base_profile.value.drivers.append(
+                        f"Sector Z-Score ({sector_name}, N={peer_n}): P/E={row.get('pe')}x vs mean {row.get('sector_mean_pe')}x, P/B={row.get('pb')}x vs mean {row.get('sector_mean_pb')}x"
+                    )
+
+            # Sector-normalized Momentum (Z_20D + Z_60D)
+            z_mom_parts = [z for z in (row.get("z_mom_20d"), row.get("z_mom_60d")) if z is not None]
+            if z_mom_parts:
+                z_m = sum(float(z) for z in z_mom_parts) / len(z_mom_parts)
+                m_score = _z_to_score(z_m)
+                if m_score is not None:
+                    base_profile.momentum.score = m_score
+                    base_profile.momentum.drivers.append(
+                        f"Sector Z-Score 20D/60D ({sector_name}): {row.get('mom_20d')}% / {row.get('mom_60d')}%"
+                    )
+
+            base_profile.conflicts = []
+            if base_profile.quality.score > 70 and base_profile.value.score < 35:
+                base_profile.conflicts.append("Sector Quality Premium (Expensive vs Sector Peers)")
+            if base_profile.quality.score > 65 and base_profile.value.score > 65:
+                base_profile.conflicts.append("Sector Compounder Value (High Quality + Cheap vs Peers)")
+        except Exception:
+            pass
+        return base_profile

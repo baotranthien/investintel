@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from database.models import Asset, DataLineage, DataSource, EventRecord, Price
+from database.models import Asset, DataLineage, DataSource, EventRecord, MacroObservation, MarketFlowDaily, Price
 from services.macro.engine import MarketRegimeEngine
 
 
@@ -299,6 +299,71 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
         source=None,
         note="No foreign-flow dataset or provider is registered in the current schema.",
     )
+    try:
+        latest_flow_date = (
+            session.query(func.max(MarketFlowDaily.observation_date))
+            .filter(MarketFlowDaily.observation_date <= as_of)
+            .scalar()
+        )
+        if latest_flow_date is not None:
+            flow_rows = (
+                session.query(MarketFlowDaily)
+                .filter(MarketFlowDaily.observation_date == latest_flow_date)
+                .all()
+            )
+            if flow_rows:
+                total_buy = sum(float(r.foreign_buy_value or 0.0) for r in flow_rows)
+                total_sell = sum(float(r.foreign_sell_value or 0.0) for r in flow_rows)
+                total_net_vnd = sum(float(r.foreign_net_value or 0.0) for r in flow_rows)
+                ranked_buy = sorted(
+                    ((r.symbol, round(float(r.foreign_net_value or 0.0) / 1e9, 2)) for r in flow_rows if (r.foreign_net_value or 0.0) > 0),
+                    key=lambda x: x[1],
+                    reverse=True,
+                )[:5]
+                ranked_sell = sorted(
+                    ((r.symbol, round(float(r.foreign_net_value or 0.0) / 1e9, 2)) for r in flow_rows if (r.foreign_net_value or 0.0) < 0),
+                    key=lambda x: x[1],
+                )[:5]
+                foreign_flow = MarketMetric(
+                    value=round(total_net_vnd / 1e9, 2),
+                    unit="BILLION_VND",
+                    as_of_date=latest_flow_date,
+                    source=flow_rows[0].source or "VPS_FOREIGN_FLOW",
+                    status="AVAILABLE",
+                    data_origin="CANONICAL_DATABASE",
+                    note=f"Net foreign flow across {len(flow_rows)} covered stocks on {latest_flow_date.isoformat()}: {total_net_vnd / 1e9:+.2f}B VND.",
+                    details={
+                        "buy_billion_vnd": round(total_buy / 1e9, 2),
+                        "sell_billion_vnd": round(total_sell / 1e9, 2),
+                        "net_billion_vnd": round(total_net_vnd / 1e9, 2),
+                        "stocks_covered": len(flow_rows),
+                        "top_net_buy": [{"symbol": s, "net_billion_vnd": v} for s, v in ranked_buy],
+                        "top_net_sell": [{"symbol": s, "net_billion_vnd": v} for s, v in ranked_sell],
+                    },
+                )
+        else:
+            macro_ff = (
+                session.query(MacroObservation)
+                .filter(
+                    MacroObservation.series_id == "HOSE_FOREIGN_NET_FLOW",
+                    MacroObservation.observation_date <= as_of,
+                    MacroObservation.anomaly.is_(False),
+                )
+                .order_by(MacroObservation.observation_date.desc())
+                .first()
+            )
+            if macro_ff and macro_ff.value is not None:
+                foreign_flow = MarketMetric(
+                    value=round(float(macro_ff.value), 2),
+                    unit="BILLION_VND",
+                    as_of_date=macro_ff.observation_date,
+                    source="HOSE_FOREIGN_NET_FLOW",
+                    status="AVAILABLE",
+                    data_origin="CANONICAL_DATABASE",
+                    note=f"HOSE aggregate net foreign flow on {macro_ff.observation_date.isoformat()}: {float(macro_ff.value):+.2f}B VND.",
+                )
+    except Exception:
+        pass
 
     event_rows = session.query(EventRecord, DataSource).outerjoin(
         DataSource, EventRecord.source_id == DataSource.id

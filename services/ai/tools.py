@@ -102,6 +102,293 @@ def _get_price_change_evidence(db: Session, asset: Asset, as_of: date) -> list[d
     return evidence
 
 
+def _to_billion_vnd(val: Any) -> Optional[float]:
+    if val is None:
+        return None
+    f_val = float(val)
+    if abs(f_val) > 1e8:
+        return round(f_val / 1e9, 2)
+    return round(f_val, 2)
+
+
+def _get_deep_fundamental_evidence(
+    db: Session,
+    asset: Asset,
+    as_of: date,
+    preloaded_dataset: Any = _UNSET_ARG,
+) -> list[dict[str, Any]]:
+    """Expose Balance Sheet breakdown, Cash Flow quality (CFO/NI), and Postgres Sector Z-Scores."""
+    evidence: list[dict[str, Any]] = []
+    if not asset:
+        return evidence
+    sym = asset.symbol.upper()
+    try:
+        ds = (
+            preloaded_dataset
+            if preloaded_dataset is not _UNSET_ARG and isinstance(preloaded_dataset, dict)
+            else FinancialRepository(db).get_financial_dataset(sym, as_of_date=as_of, asset=asset)
+        )
+        if ds:
+            bal_rows = ds.get("balance_annual") or []
+            if bal_rows:
+                latest_bs = sorted(bal_rows, key=lambda r: r.get("fiscal_period_end") or date.min)[-1]
+                bs_end = latest_bs.get("fiscal_period_end") or as_of
+                bs_label = f"{latest_bs.get('fiscal_year')}Q{latest_bs.get('fiscal_quarter')}" if latest_bs.get("fiscal_quarter") else f"FY{latest_bs.get('fiscal_year')}"
+                st_debt = _to_billion_vnd(latest_bs.get("short_term_debt"))
+                lt_debt = _to_billion_vnd(latest_bs.get("long_term_debt"))
+                tot_debt = round((st_debt or 0.0) + (lt_debt or 0.0), 2) if (st_debt is not None or lt_debt is not None) else None
+                bs_items = [
+                    ("inventory", _to_billion_vnd(latest_bs.get("inventory")), "Hàng tồn kho"),
+                    ("short_term_debt", st_debt, "Nợ vay ngắn hạn"),
+                    ("long_term_debt", lt_debt, "Nợ vay dài hạn"),
+                    ("total_debt", tot_debt, "Tổng nợ vay tài chính"),
+                    ("cash", _to_billion_vnd(latest_bs.get("cash")), "Tiền và tương đương tiền"),
+                    ("total_equity", _to_billion_vnd(latest_bs.get("total_equity")), "Vốn chủ sở hữu"),
+                ]
+                for m_key, m_val, m_label in bs_items:
+                    if m_val is not None:
+                        evidence.append({
+                            "claim_type": "FACT",
+                            "responsible_module": "fundamentals",
+                            "metric": m_key,
+                            "symbol": sym,
+                            "value": m_val,
+                            "unit": "BILLION_VND",
+                            "source": "CANONICAL_BALANCE_SHEET",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "AVAILABLE",
+                            "observation_date": bs_end.isoformat() if hasattr(bs_end, "isoformat") else str(bs_end),
+                            "note": f"{m_label} của {sym} kỳ {bs_label}: {m_val:,.2f} tỷ VND.",
+                        })
+
+            cf_rows = ds.get("cashflow_annual") or []
+            inc_all = (ds.get("income_annual") or []) + (ds.get("income_quarters") or [])
+            if cf_rows:
+                # Prefer matching period between CF and Income Statement for apples-to-apples CFO/NI
+                inc_by_key = {
+                    (r.get("fiscal_period_end"), r.get("period_type")): r
+                    for r in inc_all
+                    if r.get("fiscal_period_end")
+                }
+                cf_sorted = sorted(
+                    cf_rows,
+                    key=lambda r: (1 if r.get("cash_from_operations") is not None else 0, r.get("fiscal_period_end") or date.min),
+                )
+                latest_cf = cf_sorted[-1]
+                cf_end = latest_cf.get("fiscal_period_end") or as_of
+                cf_label = f"{latest_cf.get('fiscal_year')}Q{latest_cf.get('fiscal_quarter')}" if latest_cf.get("fiscal_quarter") else f"FY{latest_cf.get('fiscal_year')}"
+                cfo_v = _to_billion_vnd(latest_cf.get("cash_from_operations"))
+                fcf_v = _to_billion_vnd(latest_cf.get("free_cash_flow"))
+                if fcf_v is None and cfo_v is not None and latest_cf.get("capex") is not None:
+                    fcf_v = round(cfo_v - abs(_to_billion_vnd(latest_cf.get("capex")) or 0.0), 2)
+                if cfo_v is not None:
+                    evidence.append({
+                        "claim_type": "FACT",
+                        "responsible_module": "fundamentals",
+                        "metric": "cfo",
+                        "symbol": sym,
+                        "value": cfo_v,
+                        "unit": "BILLION_VND",
+                        "source": "CANONICAL_CASH_FLOW",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": cf_end.isoformat() if hasattr(cf_end, "isoformat") else str(cf_end),
+                        "note": f"Lưu chuyển tiền thuần từ HĐKD (CFO) của {sym} kỳ {cf_label}: {cfo_v:,.2f} tỷ VND.",
+                    })
+                if fcf_v is not None:
+                    evidence.append({
+                        "claim_type": "FACT",
+                        "responsible_module": "fundamentals",
+                        "metric": "fcf",
+                        "symbol": sym,
+                        "value": fcf_v,
+                        "unit": "BILLION_VND",
+                        "source": "CANONICAL_CASH_FLOW",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": cf_end.isoformat() if hasattr(cf_end, "isoformat") else str(cf_end),
+                        "note": f"Dòng tiền tự do (FCF) của {sym} kỳ {cf_label}: {fcf_v:,.2f} tỷ VND.",
+                    })
+                matched_inc = inc_by_key.get((latest_cf.get("fiscal_period_end"), latest_cf.get("period_type")))
+                is_bank = (asset.sector and "BANK" in asset.sector.upper()) or sym in {"VCB", "MBB", "TCB", "BID", "CTG", "ACB", "VPB", "STB", "HDB", "TPB"}
+                if not is_bank and cfo_v is not None and matched_inc:
+                    ni_v = _to_billion_vnd(matched_inc.get("net_income_parent") or matched_inc.get("net_income"))
+                    if ni_v and ni_v > 0:
+                        ratio = round(cfo_v / ni_v, 2)
+                        warn = " [CẢNH BÁO: Chất lượng chuyển hóa tiền mặt yếu (< 0.30x), cần kiểm tra phải thu/hàng tồn kho]" if ratio < 0.30 else ""
+                        evidence.append({
+                            "claim_type": "MODEL_OUTPUT",
+                            "responsible_module": "fundamentals",
+                            "metric": "cfo_to_ni",
+                            "symbol": sym,
+                            "value": ratio,
+                            "unit": "ratio",
+                            "source": "CASH_FLOW_QUALITY_ENGINE",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "AVAILABLE",
+                            "observation_date": cf_end.isoformat() if hasattr(cf_end, "isoformat") else str(cf_end),
+                            "note": f"Tỷ lệ chất lượng dòng tiền CFO / Lợi nhuận ròng của {sym} ({cf_label}): {ratio:.2f}x (CFO={cfo_v:,.2f} tỷ / LN={ni_v:,.2f} tỷ VND).{warn}",
+                        })
+    except Exception:
+        pass
+
+    try:
+        from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+        if is_postgres_session(db):
+            rows = call_pg_rpc(db, "rpc_get_cross_sectional_features", {"p_as_of": as_of, "p_symbol": sym})
+            if isinstance(rows, list) and rows:
+                r0 = rows[0]
+                if r0.get("z_roe") is not None or r0.get("z_pe") is not None:
+                    evidence.append({
+                        "claim_type": "MODEL_OUTPUT",
+                        "responsible_module": "factors",
+                        "metric": "sector_z_score",
+                        "symbol": sym,
+                        "value": round(float(r0.get("z_roe") or 0.0), 2),
+                        "unit": "z_score",
+                        "source": "RPC_CROSS_SECTIONAL_FEATURES",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": as_of.isoformat(),
+                        "note": (
+                            f"Vị thế Z-Score ngành {r0.get('sector')} của {sym} (N={r0.get('peer_count')} mã): "
+                            f"Z_ROE={r0.get('z_roe')}, Z_PE={r0.get('z_pe')}, Z_PB={r0.get('z_pb')}, "
+                            f"Momentum 20D={r0.get('mom_20d')}% (Z={r0.get('z_mom_20d')})."
+                        ),
+                    })
+    except Exception:
+        pass
+    return evidence
+
+
+def _get_portfolio_dca_evidence(
+    portfolio_overview: Optional[dict[str, Any]],
+    portfolio_fit_data: Optional[dict[str, Any]],
+    question: Optional[str],
+    as_of: date,
+) -> list[dict[str, Any]]:
+    """Build verifiable personal portfolio concentration & DCA capital deployment evidence."""
+    evidence: list[dict[str, Any]] = []
+    if not isinstance(portfolio_overview, dict) or not portfolio_overview.get("holdings"):
+        return evidence
+
+    summary = portfolio_overview.get("summary") or {}
+    conc = portfolio_overview.get("concentration") or {}
+    holdings = portfolio_overview.get("holdings") or []
+    nav = summary.get("total_value")
+    if nav is not None:
+        evidence.append({
+            "claim_type": "FACT",
+            "responsible_module": "portfolio",
+            "metric": "portfolio_nav",
+            "symbol": "PORTFOLIO",
+            "value": round(float(nav), 0),
+            "unit": "VND",
+            "source": "PERSONAL_PORTFOLIO_DB",
+            "data_origin": "LOCAL_PERSONAL_PORTFOLIO",
+            "freshness": portfolio_overview.get("status", "AVAILABLE"),
+            "observation_date": as_of.isoformat(),
+            "note": f"Tổng giá trị tài sản ròng danh mục (NAV) tại {as_of}: {float(nav):,.0f} VND với {len(holdings)} cổ phiếu.",
+        })
+
+    if conc:
+        max_w = conc.get("max_single_weight")
+        max_sym = conc.get("max_single_symbol")
+        s_lim = conc.get("single_name_limit")
+        sec_w = conc.get("max_sector_weight")
+        sec_name = conc.get("max_sector")
+        sec_lim = conc.get("sector_limit")
+        breaches = []
+        if max_w is not None and s_lim is not None and float(max_w) > float(s_lim):
+            breaches.append(f"Vượt trần cổ phiếu đơn lẻ {max_sym} ({float(max_w)*100:.1f}% > trần {float(s_lim)*100:.0f}%)")
+        if sec_w is not None and sec_lim is not None and float(sec_w) > float(sec_lim):
+            breaches.append(f"Vượt trần ngành {sec_name} ({float(sec_w)*100:.1f}% > trần {float(sec_lim)*100:.0f}%)")
+        evidence.append({
+            "claim_type": "FACT",
+            "responsible_module": "portfolio",
+            "metric": "portfolio_concentration",
+            "symbol": "PORTFOLIO",
+            "value": round(float(max_w or 0.0) * 100.0, 2),
+            "unit": "%",
+            "source": "PERSONAL_PORTFOLIO_DB",
+            "data_origin": "LOCAL_PERSONAL_PORTFOLIO",
+            "freshness": "AVAILABLE",
+            "observation_date": as_of.isoformat(),
+            "note": (
+                f"Mức tập trung lớn nhất danh mục: {max_sym} ({float(max_w or 0)*100:.1f}%, trần {float(s_lim or 0)*100:.0f}%); "
+                f"Ngành lớn nhất: {sec_name} ({float(sec_w or 0)*100:.1f}%, trần {float(sec_lim or 0)*100:.0f}%). "
+                + ("; ".join(breaches) if breaches else "Trong ngưỡng kiểm soát rủi ro tập trung.")
+            ),
+        })
+
+    for h in holdings:
+        sym_h = h.get("symbol")
+        cw = h.get("current_weight")
+        tw = h.get("target_weight")
+        mv = h.get("market_value")
+        if sym_h and cw is not None:
+            tw_str = f", mục tiêu {float(tw)*100:.1f}%" if tw is not None else ""
+            mv_str = f", giá trị {float(mv):,.0f} VND" if mv is not None else ""
+            evidence.append({
+                "claim_type": "FACT",
+                "responsible_module": "portfolio",
+                "metric": "portfolio_holding_weight",
+                "symbol": sym_h,
+                "value": round(float(cw) * 100.0, 2),
+                "unit": "%",
+                "source": "PERSONAL_PORTFOLIO_DB",
+                "data_origin": "LOCAL_PERSONAL_PORTFOLIO",
+                "freshness": "AVAILABLE",
+                "observation_date": as_of.isoformat(),
+                "note": f"Tỷ trọng {sym_h} ({h.get('sector')}, vai trò {h.get('role')}): {float(cw)*100:.2f}%{tw_str}{mv_str}.",
+            })
+
+    import re
+    q_low = (question or "").lower()
+    m_budget = re.search(r"(\d+(?:[.,]\d+)?)\s*(triệu|tr\b|trieu|tỷ|ty|m\b)", q_low)
+    asks_dca = any(k in q_low for k in ("dca", "giải ngân", "giai ngan", "phân bổ", "phan bo", "trung bình giá", "rebalance", "tái cơ cấu"))
+    if m_budget or asks_dca:
+        budget_vnd = 50_000_000.0
+        if m_budget:
+            num = float(m_budget.group(1).replace(",", "."))
+            unit_w = m_budget.group(2)
+            budget_vnd = num * (1_000_000_000.0 if unit_w in ("tỷ", "ty") else 1_000_000.0)
+        s_limit = float(conc.get("single_name_limit") or 0.25)
+        fit_items = {it.get("symbol"): it for it in (portfolio_fit_data or {}).get("items", []) if it.get("symbol")}
+        candidates = []
+        for h in holdings:
+            hsym = h.get("symbol")
+            cw = float(h.get("current_weight") or 0.0)
+            tw = float(h.get("target_weight") or cw)
+            if cw >= s_limit * 0.98:
+                continue  # Never add capital to concentrated overweight position
+            opp_s = float((fit_items.get(hsym) or {}).get("opportunity_score") or 55.0)
+            gap = max(0.02, (tw - cw) + (opp_s - 50.0) / 500.0)
+            candidates.append((hsym, gap, cw, tw))
+        if not candidates and holdings:
+            candidates = [(h["symbol"], 1.0, float(h.get("current_weight") or 0.0), float(h.get("target_weight") or 0.0)) for h in holdings]
+        tot_gap = sum(c[1] for c in candidates) or 1.0
+        plan_parts = []
+        for hsym, gap, cw, tw in sorted(candidates, key=lambda x: x[1], reverse=True)[:4]:
+            w_alloc = gap / tot_gap
+            vnd_alloc = round(budget_vnd * w_alloc, -4)
+            plan_parts.append(f"{hsym}: {w_alloc*100:.1f}% (~{vnd_alloc:,.0f} VND, tỷ trọng hiện tại {cw*100:.1f}%)")
+        evidence.append({
+            "claim_type": "MODEL_OUTPUT",
+            "responsible_module": "portfolio",
+            "metric": "dca_allocation_plan",
+            "symbol": "PORTFOLIO",
+            "value": round(budget_vnd, 0),
+            "unit": "VND",
+            "source": "PORTFOLIO_DCA_REBALANCE_ENGINE",
+            "data_origin": "LOCAL_PERSONAL_PORTFOLIO",
+            "freshness": "AVAILABLE",
+            "observation_date": as_of.isoformat(),
+            "note": f"Kế hoạch giải ngân {budget_vnd:,.0f} VND tuân thủ trần tập trung {s_limit*100:.0f}% (tránh dồn thêm vào mã vượt trần): {'; '.join(plan_parts)}.",
+        })
+    return evidence
+
+
 def _get_bank_evidence(db: Session, asset: Asset, as_of: date) -> list[dict[str, Any]]:
     is_bank = (asset.sector and "BANK" in asset.sector.upper()) or asset.symbol in {
         "VCB", "MBB", "TCB", "BID", "CTG", "ACB", "VPB", "STB", "HDB", "TPB", "MSB", "SHB", "VIB", "LPB", "SSB", "EIB", "OCB"
@@ -417,6 +704,8 @@ def _get_valuation_dcf_evidence(
                         })
             for m in getattr(val_snap, "methods", []):
                 if m.method == "DCF" and m.fair_value.base > 0:
+                    wacc_used = next((a.value for a in (m.assumptions_used or []) if a.name == "WACC"), None)
+                    wacc_note = f" (WACC={wacc_used}%)" if wacc_used else ""
                     evidence.append({
                         "claim_type": "MODEL_OUTPUT",
                         "responsible_module": "valuation",
@@ -428,8 +717,46 @@ def _get_valuation_dcf_evidence(
                         "data_origin": "CANONICAL_DATABASE",
                         "freshness": "AVAILABLE",
                         "observation_date": as_of.isoformat(),
-                        "note": f"Định giá DCF kịch bản cơ sở (Base Case) của {symbol}: {m.fair_value.base:,.0f} VND/cổ phiếu (Bear: {m.fair_value.bear:,.0f} VND, Bull: {m.fair_value.bull:,.0f} VND).",
+                        "note": f"Định giá DCF kịch bản cơ sở (Base Case) của {symbol}{wacc_note}: {m.fair_value.base:,.0f} VND/cổ phiếu (Bear: {m.fair_value.bear:,.0f} VND, Bull: {m.fair_value.bull:,.0f} VND).",
                     })
+                    if getattr(val_snap, "scenarios", None):
+                        p10_sc = val_snap.scenarios[0]
+                        p50_sc = val_snap.scenarios[1] if len(val_snap.scenarios) > 1 else None
+                        p90_sc = val_snap.scenarios[2] if len(val_snap.scenarios) > 2 else None
+                        ass_p10 = getattr(p10_sc, "assumptions", {}) or {}
+                        p10_v = ass_p10.get("p10")
+                        p50_v = ass_p10.get("p50") or (p50_sc.fair_value if p50_sc else None)
+                        p90_v = ass_p10.get("p90") or (p90_sc.fair_value if p90_sc else None)
+                        if p10_v and p50_v and p90_v:
+                            evidence.append({
+                                "claim_type": "MODEL_OUTPUT",
+                                "responsible_module": "valuation",
+                                "metric": "dcf_sensitivity",
+                                "symbol": symbol,
+                                "value": round(float(p50_v), 0),
+                                "unit": "VND",
+                                "source": "DCF_SENSITIVITY_MATRIX",
+                                "data_origin": "CANONICAL_DATABASE",
+                                "freshness": "AVAILABLE",
+                                "observation_date": as_of.isoformat(),
+                                "note": f"Độ nhạy DCF WACC ±1.0% / g ±0.5% của {symbol}: P10 (stress) = {float(p10_v):,.0f} VND, P50 (median) = {float(p50_v):,.0f} VND, P90 (bull) = {float(p90_v):,.0f} VND.",
+                            })
+                    wacc_val = funds.get("wacc")
+                    beta_val = funds.get("beta")
+                    if wacc_val is not None:
+                        evidence.append({
+                            "claim_type": "MODEL_OUTPUT",
+                            "responsible_module": "valuation",
+                            "metric": "wacc",
+                            "symbol": symbol,
+                            "value": round(float(wacc_val) * 100.0, 2),
+                            "unit": "%",
+                            "source": "CAPM_WACC_MODEL",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "AVAILABLE",
+                            "observation_date": as_of.isoformat(),
+                            "note": f"Chi phí vốn bình quân gia quyền WACC của {symbol}: {float(wacc_val)*100:.2f}% (Beta Blume={beta_val}).",
+                        })
                 elif m.method == "Relative P/E" and m.fair_value.base > 0:
                     evidence.append({
                         "claim_type": "MODEL_OUTPUT",
@@ -957,29 +1284,123 @@ class AITools:
                         "observation_date": breadth.get("as_of_date"),
                         "note": f"Số lượng cổ phiếu giảm giá trong rổ VN100: {dec} mã.",
                     })
-            # Explicit disclosure for VNINDEX (toàn sàn HOSE) — prevents silent substitution with VN100
-            market_ev.append({
-                "claim_type": "UNCERTAINTY",
-                "responsible_module": "regime",
-                "metric": "market_regime_vnindex",
-                "symbol": "VNINDEX",
-                "value": None,
-                "unit": "regime",
-                "source": "canonical_database",
-                "data_origin": "CANONICAL_DATABASE",
-                "freshness": "INSUFFICIENT_DATA",
-                "observation_date": requested_date.isoformat(),
-                "note": "Chỉ số VNINDEX (toàn sàn HOSE) chưa có dữ liệu chuỗi giá trực tiếp trong cơ sở dữ liệu kiểm chứng. Hệ thống cung cấp trạng thái rổ chỉ số VN100 làm bối cảnh đại diện quy mô lớn (Proxy Context).",
-            })
+            # Real VNINDEX check before falling back to VN100 Proxy disclosure
+            vnindex_asset = db.query(Asset).filter(Asset.symbol == "VNINDEX").first()
+            vnindex_rows = (
+                db.query(Price)
+                .filter(
+                    Price.asset_id == vnindex_asset.id,
+                    Price.status == "VALID",
+                    Price.observation_date <= requested_date,
+                    Price.raw_close.isnot(None),
+                    Price.raw_close > 0,
+                )
+                .order_by(Price.observation_date.desc())
+                .limit(25)
+                .all()
+                if vnindex_asset
+                else []
+            )
+            if len(vnindex_rows) >= 2:
+                latest_vni, prev_vni = vnindex_rows[0], vnindex_rows[1]
+                vni_close = round(float(latest_vni.adjusted_close or latest_vni.raw_close), 2)
+                vni_prev = round(float(prev_vni.adjusted_close or prev_vni.raw_close), 2)
+                vni_chg_pct = round(((vni_close - vni_prev) / vni_prev) * 100.0, 2) if vni_prev > 0 else 0.0
+                vni_20d_base = round(float((vnindex_rows[min(19, len(vnindex_rows) - 1)].adjusted_close or vnindex_rows[min(19, len(vnindex_rows) - 1)].raw_close)), 2)
+                vni_mom_20d = round(((vni_close - vni_20d_base) / vni_20d_base) * 100.0, 2) if vni_20d_base > 0 else 0.0
+                vni_regime = "BULLISH" if vni_mom_20d >= 2.0 else ("BEARISH" if vni_mom_20d <= -2.0 else "NEUTRAL")
+                market_ev.extend([
+                    {
+                        "claim_type": "FACT",
+                        "responsible_module": "regime",
+                        "metric": "vnindex_close",
+                        "symbol": "VNINDEX",
+                        "value": vni_close,
+                        "unit": "points",
+                        "source": latest_vni.source or "CANONICAL_DATABASE",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": latest_vni.observation_date.isoformat(),
+                        "note": f"Chỉ số VNINDEX phiên {latest_vni.observation_date}: {vni_close:,.2f} điểm ({vni_chg_pct:+.2f}% 1D, {vni_mom_20d:+.2f}% 20 phiên).",
+                    },
+                    {
+                        "claim_type": "MODEL_OUTPUT",
+                        "responsible_module": "regime",
+                        "metric": "market_regime_vnindex",
+                        "symbol": "VNINDEX",
+                        "value": vni_regime,
+                        "unit": "regime",
+                        "source": "vnindex_price_momentum_v1",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": latest_vni.observation_date.isoformat(),
+                        "note": f"Trạng thái xu hướng trực tiếp VNINDEX ({latest_vni.observation_date}): {vni_regime} (mức {vni_close:,.2f} điểm, biến động 20 phiên {vni_mom_20d:+.2f}%).",
+                    },
+                ])
+            else:
+                market_ev.append({
+                    "claim_type": "UNCERTAINTY",
+                    "responsible_module": "regime",
+                    "metric": "market_regime_vnindex",
+                    "symbol": "VNINDEX",
+                    "value": None,
+                    "unit": "regime",
+                    "source": "canonical_database",
+                    "data_origin": "CANONICAL_DATABASE",
+                    "freshness": "INSUFFICIENT_DATA",
+                    "observation_date": requested_date.isoformat(),
+                    "note": "Chỉ số VNINDEX (toàn sàn HOSE) chưa có dữ liệu chuỗi giá trực tiếp trong cơ sở dữ liệu kiểm chứng. Hệ thống cung cấp trạng thái rổ chỉ số VN100 làm bối cảnh đại diện quy mô lớn (Proxy Context).",
+                })
+
+            # Grounded Macro & Foreign Flow evidence
+            macro_ev: list[dict[str, Any]] = []
+            for region_name, series_list in (macro.get("regions") or {}).items():
+                for s_item in series_list or []:
+                    if s_item.get("value") is not None and str(s_item.get("status") or "").upper() in ("AVAILABLE", "PARTIAL"):
+                        sid = str(s_item.get("series_id") or "")
+                        macro_ev.append({
+                            "claim_type": "FACT",
+                            "responsible_module": "macro",
+                            "metric": sid,
+                            "symbol": "MARKET",
+                            "value": round(float(s_item["value"]), 3),
+                            "unit": s_item.get("unit"),
+                            "source": s_item.get("source") or "MACRO_DATABASE",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "AVAILABLE",
+                            "observation_date": s_item.get("as_of_date") or requested_date.isoformat(),
+                            "note": f"Chỉ báo vĩ mô {s_item.get('name') or sid} ({region_name}): {s_item['value']} {s_item.get('unit') or ''} tại ngày {s_item.get('as_of_date')}.",
+                        })
+            ff = market.get("foreign_flow") or {}
+            if isinstance(ff, dict) and ff.get("status") == "AVAILABLE" and ff.get("value") is not None:
+                ff_det = ff.get("details") or {}
+                top_b = ", ".join(f"{x['symbol']} (+{x['net_billion_vnd']}tỷ)" for x in (ff_det.get("top_net_buy") or [])[:3])
+                top_s = ", ".join(f"{x['symbol']} ({x['net_billion_vnd']}tỷ)" for x in (ff_det.get("top_net_sell") or [])[:3])
+                extra_ff = f" Mua ròng mạnh: {top_b}; Bán ròng mạnh: {top_s}." if (top_b or top_s) else ""
+                macro_ev.append({
+                    "claim_type": "FACT",
+                    "responsible_module": "macro",
+                    "metric": "hose_foreign_net_flow",
+                    "symbol": "MARKET",
+                    "value": ff["value"],
+                    "unit": "BILLION_VND",
+                    "source": ff.get("source") or "VPS_FOREIGN_FLOW",
+                    "data_origin": "CANONICAL_DATABASE",
+                    "freshness": "AVAILABLE",
+                    "observation_date": ff.get("as_of_date") or requested_date.isoformat(),
+                    "note": f"Dòng tiền khối ngoại HOSE ngày {ff.get('as_of_date')}: Ròng {ff['value']:+.2f} tỷ VND (Mua {ff_det.get('buy_billion_vnd', 'N/A')} tỷ, Bán {ff_det.get('sell_billion_vnd', 'N/A')} tỷ).{extra_ff}",
+                })
+
             market["evidence"] = market_ev
+            market["macro_evidence"] = macro_ev
             return {
                 "status": market.get("status", "INSUFFICIENT_DATA"),
                 "as_of_date": requested_date.isoformat(),
                 "market_regime": regime.get("regime", "INSUFFICIENT_DATA"),
                 "regime_confidence": regime.get("confidence"),
-                "macro_growth": "INSUFFICIENT_DATA",
-                "macro_liquidity": "INSUFFICIENT_DATA",
-                "macro_rates": "INSUFFICIENT_DATA",
+                "macro_growth": "AVAILABLE" if macro.get("status") == "AVAILABLE" else "INSUFFICIENT_DATA",
+                "macro_liquidity": "AVAILABLE" if (ff.get("status") == "AVAILABLE") else "INSUFFICIENT_DATA",
+                "macro_rates": "AVAILABLE" if macro.get("status") == "AVAILABLE" else "INSUFFICIENT_DATA",
                 "market": market,
                 "macro": macro,
             }
@@ -1075,10 +1496,12 @@ class AITools:
                             ev_copy["symbol"] = sym
                             combined_evidence.append(ev_copy)
 
-                        # Bank metrics & price change expansion
+                        # Bank metrics, deep balance/cashflow, Z-score & price change expansion
                         combined_evidence.extend(_get_price_change_evidence(db, asset, as_of))
+                        combined_evidence.extend(_get_deep_fundamental_evidence(db, asset, as_of, preloaded_dataset=sym_dataset))
                         bank_ev = _get_bank_evidence(db, asset, as_of)
                         combined_evidence.extend(bank_ev)
+                        combined_evidence.extend(_get_dividend_evidence(db, sym, as_of))
 
                         # DCF and Peer Medians expansion
                         peer_res = _get_peer_comparison(db, sym, as_of)
@@ -1120,11 +1543,14 @@ class AITools:
                 comm_ev, c_series, s_series = _get_commodity_evidence_and_series(db, norm_symbols, as_of, question)
                 combined_evidence.extend(comm_ev)
 
-                # Append market context evidence
+                # Append market, macro & portfolio evidence for multi-ticker comparisons
                 for ev in market_context.get("market", {}).get("evidence", []):
                     ev_copy = dict(ev)
                     ev_copy.setdefault("symbol", "VN100")
                     combined_evidence.append(ev_copy)
+                for ev in market_context.get("market", {}).get("macro_evidence", []):
+                    combined_evidence.append(dict(ev))
+                combined_evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
 
                 rag_service = DocumentRAGService(session=db)
                 rag_query = f"{' '.join(norm_symbols)} {question or ''}".strip() or "corporate update"
@@ -1213,9 +1639,10 @@ class AITools:
                 for ev in evidence:
                     ev.setdefault("symbol", normalized)
 
-            # Bank metrics & price change expansion
+            # Bank metrics, deep balance/cashflow, Z-score & price change expansion
             if asset:
                 evidence.extend(_get_price_change_evidence(db, asset, as_of))
+                evidence.extend(_get_deep_fundamental_evidence(db, asset, as_of, preloaded_dataset=norm_dataset))
                 bank_ev = _get_bank_evidence(db, asset, as_of)
                 evidence.extend(bank_ev)
 
@@ -1259,16 +1686,25 @@ class AITools:
                 scr_ev = _get_screener_evidence(db, None, as_of, question=question)
                 evidence.extend(scr_ev)
 
-            # Market context & breadth expansion (Q8)
-            is_market_query = (
-                normalized in (None, "VN100", "VNINDEX")
-                or any(k in q_lower_str for k in ("chế độ thị trường", "market regime", "độ rộng", "breadth", "thị trường chứng khoán"))
+            # Market context, Macro rates/FX, Foreign Flow & Portfolio DCA expansion
+            is_market_or_macro_query = (
+                normalized in (None, "VN100", "VNINDEX", "ALL", "UNIVERSE")
+                or any(k in q_lower_str for k in (
+                    "chế độ thị trường", "market regime", "độ rộng", "breadth", "thị trường",
+                    "lãi suất", "fed", "tỷ giá", "usd", "cpi", "lạm phát", "gdp", "vĩ mô",
+                    "khối ngoại", "foreign", "wacc", "dcf", "chiết khấu", "danh mục", "phân bổ", "giải ngân", "dca",
+                ))
             )
-            if is_market_query:
+            if is_market_or_macro_query:
                 for ev in market_context.get("market", {}).get("evidence", []):
                     ev_copy = dict(ev)
                     ev_copy.setdefault("symbol", "VN100")
                     evidence.append(ev_copy)
+                for ev in market_context.get("market", {}).get("macro_evidence", []):
+                    evidence.append(dict(ev))
+
+            if normalized in (None, "VN100", "VNINDEX") or any(k in q_lower_str for k in ("danh mục", "phân bổ", "giải ngân", "dca", "trung bình giá", "rebalance", "tái cơ cấu", "tỷ trọng", "triệu")):
+                evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
 
             # Macro commodity expansion
             comm_ev, c_series, s_series = _get_commodity_evidence_and_series(db, norm_symbols, as_of, question)

@@ -495,8 +495,8 @@ export default function SettingsPage() {
           </h2>
           <p className={styles.sectionDescription}>
             {t(
-              "Cấu hình mô hình ngôn ngữ lớn cục bộ chạy trên phần cứng máy tính người dùng.",
-              "Configure local quantitative LLM runtime deployed directly on private workstation hardware."
+              "Cấu hình AI Gateway đa nhà cung cấp (Cloud API & local runtime) với cơ chế đối soát dữ liệu chuẩn hóa.",
+              "Configure multi-provider AI Gateway (Cloud LLM & optional local runtime) with grounded quantitative verification."
             )}
           </p>
         </div>

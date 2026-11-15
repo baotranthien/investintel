@@ -113,20 +113,7 @@ class DividendYieldEngine:
             if cash_val is None or cash_val <= 0:
                 continue
 
-            # Deduplicate duplicate language filings on same date with same value
-            dedup_key = (ca.action_date, round(cash_val, 0))
-            if dedup_key in seen:
-                continue
-            seen.add(dedup_key)
-
-            if ca.ex_date is None:
-                missing_fields.add("ex_date")
-            if ca.payment_date is None:
-                missing_fields.add("payment_date")
-            if ca.value is None:
-                missing_fields.add("structured_value_column")
-
-            # Parse fiscal year & round from notes if present
+            # Parse fiscal year & round before dedup so bilingual/structured rows merge cleanly
             fy = None
             rnd = None
             m_fy = re.search(r"(?:đợt|round)\s*(\d+)\/(\d{4})", notes, re.IGNORECASE)
@@ -138,6 +125,42 @@ class DividendYieldEngine:
                 if m_fy2:
                     rnd = 1 if "First" in m_fy2.group(1) or "1st" in m_fy2.group(1) else 2
                     fy = int(m_fy2.group(2))
+
+            dedup_key = (ca.action_date, round(cash_val, 0))
+            fy_rnd_key = (fy, rnd, round(cash_val, 0)) if (fy and rnd) else None
+            matched_idx = None
+            for idx, existing_p in enumerate(payments):
+                same_date_val = (existing_p.action_date, round(existing_p.cash_amount, 0)) == dedup_key
+                same_round_val = fy_rnd_key is not None and (existing_p.fiscal_year, existing_p.distribution_round, round(existing_p.cash_amount, 0)) == fy_rnd_key
+                if same_date_val or same_round_val:
+                    matched_idx = idx
+                    break
+
+            is_structured_row = ca.value is not None and ca.ex_date is not None and ca.payment_date is not None
+            if matched_idx is not None:
+                if is_structured_row and payments[matched_idx].ex_date is None:
+                    payments[matched_idx] = DividendPayment(
+                        action_date=ca.action_date,
+                        ex_date=ca.ex_date,
+                        payment_date=ca.payment_date,
+                        cash_amount=cash_val,
+                        currency=ca.currency or "VND",
+                        action_type=ca.action_type,
+                        fiscal_year=fy or payments[matched_idx].fiscal_year,
+                        distribution_round=rnd or payments[matched_idx].distribution_round,
+                        notes=notes,
+                        is_ttm=(ca.action_date >= one_year_ago),
+                    )
+                continue
+            seen.add(dedup_key)
+
+            if not is_structured_row:
+                if ca.ex_date is None:
+                    missing_fields.add("ex_date")
+                if ca.payment_date is None:
+                    missing_fields.add("payment_date")
+                if ca.value is None:
+                    missing_fields.add("structured_value_column")
 
             is_ttm = ca.action_date >= one_year_ago
 
@@ -153,6 +176,14 @@ class DividendYieldEngine:
                 notes=notes,
                 is_ttm=is_ttm,
             ))
+
+        # Recompute missing status purely from surviving canonical payments
+        missing_fields = set()
+        has_unstructured_notes = any(p.ex_date is None or p.payment_date is None for p in payments)
+        if any(p.ex_date is None for p in payments):
+            missing_fields.add("ex_date")
+        if any(p.payment_date is None for p in payments):
+            missing_fields.add("payment_date")
 
         if not payments:
             return DividendYieldSummary(

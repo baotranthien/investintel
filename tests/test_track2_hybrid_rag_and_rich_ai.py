@@ -132,7 +132,9 @@ def test_local_corpus_frontmatter_pit_filtering(db_session):
 
     svc = DocumentRAGService(session=db_session)
     indexed_ids = svc.ingest_local_directory("data/documents")
-    assert len(indexed_ids) == 5
+    assert len(indexed_ids) >= 14
+    assert "HPG_QUARTERLY_REPORT_2024-07-25_TienDoDungQuat2" in indexed_ids
+    assert "FPT_QUARTERLY_REPORT_2026-10-29_Q3_2026_Summary" in indexed_ids
 
     # Before 2024-07-25 -> HPG Q2 report MUST NOT leak via PIT violation!
     early_res = svc.retrieve_documents("Dung Quat 2", ticker="HPG", as_of_date=date(2024, 7, 1))

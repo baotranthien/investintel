@@ -1073,7 +1073,7 @@ function AIWorkspaceContent() {
                 </span>
               ) : (
                 <span className={styles.statusBadgeWrapper}>
-                  <StatusBadge status="AVAILABLE" label="Local-First Model" />
+                  <StatusBadge status="AVAILABLE" label={t("AI Gateway Sẵn sàng", "AI Gateway Ready")} />
                 </span>
               )}
             </div>
@@ -1199,8 +1199,8 @@ function AIWorkspaceContent() {
 
             <p className={styles.disclaimerText}>
               {t(
-                "Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.",
-                "100% local-first data verification. Proprietary records never leave your environment."
+                "Dữ liệu đối soát trực tiếp từ cơ sở dữ liệu chuẩn hóa Supabase & PostgreSQL. Danh mục cá nhân luôn được cách ly bảo mật.",
+                "Grounded against canonical Supabase & PostgreSQL data with verifiable citations and isolated personal portfolio records."
               )}
             </p>
           </div>
@@ -1701,8 +1701,8 @@ function AIShellFallback(): JSX.Element {
             </div>
             <p className={styles.disclaimerText}>
               {t(
-                "Dữ liệu đối soát 100% cục bộ (Local-First). Không gửi dữ liệu nội bộ ra bên ngoài.",
-                "100% local-first data verification. Proprietary records never leave your environment."
+                "Dữ liệu đối soát trực tiếp từ cơ sở dữ liệu chuẩn hóa Supabase & PostgreSQL. Danh mục cá nhân luôn được cách ly bảo mật.",
+                "Grounded against canonical Supabase & PostgreSQL data with verifiable citations and isolated personal portfolio records."
               )}
             </p>
           </div>

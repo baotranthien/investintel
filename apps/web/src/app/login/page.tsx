@@ -151,7 +151,7 @@ export default function LoginPage() {
         <div style={{ marginTop: "24px", textAlign: "center", borderTop: "1px solid var(--border-color, rgba(255, 255, 255, 0.08))", paddingTop: "16px" }}>
           {!authRequired && (
             <p style={{ fontSize: "12px", color: "var(--ink-tertiary, #6b7280)", margin: "0 0 10px 0" }}>
-              {t("Chế độ cục bộ (không bật mật khẩu máy trạm)", "Local mode active (Workstation auth unconfigured)")}
+              {t("Chế độ truy cập mở (chưa bật mật khẩu quản trị)", "Open workspace mode (Admin auth not enforced)")}
             </p>
           )}
           <Link

@@ -8,10 +8,10 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 from sqlalchemy.orm import Session
-from database.models import Asset, IndexMembership, DataSource
+from database.models import Asset, IndexMembership
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +162,9 @@ NON_SYMBOL_WORDS: Set[str] = {
     "STOCK", "INDEX", "ASOF", "DATE", "YEAR", "QUARTER", "SAN", "HOSE",
     "HNX", "UPCOM", "VN30", "VN100", "VNI", "CODE", "WTI", "NPL", "LLR",
     "PEG", "CPI", "GDP", "YOY", "QOQ", "SBV", "BLS", "GSO", "NSO", "IAS",
-    "IFRS", "ETF", "CAR", "LDR", "CIR", "SGA", "BCTC",
+    "IFRS", "ETF", "CAR", "LDR", "CIR", "SGA", "BCTC", "DCA", "FED", "HRC",
+    "FOMO", "FIFO", "LIFO", "CEO", "CFO", "IPO", "AGM", "ESG", "NAV", "ROI",
+    "IRR", "NPV", "B2B", "B2C", "API", "LLM", "RAG", "SQL", "USD", "FX",
 }
 
 _PREFIX_RE = re.compile(r"^(?:HOSE|HNX|UPCOM|INDEX|STOCK)[:/_-]", re.IGNORECASE)
@@ -278,10 +280,11 @@ class UniverseRegistry:
                 if resolved.source in {"BENCHMARK_INDEX", "DATABASE_ASSET", "VN100_CONSTITUENTS_JSON", "VN30_CONSTITUENTS_JSON", "CANONICAL_DATABASE"}:
                     matched_items.append((m.start(), resolved.symbol))
                 elif token.isupper():
-                    # For unknown / fallback tickers: accept 3-letter tickers or explicitly introduced tokens (e.g. 'mã ZZZTEST')
+                    # Only treat unknown/unlisted uppercase tokens as symbols when explicitly prefixed
+                    # (e.g. 'mã ZZZTEST'), avoiding false positives like DCA, FED, HRC.
                     preceding = cleaned[:m.start()].lower()
                     has_explicit_marker = bool(re.search(r"(?:mã|ma|cổ phiếu|co phieu|ticker|symbol)\s*:?\s*$", preceding))
-                    if len(u_token) == 3 or has_explicit_marker:
+                    if has_explicit_marker:
                         matched_items.append((m.start(), resolved.symbol))
 
         # Sort matches by appearance position in text

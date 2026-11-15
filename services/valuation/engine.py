@@ -1,8 +1,86 @@
-from typing import List, Dict, Any, Optional
-from datetime import date
+from typing import Dict, Any, Optional
 from .models import ValuationMethodOutput, FairValueRange, ValuationAssumption, DCFAssumptions
 
 class DCFEngine:
+    @staticmethod
+    def _eval_single_dcf(
+        assumptions: DCFAssumptions,
+        shares_outstanding: int,
+        net_debt: Optional[float],
+        wacc_adj: float,
+        g_adj: float,
+        margin_adj: float,
+    ) -> float:
+        """Evaluate one (wacc, g, margin) DCF sensitivity point in VND/share."""
+        if assumptions.base_revenue is None or assumptions.base_revenue <= 0 or shares_outstanding == 0:
+            return 0.0
+        fcf = []
+        current_rev = assumptions.base_revenue
+        for i in range(len(assumptions.revenue_growth_rates)):
+            growth = assumptions.revenue_growth_rates[i]
+            base_m_i = assumptions.ebit_margins[i]
+            scaled_adj = margin_adj * (base_m_i / 0.06) if base_m_i < 0.06 else margin_adj
+            margin = max(0.002, base_m_i + scaled_adj)
+            current_rev *= (1 + growth)
+            ebit = current_rev * margin
+            nopat = ebit * (1 - assumptions.tax_rate)
+            if assumptions.capex_percent_rev is not None or assumptions.wc_percent_rev is not None:
+                reinvestment_rate = max(-0.05, min(0.12, (assumptions.capex_percent_rev or 0.0) + (assumptions.wc_percent_rev or 0.0)))
+                projected_fcf = nopat - (current_rev * reinvestment_rate)
+            else:
+                projected_fcf = nopat
+            fcf.append(projected_fcf)
+
+        wacc = assumptions.wacc + wacc_adj
+        tg = assumptions.terminal_growth_rate + g_adj
+        if wacc <= tg:
+            return 0.0
+        terminal_fcf = fcf[-1] * (1 + tg)
+        terminal_value = terminal_fcf / (wacc - tg)
+        pv_fcf = sum(cf / ((1 + wacc) ** (i + 1)) for i, cf in enumerate(fcf))
+        pv_tv = terminal_value / ((1 + wacc) ** len(fcf))
+        equity_value = (pv_fcf + pv_tv) - (net_debt or 0.0)
+
+        shares_raw = float(shares_outstanding)
+        if 0 < shares_raw < 100_000:
+            shares_raw *= 1_000_000_000 if shares_raw < 10_000 else 1_000_000
+        return (equity_value * 1_000_000_000) / shares_raw
+
+    @staticmethod
+    def calculate_sensitivity_matrix(
+        assumptions: DCFAssumptions,
+        shares_outstanding: int,
+        net_debt: Optional[float] = 0.0,
+        wacc_deltas: tuple[float, ...] = (-0.01, 0.0, 0.01),
+        g_deltas: tuple[float, ...] = (-0.005, 0.0, 0.005),
+    ) -> Dict[str, Any]:
+        """Compute 3x3 WACC x terminal-g sensitivity matrix and P10/P50/P90 quantiles."""
+        grid = []
+        all_vals: list[float] = []
+        for dw in wacc_deltas:
+            for dg in g_deltas:
+                fv = DCFEngine._eval_single_dcf(assumptions, shares_outstanding, net_debt, dw, dg, 0.0)
+                if fv > 0:
+                    all_vals.append(fv)
+                grid.append({
+                    "wacc": round((assumptions.wacc + dw) * 100.0, 2),
+                    "terminal_g": round((assumptions.terminal_growth_rate + dg) * 100.0, 2),
+                    "fair_value": round(fv, 0),
+                })
+        sorted_vals = sorted(all_vals)
+        n = len(sorted_vals)
+        p10 = round(sorted_vals[max(0, int(0.10 * (n - 1)))], 0) if n else 0.0
+        p50 = round(sorted_vals[n // 2], 0) if n else 0.0
+        p90 = round(sorted_vals[min(n - 1, int(0.90 * (n - 1)))], 0) if n else 0.0
+        return {
+            "wacc_base_pct": round(assumptions.wacc * 100.0, 2),
+            "terminal_g_base_pct": round(assumptions.terminal_growth_rate * 100.0, 2),
+            "grid": grid,
+            "p10": p10,
+            "p50": p50,
+            "p90": p90,
+        }
+
     @staticmethod
     def calculate(
         assumptions: DCFAssumptions,
@@ -38,59 +116,7 @@ class DCFEngine:
             )
 
         def _calc_dcf(wacc_adj: float, g_adj: float, margin_adj: float) -> float:
-            fcf = []
-            current_rev = assumptions.base_revenue
-            
-            for i in range(len(assumptions.revenue_growth_rates)):
-                growth = assumptions.revenue_growth_rates[i]
-                base_m_i = assumptions.ebit_margins[i]
-                scaled_adj = margin_adj * (base_m_i / 0.06) if base_m_i < 0.06 else margin_adj
-                margin = max(0.002, base_m_i + scaled_adj)
-                
-                current_rev *= (1 + growth)
-                ebit = current_rev * margin
-                nopat = ebit * (1 - assumptions.tax_rate)
-                
-                # Dynamic reinvestment rate (Capex & Working Capital) when provided
-                if assumptions.capex_percent_rev is not None or assumptions.wc_percent_rev is not None:
-                    reinvestment_rate = max(-0.05, min(0.12, (assumptions.capex_percent_rev or 0.0) + (assumptions.wc_percent_rev or 0.0)))
-                    projected_fcf = nopat - (current_rev * reinvestment_rate)
-                else:
-                    # Simplified FCF = NOPAT (ignoring D&A, Capex, WC changes for structural demo)
-                    projected_fcf = nopat
-                fcf.append(projected_fcf)
-                
-            # Terminal Value
-            terminal_fcf = fcf[-1] * (1 + (assumptions.terminal_growth_rate + g_adj))
-            wacc = assumptions.wacc + wacc_adj
-            tg = assumptions.terminal_growth_rate + g_adj
-            
-            if wacc <= tg:
-                # Mathematical boundary: terminal value undefined for WACC <= g_t
-                return 0.0
-                
-            terminal_value = terminal_fcf / (wacc - tg)
-            
-            # Discount back
-            pv_fcf = sum(cf / ((1 + wacc) ** (i + 1)) for i, cf in enumerate(fcf))
-            pv_tv = terminal_value / ((1 + wacc) ** len(fcf))
-            
-            enterprise_value = pv_fcf + pv_tv
-            equity_value = enterprise_value - net_debt
-            
-            if shares_outstanding == 0:
-                return 0.0
-
-            shares_raw = float(shares_outstanding)
-            if 0 < shares_raw < 100_000:
-                if shares_raw < 10_000:
-                    shares_raw *= 1_000_000_000
-                else:
-                    shares_raw *= 1_000_000
-
-            # Base revenue and net debt are in billion VND -> equity_value in billion VND
-            # Multiply by 10^9 to get VND, divide by raw share count to get VND/share
-            return (equity_value * 1_000_000_000) / shares_raw
+            return DCFEngine._eval_single_dcf(assumptions, shares_outstanding, net_debt, wacc_adj, g_adj, margin_adj)
 
         # Generate Scenarios (Flexing WACC, Terminal Growth, and Margins)
         base_value = _calc_dcf(0, 0, 0)

@@ -354,6 +354,7 @@ def test_portfolio_snapshot_comparison_handles_membership_and_missing_values():
 
 def test_seed_demo_portfolio_endpoint(db_session):
     effective_date = get_effective_trading_date()
+    added_prices: list[Price] = []
     for sym, sector in [
         ("FPT", "TECHNOLOGY"),
         ("VCB", "BANK"),
@@ -370,26 +371,30 @@ def test_seed_demo_portfolio_endpoint(db_session):
             .first()
         )
         if existing_price is None:
-            db_session.add(
-                Price(
-                    asset_id=asset.id,
-                    observation_date=effective_date,
-                    raw_close=50000,
-                    source="CANONICAL",
-                    status="VALID",
-                )
+            p = Price(
+                asset_id=asset.id,
+                observation_date=effective_date,
+                raw_close=50000,
+                adjusted_close=50000,
+                source="CANONICAL",
+                status="VALID",
             )
+            db_session.add(p)
+            added_prices.append(p)
     db_session.commit()
 
-    with _client_for_session(db_session) as client:
-        resp = client.post("/api/v1/portfolio/seed-demo?force=true")
-    app.dependency_overrides.clear()
+    try:
+        with _client_for_session(db_session) as client:
+            resp = client.post("/api/v1/portfolio/seed-demo?force=true")
+        app.dependency_overrides.clear()
 
-    assert resp.status_code == 200
-    payload = resp.json()
-    assert payload["status"] == "AVAILABLE", payload
-    assert len(payload["holdings"]) == 4
-    assert payload["summary"]["total_value"] > 0
-
-    _clear_personal_data(db_session)
-    db_session.commit()
+        assert resp.status_code == 200
+        payload = resp.json()
+        assert payload["status"] == "AVAILABLE", payload
+        assert len(payload["holdings"]) == 4
+        assert payload["summary"]["total_value"] > 0
+    finally:
+        for p in added_prices:
+            db_session.delete(p)
+        _clear_personal_data(db_session)
+        db_session.commit()

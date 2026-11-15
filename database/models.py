@@ -846,3 +846,20 @@ class MacroCommodity(Base, TimestampMixin):
     source = Column(String, default="PUBLIC_COMMODITY_FEED")
     __table_args__ = (UniqueConstraint("commodity_code", "observation_date", name="uq_commodity_code_date"),)
 
+
+class MarketFlowDaily(Base, TimestampMixin):
+    """Daily foreign investor flow and market liquidity breadth per ticker (VN exchanges)."""
+    __tablename__ = "market_flows_daily"
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, nullable=False, index=True)
+    observation_date = Column(Date, nullable=False, index=True)
+    foreign_buy_vol = Column(Float, nullable=True)
+    foreign_sell_vol = Column(Float, nullable=True)
+    foreign_buy_value = Column(Float, nullable=True)   # Full VND
+    foreign_sell_value = Column(Float, nullable=True)  # Full VND
+    foreign_net_value = Column(Float, nullable=True)   # Full VND
+    foreign_room = Column(Float, nullable=True)
+    source = Column(String, default="VPS_MARKET_FEED")
+    __table_args__ = (UniqueConstraint("symbol", "observation_date", name="uq_market_flow_symbol_date"),)
+
+

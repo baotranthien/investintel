@@ -2,7 +2,7 @@ from datetime import date, datetime, time, timedelta
 import math
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database.models import Asset, CorporateAction, DataLineage, DataSource, EventRecord, Price
@@ -201,15 +201,6 @@ def build_research_workspace(
         with FinancialRepository(session=session) as repository:
             dataset = repository.get_financial_dataset(normalized_symbol, as_of_date=as_of)
 
-    profile = dataset["profile"] if dataset else {
-        "symbol": asset.symbol,
-        "name": asset.name,
-        "asset_type": asset.asset_type,
-        "exchange": asset.exchange,
-        "sector": asset.sector or "GENERAL",
-        "currency": asset.currency or "VND",
-        "status": asset.status,
-    }
     sector = (dataset["sector"] if dataset else asset.sector) or "GENERAL"
     dataset = dataset or {
         "symbol": normalized_symbol,
@@ -550,7 +541,6 @@ def build_research_workspace(
         calc_note = "Observed multiple only; not a fair-value estimate."
         v_level = None
         status_str = "INSUFFICIENT_DATA"
-        is_outlier = False
 
         min_b = 0.5 if metric_id == "pe" else 0.05
         max_b = 2500.0 if metric_id == "pe" else 50.0
@@ -581,7 +571,6 @@ def build_research_workspace(
                 else:
                     v_level = "MATHEMATICALLY_CALCULATED"
             else:
-                is_outlier = True
                 status_str = "CONFLICTING_DATA" if fallback_val is not None else "AVAILABLE"
                 v_level = "CONFLICTING_DATA"
                 calc_note = (
@@ -880,6 +869,39 @@ def build_research_workspace(
                         note=f"Annualized volatility = {ann_vol * 100:.1f}%",
                     ),
                 )
+        # Cross-sectional Postgres RPC Z-score refinement when available
+        try:
+            from services.common.supabase_rpc import is_postgres_session
+
+            if is_postgres_session(session):
+                cs_profile = FactorEngine().calculate_cross_sectional_profile(
+                    normalized_symbol,
+                    as_of_d,
+                    session=session,
+                    fundamentals={"roe": roe_val, "pe": pe_metric_val},
+                )
+                for fname, cs_score_obj in (
+                    ("quality", cs_profile.quality),
+                    ("value", cs_profile.value),
+                    ("momentum", cs_profile.momentum),
+                ):
+                    if cs_score_obj.drivers and any("Sector Z-Score" in d for d in cs_score_obj.drivers):
+                        factors[fname] = WorkspaceMetric(
+                            value=round(float(cs_score_obj.score), 1),
+                            unit="score_100",
+                            status="AVAILABLE",
+                            calculation="Cross-sectional sector Z-score (Postgres RPC)",
+                            evidence=Evidence(
+                                claim_type="MODEL_OUTPUT",
+                                source="RPC_CROSS_SECTIONAL_FEATURES",
+                                observation_date=as_of_d,
+                                data_origin="CANONICAL_DATABASE",
+                                note=cs_score_obj.drivers[-1],
+                            ),
+                        )
+        except Exception:
+            pass
+
         for fname, fmetric in factors.items():
             if fmetric.value is not None:
                 if fmetric.value >= 65.0:
@@ -887,21 +909,21 @@ def build_research_workspace(
                 elif fmetric.value <= 35.0:
                     factors_contradicting.append(f"{fname.title()} ({fmetric.value:.0f}/100)")
 
-    # Valuation snapshot builder
+    # Valuation snapshot builder (shared canonical inputs with /valuation & /ai)
     val_snap = None
     fair_value_base = None
     mos_val = None
     if current_price is not None and has_financials:
         try:
-            val_builder = ValuationSnapshotBuilder(normalized_symbol, sector)
-            prof_d = snapshot.get("profitability", {})
-            growth_d = snapshot.get("growth", {})
-            op_m_val = (
-                (prof_d.get("operating_margin", {}) or {}).get("value")
-                or (prof_d.get("ebit_margin", {}) or {}).get("value")
-                or (prof_d.get("net_margin", {}) or {}).get("value")
-            )
-            fund_for_val = {
+            from services.valuation.inputs import load_fundamentals_for_valuation
+
+            fund_for_val = load_fundamentals_for_valuation(
+                normalized_symbol,
+                as_of_date=as_of_d,
+                session=session,
+                dataset=dataset,
+                preloaded_snapshot=snapshot,
+            ) or {
                 "symbol": normalized_symbol,
                 "sector": sector,
                 "eps_ttm": eps_val,
@@ -912,16 +934,57 @@ def build_research_workspace(
                 "net_debt": snapshot.get("balance_sheet", {}).get("net_debt", {}).get("value") if isinstance(snapshot.get("balance_sheet", {}).get("net_debt"), dict) else snapshot.get("balance_sheet", {}).get("net_debt"),
                 "roe": roe_val,
                 "use_dynamic_assumptions": True,
-                "operating_margin": op_m_val,
-                "revenue_yoy": (growth_d.get("revenue_yoy", {}) or {}).get("value"),
-                "revenue_cagr_3y": (growth_d.get("revenue_cagr_3y", {}) or {}).get("value"),
             }
+            val_builder = ValuationSnapshotBuilder(normalized_symbol, sector)
             val_snap = val_builder.build(fund_for_val, current_price, as_of_d)
             if val_snap and val_snap.composite_fair_value:
                 base_fv = round(val_snap.composite_fair_value.range.base, 2)
                 if base_fv > 0:
                     fair_value_base = base_fv
                     mos_val = val_snap.margin_of_safety
+                for m_out in val_snap.methods:
+                    if m_out.method == "DCF":
+                        if m_out.applicability != "NOT_APPLICABLE" and m_out.fair_value.base > 0:
+                            valuation_metrics["dcf"] = WorkspaceMetric(
+                                value=round(m_out.fair_value.base, 0),
+                                unit="VND",
+                                status="AVAILABLE",
+                                calculation="5Y dynamic FCFF discounted at Blume-beta CAPM WACC",
+                                evidence=Evidence(
+                                    claim_type="MODEL_OUTPUT",
+                                    source="DCF_VALUATION_ENGINE",
+                                    observation_date=as_of_d,
+                                    data_origin="CANONICAL_DATABASE",
+                                    note=f"Bear={m_out.fair_value.bear:,.0f} | Base={m_out.fair_value.base:,.0f} | Bull={m_out.fair_value.bull:,.0f} VND",
+                                ),
+                            )
+                        else:
+                            valuation_metrics["dcf"] = WorkspaceMetric(
+                                status="NOT_MEANINGFUL",
+                                unit="VND",
+                                evidence=Evidence(
+                                    claim_type="UNCERTAINTY",
+                                    source="DCF_VALUATION_ENGINE",
+                                    observation_date=as_of_d,
+                                    data_origin="CANONICAL_DATABASE",
+                                    note=m_out.warnings[0] if m_out.warnings else "DCF excluded by sector valuation rules (e.g. Banks use Residual Income / P/B).",
+                                ),
+                            )
+                    elif m_out.method == "Residual Income":
+                        if m_out.applicability != "NOT_APPLICABLE" and m_out.fair_value.base > 0:
+                            valuation_metrics["residual_income"] = WorkspaceMetric(
+                                value=round(m_out.fair_value.base, 0),
+                                unit="VND",
+                                status="AVAILABLE",
+                                calculation="BVPS excess-return model (ROE vs CAPM Cost of Equity)",
+                                evidence=Evidence(
+                                    claim_type="MODEL_OUTPUT",
+                                    source="RESIDUAL_INCOME_ENGINE",
+                                    observation_date=as_of_d,
+                                    data_origin="CANONICAL_DATABASE",
+                                    note=f"Bear={m_out.fair_value.bear:,.0f} | Base={m_out.fair_value.base:,.0f} | Bull={m_out.fair_value.bull:,.0f} VND",
+                                ),
+                            )
         except Exception:
             pass
 

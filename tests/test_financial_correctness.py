@@ -402,30 +402,46 @@ def test_pe_evidence_cannot_be_presented_as_pb():
     assert "P/B evidence cannot be presented as P/E." in suppressed_reasons_2
 
 
-def test_missing_valuation_metric_produces_explicit_insufficient_data(db_session):
+def test_missing_valuation_metric_produces_explicit_insufficient_data(db_session, seed_acb_test_data):
     """
     Priority 2 Regression Test:
-    Ensures that when a valuation multiple is unavailable (e.g. PEG, DCF, Residual Income,
-    or PE for an asset without TTM earnings), the system returns an explicit INSUFFICIENT_DATA
-    status and does NOT substitute an alternate ratio.
+    Ensures that when a valuation multiple is unavailable (e.g. PEG, Dividend Yield,
+    FCF Yield, DDM, or DCF on a bank without CF inputs, or DCF/RIM when statements are missing),
+    the system returns an explicit INSUFFICIENT_DATA status and does NOT substitute an alternate ratio.
     """
     workspace = build_research_workspace(db_session, "ACB", date(2026, 10, 26))
     assert workspace is not None
     metrics = workspace.model_dump().get("valuation", {}).get("metrics", {})
 
-    # 1. Models without evidence-backed contracts (dcf, peg, residual_income) must be explicit INSUFFICIENT_DATA
-    for unavail_m in ["peg", "dividend_yield", "fcf_yield", "dcf", "residual_income", "ddm"]:
+    # 1. Models without evidence-backed contracts on a bank (peg, dividend_yield, fcf_yield, dcf, ddm) must be explicit INSUFFICIENT_DATA
+    for unavail_m in ["peg", "dividend_yield", "fcf_yield", "dcf", "ddm"]:
         m_data = metrics.get(unavail_m)
         assert m_data is not None, f"Metric {unavail_m} missing from valuation module"
         assert m_data["status"] == "INSUFFICIENT_DATA", f"Expected {unavail_m} status INSUFFICIENT_DATA, got {m_data['status']}"
         assert m_data["value"] is None, f"Expected {unavail_m} value None, got {m_data['value']}"
         assert m_data["evidence"]["claim_type"] == "UNCERTAINTY"
 
+    # Residual Income on a bank with canonical BVPS & ROE is evidence-backed MODEL_OUTPUT
+    rim = metrics.get("residual_income")
+    assert rim is not None
+    assert rim["status"] == "AVAILABLE"
+    assert rim["value"] is not None and rim["value"] > 0
+    assert rim["evidence"]["claim_type"] == "MODEL_OUTPUT"
+
     # 2. EV/EBITDA on a banking asset must be explicit NOT_MEANINGFUL (not substituted or inferred)
     ev_ebitda = metrics.get("ev_ebitda")
     assert ev_ebitda is not None
     assert ev_ebitda["status"] == "NOT_MEANINGFUL"
     assert ev_ebitda["value"] is None
+
+    # 3. For an asset lacking financials at an early PIT date, DCF & Residual Income both remain INSUFFICIENT_DATA
+    early_ws = build_research_workspace(db_session, "ACB", date(2015, 1, 1))
+    assert early_ws is not None
+    early_metrics = early_ws.model_dump().get("valuation", {}).get("metrics", {})
+    for m_key in ("dcf", "residual_income"):
+        assert early_metrics[m_key]["status"] == "INSUFFICIENT_DATA"
+        assert early_metrics[m_key]["value"] is None
+        assert early_metrics[m_key]["evidence"]["claim_type"] == "UNCERTAINTY"
 
 
 def test_price_dates_and_reporting_periods_consistency(db_session, seed_acb_test_data):

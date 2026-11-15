@@ -999,12 +999,15 @@ AS $$
     );
 $$;
 
+DROP FUNCTION IF EXISTS public.rpc_match_document_chunks(text, text, date, integer, boolean);
+
 CREATE OR REPLACE FUNCTION public.rpc_match_document_chunks(
     p_query text,
     p_ticker text DEFAULT NULL,
     p_as_of date DEFAULT CURRENT_DATE,
     p_limit integer DEFAULT 5,
-    p_exclude_synthetic boolean DEFAULT true
+    p_exclude_synthetic boolean DEFAULT true,
+    p_query_embedding text DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE sql
@@ -1015,30 +1018,37 @@ AS $$
     WITH q AS (
         SELECT
             plainto_tsquery('simple', coalesce(p_query, '')) AS tsq,
-            coalesce(trim(p_query), '') AS raw_q
-    )
-    SELECT COALESCE(jsonb_agg(row_json), '[]'::jsonb)
-    FROM (
-        SELECT jsonb_build_object(
-            'document_id', dc.document_id,
-            'chunk_id', dc.chunk_id,
-            'ticker', d.ticker,
-            'company', d.company,
-            'source', d.source,
-            'publication_date', to_char(d.publication_date, 'YYYY-MM-DD'),
-            'period', d.period,
-            'document_type', d.document_type,
-            'language', d.language,
-            'title', d.title,
-            'section', dc.section,
-            'page_reference', dc.page_reference,
-            'text', dc.text,
-            'score', round((
-                COALESCE(ts_rank_cd(dc.search_tsv, q.tsq), 0.0)
-                + (COALESCE(extensions.similarity(dc.text, q.raw_q), 0.0) * 0.5)
-            )::numeric, 6)::double precision,
-            'retrieval_mode', 'POSTGRES_HYBRID_FTS_TRGM'
-        ) AS row_json
+            coalesce(trim(p_query), '') AS raw_q,
+            CASE
+                WHEN p_query_embedding IS NOT NULL AND length(trim(p_query_embedding)) > 4
+                THEN (trim(p_query_embedding))::extensions.vector(768)
+                ELSE NULL::extensions.vector(768)
+            END AS qvec
+    ),
+    scored AS (
+        SELECT
+            dc.id,
+            dc.document_id,
+            dc.chunk_id,
+            d.ticker,
+            d.company,
+            d.source,
+            d.publication_date,
+            d.period,
+            d.document_type,
+            d.language,
+            d.title,
+            dc.section,
+            dc.page_reference,
+            dc.text,
+            COALESCE(ts_rank_cd(dc.search_tsv, q.tsq), 0.0)::double precision AS bm25_score,
+            COALESCE(extensions.similarity(dc.text, q.raw_q), 0.0)::double precision AS trgm_score,
+            CASE
+                WHEN q.qvec IS NOT NULL AND dc.embedding_vec IS NOT NULL
+                THEN GREATEST(0.0, 1.0 - (dc.embedding_vec <=> q.qvec))::double precision
+                ELSE 0.0::double precision
+            END AS dense_score,
+            exp(-GREATEST(0, COALESCE(p_as_of, CURRENT_DATE) - COALESCE(d.publication_date, CURRENT_DATE))::double precision / 365.0) AS recency_weight
         FROM public.document_chunks dc
         JOIN public.documents d ON d.document_id = dc.document_id
         CROSS JOIN q
@@ -1052,12 +1062,40 @@ AS $$
           )
           AND (
               (dc.search_tsv @@ q.tsq)
-              OR (length(q.raw_q) >= 3 AND extensions.similarity(dc.text, q.raw_q) > 0.05)
+              OR (length(q.raw_q) >= 3 AND extensions.similarity(dc.text, q.raw_q) > 0.04)
+              OR (q.qvec IS NOT NULL AND dc.embedding_vec IS NOT NULL AND (1.0 - (dc.embedding_vec <=> q.qvec)) > 0.12)
           )
+    )
+    SELECT COALESCE(jsonb_agg(row_json), '[]'::jsonb)
+    FROM (
+        SELECT jsonb_build_object(
+            'document_id', document_id,
+            'chunk_id', chunk_id,
+            'ticker', ticker,
+            'company', company,
+            'source', source,
+            'publication_date', to_char(publication_date, 'YYYY-MM-DD'),
+            'period', period,
+            'document_type', document_type,
+            'language', language,
+            'title', title,
+            'section', section,
+            'page_reference', page_reference,
+            'text', text,
+            'bm25_score', round(bm25_score::numeric, 6)::double precision,
+            'dense_score', round(dense_score::numeric, 6)::double precision,
+            'recency_weight', round(recency_weight::numeric, 4)::double precision,
+            'score', round((((bm25_score * 0.45) + (trgm_score * 0.25) + (dense_score * 0.85)) * (0.55 + 0.45 * recency_weight))::numeric, 6)::double precision,
+            'retrieval_mode', CASE
+                WHEN dense_score > 0.0 THEN 'POSTGRES_HYBRID_PGVECTOR_TEMPORAL'
+                ELSE 'POSTGRES_HYBRID_FTS_TRGM'
+            END
+        ) AS row_json
+        FROM scored
         ORDER BY
-            (COALESCE(ts_rank_cd(dc.search_tsv, q.tsq), 0.0) + COALESCE(extensions.similarity(dc.text, q.raw_q), 0.0) * 0.5) DESC,
-            d.publication_date DESC,
-            dc.id ASC
+            (((bm25_score * 0.45) + (trgm_score * 0.25) + (dense_score * 0.85)) * (0.55 + 0.45 * recency_weight)) DESC,
+            publication_date DESC,
+            id ASC
         LIMIT GREATEST(1, LEAST(coalesce(p_limit, 5), 25))
     ) ranked;
 $$;
@@ -1164,7 +1202,148 @@ BEGIN
 END;
 $$;
 
--- 7. Optional pg_cron schedule for nightly view refresh (never fails migration if unprivileged)
+-- 7. Stage 2 & 3 Additive Daily Foreign Flow Table + Cross-Sectional Factor Normalization RPC
+CREATE TABLE IF NOT EXISTS public.market_flows_daily (
+    id serial PRIMARY KEY,
+    symbol varchar NOT NULL,
+    observation_date date NOT NULL,
+    foreign_buy_vol double precision,
+    foreign_sell_vol double precision,
+    foreign_buy_value double precision,
+    foreign_sell_value double precision,
+    foreign_net_value double precision,
+    foreign_room double precision,
+    source varchar DEFAULT 'VPS_MARKET_FEED',
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz,
+    CONSTRAINT uq_market_flow_symbol_date UNIQUE (symbol, observation_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_flows_daily_date_sym
+    ON public.market_flows_daily (observation_date DESC, symbol);
+
+CREATE OR REPLACE FUNCTION public.rpc_get_cross_sectional_features(
+    p_as_of date DEFAULT CURRENT_DATE,
+    p_symbol text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = public, extensions, pg_temp
+AS $$
+    WITH price_hist AS (
+        SELECT
+            upper(a.symbol) AS symbol,
+            COALESCE(p.adjusted_close, p.raw_close)::double precision AS close_px,
+            p.observation_date,
+            ROW_NUMBER() OVER (PARTITION BY a.id ORDER BY p.observation_date DESC) AS rn
+        FROM public.prices p
+        JOIN public.assets a ON a.id = p.asset_id
+        WHERE p.status = 'VALID'
+          AND p.observation_date <= COALESCE(p_as_of, CURRENT_DATE)
+          AND a.status = 'ACTIVE'
+    ),
+    mom AS (
+        SELECT
+            symbol,
+            MAX(CASE WHEN rn = 1 THEN close_px END) AS px_0,
+            MAX(CASE WHEN rn = 21 THEN close_px END) AS px_20,
+            MAX(CASE WHEN rn = 61 THEN close_px END) AS px_60
+        FROM price_hist
+        WHERE rn IN (1, 21, 61)
+        GROUP BY symbol
+    ),
+    universe AS (
+        SELECT
+            m.symbol,
+            CASE
+                WHEN upper(COALESCE(m.sector, '')) IN ('BANK', 'BANKING') THEN 'BANK'
+                WHEN upper(COALESCE(m.sector, '')) IN ('OIL_GAS', 'ENERGY') THEN 'OIL_GAS'
+                WHEN upper(COALESCE(m.sector, '')) IN ('MATERIALS') THEN 'MATERIALS'
+                WHEN upper(COALESCE(m.sector, '')) IN ('CONSUMER', 'CONSUMER GOODS') THEN 'CONSUMER'
+                WHEN upper(COALESCE(m.sector, '')) IN ('INDUSTRIAL', 'INDUSTRIALS') THEN 'INDUSTRIAL'
+                WHEN upper(COALESCE(m.sector, '')) IN ('REAL ESTATE', 'REAL_ESTATE') THEN 'REAL_ESTATE'
+                WHEN upper(COALESCE(m.sector, '')) IN ('UTILITY', 'UTILITIES') THEN 'UTILITY'
+                WHEN upper(COALESCE(m.sector, '')) IN ('RETAIL') THEN 'RETAIL'
+                WHEN upper(COALESCE(m.sector, '')) IN ('TECHNOLOGY') THEN 'TECHNOLOGY'
+                WHEN upper(COALESCE(m.sector, '')) IN ('SECURITIES', 'FINANCIALS') THEN 'SECURITIES'
+                WHEN upper(COALESCE(m.sector, '')) IN ('TRANSPORTATION') THEN 'TRANSPORTATION'
+                ELSE COALESCE(NULLIF(upper(trim(m.sector)), ''), 'GENERAL')
+            END AS norm_sector,
+            CASE WHEN m.pe IS NOT NULL AND m.pe > 0 AND m.pe <= 150 THEN m.pe ELSE NULL END AS pe,
+            CASE WHEN m.pb IS NOT NULL AND m.pb > 0 AND m.pb <= 25 THEN m.pb ELSE NULL END AS pb,
+            CASE WHEN m.roe IS NOT NULL AND m.roe BETWEEN -60 AND 80 THEN m.roe ELSE NULL END AS roe,
+            CASE WHEN m.gross_margin IS NOT NULL AND m.gross_margin BETWEEN -50 AND 95 THEN m.gross_margin ELSE NULL END AS gross_margin,
+            CASE WHEN m.net_margin IS NOT NULL AND m.net_margin BETWEEN -60 AND 85 THEN m.net_margin ELSE NULL END AS net_margin,
+            CASE WHEN m.de_ratio IS NOT NULL AND m.de_ratio BETWEEN 0 AND 15 THEN m.de_ratio ELSE NULL END AS de_ratio,
+            CASE WHEN mom.px_0 IS NOT NULL AND mom.px_20 IS NOT NULL AND mom.px_20 > 0
+                 THEN ((mom.px_0 - mom.px_20) / mom.px_20) * 100.0 ELSE NULL END AS mom_20d,
+            CASE WHEN mom.px_0 IS NOT NULL AND mom.px_60 IS NOT NULL AND mom.px_60 > 0
+                 THEN ((mom.px_0 - mom.px_60) / mom.px_60) * 100.0 ELSE NULL END AS mom_60d
+        FROM public.mv_daily_screener_metrics m
+        LEFT JOIN mom ON mom.symbol = m.symbol
+    ),
+    sector_stats AS (
+        SELECT
+            u.*,
+            COUNT(*) OVER (PARTITION BY u.norm_sector) AS peer_count,
+            AVG(u.pe) OVER (PARTITION BY u.norm_sector) AS mean_pe,
+            NULLIF(STDDEV_SAMP(u.pe) OVER (PARTITION BY u.norm_sector), 0.0) AS std_pe,
+            AVG(u.pb) OVER (PARTITION BY u.norm_sector) AS mean_pb,
+            NULLIF(STDDEV_SAMP(u.pb) OVER (PARTITION BY u.norm_sector), 0.0) AS std_pb,
+            AVG(u.roe) OVER (PARTITION BY u.norm_sector) AS mean_roe,
+            NULLIF(STDDEV_SAMP(u.roe) OVER (PARTITION BY u.norm_sector), 0.0) AS std_roe,
+            AVG(u.gross_margin) OVER (PARTITION BY u.norm_sector) AS mean_gm,
+            NULLIF(STDDEV_SAMP(u.gross_margin) OVER (PARTITION BY u.norm_sector), 0.0) AS std_gm,
+            AVG(u.net_margin) OVER (PARTITION BY u.norm_sector) AS mean_nm,
+            NULLIF(STDDEV_SAMP(u.net_margin) OVER (PARTITION BY u.norm_sector), 0.0) AS std_nm,
+            AVG(u.de_ratio) OVER (PARTITION BY u.norm_sector) AS mean_de,
+            NULLIF(STDDEV_SAMP(u.de_ratio) OVER (PARTITION BY u.norm_sector), 0.0) AS std_de,
+            AVG(u.mom_20d) OVER (PARTITION BY u.norm_sector) AS mean_mom20,
+            NULLIF(STDDEV_SAMP(u.mom_20d) OVER (PARTITION BY u.norm_sector), 0.0) AS std_mom20,
+            AVG(u.mom_60d) OVER (PARTITION BY u.norm_sector) AS mean_mom60,
+            NULLIF(STDDEV_SAMP(u.mom_60d) OVER (PARTITION BY u.norm_sector), 0.0) AS std_mom60
+        FROM universe u
+    )
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'symbol', s.symbol,
+        'sector', s.norm_sector,
+        'peer_count', s.peer_count,
+        'pe', round(s.pe::numeric, 2)::double precision,
+        'pb', round(s.pb::numeric, 2)::double precision,
+        'roe', round(s.roe::numeric, 2)::double precision,
+        'gross_margin', round(s.gross_margin::numeric, 2)::double precision,
+        'net_margin', round(s.net_margin::numeric, 2)::double precision,
+        'de_ratio', round(s.de_ratio::numeric, 3)::double precision,
+        'mom_20d', round(s.mom_20d::numeric, 2)::double precision,
+        'mom_60d', round(s.mom_60d::numeric, 2)::double precision,
+        'sector_mean_pe', round(s.mean_pe::numeric, 2)::double precision,
+        'sector_mean_pb', round(s.mean_pb::numeric, 2)::double precision,
+        'sector_mean_roe', round(s.mean_roe::numeric, 2)::double precision,
+        'sector_mean_mom_20d', round(s.mean_mom20::numeric, 2)::double precision,
+        'z_pe', CASE WHEN s.pe IS NOT NULL AND s.mean_pe IS NOT NULL AND s.std_pe IS NOT NULL
+                     THEN round(GREATEST(-3.5, LEAST(3.5, (s.pe - s.mean_pe) / s.std_pe))::numeric, 3)::double precision ELSE NULL END,
+        'z_pb', CASE WHEN s.pb IS NOT NULL AND s.mean_pb IS NOT NULL AND s.std_pb IS NOT NULL
+                     THEN round(GREATEST(-3.5, LEAST(3.5, (s.pb - s.mean_pb) / s.std_pb))::numeric, 3)::double precision ELSE NULL END,
+        'z_roe', CASE WHEN s.roe IS NOT NULL AND s.mean_roe IS NOT NULL AND s.std_roe IS NOT NULL
+                      THEN round(GREATEST(-3.5, LEAST(3.5, (s.roe - s.mean_roe) / s.std_roe))::numeric, 3)::double precision ELSE NULL END,
+        'z_gross_margin', CASE WHEN s.gross_margin IS NOT NULL AND s.mean_gm IS NOT NULL AND s.std_gm IS NOT NULL
+                               THEN round(GREATEST(-3.5, LEAST(3.5, (s.gross_margin - s.mean_gm) / s.std_gm))::numeric, 3)::double precision ELSE NULL END,
+        'z_net_margin', CASE WHEN s.net_margin IS NOT NULL AND s.mean_nm IS NOT NULL AND s.std_nm IS NOT NULL
+                             THEN round(GREATEST(-3.5, LEAST(3.5, (s.net_margin - s.mean_nm) / s.std_nm))::numeric, 3)::double precision ELSE NULL END,
+        'z_de_ratio', CASE WHEN s.de_ratio IS NOT NULL AND s.mean_de IS NOT NULL AND s.std_de IS NOT NULL
+                           THEN round(GREATEST(-3.5, LEAST(3.5, (s.de_ratio - s.mean_de) / s.std_de))::numeric, 3)::double precision ELSE NULL END,
+        'z_mom_20d', CASE WHEN s.mom_20d IS NOT NULL AND s.mean_mom20 IS NOT NULL AND s.std_mom20 IS NOT NULL
+                          THEN round(GREATEST(-3.5, LEAST(3.5, (s.mom_20d - s.mean_mom20) / s.std_mom20))::numeric, 3)::double precision ELSE NULL END,
+        'z_mom_60d', CASE WHEN s.mom_60d IS NOT NULL AND s.mean_mom60 IS NOT NULL AND s.std_mom60 IS NOT NULL
+                          THEN round(GREATEST(-3.5, LEAST(3.5, (s.mom_60d - s.mean_mom60) / s.std_mom60))::numeric, 3)::double precision ELSE NULL END
+    ) ORDER BY s.symbol), '[]'::jsonb)
+    FROM sector_stats s
+    WHERE p_symbol IS NULL OR trim(p_symbol) = '' OR upper(s.symbol) = upper(trim(p_symbol));
+$$;
+
+-- 8. Optional pg_cron schedule for nightly view refresh (never fails migration if unprivileged)
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN

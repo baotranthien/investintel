@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Optional
 from datetime import date
-from .models import ValuationSnapshot, CompositeFairValue, FairValueRange, ValuationMethodOutput, DCFAssumptions
+from .models import ValuationSnapshot, CompositeFairValue, FairValueRange, DCFAssumptions, ValuationScenario
 from .selector import ValuationMethodSelector
 from .engine import DCFEngine, ResidualIncomeEngine, RelativeValuationEngine
 
@@ -27,6 +27,12 @@ class ValuationSnapshotBuilder:
         
         use_dyn = bool(fundamentals.get("use_dynamic_assumptions", False))
 
+        cyclical_commodity_sectors = {"OIL_GAS", "ENERGY", "STEEL", "REAL_ESTATE"}
+        cyclical_commodity_tickers = {"HPG", "HSG", "NKG", "DCM", "DPM", "GVR", "PHR", "HT1"}
+        is_cyclical_sector = (self.sector in cyclical_commodity_sectors) or (
+            self.sector == "MATERIALS" and self.symbol in cyclical_commodity_tickers
+        )
+
         if use_dyn:
             rev_cagr = fundamentals.get("revenue_cagr_3y")
             rev_yoy = fundamentals.get("revenue_yoy")
@@ -45,8 +51,9 @@ class ValuationSnapshotBuilder:
                 g1 = None
 
             if g1 is not None:
-                g1 = max(0.03, min(0.26, g1))
-                g5 = max(0.06, min(0.08, (g1 + 0.03) / 2.0))
+                max_g1 = 0.14 if is_cyclical_sector else 0.26
+                g1 = max(0.03, min(max_g1, g1))
+                g5 = max(0.05 if is_cyclical_sector else 0.06, min(0.08, (g1 + 0.03) / 2.0))
                 revenue_growth_rates = [round(g1 - (g1 - g5) * (i / 4.0), 4) for i in range(5)]
             else:
                 revenue_growth_rates = [0.10, 0.09, 0.08, 0.07, 0.06]
@@ -56,8 +63,12 @@ class ValuationSnapshotBuilder:
                 op_m /= 100.0
             if op_m is not None:
                 base_m = max(0.008, min(0.40, op_m))
-                target_m = 0.20 if base_m > 0.22 else base_m
-                ebit_margins = [round(base_m - (base_m - target_m) * 0.20 * (i / 4.0), 4) for i in range(5)]
+                if is_cyclical_sector and base_m > 0.14:
+                    target_m = 0.115
+                    ebit_margins = [round(base_m - (base_m - target_m) * (i / 4.0), 4) for i in range(5)]
+                else:
+                    target_m = 0.20 if base_m > 0.22 else base_m
+                    ebit_margins = [round(base_m - (base_m - target_m) * 0.20 * (i / 4.0), 4) for i in range(5)]
             else:
                 base_m = 0.15
                 ebit_margins = [0.15] * 5
@@ -87,6 +98,7 @@ class ValuationSnapshotBuilder:
             out.weight = (0.4 if "P/B" in selection.primary_methods else 0.1) if out.applicability != "NOT_APPLICABLE" else 0.0
             methods.append(out)
             
+        dcf_sensitivity: Optional[Dict[str, Any]] = None
         if "DCF" in selection.primary_methods or "DCF" in selection.secondary_methods:
             base_rev = fundamentals.get("revenue_ttm") or fundamentals.get("revenue_annual") or fundamentals.get("latest_annual_revenue")
             dcf_assump = DCFAssumptions(
@@ -100,6 +112,10 @@ class ValuationSnapshotBuilder:
             )
             out = DCFEngine.calculate(dcf_assump, shares_outstanding, net_debt=fundamentals.get("net_debt", 0))
             out.weight = (0.5 if "DCF" in selection.primary_methods else 0.2) if out.applicability != "NOT_APPLICABLE" else 0.0
+            if out.applicability != "NOT_APPLICABLE":
+                dcf_sensitivity = DCFEngine.calculate_sensitivity_matrix(
+                    dcf_assump, shares_outstanding, net_debt=fundamentals.get("net_debt", 0)
+                )
             methods.append(out)
             
         if "Residual Income" in selection.primary_methods or "Residual Income" in selection.secondary_methods:
@@ -132,6 +148,10 @@ class ValuationSnapshotBuilder:
         excluded_methods = [m.method for m in methods if m.applicability == "NOT_APPLICABLE" or m.weight == 0.0]
         
         snapshot_warnings = []
+        if use_dyn and is_cyclical_sector:
+            snapshot_warnings.append(
+                f"CYCLICAL_PEAK_DAMPING: Applied mid-cycle growth and EBIT margin mean-reversion for {self.sector}."
+            )
         if excluded_methods:
             snapshot_warnings.append(
                 f"Excluded methods from composite fair value (weight=0.0): {', '.join(excluded_methods)}"
@@ -151,14 +171,43 @@ class ValuationSnapshotBuilder:
         )
         
         margin_of_safety = (comp_base - current_price) / comp_base if comp_base > 0 else None
-        
+
+        scenarios: List[ValuationScenario] = []
+        if dcf_sensitivity and dcf_sensitivity.get("p50"):
+            scenarios = [
+                ValuationScenario(
+                    scenario_name="Bear / Tightening Stress (P10)",
+                    description=f"WACC {dcf_sensitivity['wacc_base_pct'] + 1.0:.2f}%, terminal g {max(1.5, dcf_sensitivity['terminal_g_base_pct'] - 0.5):.2f}%",
+                    fair_value=float(dcf_sensitivity["p10"]),
+                    assumptions={"p10": dcf_sensitivity["p10"], "p50": dcf_sensitivity["p50"], "p90": dcf_sensitivity["p90"], "grid": dcf_sensitivity["grid"]},
+                ),
+                ValuationScenario(
+                    scenario_name="Base Case (P50)",
+                    description=f"WACC {dcf_sensitivity['wacc_base_pct']:.2f}%, terminal g {dcf_sensitivity['terminal_g_base_pct']:.2f}%",
+                    fair_value=float(dcf_sensitivity["p50"]),
+                    assumptions={"wacc_pct": dcf_sensitivity["wacc_base_pct"], "terminal_g_pct": dcf_sensitivity["terminal_g_base_pct"]},
+                ),
+                ValuationScenario(
+                    scenario_name="Bull / Easing Upside (P90)",
+                    description=f"WACC {max(7.0, dcf_sensitivity['wacc_base_pct'] - 1.0):.2f}%, terminal g {dcf_sensitivity['terminal_g_base_pct'] + 0.5:.2f}%",
+                    fair_value=float(dcf_sensitivity["p90"]),
+                    assumptions={"p10": dcf_sensitivity["p10"], "p50": dcf_sensitivity["p50"], "p90": dcf_sensitivity["p90"]},
+                ),
+            ]
+        elif comp_base > 0:
+            scenarios = [
+                ValuationScenario(scenario_name="Bear Case", description="Conservative downside band", fair_value=round(comp_bear, 0), assumptions={}),
+                ValuationScenario(scenario_name="Base Case", description="Central composite estimate", fair_value=round(comp_base, 0), assumptions={}),
+                ValuationScenario(scenario_name="Bull Case", description="Constructive upside band", fair_value=round(comp_bull, 0), assumptions={}),
+            ]
+
         return ValuationSnapshot(
             symbol=self.symbol,
             as_of=as_of,
             price_as_of=current_price,
             methods=methods,
             composite_fair_value=composite,
-            scenarios=[],
+            scenarios=scenarios,
             margin_of_safety=margin_of_safety,
             warnings=snapshot_warnings
         )

@@ -30,9 +30,19 @@ class ValuationMethodSelector:
             "DCF": 0.20
         },
         "MATERIALS": {
-            "EV/EBITDA": 0.40,
-            "P/B": 0.30,
-            "P/E": 0.30
+            "P/B": 0.35,
+            "P/E": 0.35,
+            "DCF": 0.30
+        },
+        "OIL_GAS": {
+            "P/B": 0.35,
+            "P/E": 0.35,
+            "DCF": 0.30
+        },
+        "REAL_ESTATE": {
+            "P/B": 0.50,
+            "DCF": 0.30,
+            "P/E": 0.20
         },
         "DEFAULT": {
             "P/E": 0.40,
@@ -65,12 +75,13 @@ class ValuationMethodSelector:
         ebitda = fundamentals.get("ebitda_ttm") or 0
         fcf = fundamentals.get("fcf_ttm") or 0
         is_financial = self.sector in ["BANK", "BANKING", "FINANCIAL SERVICES", "INSURANCE", "FINANCIALS"]
+        is_asset_or_cyclical = self.sector in ["OIL_GAS", "ENERGY", "MATERIALS", "REAL_ESTATE"]
         
         # 1. P/E Method
         if eps > 0:
-            if is_financial:
+            if is_financial or self.sector == "REAL_ESTATE":
                 secondary.append("P/E")
-                reasons["P/E"] = "Secondary for financials, useful but not primary like P/B."
+                reasons["P/E"] = "Secondary for financials/real-estate where book value or RNAV leads."
             else:
                 primary.append("P/E")
                 reasons["P/E"] = "Primary method for companies with positive earnings."
@@ -82,6 +93,9 @@ class ValuationMethodSelector:
         if is_financial:
             primary.append("P/B")
             reasons["P/B"] = "Primary valuation method for financial institutions."
+        elif is_asset_or_cyclical:
+            primary.append("P/B")
+            reasons["P/B"] = f"Primary balance-sheet / cycle-anchored multiple for {self.sector}."
         else:
             secondary.append("P/B")
             reasons["P/B"] = "Secondary method for non-financials, useful for asset-heavy businesses."

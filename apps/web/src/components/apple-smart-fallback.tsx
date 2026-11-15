@@ -120,6 +120,19 @@ function formatMetricValue(
     return `${val.toFixed(2)}x`;
   }
 
+  // USD values must never be formatted as VND
+  if (uUpper === "USD") {
+    if (Math.abs(val) >= 1_000_000_000) {
+      return `${(val / 1_000_000_000).toLocaleString(numLocale, { maximumFractionDigits: 2 })} ${isEn ? "B USD" : "tỷ USD"}`;
+    }
+    return `${val.toLocaleString(numLocale, { maximumFractionDigits: 2 })} USD`;
+  }
+
+  // Foreign net flow stored in billions of VND
+  if (uUpper === "BILLION_VND" || mLower.includes("foreign")) {
+    return `${val.toLocaleString(numLocale, { maximumFractionDigits: 1 })} ${billionSuffix}`;
+  }
+
   // Large values (billions VND)
   if (Math.abs(val) >= 1_000_000_000) {
     return `${(val / 1_000_000_000).toLocaleString(numLocale, { maximumFractionDigits: 1 })} ${billionSuffix}`;

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from database.models import Asset, CorporateAction, Price, IndexMembership
+from database.models import Asset, CorporateAction, Price
 from services.market.adjustment import PriceAdjustmentEngine
 
 
@@ -411,3 +411,125 @@ class HistoricalBacktestEngine:
             look_ahead_audit={"status": "INSUFFICIENT_DATA", "violations": 0, "message": message},
             data_quality={"status": "INSUFFICIENT_DATA", "message": message},
         )
+
+    def evaluate_signal_calibration(
+        self,
+        as_of: date,
+        horizon_days: int = 20,
+        limit: int = 120,
+    ) -> Dict[str, Any]:
+        """
+        Walk-forward Out-of-Sample Calibration on historical PIT AssetDecisionSnapshots.
+        Measures Information Coefficient (Pearson IC), Spearman Rank IC, Hit Rate (sign accuracy),
+        and Brier score of probability-mapped opportunity signals against realized forward returns.
+        Strictly filters snapshot timestamps <= as_of - horizon_days to eliminate look-ahead leakage.
+        """
+        from database.models import AssetDecisionSnapshot
+
+        cutoff_dt = as_of - timedelta(days=horizon_days)
+        rows = (
+            self.session.query(AssetDecisionSnapshot, Asset)
+            .join(Asset, Asset.id == AssetDecisionSnapshot.asset_id)
+            .order_by(AssetDecisionSnapshot.captured_at.desc())
+            .limit(limit * 2)
+            .all()
+        )
+        pairs: List[Dict[str, Any]] = []
+        for snap, asset in rows:
+            facts = (snap.snapshot_data or {}).get("facts") or {}
+            snap_date_str = facts.get("as_of_date")
+            if not snap_date_str:
+                continue
+            try:
+                snap_d = date.fromisoformat(str(snap_date_str)[:10])
+            except ValueError:
+                continue
+            if snap_d > cutoff_dt:
+                continue
+
+            modules = facts.get("modules") or {}
+            opp_score = (modules.get("opportunity") or {}).get("score")
+            if opp_score is None:
+                continue
+            p0_row = (
+                self.session.query(Price)
+                .filter(Price.asset_id == asset.id, Price.status == "VALID", Price.observation_date <= snap_d, Price.raw_close > 0)
+                .order_by(Price.observation_date.desc())
+                .first()
+            )
+            p1_row = (
+                self.session.query(Price)
+                .filter(
+                    Price.asset_id == asset.id,
+                    Price.status == "VALID",
+                    Price.observation_date >= snap_d + timedelta(days=horizon_days),
+                    Price.observation_date <= as_of,
+                    Price.raw_close > 0,
+                )
+                .order_by(Price.observation_date.asc())
+                .first()
+            )
+            if not p0_row or not p1_row:
+                continue
+            c0 = float(p0_row.adjusted_close or p0_row.raw_close)
+            c1 = float(p1_row.adjusted_close or p1_row.raw_close)
+            if c0 <= 0:
+                continue
+            fwd_ret = (c1 - c0) / c0
+            pairs.append({"symbol": asset.symbol, "score": float(opp_score), "fwd_return": fwd_ret})
+            if len(pairs) >= limit:
+                break
+
+        n = len(pairs)
+        if n < 5:
+            return {
+                "status": "INSUFFICIENT_DATA",
+                "sample_size": n,
+                "horizon_days": horizon_days,
+                "ic_pearson": None,
+                "rank_ic_spearman": None,
+                "hit_rate": None,
+                "brier_score": None,
+                "note": f"Need at least 5 mature PIT decision snapshots >= {horizon_days}D old; observed {n}.",
+            }
+
+        scores = [p["score"] for p in pairs]
+        rets = [p["fwd_return"] for p in pairs]
+        ms = sum(scores) / n
+        mr = sum(rets) / n
+        cov = sum((scores[i] - ms) * (rets[i] - mr) for i in range(n))
+        vs = sum((scores[i] - ms) ** 2 for i in range(n))
+        vr = sum((rets[i] - mr) ** 2 for i in range(n))
+        ic = round(cov / math.sqrt(vs * vr), 4) if (vs > 0 and vr > 0) else 0.0
+
+        def _ranks(vals: List[float]) -> List[float]:
+            indexed = sorted(enumerate(vals), key=lambda x: x[1])
+            rk = [0.0] * len(vals)
+            for r_idx, (orig_i, _) in enumerate(indexed):
+                rk[orig_i] = float(r_idx + 1)
+            return rk
+
+        rs = _ranks(scores)
+        rr = _ranks(rets)
+        mrs = sum(rs) / n
+        mrr = sum(rr) / n
+        rcov = sum((rs[i] - mrs) * (rr[i] - mrr) for i in range(n))
+        rvs = sum((rs[i] - mrs) ** 2 for i in range(n))
+        rvr = sum((rr[i] - mrr) ** 2 for i in range(n))
+        rank_ic = round(rcov / math.sqrt(rvs * rvr), 4) if (rvs > 0 and rvr > 0) else 0.0
+
+        hits = sum(1 for s, r in zip(scores, rets) if (s >= 55.0 and r > 0) or (s < 45.0 and r <= 0))
+        eval_hits = sum(1 for s in scores if s >= 55.0 or s < 45.0)
+        hit_rate = round(hits / eval_hits, 4) if eval_hits > 0 else round(sum(1 for s, r in zip(scores, rets) if (s >= 50.0) == (r > 0)) / n, 4)
+
+        brier = round(sum((((max(0.0, min(100.0, s)) / 100.0) - (1.0 if r > 0 else 0.0)) ** 2) for s, r in zip(scores, rets)) / n, 4)
+        return {
+            "status": "AVAILABLE",
+            "sample_size": n,
+            "horizon_days": horizon_days,
+            "ic_pearson": ic,
+            "rank_ic_spearman": rank_ic,
+            "hit_rate": hit_rate,
+            "brier_score": brier,
+            "note": f"Walk-forward OOS calibration over {n} PIT snapshots ({horizon_days}D horizon): IC={ic:+.3f}, RankIC={rank_ic:+.3f}, HitRate={hit_rate*100:.1f}%, Brier={brier:.3f}.",
+        }

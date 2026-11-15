@@ -30,6 +30,7 @@ _ALLOWED_RPCS: frozenset[str] = frozenset({
     "rpc_get_universe_overview",
     "rpc_match_document_chunks",
     "rpc_get_pit_fundamentals_batch",
+    "rpc_get_cross_sectional_features",
     "rpc_refresh_analytics_views",
 })
 

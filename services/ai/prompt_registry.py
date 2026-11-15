@@ -148,7 +148,39 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
     ),
     "macro_commodity": (
         [r"\b(giá\s*dầu|oil|brent|wti|tương\s*quan|correlation|lạm\s*phát|cpi|tỷ\s*giá|usd\/vnd)\b"],
-        {"revenue_commodity_correlation", "pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct", "FX_USDVND", "VNM_CPI_YOY"},
+        {"revenue_commodity_correlation", "pearson_correlation", "brent", "wti", "brent_close", "commodity_close", "commodity_change_pct", "fx_usd_vnd", "fx_usdvnd", "vnm_cpi_yoy"},
+    ),
+    "inventory": (
+        [r"\b(hàng\s*tồn\s*kho|tồn\s*kho|inventory|inventories)\b"],
+        {"inventory", "dio", "ccc"},
+    ),
+    "debt_breakdown": (
+        [r"\b(nợ\s*vay\s*ngắn\s*hạn|nợ\s*ngắn\s*hạn|nợ\s*vay\s*dài\s*hạn|nợ\s*dài\s*hạn|short[- ]?term\s*debt|long[- ]?term\s*debt|cơ\s*cấu\s*nợ)\b"],
+        {"short_term_debt", "long_term_debt", "total_debt", "de_ratio", "net_debt_ebitda"},
+    ),
+    "earnings_quality": (
+        [r"\b(chất\s*lượng\s*lợi\s*nhuận|chất\s*lượng\s*dòng\s*tiền|cfo\s*\/\s*(?:lợi\s*nhuận|lnst|ni)|cfo\s*trên\s*ln|cash\s*conversion|earnings\s*quality)\b"],
+        {"cfo", "net_income", "cfo_to_ni", "fcf", "fcf_to_ni"},
+    ),
+    "valuation_sensitivity": (
+        [r"\b(độ\s*nhạy|sensitivity|wacc|chi\s*phí\s*vốn|p10|p50|p90|lãi\s*suất\s*chiết\s*khấu|chiết\s*khấu\s*wacc)\b"],
+        {"wacc", "dcf_base", "dcf_sensitivity", "composite_fair_value_base", "margin_of_safety"},
+    ),
+    "foreign_flow": (
+        [r"\b(khối\s*ngoại|nước\s*ngoài\s*mua\s*ròng|bán\s*ròng|foreign\s*flow|hose\s*flow)\b"],
+        {"hose_foreign_net_flow"},
+    ),
+    "macro_rates_fx": (
+        [r"\b(lãi\s*suất|fed|fomc|trái\s*phiếu|us10y|dgs10|tỷ\s*giá|usd\s*\/?\s*vnd|sbv|điều\s*hành|chính\s*sách\s*tiền\s*tệ|vĩ\s*mô)\b"],
+        {"fx_usd_vnd", "fx_usdvnd", "dgs10", "fred_dgs10", "us_fed_funds_rate", "us_cpi_yoy", "sbv_policy_rate", "vnm_cpi_yoy", "vnm_gdp_growth", "hose_foreign_net_flow"},
+    ),
+    "portfolio_dca": (
+        [r"\b(danh\s*mục|giải\s*ngân|dca|trung\s*bình\s*giá|phân\s*bổ|tái\s*cơ\s*cấu|rebalance|50\s*triệu|100\s*triệu|tập\s*trung\s*ngành|tỷ\s*trọng)\b"],
+        {"portfolio_nav", "portfolio_concentration", "dca_allocation_plan", "portfolio_holding_weight", "market_regime", "market_regime_vnindex"},
+    ),
+    "sector_z_score": (
+        [r"\b(z-?score|xếp\s*hạng\s*ngành|so\s*với\s*ngành|trung\s*vị\s*ngành|vị\s*thế\s*ngành)\b"],
+        {"sector_z_score", "peer_median_pe", "peer_median_pb", "peer_median_roe"},
     ),
     "operating_expense": (
         [r"\b(chi\s*phí\s*hoạt\s*động|chi\s*phí\s*bán\s*hàng|chi\s*phí\s*quản\s*lý|opex|sga)\b"],
@@ -462,73 +494,24 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 s += 110
             return s
 
-        # 2. Dynamic context budget based on requested metric complexity
+        # 2. Dynamic context budget based on requested metric complexity & multi-ticker count
         num_requested = len(requested_groups)
+        multi_sym_count = len([s for s in query_symbols if s not in ("vn100", "vnindex", "market", "portfolio", "all")])
         if num_requested <= 2:
-            max_evidence_items = 10 if len(query_symbols) > 1 else 6
+            max_evidence_items = min(22, max(10, multi_sym_count * 4)) if multi_sym_count > 1 else 8
         else:
-            # Scale budget to ensure each requested category gets representation
-            if len(query_symbols) > 1:
-                max_evidence_items = min(22, max(12, num_requested * 2))
+            # Scale budget to ensure each requested category & ticker gets representation
+            if multi_sym_count > 1:
+                max_evidence_items = min(30, max(14, num_requested * multi_sym_count + 4))
             else:
-                max_evidence_items = min(16, max(8, num_requested + 3))
+                max_evidence_items = min(20, max(10, num_requested * 2 + 2))
 
         selected_evidence = []
         selected_ids: set[str] = set()
 
-        # 3. Intent-first selection: satisfy each requested metric group
-        for cat_name, candidate_metrics in requested_groups.items():
-            # Find matching items in verifiable_evidence
-            cat_items = [ev for ev in verifiable_evidence if str(ev.get("metric") or "").lower() in candidate_metrics]
-            if query_symbols:
-                target_sym_items = [ev for ev in cat_items if str(ev.get("symbol") or "").lower() in query_symbols]
-                if target_sym_items:
-                    cat_items = target_sym_items
-
-            if cat_items:
-                # Sort category items by preference (_score descending)
-                cat_items.sort(key=_score, reverse=True)
-                # Take up to 2 items for composite groups (like margins, revenue+growth, price_change), 1 for single metrics
-                take_count = 2 if cat_name in {"margins_generic", "revenue", "net_income", "price_change"} else 1
-                for item in cat_items[:take_count]:
-                    if item.get("id") not in selected_ids and len(selected_evidence) < max_evidence_items:
-                        selected_ids.add(item.get("id"))
-                        val = item.get("value")
-                        clean_val = round(val, 2) if isinstance(val, float) else val
-                        ev_entry = {
-                            "id": item.get("id"),
-                            "metric": item.get("metric"),
-                            "value": clean_val,
-                            "unit": item.get("unit"),
-                            "source": item.get("source"),
-                        }
-                        if item.get("symbol"):
-                            ev_entry["symbol"] = item.get("symbol")
-                        if item.get("observation_date"):
-                            ev_entry["observation_date"] = str(item.get("observation_date"))
-                        if item.get("is_estimate"):
-                            ev_entry["is_estimate"] = True
-                        if item.get("diagnostic_reason"):
-                            ev_entry["diagnostic_reason"] = item.get("diagnostic_reason")
-                        if item.get("note"):
-                            ev_entry["note"] = item.get("note")
-                        selected_evidence.append(ev_entry)
-            else:
-                # Requested metric was not found in verifiable evidence
-                # Check if it was in missing_indicators (e.g. de_ratio, net_debt_ebitda)
-                for cand in candidate_metrics:
-                    if cand in missing_indicators:
-                        missing_requested_metrics.append(cand)
-                    elif not any(cand == str(ev.get("metric") or "").lower() for ev in verifiable_evidence):
-                        missing_requested_metrics.append(cand)
-
-        # 4. Fill remaining slots from globally scored verifiable evidence
-        verifiable_evidence.sort(key=_score, reverse=True)
-        for item in verifiable_evidence:
-            if len(selected_evidence) >= max_evidence_items:
-                break
-            if item.get("id") in selected_ids:
-                continue
+        def _append_ev(item: dict[str, Any]) -> None:
+            if item.get("id") in selected_ids or len(selected_evidence) >= max_evidence_items:
+                return
             selected_ids.add(item.get("id"))
             val = item.get("value")
             clean_val = round(val, 2) if isinstance(val, float) else val
@@ -550,6 +533,68 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
             if item.get("note"):
                 ev_entry["note"] = item.get("note")
             selected_evidence.append(ev_entry)
+
+        # 3. Intent-first selection with stratified per-symbol slots for multi-ticker comparisons
+        for cat_name, candidate_metrics in requested_groups.items():
+            # Find matching items in verifiable_evidence
+            cat_items = [ev for ev in verifiable_evidence if str(ev.get("metric") or "").lower() in candidate_metrics]
+            if query_symbols:
+                target_sym_items = [
+                    ev for ev in cat_items
+                    if str(ev.get("symbol") or "").lower() in query_symbols
+                    or any(q_s in {p.strip().lower() for p in str(ev.get("symbol") or "").split(",")} for q_s in query_symbols)
+                ]
+                if target_sym_items:
+                    cat_items = target_sym_items
+
+            if cat_items:
+                cat_items.sort(key=_score, reverse=True)
+                if multi_sym_count > 1:
+                    # Guarantee each compared ticker gets fair representation before extra items
+                    picked_cat = 0
+                    for q_sym in query_symbols:
+                        for item in cat_items:
+                            item_syms = {p.strip().lower() for p in str(item.get("symbol") or "").split(",")}
+                            if q_sym in item_syms and item.get("id") not in selected_ids:
+                                _append_ev(item)
+                                picked_cat += 1
+                                break
+                    limit_cat = max(multi_sym_count + 2, 5 if cat_name == "bank_metrics" else 3)
+                    for item in cat_items:
+                        if picked_cat >= limit_cat or len(selected_evidence) >= max_evidence_items:
+                            break
+                        if item.get("id") not in selected_ids:
+                            _append_ev(item)
+                            picked_cat += 1
+                else:
+                    take_map = {
+                        "macro_rates_fx": 8,
+                        "portfolio_dca": 8,
+                        "bank_metrics": 5,
+                        "debt_breakdown": 4,
+                        "earnings_quality": 4,
+                        "valuation_sensitivity": 4,
+                        "margins_generic": 2,
+                        "revenue": 2,
+                        "net_income": 2,
+                        "price_change": 2,
+                    }
+                    take_count = take_map.get(cat_name, 1)
+                    for item in cat_items[:take_count]:
+                        _append_ev(item)
+            else:
+                for cand in candidate_metrics:
+                    if cand in missing_indicators:
+                        missing_requested_metrics.append(cand)
+                    elif not any(cand == str(ev.get("metric") or "").lower() for ev in verifiable_evidence):
+                        missing_requested_metrics.append(cand)
+
+        # 4. Fill remaining slots from globally scored verifiable evidence
+        verifiable_evidence.sort(key=_score, reverse=True)
+        for item in verifiable_evidence:
+            if len(selected_evidence) >= max_evidence_items:
+                break
+            _append_ev(item)
 
         compact_context["verifiable_evidence"] = selected_evidence
 

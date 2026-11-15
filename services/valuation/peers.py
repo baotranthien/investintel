@@ -9,12 +9,12 @@ Provides institutional cross-sectional peer valuation & operational comparisons:
 - Fail-closed handling for incomplete peer data
 """
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 import statistics
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database.models import Asset, Price, PeerGroup
+from database.models import Asset, PeerGroup
 from services.fundamentals.repository import FinancialRepository
 from services.fundamentals.snapshot import FundamentalSnapshotBuilder
 
@@ -94,7 +94,7 @@ class PeerComparisonEngine:
             pass
 
         # 2. Check sector clustering with normalization
-        from services.fundamentals.sector_models import get_sector_for_symbol, normalize_sector_name
+        from services.fundamentals.sector_models import get_sector_for_symbol
         sec_key = get_sector_for_symbol(sym, sector)
         if sec_key in ("CONSUMER_GOODS",):
             sec_key = "CONSUMER"

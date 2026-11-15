@@ -35,6 +35,43 @@ def _tokenize_rag(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", normalized)
 
 
+def compute_hybrid_768_embedding(text: str) -> list[float]:
+    """Deterministic 768-dim signed feature-hash + bigram + char-trigram L2-normalized embedding for pgvector HNSW."""
+    tokens = _tokenize_rag(text)
+    if not tokens:
+        return [0.0] * 768
+
+    dim = 768
+    vec = [0.0] * dim
+    features: list[tuple[str, float]] = []
+    counts = Counter(tokens)
+    for tok, cnt in counts.items():
+        w = 1.0 + math.log1p(cnt)
+        features.append((f"u:{tok}", w * 1.4))
+        if len(tok) >= 4:
+            for i in range(len(tok) - 2):
+                features.append((f"c:{tok[i:i+3]}", 0.35))
+    for i in range(len(tokens) - 1):
+        features.append((f"b:{tokens[i]}_{tokens[i+1]}", 1.15))
+
+    for feat, weight in features:
+        digest = hashlib.blake2b(feat.encode("utf-8"), digest_size=8).digest()
+        val_int = int.from_bytes(digest, "big")
+        slot = val_int % dim
+        sign = 1.0 if ((val_int >> 16) & 1) == 0 else -1.0
+        vec[slot] += sign * weight
+
+    norm = math.sqrt(sum(v * v for v in vec))
+    if norm > 1e-12:
+        return [round(v / norm, 6) for v in vec]
+    return vec
+
+
+def format_pgvector_literal(vec: list[float]) -> str:
+    """Serializes a float list into Postgres pgvector literal syntax `[x1,x2,...]`."""
+    return "[" + ",".join(f"{float(v):.6f}" for v in vec) + "]"
+
+
 def parse_markdown_frontmatter(raw_content: str) -> tuple[dict[str, str], str]:
     """Splits optional YAML-like `---` frontmatter from Markdown body without external YAML deps."""
     text = (raw_content or "").replace("\r\n", "\n").lstrip("\ufeff")
@@ -472,6 +509,20 @@ class LocalVectorStore(VectorStore):
                     existing_chunk.embedding_version = embedding_version
                     existing_chunk.embedding = embedding
 
+                from services.common.supabase_rpc import is_postgres_session
+                if is_postgres_session(self.session):
+                    from sqlalchemy import text as sql_text
+                    self.session.flush()
+                    vec768 = format_pgvector_literal(compute_hybrid_768_embedding(embed_input))
+                    self.session.execute(
+                        sql_text(
+                            "UPDATE public.document_chunks "
+                            "SET embedding_vec = CAST(:vec AS extensions.vector(768)) "
+                            "WHERE chunk_id = :cid"
+                        ),
+                        {"vec": vec768, "cid": chunk_id},
+                    )
+
             if self.session.in_nested_transaction():
                 self.session.flush()
             else:
@@ -520,6 +571,7 @@ class LocalVectorStore(VectorStore):
             and document_type is None
             and language is None
         ):
+            qvec_lit = format_pgvector_literal(compute_hybrid_768_embedding(query))
             rpc_hits = call_pg_rpc(
                 self.session,
                 "rpc_match_document_chunks",
@@ -529,6 +581,7 @@ class LocalVectorStore(VectorStore):
                     "p_as_of": as_of_date or date.today(),
                     "p_limit": limit,
                     "p_exclude_synthetic": True,
+                    "p_query_embedding": qvec_lit,
                 },
             )
             if isinstance(rpc_hits, list) and not rpc_hits:
@@ -544,6 +597,7 @@ class LocalVectorStore(VectorStore):
                             "p_as_of": as_of_date or date.today(),
                             "p_limit": limit,
                             "p_exclude_synthetic": True,
+                            "p_query_embedding": qvec_lit,
                         },
                     )
             if isinstance(rpc_hits, list) and rpc_hits:
@@ -554,8 +608,8 @@ class LocalVectorStore(VectorStore):
                         "chunk_id": h.get("chunk_id"),
                         "text": h.get("text"),
                         "score": float(h.get("score") or 0.0),
-                        "bm25_score": float(h.get("score") or 0.0),
-                        "dense_score": 0.0,
+                        "bm25_score": float(h.get("bm25_score") or h.get("score") or 0.0),
+                        "dense_score": float(h.get("dense_score") or 0.0),
                         "retrieval_mode": h.get("retrieval_mode") or "POSTGRES_HYBRID_FTS_TRGM",
                         "source": h.get("source"),
                         "publication_date": h.get("publication_date"),
