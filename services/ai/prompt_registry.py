@@ -147,36 +147,44 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"revenue_commodity_correlation"},
     ),
     "macro_commodity": (
-        [r"\b(giá\s*dầu|oil|brent|wti|tương\s*quan|correlation|lạm\s*phát|cpi|tỷ\s*giá|usd\/vnd)\b"],
-        {"revenue_commodity_correlation", "pearson_correlation", "brent", "wti", "brent_close", "commodity_close", "commodity_change_pct", "fx_usd_vnd", "fx_usdvnd", "vnm_cpi_yoy"},
+        [r"\b(giá\s*dầu|oil|brent|wti|hrc|thép|crack\s*spread|tương\s*quan|correlation|lạm\s*phát|cpi|tỷ\s*giá|usd\/vnd)\b"],
+        {
+            "revenue_commodity_correlation", "pearson_correlation", "brent", "wti", "brent_close",
+            "commodity_close", "commodity_change_pct", "fx_usd_vnd", "fx_usdvnd", "vnm_cpi_yoy",
+            "hrc_steel_price", "singapore_crack_spread", "macro_event_news",
+        },
     ),
     "inventory": (
         [r"\b(hàng\s*tồn\s*kho|tồn\s*kho|inventory|inventories)\b"],
         {"inventory", "dio", "ccc"},
     ),
     "debt_breakdown": (
-        [r"\b(nợ\s*vay\s*ngắn\s*hạn|nợ\s*ngắn\s*hạn|nợ\s*vay\s*dài\s*hạn|nợ\s*dài\s*hạn|short[- ]?term\s*debt|long[- ]?term\s*debt|cơ\s*cấu\s*nợ)\b"],
-        {"short_term_debt", "long_term_debt", "total_debt", "de_ratio", "net_debt_ebitda"},
+        [r"\b(nợ\s*vay\s*ngắn\s*hạn|nợ\s*ngắn\s*hạn|nợ\s*vay\s*dài\s*hạn|nợ\s*dài\s*hạn|trái\s*phiếu\s*đáo\s*hạn|đáo\s*hạn\s*nợ|short[- ]?term\s*debt|long[- ]?term\s*debt|cơ\s*cấu\s*nợ|trả\s*tiền\s*trước)\b"],
+        {"short_term_debt", "long_term_debt", "total_debt", "de_ratio", "net_debt_ebitda", "customer_advances", "unbilled_backlog", "bond_maturity_12m"},
     ),
     "earnings_quality": (
-        [r"\b(chất\s*lượng\s*lợi\s*nhuận|chất\s*lượng\s*dòng\s*tiền|cfo\s*\/\s*(?:lợi\s*nhuận|lnst|ni)|cfo\s*trên\s*ln|cash\s*conversion|earnings\s*quality)\b"],
-        {"cfo", "net_income", "cfo_to_ni", "fcf", "fcf_to_ni"},
+        [r"\b(chất\s*lượng\s*lợi\s*nhuận|chất\s*lượng\s*dòng\s*tiền|cfo\s*\/\s*(?:lợi\s*nhuận|lnst|ni)|cfo\s*trên\s*ln|cash\s*conversion|earnings\s*quality|hợp\s*nhất|deconsolidation|like[-\s]*for[-\s]*like)\b"],
+        {"cfo", "net_income", "cfo_to_ni", "fcf", "fcf_to_ni", "accounting_deconsolidation_lfl"},
     ),
     "valuation_sensitivity": (
-        [r"\b(độ\s*nhạy|sensitivity|wacc|chi\s*phí\s*vốn|p10|p50|p90|lãi\s*suất\s*chiết\s*khấu|chiết\s*khấu\s*wacc)\b"],
-        {"wacc", "dcf_base", "dcf_sensitivity", "composite_fair_value_base", "margin_of_safety"},
+        [r"\b(độ\s*nhạy|sensitivity|wacc|chi\s*phí\s*vốn|p10|p50|p90|lãi\s*suất\s*chiết\s*khấu|chiết\s*khấu\s*wacc|g\s*giảm|g\s*tăng|tăng\s*trưởng\s*dài\s*hạn)\b"],
+        {"wacc", "dcf_base", "dcf_sensitivity", "dcf_custom_sensitivity", "composite_fair_value_base", "margin_of_safety"},
     ),
     "foreign_flow": (
         [r"\b(khối\s*ngoại|nước\s*ngoài\s*mua\s*ròng|bán\s*ròng|foreign\s*flow|hose\s*flow)\b"],
         {"hose_foreign_net_flow"},
     ),
     "macro_rates_fx": (
-        [r"\b(lãi\s*suất|fed|fomc|trái\s*phiếu|us10y|dgs10|tỷ\s*giá|usd\s*\/?\s*vnd|sbv|điều\s*hành|chính\s*sách\s*tiền\s*tệ|vĩ\s*mô)\b"],
-        {"fx_usd_vnd", "fx_usdvnd", "dgs10", "fred_dgs10", "us_fed_funds_rate", "us_cpi_yoy", "sbv_policy_rate", "vnm_cpi_yoy", "vnm_gdp_growth", "hose_foreign_net_flow"},
+        [r"\b(lãi\s*suất|fed|fomc|trái\s*phiếu|us10y|dgs10|tỷ\s*giá|usd\s*\/?\s*vnd|sbv|ngân\s*hàng\s*nhà\s*nước|nhnn|ngoại\s*tệ|điều\s*hành|chính\s*sách\s*tiền\s*tệ|vĩ\s*mô|tin\s*tức)\b"],
+        {
+            "fx_usd_vnd", "fx_usdvnd", "dgs10", "fred_dgs10", "us_fed_funds_rate", "fedfunds",
+            "us_cpi_yoy", "sbv_policy_rate", "vnm_cpi_yoy", "vnm_gdp_growth", "hose_foreign_net_flow",
+            "macro_event_news",
+        },
     ),
     "portfolio_dca": (
         [r"\b(danh\s*mục|giải\s*ngân|dca|trung\s*bình\s*giá|phân\s*bổ|tái\s*cơ\s*cấu|rebalance|50\s*triệu|100\s*triệu|tập\s*trung\s*ngành|tỷ\s*trọng)\b"],
-        {"portfolio_nav", "portfolio_concentration", "dca_allocation_plan", "portfolio_holding_weight", "market_regime", "market_regime_vnindex"},
+        {"portfolio_nav", "portfolio_concentration", "dca_allocation_plan", "portfolio_holding_weight", "portfolio_sector_weight", "market_regime", "market_regime_vnindex"},
     ),
     "sector_z_score": (
         [r"\b(z-?score|xếp\s*hạng\s*ngành|so\s*với\s*ngành|trung\s*vị\s*ngành|vị\s*thế\s*ngành)\b"],
@@ -191,8 +199,16 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"total_equity", "equity", "bvps"},
     ),
     "dcf": (
-        [r"\b(dcf|chiết\s*khấu\s*dòng\s*tiền|kịch\s*bản\s*cơ\s*sở|base\s*case|fair\s*value|giá\s*trị\s*hợp\s*lý)\b"],
-        {"dcf_fair_value", "dcf_base", "composite_fair_value_base", "margin_of_safety", "wacc", "terminal_growth"},
+        [r"\b(dcf|chiết\s*khấu\s*dòng\s*tiền|kịch\s*bản\s*cơ\s*sở|base\s*case|fair\s*value|giá\s*trị\s*hợp\s*lý|rnav)\b"],
+        {"dcf_fair_value", "dcf_base", "dcf_custom_sensitivity", "composite_fair_value_base", "margin_of_safety", "wacc", "terminal_growth", "rnav_per_share"},
+    ),
+    "real_estate_backlog": (
+        [r"\b(trả\s*tiền\s*trước|customer\s*advances|backlog|mở\s*bán|bàn\s*giao|đáo\s*hạn\s*trái\s*phiếu|rnav|bất\s*động\s*sản)\b"],
+        {"customer_advances", "unbilled_backlog", "bond_maturity_12m", "rnav_per_share"},
+    ),
+    "segment_analysis": (
+        [r"\b(bách\s*hóa\s*xanh|bhx|tgdd|đmx|điện\s*máy\s*xanh|chuỗi|mảng\s*kinh\s*doanh|segment|hòa\s*vốn|breakeven|ai\s*factory|dung\s*quất|ad20)\b"],
+        {"segment_breakdown", "accounting_deconsolidation_lfl"},
     ),
     "peer_medians": (
         [r"\b(trung\s*vị\s*ngành|peer\s*median|bình\s*quân\s*ngành|so\s*với\s*ngành|so\s*với\s*các\s*doanh\s*nghiệp\s*cùng\s*ngành|materials\s*peers)\b"],
@@ -480,8 +496,19 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 s += 250
             if m in {"pe_diff", "pb_diff"} and len(query_symbols) > 1:
                 s += 200
-            if ("tuong quan" in q_stripped or "correlation" in q_lower or "gia dau" in q_stripped or "dau" in q_stripped) and m in {"pearson_correlation", "brent", "wti", "commodity_close", "commodity_change_pct"}:
-                s += 280
+            if ("tuong quan" in q_stripped or "correlation" in q_lower or "gia dau" in q_stripped or "dau" in q_stripped or "crack" in q_lower) and m in {"pearson_correlation", "brent", "wti", "brent_close", "singapore_crack_spread", "commodity_close", "commodity_change_pct"}:
+                s += 320
+            if any(term in q_stripped for term in ("hrc", "thep", "steel")) and m == "hrc_steel_price":
+                s += 320
+            if m == "dcf_custom_sensitivity":
+                s += 400
+            if any(term in q_stripped for term in ("vi mo", "tin tuc", "nhnn", "ngan hang nha nuoc", "fed", "fomc", "lai suat", "ty gia", "cpi", "gdp", "khoi ngoai", "thi truong", "chinh sach")):
+                if m == "macro_event_news":
+                    s += 320
+                elif m in {"fedfunds", "us_fed_funds_rate", "sbv_policy_rate", "dgs10", "fx_usd_vnd", "vnm_cpi_yoy", "hose_foreign_net_flow"}:
+                    s += 290
+            elif m == "macro_event_news":
+                s += 220
             if any(term in q_stripped for term in ("tin dung", "nim", "casa", "no xau", "ngan hang", "npl")) and m in {"credit_growth", "nim", "casa_ratio", "npl_ratio", "llr_ratio"}:
                 s += 250
             if "eps" in q_lower and m in {"eps_ttm", "eps_yoy"}:
@@ -497,14 +524,18 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
         # 2. Dynamic context budget based on requested metric complexity & multi-ticker count
         num_requested = len(requested_groups)
         multi_sym_count = len([s for s in query_symbols if s not in ("vn100", "vnindex", "market", "portfolio", "all")])
+        has_macro_cat = bool({"macro_rates_fx", "macro_commodity"} & set(requested_groups.keys()))
         if num_requested <= 2:
-            max_evidence_items = min(22, max(10, multi_sym_count * 4)) if multi_sym_count > 1 else 8
+            if multi_sym_count > 1:
+                max_evidence_items = min(32, max(16 if has_macro_cat else 12, multi_sym_count * 6))
+            else:
+                max_evidence_items = 16 if has_macro_cat else 10
         else:
             # Scale budget to ensure each requested category & ticker gets representation
             if multi_sym_count > 1:
-                max_evidence_items = min(30, max(14, num_requested * multi_sym_count + 4))
+                max_evidence_items = min(48, max(20, (num_requested + 2) * multi_sym_count + 6))
             else:
-                max_evidence_items = min(20, max(10, num_requested * 2 + 2))
+                max_evidence_items = min(28 if has_macro_cat else 24, max(14 if has_macro_cat else 12, num_requested * 3 + 4))
 
         selected_evidence = []
         selected_ids: set[str] = set()
@@ -534,11 +565,12 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 ev_entry["note"] = item.get("note")
             selected_evidence.append(ev_entry)
 
-        # 3. Intent-first selection with stratified per-symbol slots for multi-ticker comparisons
+        # 3. Intent-first selection with stratified (metric, symbol) slots for multi-ticker comparisons
+        global_macro_cats = {"macro_rates_fx", "macro_commodity", "foreign_flow", "market_regime"}
         for cat_name, candidate_metrics in requested_groups.items():
             # Find matching items in verifiable_evidence
             cat_items = [ev for ev in verifiable_evidence if str(ev.get("metric") or "").lower() in candidate_metrics]
-            if query_symbols:
+            if query_symbols and cat_name not in global_macro_cats:
                 target_sym_items = [
                     ev for ev in cat_items
                     if str(ev.get("symbol") or "").lower() in query_symbols
@@ -549,17 +581,51 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
 
             if cat_items:
                 cat_items.sort(key=_score, reverse=True)
-                if multi_sym_count > 1:
-                    # Guarantee each compared ticker gets fair representation before extra items
-                    picked_cat = 0
-                    for q_sym in query_symbols:
+                if cat_name == "macro_rates_fx":
+                    # Guarantee top 17:30 macro news + FEDFUNDS + SBV/DGS10/FX slots before generic macro items
+                    priority_order = [
+                        "macro_event_news", "fedfunds", "us_fed_funds_rate",
+                        "sbv_policy_rate", "dgs10", "fx_usd_vnd", "hose_foreign_net_flow",
+                    ]
+                    picked_macro = 0
+                    news_picked = 0
+                    for pm in priority_order:
                         for item in cat_items:
-                            item_syms = {p.strip().lower() for p in str(item.get("symbol") or "").split(",")}
-                            if q_sym in item_syms and item.get("id") not in selected_ids:
-                                _append_ev(item)
-                                picked_cat += 1
+                            if str(item.get("metric") or "").lower() != pm:
+                                continue
+                            if item.get("id") in selected_ids or len(selected_evidence) >= max_evidence_items:
+                                continue
+                            if pm == "macro_event_news" and news_picked >= 3:
                                 break
-                    limit_cat = max(multi_sym_count + 2, 5 if cat_name == "bank_metrics" else 3)
+                            _append_ev(item)
+                            picked_macro += 1
+                            if pm == "macro_event_news":
+                                news_picked += 1
+                            else:
+                                break
+                    for item in cat_items:
+                        if picked_macro >= 10 or len(selected_evidence) >= max_evidence_items:
+                            break
+                        if item.get("id") not in selected_ids:
+                            _append_ev(item)
+                            picked_macro += 1
+                elif cat_name == "macro_commodity":
+                    for item in cat_items[:6]:
+                        _append_ev(item)
+                elif multi_sym_count > 1 and cat_name not in global_macro_cats:
+                    # Stratify by (candidate_metric, q_sym) so every ticker gets every requested metric (e.g. nim, casa, npl, llr)
+                    picked_cat = 0
+                    for cand_m in sorted(candidate_metrics):
+                        for q_sym in query_symbols:
+                            for item in cat_items:
+                                if str(item.get("metric") or "").lower() != cand_m:
+                                    continue
+                                item_syms = {p.strip().lower() for p in str(item.get("symbol") or "").split(",")}
+                                if q_sym in item_syms and item.get("id") not in selected_ids:
+                                    _append_ev(item)
+                                    picked_cat += 1
+                                    break
+                    limit_cat = max(multi_sym_count * max(1, len(candidate_metrics)) + 2, 12 if cat_name == "bank_metrics" else multi_sym_count + 3)
                     for item in cat_items:
                         if picked_cat >= limit_cat or len(selected_evidence) >= max_evidence_items:
                             break
@@ -568,18 +634,21 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                             picked_cat += 1
                 else:
                     take_map = {
-                        "macro_rates_fx": 8,
+                        "macro_rates_fx": 10,
+                        "macro_commodity": 6,
                         "portfolio_dca": 8,
                         "bank_metrics": 5,
                         "debt_breakdown": 4,
                         "earnings_quality": 4,
-                        "valuation_sensitivity": 4,
+                        "valuation_sensitivity": 5,
+                        "real_estate_backlog": 4,
+                        "segment_analysis": 4,
                         "margins_generic": 2,
                         "revenue": 2,
                         "net_income": 2,
                         "price_change": 2,
                     }
-                    take_count = take_map.get(cat_name, 1)
+                    take_count = take_map.get(cat_name, max(2, multi_sym_count) if multi_sym_count > 1 else 1)
                     for item in cat_items[:take_count]:
                         _append_ev(item)
             else:

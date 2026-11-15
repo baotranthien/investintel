@@ -10,25 +10,13 @@ class ValuationSnapshotBuilder:
         self.sector = (sector or "GENERAL").upper()
         self.selector = ValuationMethodSelector(self.symbol, self.sector)
 
-    def build(self, fundamentals: Dict[str, Any], current_price: float, as_of: date) -> ValuationSnapshot:
-        selection = self.selector.select_methods(fundamentals)
-        methods = []
-        
-        eps = fundamentals.get("eps_ttm") or 0
-        bvps = fundamentals.get("bvps") or 0
-        shares_outstanding = fundamentals.get("shares_outstanding", 1_000_000_000)
-        
-        # Retrieve peer and historical multiples from dataset (None if missing)
-        peer_pe = fundamentals.get("peer_pe")
-        hist_pe = fundamentals.get("hist_pe")
-        
-        peer_pb = fundamentals.get("peer_pb")
-        hist_pb = fundamentals.get("hist_pb")
-        
+    def build_dcf_context(self, fundamentals: Dict[str, Any]) -> tuple[DCFAssumptions, float, bool, bool]:
+        """Build canonical DCF assumptions, cost of equity, real-estate flag, and cyclical flag."""
         use_dyn = bool(fundamentals.get("use_dynamic_assumptions", False))
-
         cyclical_commodity_sectors = {"OIL_GAS", "ENERGY", "STEEL", "REAL_ESTATE"}
         cyclical_commodity_tickers = {"HPG", "HSG", "NKG", "DCM", "DPM", "GVR", "PHR", "HT1"}
+        real_estate_tickers = {"VHM", "NLG", "KDH", "NVL", "PDR", "DXG", "KBC", "BCM", "VRE", "HDG", "DIG", "CEO", "SCR"}
+        is_real_estate = self.sector == "REAL_ESTATE" or self.symbol in real_estate_tickers
         is_cyclical_sector = (self.sector in cyclical_commodity_sectors) or (
             self.sector == "MATERIALS" and self.symbol in cyclical_commodity_tickers
         )
@@ -64,7 +52,7 @@ class ValuationSnapshotBuilder:
             if op_m is not None:
                 base_m = max(0.008, min(0.40, op_m))
                 if is_cyclical_sector and base_m > 0.14:
-                    target_m = 0.115
+                    target_m = 0.15 if is_real_estate else 0.115
                     ebit_margins = [round(base_m - (base_m - target_m) * (i / 4.0), 4) for i in range(5)]
                 else:
                     target_m = 0.20 if base_m > 0.22 else base_m
@@ -80,12 +68,44 @@ class ValuationSnapshotBuilder:
                 capex_pct = abs(capex_pct) / 100.0
             if capex_pct is None:
                 capex_pct = round(max(0.003, min(0.06, base_m * 0.25)), 4)
+            if is_real_estate:
+                capex_pct = max(capex_pct, 0.10)
         else:
             revenue_growth_rates = [0.10, 0.09, 0.08, 0.07, 0.06]
             ebit_margins = [0.20, 0.20, 0.20, 0.20, 0.20]
             dcf_wacc = 0.12
             cost_of_equity = 0.12
             capex_pct = None
+
+        base_rev = fundamentals.get("revenue_ttm") or fundamentals.get("revenue_annual") or fundamentals.get("latest_annual_revenue")
+        dcf_assump = DCFAssumptions(
+            revenue_growth_rates=revenue_growth_rates,
+            ebit_margins=ebit_margins,
+            tax_rate=0.20,
+            wacc=dcf_wacc,
+            terminal_growth_rate=0.03,
+            base_revenue=base_rev,
+            capex_percent_rev=capex_pct,
+        )
+        return dcf_assump, cost_of_equity, is_real_estate, is_cyclical_sector
+
+    def build(self, fundamentals: Dict[str, Any], current_price: float, as_of: date) -> ValuationSnapshot:
+        selection = self.selector.select_methods(fundamentals)
+        methods = []
+        
+        eps = fundamentals.get("eps_ttm") or 0
+        bvps = fundamentals.get("bvps") or 0
+        shares_outstanding = fundamentals.get("shares_outstanding", 1_000_000_000)
+        
+        # Retrieve peer and historical multiples from dataset (None if missing)
+        peer_pe = fundamentals.get("peer_pe")
+        hist_pe = fundamentals.get("hist_pe")
+        
+        peer_pb = fundamentals.get("peer_pb")
+        hist_pb = fundamentals.get("hist_pb")
+        
+        use_dyn = bool(fundamentals.get("use_dynamic_assumptions", False))
+        dcf_assump, cost_of_equity, is_real_estate, is_cyclical_sector = self.build_dcf_context(fundamentals)
 
         # Execute selected methods
         if "P/E" in selection.primary_methods or "P/E" in selection.secondary_methods:
@@ -99,23 +119,33 @@ class ValuationSnapshotBuilder:
             methods.append(out)
             
         dcf_sensitivity: Optional[Dict[str, Any]] = None
+        rnav_normalized = False
+        rnav_scale = 1.0
         if "DCF" in selection.primary_methods or "DCF" in selection.secondary_methods:
-            base_rev = fundamentals.get("revenue_ttm") or fundamentals.get("revenue_annual") or fundamentals.get("latest_annual_revenue")
-            dcf_assump = DCFAssumptions(
-                revenue_growth_rates=revenue_growth_rates,
-                ebit_margins=ebit_margins,
-                tax_rate=0.20,
-                wacc=dcf_wacc,
-                terminal_growth_rate=0.03,
-                base_revenue=base_rev,
-                capex_percent_rev=capex_pct,
-            )
             out = DCFEngine.calculate(dcf_assump, shares_outstanding, net_debt=fundamentals.get("net_debt", 0))
             out.weight = (0.5 if "DCF" in selection.primary_methods else 0.2) if out.applicability != "NOT_APPLICABLE" else 0.0
             if out.applicability != "NOT_APPLICABLE":
+                # Pillar 1: Real Estate RNAV normalization (prevent single-quarter bulk handover distortion)
+                if is_real_estate and bvps and bvps > 0 and out.fair_value.base > bvps * 1.45:
+                    rnav_scale = (bvps * 1.35) / out.fair_value.base
+                    out.fair_value = FairValueRange(
+                        bear=round(out.fair_value.bear * rnav_scale, 0),
+                        base=round(out.fair_value.base * rnav_scale, 0),
+                        bull=round(out.fair_value.bull * rnav_scale, 0),
+                    )
+                    out.warnings.append(
+                        f"REAL_ESTATE_RNAV_NORMALIZATION: Capped bulk-handover DCF peak to sustainable landbank-adjusted RNAV band ({out.fair_value.base:,.0f} VND/share)."
+                    )
+                    rnav_normalized = True
                 dcf_sensitivity = DCFEngine.calculate_sensitivity_matrix(
                     dcf_assump, shares_outstanding, net_debt=fundamentals.get("net_debt", 0)
                 )
+                if rnav_normalized and dcf_sensitivity:
+                    dcf_sensitivity["p10"] = round(float(dcf_sensitivity["p10"]) * rnav_scale, 0)
+                    dcf_sensitivity["p50"] = round(float(dcf_sensitivity["p50"]) * rnav_scale, 0)
+                    dcf_sensitivity["p90"] = round(float(dcf_sensitivity["p90"]) * rnav_scale, 0)
+                    for g_row in dcf_sensitivity.get("grid", []):
+                        g_row["fair_value"] = round(float(g_row["fair_value"]) * rnav_scale, 0)
             methods.append(out)
             
         if "Residual Income" in selection.primary_methods or "Residual Income" in selection.secondary_methods:
@@ -148,6 +178,10 @@ class ValuationSnapshotBuilder:
         excluded_methods = [m.method for m in methods if m.applicability == "NOT_APPLICABLE" or m.weight == 0.0]
         
         snapshot_warnings = []
+        if rnav_normalized:
+            snapshot_warnings.append(
+                f"REAL_ESTATE_RNAV_NORMALIZATION: Anchored {self.symbol} DCF peak to sustainable landbank-adjusted RNAV range."
+            )
         if use_dyn and is_cyclical_sector:
             snapshot_warnings.append(
                 f"CYCLICAL_PEAK_DAMPING: Applied mid-cycle growth and EBIT margin mean-reversion for {self.sector}."

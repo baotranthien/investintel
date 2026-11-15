@@ -239,6 +239,48 @@ async def run_analyst_automation_cycle(
     finally:
         session.close()
 
+    # Pillar 7: Daily 17:30 ICT Official News Crawl + Gemini Correlation + Backtest Validation
+    macro_news_key = f"macro-news-1730:{today.isoformat()}"
+    session = session_factory()
+    try:
+        job = _claim_job(session, "MACRO_NEWS_1730", macro_news_key)
+        if job is None:
+            results.append({"job_key": macro_news_key, "status": "SKIPPED", "reason": "Already running or completed"})
+        else:
+            from services.news.validator import run_daily_macro_news_pipeline_async
+
+            news_res = await run_daily_macro_news_pipeline_async(
+                session=session,
+                as_of_date=today,
+                use_gemini=True,
+                fetch_live=True,
+                index_to_rag=True,
+            )
+            job = session.query(AnalystAutomationJob).filter_by(job_key=macro_news_key).one()
+            _finish_job(
+                session,
+                job,
+                result={
+                    "crawled_count": news_res.get("crawled_count"),
+                    "approved_count": news_res.get("approved_count"),
+                    "provider": news_res.get("provider"),
+                },
+            )
+            results.append({
+                "job_key": macro_news_key,
+                "status": "SUCCESS",
+                "approved_count": news_res.get("approved_count"),
+            })
+    except Exception as error:
+        session.rollback()
+        job = session.query(AnalystAutomationJob).filter_by(job_key=macro_news_key).first()
+        if job:
+            _finish_job(session, job, error=str(error), status="FAILED")
+        logger.exception("Macro news 17:30 job failed")
+        results.append({"job_key": macro_news_key, "status": "FAILED", "reason": str(error)})
+    finally:
+        session.close()
+
     return results
 
 

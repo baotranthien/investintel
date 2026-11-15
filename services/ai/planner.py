@@ -76,9 +76,23 @@ class QueryPlanner:
         # 1. Symbol resolution
         symbols: list[str] = []
         if explicit_symbol:
-            resolved = UniverseRegistry.resolve_instrument(session, explicit_symbol)
-            sym = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(explicit_symbol) or explicit_symbol.upper())
-            symbols = [sym]
+            raw_exp = explicit_symbol.strip()
+            exp_tokens: list[str] = []
+            if re.search(r"[,;/|]", raw_exp):
+                exp_tokens = [tok.strip() for tok in re.split(r"[,;/|\s]+", raw_exp) if tok.strip()]
+            else:
+                resolved_whole = UniverseRegistry.resolve_instrument(session, raw_exp)
+                if resolved_whole:
+                    exp_tokens = [resolved_whole.symbol]
+                elif re.search(r"\s+", raw_exp):
+                    exp_tokens = [tok.strip() for tok in raw_exp.split() if tok.strip()]
+                else:
+                    exp_tokens = [raw_exp]
+            for raw_tok in exp_tokens:
+                resolved = UniverseRegistry.resolve_instrument(session, raw_tok)
+                sym = resolved.symbol if resolved else (UniverseRegistry.normalize_symbol(raw_tok) or raw_tok.upper())
+                if sym and sym not in symbols:
+                    symbols.append(sym)
             if session is not None and hasattr(session, "query"):
                 text_symbols = UniverseRegistry.extract_all_symbols_from_text(q_clean, session)
                 for extra in text_symbols:
@@ -159,6 +173,9 @@ class QueryPlanner:
             entity_type = EntityType.UNIVERSE
             if not symbols:
                 symbols = ["ALL"]
+        elif is_portfolio_query:
+            entity_type = EntityType.UNIVERSE
+            symbols = ["PORTFOLIO"]
         elif is_market_regime_query and not [s for s in symbols if s not in ("VNINDEX", "VN100")]:
             entity_type = EntityType.INDEX
             if not symbols:
@@ -173,15 +190,14 @@ class QueryPlanner:
                 entity_type = EntityType.COMMODITY
             else:
                 entity_type = EntityType.TICKER
-        elif is_portfolio_query:
-            entity_type = EntityType.UNIVERSE
-            symbols = ["VN100"]
         else:
             entity_type = EntityType.GENERAL
 
         # 10. Determine Intent
         if is_screener_query:
             intent = QueryIntent.SCREENER
+        elif is_portfolio_query:
+            intent = QueryIntent.PORTFOLIO
         elif is_dcf_query:
             intent = QueryIntent.VALUATION_DCF
         elif is_peer_comparison_query:
@@ -192,8 +208,6 @@ class QueryPlanner:
             intent = QueryIntent.MARKET_REGIME
         elif is_dividend_query:
             intent = QueryIntent.DIVIDEND
-        elif is_portfolio_query:
-            intent = QueryIntent.PORTFOLIO
         else:
             intent = QueryIntent.FUNDAMENTAL
 

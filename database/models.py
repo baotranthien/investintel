@@ -863,3 +863,52 @@ class MarketFlowDaily(Base, TimestampMixin):
     __table_args__ = (UniqueConstraint("symbol", "observation_date", name="uq_market_flow_symbol_date"),)
 
 
+class MacroAnalysisLog(Base, TimestampMixin):
+    """17:30 ICT Daily Official News Crawl, Gemini Structured Correlation & Server-Side Validation Log."""
+    __tablename__ = "macro_analysis_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    analysis_date = Column(Date, nullable=False, index=True)
+    run_timestamp = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    event_title = Column(String(500), nullable=False)
+    source_url = Column(String(1000), nullable=False, unique=True)
+    source_domain = Column(String(120), nullable=False, index=True)
+    source_tier = Column(Integer, nullable=False, default=3)  # 1=Gov Portal, 2=Deep Macro, 3=Financial Press
+    source_trust_level = Column(Integer, nullable=False, default=7)  # 10, 8, 6..7
+    macro_impact = Column(Text, nullable=False)
+    correlation_type = Column(String(32), nullable=False, default="direct")  # direct | indirect
+    sentiment = Column(String(32), nullable=False, default="neutral")  # positive | negative | neutral | mixed
+    affected_sectors = Column(JSON, nullable=True)
+    affected_symbols = Column(JSON, nullable=True)
+    analysis_detail = Column(Text, nullable=False)
+    ai_confidence_score = Column(Numeric(6, 4), nullable=False, default=0.0)
+    raw_event_json = Column(JSON, nullable=True)
+    validation_status = Column(String(32), nullable=False, default="PENDING", index=True)  # APPROVED | REJECTED | NEEDS_REVIEW
+    historical_hit_rate = Column(Numeric(6, 4), nullable=True)
+    historical_sample_size = Column(Integer, nullable=True, default=0)
+    avg_1d_return_pct = Column(Numeric(8, 4), nullable=True)
+    avg_5d_return_pct = Column(Numeric(8, 4), nullable=True)
+    validation_notes = Column(Text, nullable=True)
+    approved_for_ai = Column(Boolean, nullable=False, default=False, index=True)
+
+
+class AIPredictionLog(Base, TimestampMixin):
+    """Walk-Forward AI Prediction & Critic Verification Audit Log (Pillar 6)."""
+    __tablename__ = "ai_prediction_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    prediction_date = Column(Date, nullable=False, index=True)
+    symbol = Column(String(32), nullable=False, index=True)
+    sector = Column(String(120), nullable=True, index=True)
+    query_intent = Column(String(64), nullable=True)
+    verdict = Column(String(32), nullable=False)  # OVERWEIGHT | MARKET_WEIGHT | UNDERWEIGHT | HOLD
+    confidence = Column(Numeric(6, 4), nullable=False, default=0.75)
+    current_price = Column(Numeric(18, 2), nullable=True)
+    fair_value_base = Column(Numeric(18, 2), nullable=True)
+    implied_upside_pct = Column(Numeric(10, 4), nullable=True)
+    calibrated_upside_pct = Column(Numeric(10, 4), nullable=True)
+    critic_passed = Column(Boolean, nullable=False, default=True)
+    critic_corrections = Column(Integer, nullable=False, default=0)
+    realized_price_30d = Column(Numeric(18, 2), nullable=True)
+    realized_return_30d_pct = Column(Numeric(10, 4), nullable=True)
+
+
+

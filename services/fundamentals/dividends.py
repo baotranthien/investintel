@@ -97,20 +97,71 @@ class DividendYieldEngine:
 
         one_year_ago = as_of - timedelta(days=365)
 
+        non_cash_types = {
+            "STOCK_DIVIDEND",
+            "BONUS_SHARES",
+            "SHARE_ISSUANCE",
+            "RIGHTS_ISSUE",
+            "SPLIT",
+            "ESOP",
+        }
+        cash_note_re = re.compile(r"(\d{3,5})\s*(?:đ|vnd|đồng)\s*\/(?:cp|cổ phiếu|share)", re.IGNORECASE)
+        pct_cash_note_re = re.compile(r"(?:tiền mặt|cash\s*dividend)[^\d]{0,20}(\d+(?:\.\d+)?)\s*%", re.IGNORECASE)
+
         for ca in actions:
             notes = ca.notes or ""
+            notes_l = notes.lower()
+            act_type = (ca.action_type or "").strip().upper()
+            is_issuance_note = any(
+                kw in notes_l for kw in ("phát hành", "share issue", "chào bán", "số lượng", "number of shares")
+            ) and not ("cổ tức" in notes_l or "dividend" in notes_l)
+            if act_type in {"RIGHTS_ISSUE", "SHARE_ISSUANCE", "ESOP", "LISTING_CHANGE"} or is_issuance_note:
+                continue
+            if ("dự kiến" in notes_l or "expected" in notes_l) and act_type != "CASH_DIVIDEND":
+                continue
+            has_explicit_cash_note = bool(
+                cash_note_re.search(notes)
+                or pct_cash_note_re.search(notes)
+                or "tiền mặt" in notes_l
+                or "cash" in act_type.lower()
+            )
+            if act_type in non_cash_types and not cash_note_re.search(notes):
+                continue
+            if ("STOCK" in act_type or "BONUS" in act_type or "SPLIT" in act_type) and not has_explicit_cash_note:
+                continue
+
             # Detect cash dividend amount: check value column first, else parse notes
             cash_val = None
             if ca.value is not None and ca.value > 0:
-                cash_val = float(ca.value)
+                raw_val = float(ca.value)
+                # Par value in Vietnam is 10,000 VND. Per-share cash dividend > 30,000 VND
+                # indicates an unscaled total payout (ty/trieu VND) or share count outlier.
+                if raw_val <= 30_000:
+                    cash_val = raw_val
+                else:
+                    m_override = cash_note_re.search(notes)
+                    m_pct = pct_cash_note_re.search(notes)
+                    if m_override:
+                        cash_val = float(m_override.group(1))
+                        has_unstructured_notes = True
+                    elif m_pct:
+                        cash_val = float(m_pct.group(1)) * 100.0
+                        has_unstructured_notes = True
+                    else:
+                        continue
             else:
                 # Regex match e.g. (8360 đ/cp) or (8360 VND/share) or 6500 đ/cp
-                m = re.search(r"(\d{3,5})\s*(?:đ|vnd|đồng)\s*\/(?:cp|cổ phiếu|share)", notes, re.IGNORECASE)
+                m = cash_note_re.search(notes)
                 if m:
                     cash_val = float(m.group(1))
                     has_unstructured_notes = True
+                else:
+                    m_pct = pct_cash_note_re.search(notes)
+                    if m_pct:
+                        cash_val = float(m_pct.group(1)) * 100.0
+                        has_unstructured_notes = True
 
-            if cash_val is None or cash_val <= 0:
+            if cash_val is None or cash_val <= 0 or cash_val > 30_000:
                 continue
 
             # Parse fiscal year & round before dedup so bilingual/structured rows merge cleanly
@@ -217,10 +268,14 @@ class DividendYieldEngine:
         # 4. Status determination
         data_status = "PARTIAL" if (missing_fields or has_unstructured_notes) else "AVAILABLE"
 
+        ttm_yield_str = f"{ttm_yield:.2f}%" if ttm_yield is not None else "N/A"
+        fy_yield_str = f"{fy_yield:.2f}%" if fy_yield is not None else "N/A"
+        price_str = f"{canonical_price:,.0f} VND" if canonical_price else "N/A"
+
         note = (
             f"{sym}: TTM Cash Dividend = {ttm_sum:,.0f} VND/share "
-            f"(Yield: {ttm_yield:.2f}% at market price {canonical_price:,.0f} VND). "
-            f"Latest Fiscal Year ({latest_fy}) Cash Dividend = {fy_sum:,.0f} VND/share (Yield: {fy_yield:.2f}%). "
+            f"(Yield: {ttm_yield_str} at market price {price_str}). "
+            f"Latest Fiscal Year ({latest_fy}) Cash Dividend = {fy_sum:,.0f} VND/share (Yield: {fy_yield_str}). "
             f"Historical cumulative distributions across all logged periods = {cum_sum:,.0f} VND/share. "
             f"Status is {data_status} due to unstructured dividend notes and absent ex_date metadata."
         )

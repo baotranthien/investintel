@@ -15,6 +15,7 @@ import {
 import { useLocale, type AppLocale } from "@/lib/i18n";
 import AppleCitationPill from "@/components/apple-citation-pill";
 import AppleSmartFallback from "@/components/apple-smart-fallback";
+import { MacroNewsPanel } from "@/components/macro-news-panel";
 import { normalizeTicker, buildOpportunityQuestion } from "@/lib/ai-handoff";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -1326,6 +1327,56 @@ function AIWorkspaceContent() {
             </div>
           </section>
         )}
+
+        {/* 3.5. Bảng Tin Vĩ Mô 17:30 & Kiểm Chứng Backtest */}
+        {!busy &&
+          (answer ? (
+            <details
+              style={{
+                marginBottom: "18px",
+                borderRadius: "14px",
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                padding: "10px 14px",
+              }}
+            >
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                  userSelect: "none",
+                }}
+              >
+                {t(
+                  "📰 Tin Vĩ Mô 17:30 & Kiểm Chứng Backtest (Pillar 7 — Nhấn để mở rộng)",
+                  "📰 17:30 ICT Official Macro News & Backtest Validation (Expand)"
+                )}
+              </summary>
+              <div style={{ marginTop: "12px" }}>
+                <MacroNewsPanel
+                  compact
+                  onAskAboutEvent={(promptText, sym) => {
+                    if (sym) setActiveSymbol(sym);
+                    setQuestion(promptText);
+                    textareaRef.current?.focus();
+                  }}
+                />
+              </div>
+            </details>
+          ) : (
+            <div style={{ marginBottom: "18px" }}>
+              <MacroNewsPanel
+                compact
+                onAskAboutEvent={(promptText, sym) => {
+                  if (sym) setActiveSymbol(sym);
+                  setQuestion(promptText);
+                  textareaRef.current?.focus();
+                }}
+              />
+            </div>
+          ))}
 
         {/* 4. Khung Phạm vi công cụ */}
         <section className={styles.scopeCard}>

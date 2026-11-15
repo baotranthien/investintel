@@ -18,6 +18,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton, SkeletonCard, SkeletonText } from "@/components/ui/skeleton";
 import { useCachedResource, formatUpdatedAt } from "@/lib/use-cached-resource";
 import DimensionalMarketRadar from "@/components/dimensional-market-radar";
+import { MacroNewsPanel } from "@/components/macro-news-panel";
 import { useLocale, translateQuantEnum, type AppLocale } from "@/lib/i18n";
 import styles from "./page.module.css";
 
@@ -788,6 +789,11 @@ export default function MarketPage() {
               </div>
             )}
           </article>
+        </div>
+
+        {/* 3C. 17:30 OFFICIAL MACRO NEWS, GEMINI JSON & BACKTEST VALIDATION */}
+        <div style={{ marginTop: "16px" }}>
+          <MacroNewsPanel />
         </div>
       </section>
 

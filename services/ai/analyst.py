@@ -1204,8 +1204,9 @@ class AIAnalyst:
 
         # 4. Multi-ticker comparison claim
         comps = structured_summary.get("comparisons")
-        if comps and len(extracted_symbols) >= 2:
-            s1, s2 = extracted_symbols[0], extracted_symbols[1]
+        cmp_syms = [s for s in extracted_symbols if s not in ("MARKET", "PORTFOLIO", "VN100", "VNINDEX", "ALL", "UNIVERSE_ALL")]
+        if comps and len(cmp_syms) >= 2:
+            s1, s2 = cmp_syms[0], cmp_syms[1]
             comp_parts = []
             if "pe_diff" in comps:
                 comp_parts.append(f"chênh lệch P/E ({s1} - {s2}) là {comps['pe_diff']:+.2f} điểm")
@@ -1220,14 +1221,50 @@ class AIAnalyst:
             if "npl_ratio_diff" in comps:
                 comp_parts.append(f"chênh lệch nợ xấu NPL ({s1} - {s2}) là {comps['npl_ratio_diff']:+.2f}%")
             if comp_parts:
+                scope_lbl = f"{s1} và {s2}" if len(cmp_syms) == 2 else f"{s1} vs {s2} (nhóm {', '.join(cmp_syms)})"
                 fallback_claims.append(AIClaim(
                     claim_type="FACT",
-                    text=f"So sánh định giá & chỉ số giữa {s1} và {s2}: {'; '.join(comp_parts)}.",
+                    text=f"So sánh định giá & chỉ số giữa {scope_lbl}: {'; '.join(comp_parts)}.",
                     citation_ids=[],
                 ))
 
-        # 5. Macro commodity & correlation claims
+        # 5. Macro commodity & correlation claims (deduplicated & sector-scoped)
+        steel_syms = {"HPG", "HSG", "NKG"}
+        oil_syms = {"BSR", "PLX", "GAS", "PVD", "PVS", "OIL", "PVT"}
+        fb_stock_syms = {s.upper() for s in cmp_syms}
+        fb_has_steel = bool(fb_stock_syms & steel_syms) or any(k in q_norm for k in ("hrc", "thep", "steel"))
+        fb_has_oil = bool(fb_stock_syms & oil_syms) or any(k in q_norm for k in ("brent", "crack", "dau", "oil", "xang"))
+        seen_fb_keys: set[tuple[str, str]] = set()
+        alias_canon = {
+            "us_fed_funds_rate": "fedfunds",
+            "fx_usdvnd": "fx_usd_vnd",
+        }
+        macro_label_vi = {
+            "vnm_gdp_growth": "Tăng trưởng GDP Việt Nam",
+            "vnm_cpi_yoy": "Lạm phát CPI YoY Việt Nam",
+            "sbv_policy_rate": "Lãi suất điều hành SBV",
+            "fedfunds": "Lãi suất Fed Funds Rate",
+            "us_fed_funds_rate": "Lãi suất Fed Funds Rate",
+            "dgs10": "Lợi suất trái phiếu Chính phủ Mỹ 10 năm",
+            "fx_usd_vnd": "Tỷ giá trung tâm USD/VND",
+            "fx_usdvnd": "Tỷ giá USD/VND",
+        }
+
         for c in ([] if asks_pinpoint_price else citations):
+            m_low = (c.metric or "").lower()
+            if not m_low:
+                continue
+            m_canon = alias_canon.get(m_low, m_low)
+            sym_canon = (c.symbol or "MARKET").upper()
+            dedup_sym = "MARKET" if m_canon in macro_label_vi or m_canon in ("hrc_steel_price", "singapore_crack_spread", "brent_close", "hose_foreign_net_flow") else sym_canon
+            if m_canon != "macro_event_news" and (dedup_sym, m_canon) in seen_fb_keys:
+                continue
+            if m_canon == "hrc_steel_price" and not fb_has_steel:
+                continue
+            if m_canon in ("singapore_crack_spread", "brent_close") and not fb_has_oil:
+                continue
+            if m_low in ("brent_close", "pearson_correlation", "market_regime", "market_breadth_pct", "dcf_base", "composite_fair_value_base", "peer_median_pe", "peer_median_pb", "peer_median_roe", "revenue_commodity_correlation", "interest_coverage", "market_regime_vnindex", "screened_count", "matched_count", "matching_symbols", "ccc", "roic", "net_debt_ebitda", "total_equity", "dividend_yield", "cash_dividend"):
+                seen_fb_keys.add((dedup_sym, m_canon))
             if c.metric == "brent_close" and c.value is not None:
                 fallback_claims.append(AIClaim(
                     claim_type="FACT",
@@ -1295,11 +1332,18 @@ class AIAnalyst:
                     citation_ids=[c.id] if c.id in evidence_by_id else [],
                 ))
             elif c.metric == "market_regime_vnindex":
-                fallback_claims.append(AIClaim(
-                    claim_type="UNCERTAINTY",
-                    text="Dữ liệu chuỗi giá trực tiếp của VNINDEX (toàn sàn HOSE) chưa có sẵn trong cơ sở dữ liệu kiểm chứng. Hệ thống cung cấp trạng thái rổ chỉ số VN100 làm bối cảnh đại diện quy mô lớn.",
-                    citation_ids=[],
-                ))
+                if getattr(c, "freshness", None) == "INSUFFICIENT_DATA":
+                    fallback_claims.append(AIClaim(
+                        claim_type="UNCERTAINTY",
+                        text="Dữ liệu chuỗi giá trực tiếp của VNINDEX (toàn sàn HOSE) chưa có sẵn trong cơ sở dữ liệu kiểm chứng. Hệ thống cung cấp trạng thái rổ chỉ số VN100 làm bối cảnh đại diện quy mô lớn.",
+                        citation_ids=[],
+                    ))
+                elif c.note or c.value:
+                    fallback_claims.append(AIClaim(
+                        claim_type="MODEL_OUTPUT",
+                        text=c.note or f"Xu hướng trực tiếp VNINDEX: {c.value}.",
+                        citation_ids=[c.id] if c.id in evidence_by_id else [],
+                    ))
             elif c.metric == "screened_count" and c.value is not None:
                 fallback_claims.append(AIClaim(
                     claim_type="FACT",
@@ -1354,6 +1398,51 @@ class AIAnalyst:
                     text=f"Mức chi trả cổ tức tiền mặt TTM của {c.symbol or 'doanh nghiệp'}: {float(c.value):,.0f} đ/cổ phiếu.",
                     citation_ids=[c.id] if c.id in evidence_by_id else [],
                 ))
+            elif m_low in (
+                "portfolio_nav",
+                "portfolio_concentration",
+                "portfolio_holding_weight",
+                "dca_allocation_plan",
+                "dcf_custom_sensitivity",
+                "accounting_deconsolidation_lfl",
+                "customer_advances",
+                "unbilled_backlog",
+                "bond_maturity_12m",
+                "rnav_per_share",
+                "segment_breakdown",
+                "nim",
+                "casa_ratio",
+                "npl_ratio",
+                "llr_ratio",
+                "credit_growth",
+                "fedfunds",
+                "us_fed_funds_rate",
+                "dgs10",
+                "sbv_policy_rate",
+                "brent",
+                "brent_close",
+                "fx_usd_vnd",
+                "fx_usdvnd",
+                "vnm_cpi_yoy",
+                "vnm_gdp_growth",
+                "hrc_steel_price",
+                "singapore_crack_spread",
+                "vnindex_close",
+                "hose_foreign_net_flow",
+            ) and (c.note or c.value is not None) and c.claim_type in ("FACT", "MODEL_OUTPUT") and getattr(c, "data_origin", None) not in ("SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED"):
+                seen_fb_keys.add((dedup_sym, m_canon))
+                if c.note:
+                    txt_fb = c.note
+                elif m_low in macro_label_vi:
+                    u_lbl = "%" if str(c.unit or "").upper() in ("PERCENT", "%") else f" {c.unit or ''}".rstrip()
+                    txt_fb = f"{macro_label_vi[m_low]}: {c.value}{u_lbl}."
+                else:
+                    txt_fb = f"{c.metric} ({c.symbol or 'MARKET'}): {c.value} {c.unit or ''}".strip()
+                fallback_claims.append(AIClaim(
+                    claim_type=c.claim_type if c.claim_type in ("FACT", "MODEL_OUTPUT") else "FACT",
+                    text=txt_fb,
+                    citation_ids=[c.id] if c.id in evidence_by_id else [],
+                ))
 
         # Add investment verdict only if not a pinpoint price/metric question
         asks_pinpoint_price = _is_pinpoint_price_query(question)
@@ -1390,10 +1479,15 @@ class AIAnalyst:
 
         evidence_by_id = {c.id: c for c in citations}
         already_cited_metrics = {
-            evidence_by_id[cid].metric
+            (evidence_by_id[cid].metric or "").lower()
             for c in (existing_claims or [])
             for cid in (c.citation_ids or [])
             if cid in evidence_by_id and evidence_by_id[cid].metric
+        }
+        already_cited_cids = {
+            cid
+            for c in (existing_claims or [])
+            for cid in (c.citation_ids or [])
         }
 
         # Map (symbol, metric) -> AICitation
@@ -1425,11 +1519,99 @@ class AIAnalyst:
                 ))
             return verdict_claims, used_cids
 
+        # Handle Personal Portfolio / DCA Allocation query verdict
+        if "PORTFOLIO" in [s.upper() for s in extracted_symbols]:
+            nav_c = by_sym_metric.get(("PORTFOLIO", "portfolio_nav"))
+            conc_c = by_sym_metric.get(("PORTFOLIO", "portfolio_concentration"))
+            dca_c = by_sym_metric.get(("PORTFOLIO", "dca_allocation_plan"))
+            holding_cs = [c for c in citations if c.metric == "portfolio_holding_weight" and c.value is not None]
+            macro_news_cs = [c for c in citations if c.metric == "macro_event_news" and c.note]
+
+            for port_c in (nav_c, conc_c):
+                if port_c and port_c.metric not in already_cited_metrics and port_c.note:
+                    used_cids.add(port_c.id)
+                    verdict_claims.append(AIClaim(
+                        claim_type="FACT",
+                        text=port_c.note,
+                        citation_ids=[port_c.id],
+                    ))
+            cited_holding_count = sum(1 for hc in holding_cs if hc.id in already_cited_cids)
+            if holding_cs and cited_holding_count < len(holding_cs):
+                h_cids = [hc.id for hc in holding_cs]
+                used_cids.update(h_cids)
+                h_summary = "; ".join(f"{hc.symbol}: {float(hc.value):.2f}%" for hc in holding_cs if hc.symbol)
+                verdict_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=f"Cơ cấu tỷ trọng nắm giữ hiện tại trong danh mục: {h_summary}.",
+                    citation_ids=h_cids,
+                ))
+            if dca_c and "dca_allocation_plan" not in already_cited_metrics and dca_c.note:
+                used_cids.add(dca_c.id)
+                verdict_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=f"🎯 KẾ HOẠCH GIẢI NGÂN DCA & QUẢN TRỊ RỦI RO TẬP TRUNG: {dca_c.note}",
+                    citation_ids=[dca_c.id],
+                ))
+            if macro_news_cs and "macro_event_news" not in already_cited_metrics:
+                top_news = macro_news_cs[0]
+                used_cids.add(top_news.id)
+                verdict_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=top_news.note or "",
+                    citation_ids=[top_news.id],
+                ))
+            return verdict_claims, used_cids
+
         stock_symbols = [
             s.upper() for s in extracted_symbols
-            if s and s.upper() not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE_ALL", "BRENT", "WTI")
+            if s and s.upper() not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE_ALL", "BRENT", "WTI", "PORTFOLIO")
             and not s.upper().endswith("_PEERS")
         ]
+
+        if not stock_symbols:
+            macro_news_cs = [
+                c for c in citations
+                if c.metric == "macro_event_news" and c.note
+                and c.id not in used_cids and c.id not in already_cited_cids
+            ]
+            cited_news_cnt = sum(1 for cid in already_cited_cids if cid in evidence_by_id and (evidence_by_id[cid].metric or "").lower() == "macro_event_news")
+            if macro_news_cs and cited_news_cnt < 2:
+                for top_news in macro_news_cs[: (2 - cited_news_cnt)]:
+                    used_cids.add(top_news.id)
+                    verdict_claims.append(AIClaim(
+                        claim_type="MODEL_OUTPUT",
+                        text=top_news.note or "",
+                        citation_ids=[top_news.id],
+                    ))
+            rate_groups = (
+                ("fedfunds", "us_fed_funds_rate"),
+                ("sbv_policy_rate",),
+                ("dgs10",),
+                ("fx_usd_vnd", "fx_usdvnd"),
+                ("hose_foreign_net_flow",),
+            )
+            for grp in rate_groups:
+                if any(m in already_cited_metrics for m in grp):
+                    continue
+                rate_c = next(
+                    (
+                        c for c in citations
+                        if c.metric and c.metric.lower() in grp
+                        and c.claim_type in ("FACT", "MODEL_OUTPUT")
+                        and getattr(c, "data_origin", None) not in ("SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED")
+                        and c.note
+                        and c.id not in used_cids
+                    ),
+                    None,
+                )
+                if rate_c:
+                    used_cids.add(rate_c.id)
+                    verdict_claims.append(AIClaim(
+                        claim_type="FACT",
+                        text=rate_c.note or "",
+                        citation_ids=[rate_c.id],
+                    ))
+            return verdict_claims, used_cids
 
         stock_scores: list[tuple[str, float, list[str]]] = []
 
@@ -1658,6 +1840,24 @@ class AIAnalyst:
                 ))
                 stock_scores.append((sym, composite_rank_score, dedup_verdict_cids))
 
+            # Append Pillar 1/2/5/7 specialist citations when present and not yet cited
+            for extra_m in (
+                "dcf_custom_sensitivity",
+                "accounting_deconsolidation_lfl",
+                "customer_advances",
+                "unbilled_backlog",
+                "bond_maturity_12m",
+                "segment_breakdown",
+            ):
+                extra_c = _get(extra_m)
+                if extra_c and extra_c.note and extra_m not in already_cited_metrics and extra_c.id not in used_cids:
+                    used_cids.add(extra_c.id)
+                    verdict_claims.append(AIClaim(
+                        claim_type="MODEL_OUTPUT" if extra_m in ("dcf_custom_sensitivity", "accounting_deconsolidation_lfl") else "FACT",
+                        text=extra_c.note,
+                        citation_ids=[extra_c.id],
+                    ))
+
         # 4. If multi-stock comparison, add comparative pick verdict
         if len(stock_scores) >= 2:
             ranked = sorted(stock_scores, key=lambda x: x[1], reverse=True)
@@ -1675,7 +1875,123 @@ class AIAnalyst:
                 citation_ids=combined_cids,
             ))
 
+        # 5. Surface Sector Commodity Benchmarks (sector-scoped & strictly verified) & Approved 17:30 News
+        steel_stock_syms = {"HPG", "HSG", "NKG"}
+        oil_stock_syms = {"BSR", "PLX", "GAS", "PVD", "PVS", "OIL", "PVT"}
+        target_sym_set = {s.upper() for s in stock_symbols}
+        allowed_benchmarks: list[str] = []
+        if target_sym_set & steel_stock_syms:
+            allowed_benchmarks.append("hrc_steel_price")
+        if target_sym_set & oil_stock_syms:
+            allowed_benchmarks.extend(["singapore_crack_spread", "brent_close"])
+
+        for bench_m in allowed_benchmarks:
+            if bench_m in already_cited_metrics:
+                continue
+            bench_c = next(
+                (
+                    c for c in citations
+                    if c.metric and c.metric.lower() == bench_m
+                    and self._has_verifiable_evidence([c])
+                    and c.claim_type in ("FACT", "MODEL_OUTPUT")
+                    and getattr(c, "data_origin", None) not in ("SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED")
+                    and c.value is not None
+                    and c.note
+                    and c.id not in used_cids
+                ),
+                None,
+            )
+            if bench_c:
+                used_cids.add(bench_c.id)
+                verdict_claims.append(AIClaim(
+                    claim_type="FACT",
+                    text=bench_c.note or "",
+                    citation_ids=[bench_c.id],
+                ))
+
+        macro_news_sector_cs = [
+            c for c in citations
+            if c.metric == "macro_event_news"
+            and c.note
+            and c.id not in used_cids
+            and self._has_verifiable_evidence([c])
+        ]
+        # Prefer 17:30 news explicitly tagged with one of the target tickers in this query
+        macro_news_sector_cs.sort(
+            key=lambda nc: (
+                1 if any(re.search(rf"\b{re.escape(ts)}\b", nc.note or "") for ts in target_sym_set) else 0
+            ),
+            reverse=True,
+        )
+        if macro_news_sector_cs and "macro_event_news" not in already_cited_metrics:
+            for news_c in macro_news_sector_cs[:2]:
+                used_cids.add(news_c.id)
+                verdict_claims.append(AIClaim(
+                    claim_type="MODEL_OUTPUT",
+                    text=news_c.note or "",
+                    citation_ids=[news_c.id],
+                ))
+
         return verdict_claims, used_cids
+
+    @staticmethod
+    def _run_critic_verifier_pass(
+        cited_claims: list[AIClaim],
+        citations: list[AICitation],
+    ) -> tuple[list[AIClaim], int]:
+        """
+        Pillar 6: Deterministic Critic-Verifier Pass before final streaming.
+        Eliminates false 'missing data' claims when verified evidence exists in `citations`.
+        """
+        verified_by_sym: dict[str, set[str]] = {}
+        for c in citations:
+            if not c.metric or c.value is None or str(getattr(c, "freshness", "")).upper() in ("INSUFFICIENT_DATA", "STALE", "NOT_CONFIGURED"):
+                continue
+            sym_k = (c.symbol or "MARKET").upper()
+            verified_by_sym.setdefault(sym_k, set()).add(c.metric.lower())
+
+        all_verified_metrics = set().union(*verified_by_sym.values()) if verified_by_sym else set()
+        kept_claims: list[AIClaim] = []
+        corrections = 0
+
+        for claim in cited_claims:
+            txt_low = claim.text.lower()
+            drop_false_missing = False
+
+            # Drop false claims saying custom DCF sensitivity wasn't computed when dcf_custom_sensitivity exists
+            if "dcf_custom_sensitivity" in all_verified_metrics and (
+                ("độ nhạy" in txt_low or "dcf" in txt_low)
+                and any(p in txt_low for p in ("chưa thể hiện chính xác", "chưa cung cấp", "không thể tính chính xác", "thiếu dữ liệu độ nhạy"))
+            ):
+                drop_false_missing = True
+
+            # Check false missing-symbol uncertainty claims
+            if not drop_false_missing and ("hiện chưa có sẵn" in txt_low or "chưa có dữ liệu" in txt_low or "không có dữ liệu" in txt_low or "thiếu dữ liệu" in txt_low):
+                for sym_k, m_set in verified_by_sym.items():
+                    if sym_k != "MARKET" and len(m_set) >= 2 and re.search(rf"\b{re.escape(sym_k.lower())}\b", txt_low):
+                        # Only drop if the claim is broadly claiming the symbol has no financial/valuation data
+                        if "tài chính và định giá cho mã" in txt_low or (
+                            any(k in txt_low for k in ("npl", "llr", "casa", "nim"))
+                            and bool({"npl_ratio", "llr_ratio", "casa_ratio", "nim"} & m_set)
+                        ):
+                            drop_false_missing = True
+                            break
+                if not drop_false_missing:
+                    if ("npl" in txt_low or "nợ xấu" in txt_low) and "npl_ratio" in all_verified_metrics:
+                        drop_false_missing = True
+                    elif ("llr" in txt_low or "bao phủ" in txt_low) and "llr_ratio" in all_verified_metrics:
+                        drop_false_missing = True
+                    elif "casa" in txt_low and "casa_ratio" in all_verified_metrics:
+                        drop_false_missing = True
+                    elif "vn100" in txt_low and "portfolio_nav" in all_verified_metrics:
+                        drop_false_missing = True
+
+            if drop_false_missing:
+                corrections += 1
+                continue
+            kept_claims.append(claim)
+
+        return kept_claims, corrections
 
     @staticmethod
     def determine_response_status(
@@ -1856,6 +2172,20 @@ class AIAnalyst:
 
         return status, uncovered_requested_groups
 
+    def _resolve_fallback_model(self, usage: dict[str, Any] | None, task_type: TaskType) -> str:
+        """Resolves active gateway/cloud model name during fallback instead of stale local default."""
+        if isinstance(usage, dict) and usage.get("model"):
+            return str(usage["model"])
+        if hasattr(self.provider, "status"):
+            try:
+                gw_st = self.provider.status() or {}
+                gw_model = (gw_st.get("configured_models") or {}).get("primary") or (gw_st.get("models") or [None])[0]
+                if gw_model:
+                    return str(gw_model)
+            except Exception:
+                pass
+        return self.router.route_task(task_type, "MEDIUM") if hasattr(self, "router") else "deterministic-engine"
+
     def _insufficient_response(
         self,
         *,
@@ -1945,8 +2275,8 @@ class AIAnalyst:
         )
         is_portfolio_query = any(term in question.casefold() for term in portfolio_terms)
         if (not extracted_symbols or all(s in {"VN100", "VNINDEX", "VN30"} for s in extracted_symbols)) and is_portfolio_query:
-            extracted_symbols = ["VN100"]
-            canonical_symbol = "VN100"
+            extracted_symbols = ["PORTFOLIO"]
+            canonical_symbol = "PORTFOLIO"
 
         # If screener query without single symbol (Q19)
         if plan.intent == QueryIntent.SCREENER and (not extracted_symbols or extracted_symbols == ["ALL"]):
@@ -2004,8 +2334,11 @@ class AIAnalyst:
             yield "data: [DONE]\n\n"
             return
 
-        # Check for intraday historical timestamp request (Q18)
-        asks_intraday = bool(re.search(r"\b(?:1[0-9]|2[0-3]|0?[0-9]):[0-5][0-9]\b", question))
+        # Check for intraday historical timestamp request (Q18), ignoring 17:30 daily macro pipeline schedule
+        asks_intraday = bool(
+            re.search(r"\b(?:1[0-9]|2[0-3]|0?[0-9]):[0-5][0-9]\b", question)
+            and "17:30" not in question
+        )
 
         # Inject precomputed metrics (margins, pe/pb diff, correlation)
         citations = self._inject_precomputed_metrics(citations, extracted_symbols, context)
@@ -2091,7 +2424,7 @@ class AIAnalyst:
                         "được tổng hợp trực tiếp từ Báo cáo Tài chính kiểm toán và dữ liệu thị trường chuẩn hóa (Point-in-Time):"
                     )
                     status_to_use = "AVAILABLE"
-                    model_to_use = self.router.route_task(task_type, "MEDIUM") if hasattr(self, "router") else (usage.get("model") or "qwen3.5:9b-q4_K_M")
+                    model_to_use = self._resolve_fallback_model(usage, task_type)
                     uncertainty_to_use = []
                 else:
                     answer_text = (
@@ -2330,7 +2663,7 @@ class AIAnalyst:
                             "được tổng hợp trực tiếp từ Báo cáo Tài chính kiểm toán và dữ liệu thị trường chuẩn hóa (Point-in-Time):"
                         )
                         status_to_use = "AVAILABLE"
-                        model_to_use = self.router.route_task(task_type, "MEDIUM") if hasattr(self, "router") else (usage.get("model", model))
+                        model_to_use = self._resolve_fallback_model(usage, task_type)
                         uncertainty_to_use = []
                     else:
                         answer_text = (
@@ -2390,26 +2723,11 @@ class AIAnalyst:
                 citation_ids=[],
             ))
 
-        # If multi-ticker comparison, verify if any requested stock has missing evidence
-        if len(extracted_symbols) > 1:
-            for req_sym in extracted_symbols:
-                has_sym = any(
-                    (evidence_by_id.get(cid) and evidence_by_id[cid].symbol == req_sym)
-                    for c in cited_claims for cid in c.citation_ids
-                )
-                if not has_sym and not any(req_sym.lower() in c.text.lower() for c in cited_claims):
-                    cited_claims.append(AIClaim(
-                        claim_type="UNCERTAINTY",
-                        text=f"Dữ liệu tài chính và định giá cho mã {req_sym} hiện chưa có sẵn hoặc chưa đủ điều kiện kiểm chứng trong hệ thống.",
-                        citation_ids=[],
-                    ))
-
-        # Filter contradictory uncertainty statements
+        # Filter contradictory uncertainty statements using ALL verifiable evidence in citations
         available_metrics = {
-            evidence_by_id[cid].metric.lower()
-            for c in cited_claims
-            for cid in c.citation_ids
-            if cid in evidence_by_id and evidence_by_id[cid].metric
+            c.metric.lower()
+            for c in citations
+            if c.metric and self._has_verifiable_evidence([c])
         }
         cleaned_uncertainty = []
         for unc in draft.uncertainty:
@@ -2420,6 +2738,12 @@ class AIAnalyst:
             elif "p/b" in unc_lower and any(m in ("pb", "pb_ratio", "price_to_book") for m in available_metrics):
                 contradicts = True
             elif ("biên lợi nhuận" in unc_lower or "gross margin" in unc_lower) and "gross_margin" in available_metrics:
+                contradicts = True
+            elif ("npl" in unc_lower or "nợ xấu" in unc_lower) and "npl_ratio" in available_metrics:
+                contradicts = True
+            elif ("llr" in unc_lower or "bao phủ" in unc_lower) and "llr_ratio" in available_metrics:
+                contradicts = True
+            elif "casa" in unc_lower and "casa_ratio" in available_metrics:
                 contradicts = True
             if not contradicts:
                 cleaned_uncertainty.append(unc)
@@ -2464,6 +2788,65 @@ class AIAnalyst:
             if verdict_claims:
                 cited_claims.extend(verdict_claims)
                 referenced_ids.update(verdict_cids)
+
+        # If multi-ticker comparison, verify AFTER verdict synthesis & check citations before adding missing caveat
+        if len(extracted_symbols) > 1:
+            for req_sym in extracted_symbols:
+                has_sym_claim = any(
+                    (evidence_by_id.get(cid) and evidence_by_id[cid].symbol == req_sym)
+                    for c in cited_claims for cid in c.citation_ids
+                )
+                has_sym_cit = any(
+                    c.symbol == req_sym and self._has_verifiable_evidence([c])
+                    for c in citations
+                )
+                if not has_sym_claim and not has_sym_cit and not any(req_sym.lower() in c.text.lower() for c in cited_claims):
+                    cited_claims.append(AIClaim(
+                        claim_type="UNCERTAINTY",
+                        text=f"Dữ liệu tài chính và định giá cho mã {req_sym} hiện chưa có sẵn hoặc chưa đủ điều kiện kiểm chứng trong hệ thống.",
+                        citation_ids=[],
+                    ))
+
+        # Pillar 6: 2-Pass Critic-Verifier removes false missing-data statements contradicted by `citations`
+        cited_claims, critic_corrections = self._run_critic_verifier_pass(cited_claims, citations)
+        if metadata_flags is None:
+            metadata_flags = {}
+        metadata_flags["critic_passed"] = critic_corrections == 0
+        metadata_flags["critic_corrections"] = critic_corrections
+
+        # Persist walk-forward audit log (Pillar 6) non-blockingly for stock evaluations
+        try:
+            from database.models import AIPredictionLog
+            primary_sym = (canonical_symbol or symbol or "MARKET").upper()
+            if session is not None and primary_sym not in ("PORTFOLIO", "VN100", "VNINDEX", "ALL", "MARKET"):
+                fv_cit = next((c for c in citations if c.symbol == primary_sym and c.metric in ("composite_fair_value_base", "dcf_base") and c.value is not None), None)
+                px_cit = next((c for c in citations if c.symbol == primary_sym and c.metric == "price" and c.value is not None), None)
+                mos_cit = next((c for c in citations if c.symbol == primary_sym and c.metric == "margin_of_safety" and c.value is not None), None)
+                if fv_cit or px_cit:
+                    verdict_lbl = "HOLD"
+                    mos_val = float(mos_cit.value) if mos_cit else None
+                    if mos_val is not None:
+                        verdict_lbl = "OVERWEIGHT" if mos_val >= 10.0 else ("UNDERWEIGHT" if mos_val <= -12.0 else "MARKET_WEIGHT")
+                    session.add(AIPredictionLog(
+                        prediction_date=requested_date,
+                        symbol=primary_sym[:30],
+                        query_intent=plan.intent.value if hasattr(plan.intent, "value") else str(plan.intent),
+                        verdict=verdict_lbl,
+                        confidence=0.82 if status == "AVAILABLE" else 0.65,
+                        current_price=float(px_cit.value) if px_cit else None,
+                        fair_value_base=float(fv_cit.value) if fv_cit else None,
+                        implied_upside_pct=mos_val,
+                        calibrated_upside_pct=mos_val,
+                        critic_passed=(critic_corrections == 0),
+                        critic_corrections=critic_corrections,
+                    ))
+                    session.commit()
+        except Exception:
+            if session is not None:
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
 
         # Post-processing text sanitization: ticker typo guard + Margin of Safety non-YoY guard
         for claim in cited_claims:

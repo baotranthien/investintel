@@ -82,6 +82,39 @@ class DCFEngine:
         }
 
     @staticmethod
+    def evaluate_custom_shock(
+        assumptions: DCFAssumptions,
+        shares_outstanding: int,
+        net_debt: Optional[float] = 0.0,
+        wacc_delta_pct: float = 0.0,
+        g_delta_pct: float = 0.0,
+        margin_delta_pct: float = 0.0,
+    ) -> Dict[str, Any]:
+        """Deterministically evaluate a custom WACC / terminal-g / margin shock on DCF fair value."""
+        dw = wacc_delta_pct / 100.0 if abs(wacc_delta_pct) >= 0.1 else wacc_delta_pct
+        dg = g_delta_pct / 100.0 if abs(g_delta_pct) >= 0.1 else g_delta_pct
+        dm = margin_delta_pct / 100.0 if abs(margin_delta_pct) >= 0.1 else margin_delta_pct
+
+        base_fv = DCFEngine._eval_single_dcf(assumptions, shares_outstanding, net_debt, 0.0, 0.0, 0.0)
+        shocked_wacc = assumptions.wacc + dw
+        shocked_g = assumptions.terminal_growth_rate + dg
+        shocked_fv = DCFEngine._eval_single_dcf(assumptions, shares_outstanding, net_debt, dw, dg, dm)
+
+        delta_vnd = shocked_fv - base_fv
+        delta_pct = ((shocked_fv - base_fv) / base_fv * 100.0) if base_fv > 0 else 0.0
+        return {
+            "base_wacc_pct": round(assumptions.wacc * 100.0, 2),
+            "shocked_wacc_pct": round(shocked_wacc * 100.0, 2),
+            "base_g_pct": round(assumptions.terminal_growth_rate * 100.0, 2),
+            "shocked_g_pct": round(shocked_g * 100.0, 2),
+            "base_fair_value": round(base_fv, 0),
+            "shocked_fair_value": round(shocked_fv, 0),
+            "delta_vnd": round(delta_vnd, 0),
+            "delta_pct": round(delta_pct, 2),
+            "valid": shocked_wacc > shocked_g and shocked_fv > 0,
+        }
+
+    @staticmethod
     def calculate(
         assumptions: DCFAssumptions,
         shares_outstanding: int,

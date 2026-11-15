@@ -36,6 +36,22 @@ export function describeStatus(
           ? "Dataset verified and synchronized to latest Point-in-Time cutoff."
           : "Dữ liệu đã được kiểm chứng và cập nhật.",
       };
+    case "APPROVED":
+      return {
+        label: isEn ? "Approved for AI" : "Đã duyệt AI",
+        tone: "ok",
+        tooltip: isEn
+          ? "Passed historical backtest hit-rate and source trust validation."
+          : "Đã vượt qua kiểm chứng tỷ lệ trúng lịch sử và độ tin cậy nguồn.",
+      };
+    case "NEEDS_REVIEW":
+      return {
+        label: isEn ? "Needs Review" : "Cần rà soát",
+        tone: "warn",
+        tooltip: isEn
+          ? "Lower backtest hit-rate or source weight; excluded from default AI context until reviewed."
+          : "Tỷ lệ trúng backtest hoặc trọng số nguồn chưa đạt ngưỡng tự động duyệt.",
+      };
     case "STALE":
       return {
         label: isEn ? "Stale Feed" : "Dữ liệu trễ",

@@ -4,7 +4,7 @@ import hmac
 import logging
 import os
 from typing import Any, Optional
-from fastapi import APIRouter, Body, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -379,5 +379,141 @@ async def run_cron_analyst(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analyst automation failed: {exc}",
         )
+    finally:
+        db.close()
+
+
+@router.api_route("/run-macro-news", methods=["POST", "GET"])
+async def cron_run_macro_news(
+    request: Request,
+    payload: Optional[CronTriggerRequest] = Body(None),
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+):
+    """Daily 17:30 ICT (10:30 UTC) official news crawl, Gemini JSON extraction, and backtest validation."""
+    token = x_cron_secret
+    if not token and authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+    _verify_cron_secret(token)
+
+    body = payload or CronTriggerRequest()
+    target_date = _get_target_date(body.as_of_date)
+    idempotency_key = f"MACRO_NEWS_1730_{target_date.isoformat()}"
+
+    db: Session = SessionLocal()
+    try:
+        from services.news.validator import run_daily_macro_news_pipeline_async
+
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job and job.status == "SUCCESS" and not body.force:
+            return {
+                "status": "ALREADY_COMPLETED",
+                "idempotency_key": idempotency_key,
+                "as_of_date": target_date.isoformat(),
+                "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+            }
+
+        if not job:
+            job = AnalystAutomationJob(
+                job_key=idempotency_key,
+                job_type="MACRO_NEWS_1730",
+                status="RUNNING",
+                started_at=datetime.datetime.now(datetime.timezone.utc),
+            )
+            db.add(job)
+        else:
+            job.status = "RUNNING"
+            job.started_at = datetime.datetime.now(datetime.timezone.utc)
+            job.finished_at = None
+            job.error = None
+        db.commit()
+
+        pipeline_res = await run_daily_macro_news_pipeline_async(
+            session=db,
+            as_of_date=target_date,
+            use_gemini=True,
+            fetch_live=True,
+            index_to_rag=True,
+        )
+
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        job.status = "SUCCESS"
+        job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+        job.result = _sanitize({
+            "crawled_count": pipeline_res.get("crawled_count"),
+            "approved_count": pipeline_res.get("approved_count"),
+            "rejected_or_review_count": pipeline_res.get("rejected_or_review_count"),
+            "provider": pipeline_res.get("provider"),
+        })
+        db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "idempotency_key": idempotency_key,
+            "as_of_date": target_date.isoformat(),
+            **pipeline_res,
+        }
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Macro news 17:30 cron failed [%s]: %s", idempotency_key, exc)
+        job = db.query(AnalystAutomationJob).filter_by(job_key=idempotency_key).first()
+        if job:
+            job.status = "FAILED"
+            job.finished_at = datetime.datetime.now(datetime.timezone.utc)
+            job.error = str(exc)[:4000]
+            db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Macro news cron failed: {exc}",
+        )
+    finally:
+        db.close()
+
+
+@router.get("/macro-news-logs")
+async def get_macro_news_logs(
+    x_cron_secret: Optional[str] = Header(None, alias="X-Cron-Secret"),
+    limit: int = 20,
+    approved_only: bool = False,
+):
+    """Inspect persisted 17:30 macro news Gemini analysis & validation logs."""
+    _verify_cron_secret(x_cron_secret)
+    db: Session = SessionLocal()
+    try:
+        from database.models import MacroAnalysisLog
+
+        q = db.query(MacroAnalysisLog)
+        if approved_only:
+            q = q.filter(MacroAnalysisLog.approved_for_ai.is_(True))
+        rows = (
+            q.order_by(MacroAnalysisLog.analysis_date.desc(), MacroAnalysisLog.source_trust_level.desc(), MacroAnalysisLog.id.desc())
+            .limit(limit)
+            .all()
+        )
+        return {
+            "count": len(rows),
+            "logs": [
+                {
+                    "id": r.id,
+                    "analysis_date": r.analysis_date.isoformat() if r.analysis_date else None,
+                    "event_title": r.event_title,
+                    "source_url": r.source_url,
+                    "source_domain": r.source_domain,
+                    "source_tier": r.source_tier,
+                    "source_trust_level": r.source_trust_level,
+                    "macro_impact": r.macro_impact,
+                    "correlation_type": r.correlation_type,
+                    "sentiment": r.sentiment,
+                    "affected_sectors": r.affected_sectors,
+                    "affected_symbols": r.affected_symbols,
+                    "ai_confidence_score": float(r.ai_confidence_score) if r.ai_confidence_score is not None else None,
+                    "validation_status": r.validation_status,
+                    "approved_for_ai": r.approved_for_ai,
+                    "historical_hit_rate": float(r.historical_hit_rate) if r.historical_hit_rate is not None else None,
+                    "validation_notes": r.validation_notes,
+                }
+                for r in rows
+            ],
+        }
     finally:
         db.close()

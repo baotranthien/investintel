@@ -20,6 +20,7 @@ interface DiffComparison {
   value_b: number | null;
   difference: number | null;
   unit?: string;
+  values?: Record<string, number | null>;
 }
 
 interface PearsonComparison {
@@ -167,6 +168,7 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
         value_b: typeof rawCard.value_b === "number" ? rawCard.value_b : null,
         difference: typeof rawCard.diff === "number" ? rawCard.diff : null,
         unit: rawCard.unit,
+        values: rawCard.values && typeof rawCard.values === "object" ? rawCard.values : undefined,
       });
     }
   }
@@ -252,11 +254,22 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
 
           <div className={styles.comparisonsGrid}>
             {diffItems.map((item, idx) => {
-              const diffVal = item.difference ?? 0;
-              const isPositive = diffVal > 0;
-              const maxVal = Math.max(Math.abs(item.value_a ?? 0), Math.abs(item.value_b ?? 0), 0.0001);
-              const barAPct = Math.min(100, Math.round(((Math.abs(item.value_a ?? 0)) / maxVal) * 100));
-              const barBPct = Math.min(100, Math.round(((Math.abs(item.value_b ?? 0)) / maxVal) * 100));
+              const entryPairs: Array<[string, number | null]> =
+                item.values && Object.keys(item.values).length >= 2
+                  ? Object.entries(item.values)
+                  : [
+                      [item.symbol_a, item.value_a],
+                      [item.symbol_b, item.value_b],
+                    ];
+              const numericVals = entryPairs
+                .map(([, v]) => v)
+                .filter((v): v is number => typeof v === "number");
+              const spreadVal =
+                entryPairs.length > 2 && numericVals.length >= 2
+                  ? Math.max(...numericVals) - Math.min(...numericVals)
+                  : item.difference ?? 0;
+              const isPositive = spreadVal > 0;
+              const maxVal = Math.max(...numericVals.map((v) => Math.abs(v)), 0.0001);
 
               return (
                 <article key={idx} className={styles.bentoCard}>
@@ -267,39 +280,35 @@ export default function AppleSmartFallback({ summary, metadataFlags, isFallbackM
                         isPositive ? styles.deltaPositive : styles.deltaNegative
                       }`}
                     >
-                      {isPositive ? "+" : ""}
-                      {formatMetricValue(item.difference, item.metric, item.unit, locale)}
+                      {entryPairs.length > 2 ? t("Biên độ ", "Spread ") : isPositive ? "+" : ""}
+                      {formatMetricValue(spreadVal, item.metric, item.unit, locale)}
                     </span>
                   </div>
 
                   <div className={styles.comparisonBars}>
-                    {/* Row A */}
-                    <div className={styles.entityRow}>
-                      <span className={styles.symbolTag}>{item.symbol_a}</span>
-                      <div className={styles.barTrack}>
-                        <div
-                          className={`${styles.barFill} ${styles.barA}`}
-                          style={{ width: `${barAPct}%` }}
-                        />
-                      </div>
-                      <span className={`${styles.entityValue} tabular-nums`}>
-                        {formatMetricValue(item.value_a, item.metric, item.unit, locale)}
-                      </span>
-                    </div>
-
-                    {/* Row B */}
-                    <div className={styles.entityRow}>
-                      <span className={styles.symbolTag}>{item.symbol_b}</span>
-                      <div className={styles.barTrack}>
-                        <div
-                          className={`${styles.barFill} ${styles.barB}`}
-                          style={{ width: `${barBPct}%` }}
-                        />
-                      </div>
-                      <span className={`${styles.entityValue} tabular-nums`}>
-                        {formatMetricValue(item.value_b, item.metric, item.unit, locale)}
-                      </span>
-                    </div>
+                    {entryPairs.map(([symLabel, symVal], rowIdx) => {
+                      const barPct = Math.min(100, Math.round((Math.abs(symVal ?? 0) / maxVal) * 100));
+                      const barStyleClass =
+                        rowIdx === 0 ? styles.barA : rowIdx === 1 ? styles.barB : styles.barA;
+                      const extraBg =
+                        rowIdx >= 2
+                          ? { backgroundColor: rowIdx === 2 ? "#30D158" : rowIdx === 3 ? "#FF9F0A" : "#BF5AF2" }
+                          : undefined;
+                      return (
+                        <div key={symLabel} className={styles.entityRow}>
+                          <span className={styles.symbolTag}>{symLabel}</span>
+                          <div className={styles.barTrack}>
+                            <div
+                              className={`${styles.barFill} ${barStyleClass}`}
+                              style={{ width: `${barPct}%`, ...extraBg }}
+                            />
+                          </div>
+                          <span className={`${styles.entityValue} tabular-nums`}>
+                            {formatMetricValue(symVal, item.metric, item.unit, locale)}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </article>
               );

@@ -509,6 +509,7 @@ export type AIComparisonCard = {
   diff: number | null;
   ratio?: number | null;
   unit?: string;
+  values?: Record<string, number | null>;
 };
 
 export type AIComparisonTable = {
@@ -1219,4 +1220,81 @@ export const getSystemObservability = (signal?: AbortSignal) => {
 
 export const triggerAutomationPipeline = (symbols?: string[]) => {
   return apiWrite<{ pipeline_status: string; stages: Record<string, unknown> }>("/api/v1/automation/scheduler/trigger", "POST", symbols ? { target_symbols: symbols } : {});
+};
+
+// --- Pillar 7: 17:30 ICT Official Macro News, Gemini Correlation & Backtest Validation ---
+export type MacroNewsCorrelationEvent = {
+  id: number;
+  date: string | null;
+  title: string;
+  url: string;
+  source_domain: string;
+  source_tier: number;
+  source_trust_level: number;
+  macro_impact: string;
+  stock_market_correlation: {
+    type: string;
+    sentiment: string;
+    affected_sectors: string[];
+    affected_symbols: string[];
+    analysis: string;
+  };
+  ai_confidence_score: number;
+  validation: {
+    status: "APPROVED" | "NEEDS_REVIEW" | "REJECTED" | "PENDING" | string;
+    approved_for_ai: boolean;
+    historical_hit_rate: number | null;
+    sample_size: number;
+    avg_1d_return_pct: number | null;
+    avg_5d_return_pct: number | null;
+    notes: string | null;
+  };
+  raw_gemini_json?: Record<string, unknown> | null;
+};
+
+export type MacroNewsAnalysisResponse = {
+  date: string;
+  schedule_ict: string;
+  count: number;
+  counts?: {
+    total: number;
+    approved: number;
+    needs_review: number;
+  };
+  events: MacroNewsCorrelationEvent[];
+};
+
+export type MacroNewsPipelineRunResult = {
+  date: string;
+  schedule_ict: string;
+  crawled_count: number;
+  gemini_used: boolean;
+  gemini_model: string | null;
+  approved_count: number;
+  needs_review_count: number;
+  rag_indexed_count?: number;
+};
+
+export const getMacroNewsAnalysis = (
+  approvedOnly = false,
+  limit = 24,
+  signal?: AbortSignal
+) => {
+  const qs = new URLSearchParams({
+    approved_only: String(approvedOnly),
+    limit: String(limit),
+  });
+  return apiGet<MacroNewsAnalysisResponse>(`/api/v1/macro/news-analysis?${qs.toString()}`, signal);
+};
+
+export const runMacroNewsPipeline = (useGemini = true, fetchLive = true) => {
+  const qs = new URLSearchParams({
+    use_gemini: String(useGemini),
+    fetch_live: String(fetchLive),
+  });
+  return apiWrite<MacroNewsPipelineRunResult>(
+    `/api/v1/macro/news-analysis/run?${qs.toString()}`,
+    "POST",
+    {}
+  );
 };

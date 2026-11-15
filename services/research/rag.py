@@ -547,6 +547,33 @@ class LocalVectorStore(VectorStore):
         overlap = query_tokens & chunk_tokens
         return len(overlap) / max(1, len(query_tokens | chunk_tokens))
 
+    @staticmethod
+    def _apply_temporal_decay(hits: list[dict[str, Any]], ref_date: date | None = None) -> list[dict[str, Any]]:
+        """Pillar 3: Boost fresh (<=365d) filings/news (1.20x) and tag >365d docs as [Hồ sơ lịch sử] (0.55x)."""
+        anchor = ref_date or date.today()
+        for item in hits:
+            pub_raw = item.get("publication_date")
+            pub_dt: date | None = None
+            if isinstance(pub_raw, date):
+                pub_dt = pub_raw
+            elif isinstance(pub_raw, str) and len(pub_raw) >= 10:
+                try:
+                    pub_dt = date.fromisoformat(pub_raw[:10])
+                except ValueError:
+                    pub_dt = None
+            base_score = float(item.get("score") or 0.0)
+            if pub_dt is not None:
+                age_days = (anchor - pub_dt).days
+                if age_days > 365:
+                    item["score"] = round(base_score * 0.55, 6)
+                    sec = item.get("section") or "Hồ sơ"
+                    if "[Hồ sơ lịch sử]" not in str(sec):
+                        item["section"] = f"[Hồ sơ lịch sử {pub_dt.year}] {sec}"
+                elif age_days >= 0:
+                    item["score"] = round(base_score * 1.20, 6)
+        hits.sort(key=lambda h: (-float(h.get("score") or 0.0), str(h.get("document_id") or ""), str(h.get("chunk_id") or "")))
+        return hits
+
     def search(
         self,
         query: str,
@@ -572,6 +599,7 @@ class LocalVectorStore(VectorStore):
             and language is None
         ):
             qvec_lit = format_pgvector_literal(compute_hybrid_768_embedding(query))
+            fetch_limit = max(limit * 3, 15)
             rpc_hits = call_pg_rpc(
                 self.session,
                 "rpc_match_document_chunks",
@@ -579,7 +607,7 @@ class LocalVectorStore(VectorStore):
                     "p_query": query.strip(),
                     "p_ticker": ticker,
                     "p_as_of": as_of_date or date.today(),
-                    "p_limit": limit,
+                    "p_limit": fetch_limit,
                     "p_exclude_synthetic": True,
                     "p_query_embedding": qvec_lit,
                 },
@@ -595,13 +623,13 @@ class LocalVectorStore(VectorStore):
                             "p_query": " ".join(distinctive),
                             "p_ticker": ticker,
                             "p_as_of": as_of_date or date.today(),
-                            "p_limit": limit,
+                            "p_limit": fetch_limit,
                             "p_exclude_synthetic": True,
                             "p_query_embedding": qvec_lit,
                         },
                     )
             if isinstance(rpc_hits, list) and rpc_hits:
-                return [
+                mapped = [
                     {
                         "citation_id": h.get("chunk_id"),
                         "document_id": h.get("document_id"),
@@ -627,8 +655,9 @@ class LocalVectorStore(VectorStore):
                         "embedding_model": None,
                         "embedding_version": None,
                     }
-                    for h in rpc_hits[:limit]
+                    for h in rpc_hits
                 ]
+                return self._apply_temporal_decay(mapped, as_of_date)[:limit]
 
         q_token_list = _tokenize_rag(query)
         q_tokens = set(q_token_list)
@@ -783,8 +812,7 @@ class LocalVectorStore(VectorStore):
                 "embedding_version": row.embedding_version,
             })
 
-        scored.sort(key=lambda item: (-item["score"], item["document_id"], item["chunk_id"]))
-        return scored[:limit]
+        return self._apply_temporal_decay(scored, as_of_date)[:limit]
 
 
 class DocumentRAGService:

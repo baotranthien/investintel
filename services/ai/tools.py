@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from database.connection import SessionLocal, is_cloud_mode
 from database.models import (
     Asset, AssetDecisionSnapshot, WatchlistItem,
-    BankMetric, FinancialStatement, MacroCommodity, NormalizedIncome, Price
+    BankMetric, Document, FinancialStatement, MacroAnalysisLog, MacroCommodity, NormalizedIncome, Price
 )
 from services.decision.engine import build_decision_context
 from services.events.engine import EventEngine
@@ -232,6 +232,89 @@ def _get_deep_fundamental_evidence(
     except Exception:
         pass
 
+    # Pillar 1: Accounting Deconsolidation / Like-for-Like divergence check
+    try:
+        inc_q = ds.get("income_quarters") or [] if ds else []
+        by_yq = {
+            (r.get("fiscal_year"), r.get("fiscal_quarter")): r
+            for r in inc_q
+            if r.get("fiscal_year") and r.get("fiscal_quarter")
+        }
+        if by_yq:
+            latest_y, latest_q = max(by_yq.keys())
+            cur_r = by_yq.get((latest_y, latest_q))
+            prev_r = by_yq.get((latest_y - 1, latest_q))
+            if cur_r and prev_r:
+                c_rev = float(cur_r.get("revenue") or 0.0)
+                p_rev = float(prev_r.get("revenue") or 0.0)
+                c_ni = float(cur_r.get("net_income_parent") or cur_r.get("net_income") or 0.0)
+                p_ni = float(prev_r.get("net_income_parent") or prev_r.get("net_income") or 0.0)
+                if p_rev > 0 and p_ni > 0:
+                    rev_yoy_pct = ((c_rev - p_rev) / p_rev) * 100.0
+                    ni_yoy_pct = ((c_ni - p_ni) / p_ni) * 100.0
+                    cur_nm = (c_ni / c_rev * 100.0) if c_rev > 0 else 0.0
+                    prev_nm = (p_ni / p_rev * 100.0) if p_rev > 0 else 0.0
+                    if rev_yoy_pct < -2.0 and ni_yoy_pct > 10.0 and cur_nm > prev_nm:
+                        evidence.append({
+                            "claim_type": "MODEL_OUTPUT",
+                            "responsible_module": "fundamentals",
+                            "metric": "accounting_deconsolidation_lfl",
+                            "symbol": sym,
+                            "value": round(ni_yoy_pct, 2),
+                            "unit": "%",
+                            "source": "ACCOUNTING_REGIME_CLASSIFIER",
+                            "data_origin": "CANONICAL_DATABASE",
+                            "freshness": "AVAILABLE",
+                            "observation_date": as_of.isoformat(),
+                            "note": (
+                                f"Lưu ý chuẩn mực kế toán Like-for-Like (LFL) của {sym} kỳ {latest_y}Q{latest_q}: "
+                                f"Doanh thu bề mặt giảm {rev_yoy_pct:+.1f}% YoY do thay đổi phương thức hợp nhất (deconsolidation) công ty thành viên/liên kết, "
+                                f"trong khi Lợi nhuận sau thuế tăng {ni_yoy_pct:+.1f}% YoY và biên ròng mở rộng từ {prev_nm:.1f}% lên {cur_nm:.1f}% cho thấy động lực lõi thực tế tăng trưởng tích cực."
+                            ),
+                        })
+    except Exception:
+        pass
+
+    # Pillar 2: 2026 Corporate Intelligence & Blindspot Metrics stored in Document.metadata_json
+    try:
+        intel_docs = (
+            db.query(Document)
+            .filter(
+                Document.ticker == sym,
+                Document.is_synthetic.is_(False),
+                Document.publication_date <= as_of,
+            )
+            .order_by(Document.publication_date.desc())
+            .limit(4)
+            .all()
+        )
+        seen_intel_metrics: set[str] = set()
+        for doc in intel_docs:
+            meta = doc.metadata_json or {}
+            if not isinstance(meta, dict):
+                continue
+            structured = meta.get("structured_metrics") or {}
+            if isinstance(structured, dict):
+                for m_key, m_obj in structured.items():
+                    if m_key in seen_intel_metrics or not isinstance(m_obj, dict):
+                        continue
+                    seen_intel_metrics.add(m_key)
+                    evidence.append({
+                        "claim_type": "FACT",
+                        "responsible_module": "fundamentals",
+                        "metric": str(m_key),
+                        "symbol": sym,
+                        "value": m_obj.get("value"),
+                        "unit": m_obj.get("unit") or "BILLION_VND",
+                        "source": doc.source or "CORPORATE_FILING_2026",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": doc.publication_date.isoformat() if doc.publication_date else as_of.isoformat(),
+                        "note": m_obj.get("note") or f"{m_key} ({sym}): {m_obj.get('value')} {m_obj.get('unit') or ''}.",
+                    })
+    except Exception:
+        pass
+
     try:
         from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
         if is_postgres_session(db):
@@ -291,18 +374,30 @@ def _get_portfolio_dca_evidence(
             "note": f"Tổng giá trị tài sản ròng danh mục (NAV) tại {as_of}: {float(nav):,.0f} VND với {len(holdings)} cổ phiếu.",
         })
 
-    if conc:
+    if conc or holdings:
         max_w = conc.get("max_single_weight")
         max_sym = conc.get("max_single_symbol")
-        s_lim = conc.get("single_name_limit")
         sec_w = conc.get("max_sector_weight")
         sec_name = conc.get("max_sector")
-        sec_lim = conc.get("sector_limit")
+        if (not max_sym or not max_w) and holdings:
+            top_h = max(holdings, key=lambda h: float(h.get("current_weight") or 0.0))
+            if float(top_h.get("current_weight") or 0.0) > 0:
+                max_sym = top_h.get("symbol")
+                max_w = float(top_h.get("current_weight") or 0.0)
+        if (not sec_name or not sec_w) and holdings:
+            sec_weights: dict[str, float] = {}
+            for h in holdings:
+                s_key = str(h.get("sector") or "Khác")
+                sec_weights[s_key] = sec_weights.get(s_key, 0.0) + float(h.get("current_weight") or 0.0)
+            if sec_weights:
+                sec_name, sec_w = max(sec_weights.items(), key=lambda x: x[1])
+        s_lim = float(conc.get("single_name_limit") or 0.25)
+        sec_lim = float(conc.get("sector_limit") or 0.40)
         breaches = []
-        if max_w is not None and s_lim is not None and float(max_w) > float(s_lim):
-            breaches.append(f"Vượt trần cổ phiếu đơn lẻ {max_sym} ({float(max_w)*100:.1f}% > trần {float(s_lim)*100:.0f}%)")
-        if sec_w is not None and sec_lim is not None and float(sec_w) > float(sec_lim):
-            breaches.append(f"Vượt trần ngành {sec_name} ({float(sec_w)*100:.1f}% > trần {float(sec_lim)*100:.0f}%)")
+        if max_w is not None and float(max_w) > s_lim:
+            breaches.append(f"Vượt trần cổ phiếu đơn lẻ {max_sym} ({float(max_w)*100:.1f}% > trần {s_lim*100:.0f}%)")
+        if sec_w is not None and float(sec_w) > sec_lim:
+            breaches.append(f"Vượt trần ngành {sec_name} ({float(sec_w)*100:.1f}% > trần {sec_lim*100:.0f}%)")
         evidence.append({
             "claim_type": "FACT",
             "responsible_module": "portfolio",
@@ -315,8 +410,8 @@ def _get_portfolio_dca_evidence(
             "freshness": "AVAILABLE",
             "observation_date": as_of.isoformat(),
             "note": (
-                f"Mức tập trung lớn nhất danh mục: {max_sym} ({float(max_w or 0)*100:.1f}%, trần {float(s_lim or 0)*100:.0f}%); "
-                f"Ngành lớn nhất: {sec_name} ({float(sec_w or 0)*100:.1f}%, trần {float(sec_lim or 0)*100:.0f}%). "
+                f"Mức tập trung lớn nhất danh mục: {max_sym} ({float(max_w or 0)*100:.1f}%, trần {s_lim*100:.0f}%); "
+                f"Ngành lớn nhất: {sec_name} ({float(sec_w or 0)*100:.1f}%, trần {sec_lim*100:.0f}%). "
                 + ("; ".join(breaches) if breaches else "Trong ngưỡng kiểm soát rủi ro tập trung.")
             ),
         })
@@ -367,9 +462,10 @@ def _get_portfolio_dca_evidence(
             candidates.append((hsym, gap, cw, tw))
         if not candidates and holdings:
             candidates = [(h["symbol"], 1.0, float(h.get("current_weight") or 0.0), float(h.get("target_weight") or 0.0)) for h in holdings]
-        tot_gap = sum(c[1] for c in candidates) or 1.0
+        selected_cands = sorted(candidates, key=lambda x: x[1], reverse=True)[:4]
+        tot_gap = sum(c[1] for c in selected_cands) or 1.0
         plan_parts = []
-        for hsym, gap, cw, tw in sorted(candidates, key=lambda x: x[1], reverse=True)[:4]:
+        for hsym, gap, cw, tw in selected_cands:
             w_alloc = gap / tot_gap
             vnd_alloc = round(budget_vnd * w_alloc, -4)
             plan_parts.append(f"{hsym}: {w_alloc*100:.1f}% (~{vnd_alloc:,.0f} VND, tỷ trọng hiện tại {cw*100:.1f}%)")
@@ -437,19 +533,23 @@ def _get_commodity_evidence_and_series(
     as_of: date,
     question: Optional[str] = None,
 ) -> tuple[list[dict[str, Any]], list[float] | None, list[float] | None]:
+    from services.market.trading_hours import get_effective_trading_date, get_vn_now
+
     evidence: list[dict[str, Any]] = []
     c_series: list[float] | None = None
     s_series: list[float] | None = None
+    # On weekends/after-hours, allow same-day global commodity benchmarks alongside latest trading day stocks
+    comm_cutoff = max(as_of, get_vn_now().date()) if as_of >= get_effective_trading_date() else as_of
 
     energy_symbols = {"PLX", "GAS", "PVD", "PVS", "BSR", "OIL"}
     has_energy_sym = any(s in energy_symbols for s in norm_symbols)
     q_str = (question or "").lower()
-    has_oil_keyword = any(k in q_str for k in ("dầu", "dau", "brent", "wti", "oil", "nhiên liệu"))
+    has_oil_keyword = any(k in q_str for k in ("dầu", "dau", "brent", "wti", "oil", "nhiên liệu", "crack"))
 
     if has_energy_sym or has_oil_keyword:
         latest_brent = (
             db.query(MacroCommodity)
-            .filter(MacroCommodity.commodity_code == "BRENT", MacroCommodity.observation_date <= as_of)
+            .filter(MacroCommodity.commodity_code == "BRENT", MacroCommodity.observation_date <= comm_cutoff)
             .order_by(MacroCommodity.observation_date.desc())
             .first()
         )
@@ -467,6 +567,28 @@ def _get_commodity_evidence_and_series(
                 "freshness": "AVAILABLE",
                 "observation_date": latest_brent.observation_date.isoformat(),
                 "note": f"Giá dầu Brent giao ngay tại ngày {latest_brent.observation_date}: {latest_brent.close_price} USD/thùng{chg_str}.",
+            })
+
+        latest_crack = (
+            db.query(MacroCommodity)
+            .filter(MacroCommodity.commodity_code == "SINGAPORE_CRACK_SPREAD", MacroCommodity.observation_date <= comm_cutoff)
+            .order_by(MacroCommodity.observation_date.desc())
+            .first()
+        )
+        if latest_crack:
+            chg_c = f" ({latest_crack.change_pct:+.2f}%)" if latest_crack.change_pct is not None else ""
+            evidence.append({
+                "claim_type": "FACT",
+                "responsible_module": "macro",
+                "metric": "singapore_crack_spread",
+                "symbol": "CRACK_SPREAD",
+                "value": latest_crack.close_price,
+                "unit": latest_crack.unit or "USD/barrel",
+                "source": latest_crack.source or "PUBLIC_COMMODITY_FEED",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "observation_date": latest_crack.observation_date.isoformat(),
+                "note": f"Biên lọc hóa dầu Singapore Crack Spread 3-2-1 tại ngày {latest_crack.observation_date}: {latest_crack.close_price} USD/thùng{chg_c}.",
             })
 
         # Calculate time series correlation if energy stock present
@@ -630,6 +752,32 @@ def _get_commodity_evidence_and_series(
                                     "note": f"Hệ số tương quan giữa tăng trưởng doanh thu cùng kỳ năm trước (YoY % Change) của {target_sym} và biến động giá dầu Brent năm: {r_yoy:+.4f} (N={len(yoy_rev)} quý).",
                                 })
 
+    steel_symbols = {"HPG", "HSG", "NKG"}
+    has_steel_sym = any(s in steel_symbols for s in norm_symbols)
+    has_steel_kw = any(k in q_str for k in ("hrc", "thép", "thep", "steel"))
+    if has_steel_sym or has_steel_kw:
+        latest_hrc = (
+            db.query(MacroCommodity)
+            .filter(MacroCommodity.commodity_code == "HRC_STEEL", MacroCommodity.observation_date <= comm_cutoff)
+            .order_by(MacroCommodity.observation_date.desc())
+            .first()
+        )
+        if latest_hrc:
+            chg_h = f" ({latest_hrc.change_pct:+.2f}%)" if latest_hrc.change_pct is not None else ""
+            evidence.append({
+                "claim_type": "FACT",
+                "responsible_module": "macro",
+                "metric": "hrc_steel_price",
+                "symbol": "HRC_STEEL",
+                "value": latest_hrc.close_price,
+                "unit": latest_hrc.unit or "USD/ton",
+                "source": latest_hrc.source or "PUBLIC_COMMODITY_FEED",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "observation_date": latest_hrc.observation_date.isoformat(),
+                "note": f"Giá thép cuộn cán nóng (HRC) tham chiếu tại ngày {latest_hrc.observation_date}: {latest_hrc.close_price} USD/tấn{chg_h}.",
+            })
+
     return evidence, c_series, s_series
 
 
@@ -643,6 +791,36 @@ def _get_peer_comparison(db: Session, symbol: str, as_of: date) -> Any:
         return None
 
 
+def _parse_wacc_g_shock(question: Optional[str]) -> tuple[Optional[float], Optional[float]]:
+    """Parse custom WACC and terminal growth (g) delta shocks in % points from user query."""
+    if not question:
+        return None, None
+    import re
+    q = question.lower()
+    w_delta: Optional[float] = None
+    g_delta: Optional[float] = None
+
+    def _extract_signed_pct(anchor_pattern: str) -> Optional[float]:
+        anchor = re.search(anchor_pattern, q)
+        if not anchor:
+            return None
+        tail = q[anchor.end() : anchor.end() + 45]
+        # Advance past alias like "(g)" right after "tăng trưởng dài hạn" so direction tokens remain intact
+        tail = re.sub(r"^\s*\(\s*g\s*\)", "", tail)
+        m_num = re.search(r"(\d+(?:[.,]\d+)?)\s*%", tail)
+        if not m_num:
+            return None
+        prefix = tail[: m_num.start()].lower()
+        val = float(m_num.group(1).replace(",", "."))
+        if any(neg in prefix for neg in ("giảm", "giam", "trừ", "tru", "-")):
+            return -val
+        return val
+
+    w_delta = _extract_signed_pct(r"\bwacc\b")
+    g_delta = _extract_signed_pct(r"(?:tăng\s*trưởng\s*dài\s*hạn|tang\s*truong\s*dai\s*han|\(\s*g\s*\)|\bg\b)")
+    return w_delta, g_delta
+
+
 def _get_valuation_dcf_evidence(
     db: Session,
     symbol: str,
@@ -651,9 +829,10 @@ def _get_valuation_dcf_evidence(
     preloaded_dataset: Any = _UNSET_ARG,
     asset_sector: Optional[str] = None,
     latest_price: Optional[float] = None,
+    question: Optional[str] = None,
 ) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
-    if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL"):
+    if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL", "PORTFOLIO"):
         return evidence
     try:
         try:
@@ -757,6 +936,43 @@ def _get_valuation_dcf_evidence(
                             "observation_date": as_of.isoformat(),
                             "note": f"Chi phí vốn bình quân gia quyền WACC của {symbol}: {float(wacc_val)*100:.2f}% (Beta Blume={beta_val}).",
                         })
+                    w_shock, g_shock = _parse_wacc_g_shock(question)
+                    if w_shock is not None or g_shock is not None:
+                        from services.valuation.engine import DCFEngine
+                        dcf_assump, _, is_re, _ = builder.build_dcf_context(funds)
+                        shares_out = funds.get("shares_outstanding", 1_000_000_000)
+                        shock_res = DCFEngine.evaluate_custom_shock(
+                            dcf_assump,
+                            shares_out,
+                            net_debt=funds.get("net_debt", 0),
+                            wacc_delta_pct=float(w_shock or 0.0),
+                            g_delta_pct=float(g_shock or 0.0),
+                        )
+                        bvps_val = funds.get("bvps") or 0
+                        if is_re and bvps_val and bvps_val > 0 and shock_res.get("base_fair_value", 0) > bvps_val * 1.45:
+                            scale_re = (bvps_val * 1.35) / shock_res["base_fair_value"]
+                            shock_res["base_fair_value"] = round(shock_res["base_fair_value"] * scale_re, 0)
+                            shock_res["shocked_fair_value"] = round(shock_res["shocked_fair_value"] * scale_re, 0)
+                            shock_res["delta_vnd"] = round(shock_res["shocked_fair_value"] - shock_res["base_fair_value"], 0)
+                        if shock_res.get("valid"):
+                            evidence.append({
+                                "claim_type": "MODEL_OUTPUT",
+                                "responsible_module": "valuation",
+                                "metric": "dcf_custom_sensitivity",
+                                "symbol": symbol,
+                                "value": shock_res["shocked_fair_value"],
+                                "unit": "VND",
+                                "source": "DCF_SANDBOX_SHOCK_ENGINE",
+                                "data_origin": "CANONICAL_DATABASE",
+                                "freshness": "AVAILABLE",
+                                "observation_date": as_of.isoformat(),
+                                "note": (
+                                    f"Kịch bản giả định DCF tùy biến cho {symbol}: Khi WACC chuyển từ {shock_res['base_wacc_pct']:.2f}% lên {shock_res['shocked_wacc_pct']:.2f}% "
+                                    f"và tăng trưởng dài hạn g chuyển từ {shock_res['base_g_pct']:.2f}% sang {shock_res['shocked_g_pct']:.2f}%, "
+                                    f"giá trị hợp lý DCF thay đổi từ {shock_res['base_fair_value']:,.0f} VND xuống {shock_res['shocked_fair_value']:,.0f} VND/cổ phiếu "
+                                    f"(chênh lệch {shock_res['delta_vnd']:+,.0f} VND, tức {shock_res['delta_pct']:+.2f}%)."
+                                ),
+                            })
                 elif m.method == "Relative P/E" and m.fair_value.base > 0:
                     evidence.append({
                         "claim_type": "MODEL_OUTPUT",
@@ -1210,12 +1426,16 @@ class AITools:
 
     @staticmethod
     def get_market_context(session: Optional[Session] = None, as_of: Optional[date] = None) -> dict[str, Any]:
+        from services.market.trading_hours import get_effective_trading_date, get_vn_now
+
         close_session = session is None
         db = session or SessionLocal()
-        requested_date = as_of or date.today()
+        requested_date = as_of or get_effective_trading_date()
+        # Allow live after-hours / weekend 17:30 macro releases and global series (e.g. FEDFUNDS) when querying current date
+        macro_cutoff = max(requested_date, get_vn_now().date()) if (as_of is None or requested_date >= get_effective_trading_date()) else requested_date
         try:
             market = build_market_dashboard(db, requested_date).model_dump(mode="json")
-            macro = get_latest_macro_series(db, requested_date).model_dump(mode="json")
+            macro = get_latest_macro_series(db, macro_cutoff).model_dump(mode="json")
             regime = market.get("market_regime", {})
             breadth = market.get("breadth", {})
 
@@ -1358,6 +1578,7 @@ class AITools:
                 for s_item in series_list or []:
                     if s_item.get("value") is not None and str(s_item.get("status") or "").upper() in ("AVAILABLE", "PARTIAL"):
                         sid = str(s_item.get("series_id") or "")
+                        obs_dt = s_item.get("observation_date") or s_item.get("as_of_date") or macro_cutoff.isoformat()
                         macro_ev.append({
                             "claim_type": "FACT",
                             "responsible_module": "macro",
@@ -1368,8 +1589,8 @@ class AITools:
                             "source": s_item.get("source") or "MACRO_DATABASE",
                             "data_origin": "CANONICAL_DATABASE",
                             "freshness": "AVAILABLE",
-                            "observation_date": s_item.get("as_of_date") or requested_date.isoformat(),
-                            "note": f"Chỉ báo vĩ mô {s_item.get('name') or sid} ({region_name}): {s_item['value']} {s_item.get('unit') or ''} tại ngày {s_item.get('as_of_date')}.",
+                            "observation_date": obs_dt,
+                            "note": f"Chỉ báo vĩ mô {s_item.get('name') or sid} ({region_name}): {s_item['value']} {s_item.get('unit') or ''} tại ngày {obs_dt}.",
                         })
             ff = market.get("foreign_flow") or {}
             if isinstance(ff, dict) and ff.get("status") == "AVAILABLE" and ff.get("value") is not None:
@@ -1390,6 +1611,51 @@ class AITools:
                     "observation_date": ff.get("as_of_date") or requested_date.isoformat(),
                     "note": f"Dòng tiền khối ngoại HOSE ngày {ff.get('as_of_date')}: Ròng {ff['value']:+.2f} tỷ VND (Mua {ff_det.get('buy_billion_vnd', 'N/A')} tỷ, Bán {ff_det.get('sell_billion_vnd', 'N/A')} tỷ).{extra_ff}",
                 })
+
+            # Pillar 7: Validated 17:30 Official Macro News & Gemini Correlation Logs
+            try:
+                approved_news = (
+                    db.query(MacroAnalysisLog)
+                    .filter(
+                        MacroAnalysisLog.approved_for_ai.is_(True),
+                        MacroAnalysisLog.analysis_date <= macro_cutoff,
+                    )
+                    .order_by(
+                        MacroAnalysisLog.analysis_date.desc(),
+                        MacroAnalysisLog.source_trust_level.desc(),
+                        MacroAnalysisLog.ai_confidence_score.desc(),
+                    )
+                    .limit(6)
+                    .all()
+                )
+                for n_row in approved_news:
+                    sectors_txt = ", ".join(n_row.affected_sectors or [])
+                    syms_txt = ", ".join(n_row.affected_symbols or [])
+                    hit_val = round(float(n_row.historical_hit_rate or 0.0) * 100.0, 1)
+                    conf_val = float(n_row.ai_confidence_score or 0.0)
+                    macro_ev.append({
+                        "claim_type": "MODEL_OUTPUT",
+                        "responsible_module": "macro",
+                        "metric": "macro_event_news",
+                        "symbol": "MARKET",
+                        "affected_symbols": [str(s).upper() for s in (n_row.affected_symbols or [])],
+                        "affected_sectors": list(n_row.affected_sectors or []),
+                        "source_trust_level": n_row.source_trust_level,
+                        "value": round(conf_val * 100.0, 1),
+                        "unit": "%",
+                        "source": f"{n_row.source_domain} (Trust {n_row.source_trust_level}/10)",
+                        "data_origin": "CANONICAL_DATABASE",
+                        "freshness": "AVAILABLE",
+                        "observation_date": n_row.analysis_date.isoformat(),
+                        "note": (
+                            f"[Tin vĩ mô kiểm chứng 17:30 | {n_row.source_domain} Trust {n_row.source_trust_level}/10] "
+                            f"{n_row.event_title}: {n_row.macro_impact} Tương quan {n_row.correlation_type} ({n_row.sentiment}) "
+                            f"tới nhóm [{sectors_txt}] / mã [{syms_txt}]. {n_row.analysis_detail} "
+                            f"(Độ tin cậy Gemini={conf_val:.2f}, Kiểm chứng backtest lịch sử Hit Rate={hit_val:.1f}%)."
+                        ),
+                    })
+            except Exception:
+                pass
 
             market["evidence"] = market_ev
             market["macro_evidence"] = macro_ev
@@ -1441,7 +1707,16 @@ class AITools:
             from services.universe.registry import UniverseRegistry
 
             # Normalize to list of symbols
-            raw_symbols = [symbol] if isinstance(symbol, str) else (symbol or [])
+            import re as _re_sym
+            raw_list = [symbol] if isinstance(symbol, str) else list(symbol or [])
+            raw_symbols: list[str] = []
+            for item_s in raw_list:
+                if not item_s:
+                    continue
+                if _re_sym.search(r"[,;/|]", str(item_s)):
+                    raw_symbols.extend(tok.strip() for tok in _re_sym.split(r"[,;/|\s]+", str(item_s)) if tok.strip())
+                else:
+                    raw_symbols.append(str(item_s).strip())
             norm_symbols: list[str] = []
             for s in raw_symbols:
                 if not s:
@@ -1455,7 +1730,7 @@ class AITools:
             portfolio_overview, portfolio_fit_data, portfolio_workspaces, preloaded_datasets = get_portfolio_state(db, as_of)
             missing_ds_syms = [
                 s for s in norm_symbols
-                if s not in preloaded_datasets and s not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE", "UNIVERSE_ALL")
+                if s not in preloaded_datasets and s not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE", "UNIVERSE_ALL", "PORTFOLIO")
             ]
             if missing_ds_syms:
                 preloaded_datasets.update(
@@ -1493,7 +1768,10 @@ class AITools:
                         sym_evidence = decision.get("evidence", []) if decision else []
                         for ev in sym_evidence:
                             ev_copy = dict(ev)
-                            ev_copy["symbol"] = sym
+                            if ev_copy.get("responsible_module") == "macro":
+                                ev_copy.setdefault("symbol", "MARKET")
+                            else:
+                                ev_copy["symbol"] = sym
                             combined_evidence.append(ev_copy)
 
                         # Bank metrics, deep balance/cashflow, Z-score & price change expansion
@@ -1518,6 +1796,7 @@ class AITools:
                             preloaded_dataset=sym_dataset,
                             asset_sector=asset.sector,
                             latest_price=target_price,
+                            question=question,
                         )
                         combined_evidence.extend(dcf_ev)
                         peer_ev = _get_peer_median_evidence(db, sym, as_of, peer_res=peer_res)
@@ -1544,13 +1823,30 @@ class AITools:
                 combined_evidence.extend(comm_ev)
 
                 # Append market, macro & portfolio evidence for multi-ticker comparisons
+                q_lower_multi = (question or "").lower()
+                multi_steel_rel = any(s in {"HPG", "HSG", "NKG"} for s in norm_symbols) or any(
+                    k in q_lower_multi for k in ("hrc", "thép", "thep", "steel")
+                )
+                multi_oil_rel = any(s in {"BSR", "PLX", "GAS", "PVD", "PVS", "OIL", "PVT"} for s in norm_symbols) or any(
+                    k in q_lower_multi for k in ("crack", "lọc dầu", "dầu", "oil", "brent", "xăng")
+                )
+                comm_metrics_up = {str(ce.get("metric") or "").upper() for ce in comm_ev}
                 for ev in market_context.get("market", {}).get("evidence", []):
                     ev_copy = dict(ev)
                     ev_copy.setdefault("symbol", "VN100")
                     combined_evidence.append(ev_copy)
                 for ev in market_context.get("market", {}).get("macro_evidence", []):
+                    m_up = str(ev.get("metric") or "").upper()
+                    if m_up in {"HRC_STEEL_PRICE", "HRC_STEEL"} and (not multi_steel_rel or "HRC_STEEL_PRICE" in comm_metrics_up):
+                        continue
+                    if m_up == "SINGAPORE_CRACK_SPREAD" and (not multi_oil_rel or "SINGAPORE_CRACK_SPREAD" in comm_metrics_up):
+                        continue
                     combined_evidence.append(dict(ev))
-                combined_evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
+                if "PORTFOLIO" in norm_symbols or any(
+                    k in q_lower_multi
+                    for k in ("danh mục", "danh muc", "phân bổ", "phan bo", "giải ngân", "giai ngan", "dca", "trung bình giá", "rebalance", "tái cơ cấu", "tỷ trọng", "portfolio")
+                ):
+                    combined_evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
 
                 rag_service = DocumentRAGService(session=db)
                 rag_query = f"{' '.join(norm_symbols)} {question or ''}".strip() or "corporate update"
@@ -1596,11 +1892,12 @@ class AITools:
                     "chart_context": _get_chart_context(db, norm_symbols, as_of),
                 }
 
-            # Single symbol path (or no symbol)
+            # Single symbol path (or no symbol / PORTFOLIO)
             normalized = norm_symbols[0] if norm_symbols else None
-            asset = db.query(Asset).filter(Asset.symbol == normalized).first() if normalized else None
-            norm_dataset = preloaded_datasets.get(normalized, _UNSET_ARG) if normalized else _UNSET_ARG
-            if normalized:
+            is_virtual_entity = normalized in ("PORTFOLIO", "ALL", "UNIVERSE", "UNIVERSE_ALL")
+            asset = db.query(Asset).filter(Asset.symbol == normalized).first() if (normalized and not is_virtual_entity) else None
+            norm_dataset = preloaded_datasets.get(normalized, _UNSET_ARG) if (normalized and not is_virtual_entity) else _UNSET_ARG
+            if normalized and not is_virtual_entity:
                 dec_kwargs = {
                     "market_data": market_context.get("market"),
                     "macro_data": market_context.get("macro"),
@@ -1637,7 +1934,10 @@ class AITools:
             evidence = decision.get("evidence", []) if decision else []
             if normalized:
                 for ev in evidence:
-                    ev.setdefault("symbol", normalized)
+                    if ev.get("responsible_module") == "macro":
+                        ev.setdefault("symbol", "MARKET")
+                    else:
+                        ev.setdefault("symbol", normalized)
 
             # Bank metrics, deep balance/cashflow, Z-score & price change expansion
             if asset:
@@ -1647,7 +1947,7 @@ class AITools:
                 evidence.extend(bank_ev)
 
             # DCF valuation & Peer medians expansion
-            if normalized:
+            if normalized and not is_virtual_entity:
                 peer_res = _get_peer_comparison(db, normalized, as_of)
                 target_price = (
                     peer_res.target_metrics.current_price
@@ -1662,6 +1962,7 @@ class AITools:
                     preloaded_dataset=norm_dataset,
                     asset_sector=(asset.sector if asset else None),
                     latest_price=target_price,
+                    question=question,
                 )
                 evidence.extend(dcf_ev)
                 peer_ev = _get_peer_median_evidence(db, normalized, as_of, peer_res=peer_res)
@@ -1692,23 +1993,49 @@ class AITools:
                 or any(k in q_lower_str for k in (
                     "chế độ thị trường", "market regime", "độ rộng", "breadth", "thị trường",
                     "lãi suất", "fed", "tỷ giá", "usd", "cpi", "lạm phát", "gdp", "vĩ mô",
-                    "khối ngoại", "foreign", "wacc", "dcf", "chiết khấu", "danh mục", "phân bổ", "giải ngân", "dca",
+                    "khối ngoại", "foreign", "wacc", "dcf", "chiết khấu",
+                    "tin tức", "nhnn", "ngân hàng nhà nước", "hrc", "crack spread",
                 ))
             )
-            if is_market_or_macro_query:
+            if is_market_or_macro_query and normalized != "PORTFOLIO":
                 for ev in market_context.get("market", {}).get("evidence", []):
                     ev_copy = dict(ev)
                     ev_copy.setdefault("symbol", "VN100")
                     evidence.append(ev_copy)
-                for ev in market_context.get("market", {}).get("macro_evidence", []):
-                    evidence.append(dict(ev))
-
-            if normalized in (None, "VN100", "VNINDEX") or any(k in q_lower_str for k in ("danh mục", "phân bổ", "giải ngân", "dca", "trung bình giá", "rebalance", "tái cơ cấu", "tỷ trọng", "triệu")):
-                evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
-
-            # Macro commodity expansion
+            # Macro commodity expansion (run before macro_evidence merge so sector commodities aren't duplicated/leaked)
             comm_ev, c_series, s_series = _get_commodity_evidence_and_series(db, norm_symbols, as_of, question)
             evidence.extend(comm_ev)
+            single_steel_rel = any(s in {"HPG", "HSG", "NKG"} for s in norm_symbols) or any(
+                k in q_lower_str for k in ("hrc", "thép", "thep", "steel")
+            )
+            single_oil_rel = any(s in {"BSR", "PLX", "GAS", "PVD", "PVS", "OIL", "PVT"} for s in norm_symbols) or any(
+                k in q_lower_str for k in ("crack", "lọc dầu", "dầu", "oil", "brent", "xăng")
+            )
+            comm_metrics_up = {str(ce.get("metric") or "").upper() for ce in comm_ev}
+
+            if is_market_or_macro_query or normalized == "PORTFOLIO":
+                for ev in market_context.get("market", {}).get("macro_evidence", []):
+                    m_up = str(ev.get("metric") or "").upper()
+                    if m_up in {"HRC_STEEL_PRICE", "HRC_STEEL"} and (not single_steel_rel or "HRC_STEEL_PRICE" in comm_metrics_up):
+                        continue
+                    if m_up == "SINGAPORE_CRACK_SPREAD" and (not single_oil_rel or "SINGAPORE_CRACK_SPREAD" in comm_metrics_up):
+                        continue
+                    evidence.append(dict(ev))
+            else:
+                # For sector / stock queries (e.g. HPG steel or BSR/PLX oil), surface matching approved 17:30 news
+                norm_sym_set = {s.upper() for s in norm_symbols}
+                for ev in market_context.get("market", {}).get("macro_evidence", []):
+                    if ev.get("metric") != "macro_event_news":
+                        continue
+                    aff_syms = {str(x).upper() for x in (ev.get("affected_symbols") or [])}
+                    if norm_sym_set & aff_syms:
+                        evidence.append(dict(ev))
+
+            if normalized == "PORTFOLIO" or any(
+                k in q_lower_str
+                for k in ("danh mục", "danh muc", "phân bổ", "phan bo", "giải ngân", "giai ngan", "dca", "trung bình giá", "rebalance", "tái cơ cấu", "tỷ trọng", "portfolio")
+            ):
+                evidence.extend(_get_portfolio_dca_evidence(portfolio_overview, portfolio_fit_data, question, as_of))
 
             rag_service = DocumentRAGService(session=db)
             rag_query = (
@@ -1766,12 +2093,16 @@ class AITools:
                 "symbol": normalized,
                 "symbols": norm_symbols,
                 "as_of_date": as_of.isoformat(),
-                "decision_state": decision.get("decision_state") if decision else market_context.get("status", "INSUFFICIENT_DATA"),
+                "decision_state": (
+                    decision.get("decision_state")
+                    if decision
+                    else ("AVAILABLE" if (normalized == "PORTFOLIO" and evidence) else market_context.get("status", "INSUFFICIENT_DATA"))
+                ),
                 "tools": results,
                 "evidence": evidence,
                 "commodity_series": c_series,
                 "stock_price_series": s_series,
-                "chart_context": _get_chart_context(db, [normalized] if normalized else [], as_of),
+                "chart_context": _get_chart_context(db, [normalized] if (normalized and not is_virtual_entity) else [], as_of),
             }
         finally:
             if close_session:
