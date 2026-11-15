@@ -57,7 +57,7 @@ def test_market_dashboard_api_returns_honest_missing_metrics(db_session):
     app.dependency_overrides.clear()
     assert response.status_code == 200
     payload = response.json()
-    assert {item["symbol"] for item in payload["indexes"]} == {"VN30", "VN100", "VN300"}
+    assert {item["symbol"] for item in payload["indexes"]} == {"VNINDEX", "VN30", "VN100"}
     assert payload["status"] in {"AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"}
     assert all(item["metric"]["status"] in {"AVAILABLE", "STALE", "INSUFFICIENT_DATA"} for item in payload["indexes"])
     assert payload["market_regime"]["regime"] in {"EXPANSION", "RECOVERY", "NEUTRAL", "RISK_OFF", "INSUFFICIENT_DATA"}
@@ -182,3 +182,21 @@ def test_market_regime_uses_vn100_index_momentum_and_published_constituents(db_s
     ]
     assert regime.data_coverage == round(len(members) / len(published_memberships), 3)
     assert regime.model_version == "vn100_price_breadth_v1"
+
+
+def test_opportunity_scanner_populates_margin_of_safety_alongside_pe(db_session):
+    with _client_for_session(db_session) as client:
+        response = client.get("/api/v1/opportunities", params={"universe": "VN100"})
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    valued = [
+        item for item in payload["results"]
+        if item.get("factor_summary") and item["factor_summary"].get("pe") is not None
+    ]
+    assert valued, "Expected seeded VN100 equities with computed P/E"
+    with_mos = [item for item in valued if item.get("margin_of_safety") is not None]
+    assert with_mos, "Expected top-level margin_of_safety populated even when P/E is present"
+    for item in with_mos:
+        assert item["margin_of_safety"] == item["factor_summary"]["margin_of_safety"]

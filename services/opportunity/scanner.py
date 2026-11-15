@@ -31,6 +31,7 @@ class ScannerItem(BaseModel):
     confidence: str = "INSUFFICIENT"
     risk_score: Optional[float] = None
     valuation_status: str = "INSUFFICIENT_DATA"
+    margin_of_safety: Optional[float] = None
     factor_summary: Optional[dict[str, float]] = None
     factor_status: str = "INSUFFICIENT_DATA"
     why_now: list[dict[str, Any]] = Field(default_factory=list)
@@ -322,10 +323,13 @@ def _item_for_asset(
             pe_val = float(val_data["pe"])
             factor_summary["pe"] = round(pe_val, 2)
             factor_summary["value"] = round(min(1.0, max(0.0, (30.0 - pe_val) / 25.0)), 2)
-        elif "margin_of_safety" in val_data and val_data["margin_of_safety"] is not None:
+        mos_pct: Optional[float] = None
+        if "margin_of_safety" in val_data and val_data["margin_of_safety"] is not None:
             mos = float(val_data["margin_of_safety"])
-            factor_summary["margin_of_safety"] = round(mos * 100.0, 1)
-            factor_summary["value"] = round(min(1.0, max(0.0, (mos + 0.5) / 1.0)), 2)
+            mos_pct = round(mos * 100.0, 1)
+            factor_summary["margin_of_safety"] = mos_pct
+            if "value" not in factor_summary:
+                factor_summary["value"] = round(min(1.0, max(0.0, (mos + 0.5) / 1.0)), 2)
         if "price_momentum_score" in fund_data and fund_data["price_momentum_score"] is not None:
             mom_score = float(fund_data["price_momentum_score"])
             factor_summary["momentum_score"] = round(mom_score, 2)
@@ -344,6 +348,7 @@ def _item_for_asset(
             confidence=engine_result.confidence,
             risk_score=engine_result.risk_score,
             valuation_status=val_status,
+            margin_of_safety=mos_pct,
             factor_summary=factor_summary,
             factor_status=factor_status,
             why_now=why_now,

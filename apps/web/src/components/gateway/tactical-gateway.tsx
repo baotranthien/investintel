@@ -669,13 +669,20 @@ export function TacticalGateway({
           const sorted = [...data.results]
             .sort((a, b) => (b.opportunity_score ?? 0) - (a.opportunity_score ?? 0))
             .slice(0, 3)
-            .map((o) => ({
-              symbol: o.symbol,
-              name: o.name ?? o.symbol,
-              score: Math.round(o.opportunity_score ?? 80),
-              upside: o.margin_of_safety ? `+${(o.margin_of_safety * 100).toFixed(1)}%` : "+20.0%",
-              regime: o.valuation_status ?? "QUANT",
-            }));
+            .map((o) => {
+              const rawMos = o.margin_of_safety ?? o.factor_summary?.margin_of_safety;
+              const upside =
+                typeof rawMos === "number" && Number.isFinite(rawMos)
+                  ? `${rawMos >= 0 ? "+" : ""}${rawMos.toFixed(1)}%`
+                  : "—";
+              return {
+                symbol: o.symbol,
+                name: o.name ?? o.symbol,
+                score: Math.round(o.opportunity_score ?? 80),
+                upside,
+                regime: o.valuation_status ?? "QUANT",
+              };
+            });
           setFetchedStocks(sorted);
         }
       })

@@ -432,8 +432,19 @@ def build_research_workspace(
     actions = session.query(CorporateAction).filter(
         CorporateAction.symbol == normalized_symbol,
         CorporateAction.action_date <= as_of,
-    ).order_by(CorporateAction.action_date.desc()).all()
+    ).order_by(CorporateAction.action_date.desc(), CorporateAction.id.desc()).all()
+    seen_action_keys: set[tuple[Any, ...]] = set()
     for action in actions:
+        dedup_key = (
+            action.action_date,
+            (action.action_type or "").strip().upper(),
+            round(float(action.value), 4) if action.value is not None else None,
+            round(float(action.ratio), 4) if action.ratio is not None else None,
+            (action.notes or "").strip(),
+        )
+        if dedup_key in seen_action_keys:
+            continue
+        seen_action_keys.add(dedup_key)
         timeline.append(TimelineItem(
             id=f"action-{action.id}",
             date=action.action_date.isoformat(),
@@ -888,7 +899,7 @@ def build_research_workspace(
                     if cs_score_obj.drivers and any("Sector Z-Score" in d for d in cs_score_obj.drivers):
                         factors[fname] = WorkspaceMetric(
                             value=round(float(cs_score_obj.score), 1),
-                            unit="score_100",
+                            unit="/100",
                             status="AVAILABLE",
                             calculation="Cross-sectional sector Z-score (Postgres RPC)",
                             evidence=Evidence(
@@ -913,6 +924,7 @@ def build_research_workspace(
     val_snap = None
     fair_value_base = None
     mos_val = None
+    fund_for_val: dict[str, Any] = {}
     if current_price is not None and has_financials:
         try:
             from services.valuation.inputs import load_fundamentals_for_valuation
@@ -989,11 +1001,37 @@ def build_research_workspace(
             pass
 
     # Risk Engine
+    liquid_values = [
+        float(p.get("raw_close") or p["close"]) * float(p["volume"])
+        for p in price_history[-20:]
+        if p.get("volume") and float(p["volume"]) > 0 and (p.get("raw_close") or p.get("close"))
+    ]
+    avg_daily_volume_vnd = (
+        round(sum(liquid_values) / len(liquid_values), 2)
+        if liquid_values
+        else None
+    )
+    risk_beta = fund_for_val.get("beta")
+    if risk_beta is None and len(price_history) >= 2:
+        try:
+            from services.valuation.inputs import compute_beta_and_wacc
+            risk_beta, _, _ = compute_beta_and_wacc(
+                session=session,
+                sym=normalized_symbol,
+                sector=sector,
+                de_ratio=de_ratio,
+                as_of_date=as_of_d,
+            )
+        except Exception:
+            risk_beta = None
+
     fund_data_risk = {
         "sector": sector,
         "roe": (roe_val / 100.0) if roe_val is not None else None,
         "profit_growth_yoy": (ni_yoy_val / 100.0) if ni_yoy_val is not None else None,
         "de_ratio": de_ratio,
+        "beta": risk_beta,
+        "avg_daily_volume_vnd": avg_daily_volume_vnd,
     }
     val_data_risk = {
         "pe": (current_price / eps_val) if (eps_val and eps_val > 0 and current_price) else None,

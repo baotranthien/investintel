@@ -19,6 +19,7 @@ import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
 import {
   useLocale,
   pickLocaleText,
+  translateQuantEnum,
   translateSectorName,
   translateOpportunityDriver,
   type AppLocale,
@@ -240,10 +241,10 @@ export default function Home(): JSX.Element {
       : null;
 
   const topMosList = topOpportunities
-    .map((o) => o.margin_of_safety)
+    .map((o) => o.margin_of_safety ?? o.factor_summary?.margin_of_safety)
     .filter((m): m is number => typeof m === "number" && Number.isFinite(m));
   const rawAvgMos = topMosList.length > 0 ? topMosList.reduce((a, b) => a + b, 0) / topMosList.length : null;
-  const normalizedTargetMos = rawAvgMos === null ? null : Math.abs(rawAvgMos) <= 1.5 ? rawAvgMos * 100 : rawAvgMos;
+  const normalizedTargetMos = rawAvgMos;
 
   const yEodQuant = Math.round(165 - ((numericTopQuant || 60) / 100) * 140);
   const yEodBench = 118;
@@ -263,11 +264,11 @@ export default function Home(): JSX.Element {
     const qTop = numericTopQuant || 65;
     const step = (qTop - qBase) / 5;
     return [
-      { label: locale === "en" ? "Baseline (-5M)" : "Định chuẩn (-5T)", shortLabel: "-5T", x: 50, quantY: 150, benchY: 160, quantScore: Math.round(qBase * 0.88), benchScore: fmtRelativeIdx(0.92), isForecast: false },
-      { label: locale === "en" ? "Baseline (-4M)" : "Định chuẩn (-4T)", shortLabel: "-4T", x: 120, quantY: 140, benchY: 155, quantScore: Math.round(qBase * 0.94), benchScore: fmtRelativeIdx(0.94), isForecast: false },
-      { label: locale === "en" ? "Baseline (-3M)" : "Định chuẩn (-3T)", shortLabel: "-3T", x: 190, quantY: 110, benchY: 135, quantScore: Math.round(qBase + step * 2), benchScore: fmtRelativeIdx(0.96), isForecast: false },
-      { label: locale === "en" ? "Baseline (-2M)" : "Định chuẩn (-2T)", shortLabel: "-2T", x: 260, quantY: 120, benchY: 140, quantScore: Math.round(qBase + step * 1.5), benchScore: fmtRelativeIdx(0.95), isForecast: false },
-      { label: locale === "en" ? "Baseline (-1M)" : "Định chuẩn (-1T)", shortLabel: "-1T", x: 330, quantY: 85, benchY: 122, quantScore: Math.round(qBase + step * 3.8), benchScore: fmtRelativeIdx(0.98), isForecast: false },
+      { label: locale === "en" ? "Baseline (-5M)" : "Định chuẩn (-5T)", shortLabel: locale === "en" ? "-5M" : "-5T", x: 50, quantY: 150, benchY: 160, quantScore: Math.round(qBase * 0.88), benchScore: fmtRelativeIdx(0.92), isForecast: false },
+      { label: locale === "en" ? "Baseline (-4M)" : "Định chuẩn (-4T)", shortLabel: locale === "en" ? "-4M" : "-4T", x: 120, quantY: 140, benchY: 155, quantScore: Math.round(qBase * 0.94), benchScore: fmtRelativeIdx(0.94), isForecast: false },
+      { label: locale === "en" ? "Baseline (-3M)" : "Định chuẩn (-3T)", shortLabel: locale === "en" ? "-3M" : "-3T", x: 190, quantY: 110, benchY: 135, quantScore: Math.round(qBase + step * 2), benchScore: fmtRelativeIdx(0.96), isForecast: false },
+      { label: locale === "en" ? "Baseline (-2M)" : "Định chuẩn (-2T)", shortLabel: locale === "en" ? "-2M" : "-2T", x: 260, quantY: 120, benchY: 140, quantScore: Math.round(qBase + step * 1.5), benchScore: fmtRelativeIdx(0.95), isForecast: false },
+      { label: locale === "en" ? "Baseline (-1M)" : "Định chuẩn (-1T)", shortLabel: locale === "en" ? "-1M" : "-1T", x: 330, quantY: 85, benchY: 122, quantScore: Math.round(qBase + step * 3.8), benchScore: fmtRelativeIdx(0.98), isForecast: false },
       { label: locale === "en" ? "Current EOD" : "Phiên hiện tại", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Math.round(qTop), benchScore: vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--", isForecast: false },
       { label: locale === "en" ? "25% FV Convergence" : "Hội tụ 25% FV", shortLabel: "25% FV", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round(qTop + 3)), benchScore: fmtTargetUpside(0.25), isForecast: true },
       { label: locale === "en" ? "50% FV Convergence" : "Hội tụ 50% FV", shortLabel: "50% FV", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round(qTop + 6)), benchScore: fmtTargetUpside(0.5), isForecast: true },
@@ -467,9 +468,10 @@ export default function Home(): JSX.Element {
                 const sectorLabel = opp.sector
                   ? translateSectorName(opp.sector, locale)
                   : opp.name ?? "VN100";
+                const oppMos = opp.margin_of_safety ?? opp.factor_summary?.margin_of_safety ?? null;
                 const mosText =
-                  typeof opp.margin_of_safety === "number" && !Number.isNaN(opp.margin_of_safety)
-                    ? ` · MoS ${opp.margin_of_safety >= 0 ? "+" : ""}${opp.margin_of_safety.toFixed(1)}%`
+                  typeof oppMos === "number" && Number.isFinite(oppMos)
+                    ? ` · MoS ${oppMos >= 0 ? "+" : ""}${oppMos.toFixed(1)}%`
                     : "";
                 return (
                   <OpportunityRowItem
@@ -481,8 +483,8 @@ export default function Home(): JSX.Element {
                         ? translateOpportunityDriver(opp.why_now[0].description, locale)
                         : pickLocaleText(
                             locale,
-                            `Biên an toàn định giá ${opp.margin_of_safety ? `${opp.margin_of_safety.toFixed(1)}%` : "dương"} · Định giá ${opp.valuation_status ?? "HẤP DẪN"}`,
-                            `Margin of safety ${opp.margin_of_safety ? `${opp.margin_of_safety.toFixed(1)}%` : "positive"} · Valuation: ${opp.valuation_status ?? "ATTRACTIVE"}`
+                            `Biên an toàn định giá ${typeof oppMos === "number" && Number.isFinite(oppMos) ? `${oppMos.toFixed(1)}%` : "dương"} · Định giá ${translateQuantEnum(opp.valuation_status, "vi")}`,
+                            `Margin of safety ${typeof oppMos === "number" && Number.isFinite(oppMos) ? `${oppMos.toFixed(1)}%` : "positive"} · Valuation: ${translateQuantEnum(opp.valuation_status, "en")}`
                           )
                     }
                     score={Math.round(opp.opportunity_score ?? 85)}

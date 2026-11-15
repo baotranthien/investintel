@@ -13,7 +13,15 @@ import { buildOpportunityAIUrl } from "@/lib/ai-handoff";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { MultiFactorCube3D } from "@/components/three/multi-factor-cube-3d";
-import { useLocale, pickLocaleText, translateQuantEnum, type AppLocale } from "@/lib/i18n";
+import {
+  useLocale,
+  pickLocaleText,
+  translateOpportunityDriver,
+  translateQuantEnum,
+  translateResearchCopy,
+  translateSectorName,
+  type AppLocale,
+} from "@/lib/i18n";
 import styles from "./page.module.css";
 
 const defaultFilters: OpportunityFilters = {
@@ -208,7 +216,7 @@ export default function OpportunitiesPage() {
       <section className={styles.statGrid}>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>{t("Tổng số cơ hội quét", "Total Screened Equities")}</span>
-          <span className={styles.statValue}>{stats.total}</span>
+          <span className={styles.statValue}>{loading && !data ? "—" : stats.total}</span>
           <span className={styles.statDesc}>{t("Thuộc vũ trụ", "Within universe")} {filters.universe}</span>
         </div>
         <div className={styles.statCard}>
@@ -615,7 +623,7 @@ export default function OpportunitiesPage() {
                   </td>
                   <td style={{ maxWidth: 260 }}>
                     {item.why_now && item.why_now.length > 0
-                      ? item.why_now[0].description
+                      ? translateOpportunityDriver(item.why_now[0].description, locale)
                       : t("Dữ liệu đang được phân tích.", "Data analysis in progress.")}
                   </td>
                   <td className={styles.tableActions}>
@@ -655,7 +663,7 @@ function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppL
         <div className={styles.cardAsset}>
           <div className={styles.symbolRow}>
             <span className={styles.symbol}>{item.symbol}</span>
-            {item.sector && <span className={styles.sectorBadge}>{item.sector}</span>}
+            {item.sector && <span className={styles.sectorBadge}>{translateSectorName(item.sector, locale)}</span>}
           </div>
           <span className={styles.companyName}>{item.name}</span>
         </div>
@@ -686,7 +694,7 @@ function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppL
         </div>
         <div className={styles.metricItem}>
           <span>{locale === "en" ? "Risk Score" : "Điểm rủi ro"}</span>
-          <strong>{item.risk_score !== null ? item.risk_score.toFixed(0) : "50"}</strong>
+          <strong>{item.risk_score !== null ? item.risk_score.toFixed(0) : "—"}</strong>
         </div>
       </div>
 
@@ -727,7 +735,9 @@ function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppL
             <div className={styles.whyNowTitle}>
               <span aria-hidden="true">✔</span> {locale === "en" ? "Core Investment Thesis" : "Luận điểm đầu tư chính"}
             </div>
-            <div className={styles.whyNowItem}>{item.why_now.map((w) => w.description).join(" ")}</div>
+            <div className={styles.whyNowItem}>
+              {item.why_now.map((w) => translateOpportunityDriver(w.description, locale)).join(" ")}
+            </div>
           </div>
         )}
 
@@ -737,7 +747,7 @@ function OpportunityCard({ item, locale }: { item: OpportunityItem; locale: AppL
             <summary>{locale === "en" ? "Risk Factors" : "Yếu tố rủi ro"} ({item.what_could_go_wrong.length})</summary>
             <ul>
               {item.what_could_go_wrong.map((risk, idx) => (
-                <li key={idx}>{risk}</li>
+                <li key={idx}>{translateResearchCopy(risk, locale)}</li>
               ))}
             </ul>
           </details>

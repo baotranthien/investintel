@@ -419,13 +419,28 @@ function writeCurrentSession(session: AICurrentSession): void {
   } catch {}
 }
 
+function normalizeSymbolList(raw?: string | null): string {
+  if (!raw) return "";
+  const cleaned = raw
+    .split(/[,;|/]+/)
+    .map((part) => part.trim().toUpperCase())
+    .filter(Boolean);
+  if (cleaned.length === 0) return "";
+  if (cleaned.includes("TOÀN CẢNH")) return "TOÀN CẢNH";
+  return Array.from(new Set(cleaned)).join(", ");
+}
+
 function readHistory(): AIHistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(HISTORY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item) => ({
+      ...item,
+      symbol: normalizeSymbolList(item?.symbol) || item?.symbol || "TOÀN CẢNH",
+    }));
   } catch {
     return [];
   }
@@ -567,7 +582,7 @@ class AIBackgroundStreamManager {
         });
 
         const history = readHistory();
-        const itemSymbol = finalResponse.symbol || symbol || "TOÀN CẢNH";
+        const itemSymbol = normalizeSymbolList(finalResponse.symbol || symbol) || "TOÀN CẢNH";
         const newItem: AIHistoryItem = {
           id: `${getCurrentTimestamp()}-${Math.random().toString(36).slice(2, 7)}`,
           timestamp: getCurrentTimestamp(),
@@ -747,7 +762,7 @@ function AIWorkspaceContent() {
   useEffect(() => {
     if (!answer) return;
 
-    const sym = answer.symbol || activeSymbol || "TOÀN CẢNH";
+    const sym = normalizeSymbolList(answer.symbol || activeSymbol) || "TOÀN CẢNH";
     const q = question.trim() || (locale === "en" ? `Analyze ${sym}` : `Phân tích ${sym}`);
 
     writeCurrentSession({
@@ -1152,7 +1167,7 @@ function AIWorkspaceContent() {
                 type="text"
                 className={styles.tickerInput}
                 placeholder={t("MÃ CP", "TICKER")}
-                maxLength={10}
+                maxLength={40}
                 value={activeSymbol}
                 onChange={(e) => {
                   const val = e.target.value.toUpperCase();
@@ -1242,7 +1257,7 @@ function AIWorkspaceContent() {
                       onClick={() => handleSelectHistoryItem(item)}
                       title={item.question}
                     >
-                      <span className={styles.historyBadge}>{item.symbol}</span>
+                      <span className={styles.historyBadge}>{normalizeSymbolList(item.symbol) || item.symbol}</span>
                       <div className={styles.historyContent}>
                         <span className={styles.historyQuestionText}>{item.question}</span>
                         <span className={styles.historyTimeText}>{formatHistoryTime(item.timestamp, locale)}</span>

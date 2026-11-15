@@ -163,9 +163,12 @@ class QueryPlanner:
             and any(w in q_lower for w in ("dầu", "oil", "brent", "wti", "hàng hóa", "commodity"))
         )
 
-        # 8. Check for Dividend queries (Q15: cổ tức, dividend yield)
+        # 8. Check for Dividend / Corporate Action queries (Q15: cổ tức, chia tách, dividend yield)
         is_dividend_query = bool(
-            re.search(r"\b(cổ\s*tức|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|chi\s*trả\s*cổ\s*tức)\b", q_lower)
+            re.search(
+                r"\b(cổ\s*tức|co\s*tuc|chia\s*tách|chia\s*tach|tách\s*cổ\s*phiếu|tach\s*co\s*phieu|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|ty\s*suat\s*co\s*tuc|chi\s*trả\s*cổ\s*tức|chi\s*tra\s*co\s*tuc)\b",
+                q_lower,
+            )
         )
 
         # 9. Determine Entity Type

@@ -21,7 +21,17 @@ import {
   type ResearchTimelineItem,
   type ResearchWorkspace,
 } from "@/lib/api";
-import { useLocale, translateQuantEnum, translateSectorName, type AppLocale } from "@/lib/i18n";
+import {
+  getLocalePreference,
+  pickLocaleText,
+  translateQuantEnum,
+  translateResearchCopy,
+  translateRiskCategoryName,
+  translateRiskDriver,
+  translateSectorName,
+  useLocale,
+  type AppLocale,
+} from "@/lib/i18n";
 import styles from "./research-workspace.module.css";
 
 const metricNames: Record<string, { vi: string; en: string }> = {
@@ -104,6 +114,7 @@ function formatNumber(value: number | null, unit?: string | null, locale: AppLoc
   if (unit === "VND/share") return locale === "en" ? `${text} VND/share` : `${text} VND/cp`;
   if (unit === "BILLION_VND") return locale === "en" ? `${text}B VND` : `${text} tỷ VND`;
   if (unit === "multiple") return `${text}×`;
+  if (unit === "/100" || unit === "score_100") return `${text} /100`;
   if (unit === "days") return locale === "en" ? `${text} days` : `${text} ngày`;
   return `${text}${unit ? ` ${unit}` : ""}`;
 }
@@ -783,22 +794,28 @@ function ResearchContent({ data, locale }: { data: ResearchWorkspace; locale: Ap
           <Status value={data.risk.status} locale={locale} />
         </header>
         <div className={styles.riskGrid}>
-          {data.risk.categories.map((category) => (
-            <div className={styles.riskCard} key={category.name}>
-              <strong>{category.name}</strong>
-              <span>{category.value === null ? "—" : formatNumber(category.value, null, locale)}</span>
-              <Status value={category.status} locale={locale} />
-              <small>{category.drivers.join(" · ") || (locale === "en" ? "No evidence-backed driver." : "Không có động lực kiểm chứng.")}</small>
-            </div>
-          ))}
+          {data.risk.categories.map((category) => {
+            const localizedDrivers = category.drivers
+              .map((driver) => translateRiskDriver(driver, locale))
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <div className={styles.riskCard} key={category.name}>
+                <strong>{translateRiskCategoryName(category.name, locale)}</strong>
+                <span>{category.value === null ? "—" : formatNumber(category.value, null, locale)}</span>
+                <Status value={category.status} locale={locale} />
+                <small>{localizedDrivers || (locale === "en" ? "No evidence-backed driver." : "Không có động lực kiểm chứng.")}</small>
+              </div>
+            );
+          })}
         </div>
         {data.risk.missing_data_warning && (
-          <p className={styles.warning}>{data.risk.missing_data_warning}</p>
+          <p className={styles.warning}>{translateRiskDriver(data.risk.missing_data_warning, locale)}</p>
         )}
         <div className={styles.macroSensitivity}>
           <h3>{locale === "en" ? "Macro Sensitivity" : "Độ nhạy vĩ mô"}</h3>
           <Status value={data.macro_sensitivity.status} locale={locale} />
-          <p>{data.macro_sensitivity.note}</p>
+          <p>{translateResearchCopy(data.macro_sensitivity.note, locale)}</p>
         </div>
       </section>
 
@@ -873,12 +890,15 @@ export default function ResearchWorkspaceClient({ symbol }: { symbol: string }) 
         const notFound = typeof error === "object" && error !== null && "status" in error && error.status === 404;
         setResource({
           status: "error",
-          message: error instanceof Error ? error.message : t("Research API không khả dụng.", "Research API unavailable."),
+          message:
+            error instanceof Error
+              ? error.message
+              : pickLocaleText(getLocalePreference(), "Research API không khả dụng.", "Research API unavailable."),
           notFound,
         });
       });
     return () => controller.abort();
-  }, [symbol, reload, t]);
+  }, [symbol, reload]);
 
   if (resource.status === "loading") {
     return (

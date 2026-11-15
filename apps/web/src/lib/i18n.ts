@@ -328,3 +328,72 @@ export function translateResearchCopy(
   out = out.replace(/the\s+([A-Z_]+)\s+sector\s+median/g, (_m, sec: string) => `the ${translateSectorName(sec, "en")} sector median`);
   return out;
 }
+
+export function translateRiskCategoryName(
+  name: string | null | undefined,
+  locale: AppLocale
+): string {
+  if (!name) return "";
+  if (locale !== "en") {
+    const viMap: Record<string, string> = {
+      Market: "Rủi ro Thị trường",
+      Business: "Rủi ro Kinh doanh",
+      Financial: "Rủi ro Tài chính",
+      Valuation: "Rủi ro Định giá",
+      Liquidity: "Rủi ro Thanh khoản",
+      Macro: "Rủi ro Vĩ mô",
+      Geopolitical: "Rủi ro Địa chính trị",
+      Event: "Rủi ro Sự kiện",
+      Data: "Rủi ro Dữ liệu",
+      Model: "Rủi ro Mô hình",
+    };
+    return viMap[name] ?? name;
+  }
+  return name;
+}
+
+export function translateRiskDriver(
+  text: string | null | undefined,
+  locale: AppLocale
+): string {
+  if (!text) return "";
+  let clean = text
+    .replace(/\s*\[STUB_DATA(?:\s*[—-]\s*[^\]]+)?\]/gi, "")
+    .trim();
+
+  if (locale === "vi") {
+    return clean
+      .replace(/^Beta chưa tính được$/i, "Beta đang chờ đủ chuỗi giá lịch sử")
+      .replace(/^Volume chưa có$/i, "Chưa có dữ liệu thanh khoản khớp lệnh")
+      .replace(/^ROE chưa có dữ liệu$/i, "ROE đang chờ cập nhật BCTC")
+      .replace(/^D\/E chưa có dữ liệu$/i, "Đòn bẩy D/E đang chờ cập nhật BCTC");
+  }
+
+  const rules: Array<[RegExp, string]> = [
+    [/Beta chưa tính được/i, "Beta pending full price history"],
+    [/Beta calculated from price history/i, "Beta calibrated from historical price returns"],
+    [/Volume chưa có/i, "Trading liquidity feed pending"],
+    [/ROE chưa có dữ liệu/i, "ROE pending financial filing update"],
+    [/D\/E chưa có dữ liệu/i, "Debt-to-Equity (D/E) pending filing update"],
+    [/Lãi suất, tỷ giá và chu kỳ tăng trưởng Việt Nam/i, "Vietnam policy rates, USD/VND FX & growth cycle"],
+    [/Rủi ro lãi suất, tỷ giá và chu kỳ tăng trưởng Việt Nam/i, "Interest rate, FX and Vietnam macro growth sensitivity"],
+    [/Rủi ro địa chính trị & chuỗi cung ứng/i, "Geopolitical & regional supply-chain exposure"],
+    [/Rủi ro công bố thông tin và sự kiện doanh nghiệp/i, "Corporate disclosure and event-driven risk"],
+    [/Rủi ro thiếu hụt hoặc trễ dữ liệu BCTC/i, "Financial filing completeness or reporting lag"],
+    [/Rủi ro sai số mô hình định lượng đa nhân tố/i, "Multi-factor quantitative model estimation variance"],
+    [/Không có dữ liệu định giá hoặc biên an toàn/i, "Valuation margin of safety pending full model inputs"],
+    [/Thanh khoản bình quân cao\s*\(([^)]+)\)/i, "High average daily liquidity ($1)"],
+    [/Thanh khoản trung bình\s*\(([^)]+)\)/i, "Moderate average daily liquidity ($1)"],
+    [/Thanh khoản thấp\s*\(([^)]+)\)/i, "Low average daily liquidity ($1)"],
+    [/Đòn bẩy tài chính an toàn\s*\(([^)]+)\)/i, "Conservative financial leverage ($1)"],
+    [/Đòn bẩy tài chính trung bình\s*\(([^)]+)\)/i, "Moderate financial leverage ($1)"],
+    [/Đòn bẩy tài chính cao\s*\(([^)]+)\)/i, "Elevated financial leverage ($1)"],
+    [/Biên an toàn định giá hấp dẫn\s*\(([^)]+)\)/i, "Attractive valuation margin of safety ($1)"],
+    [/Thị giá cao hơn giá trị hợp lý\s*\(([^)]+)\)/i, "Market price above estimated fair value ($1)"],
+  ];
+
+  for (const [pattern, replacement] of rules) {
+    clean = clean.replace(pattern, replacement);
+  }
+  return clean;
+}

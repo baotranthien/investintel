@@ -580,3 +580,15 @@ class TestStatusClassifierContracts:
             canonical_symbol="PLX",
         )
         assert status == "WRONG_SCOPE"
+
+    def test_unaccented_split_and_corporate_action_evidence(self, db_session: Session):
+        from services.ai.tools import _get_corporate_action_evidence
+
+        plan = QueryPlanner.plan_query("Kiem tra gia FPT sau chia tach co tuc", session=db_session)
+        assert plan.intent == QueryIntent.DIVIDEND
+        assert "FPT" in plan.symbols
+
+        corp_ev = _get_corporate_action_evidence(db_session, "BMP", date(2026, 11, 2))
+        assert corp_ev, "Expected corporate action summary evidence for seeded BMP"
+        assert corp_ev[0]["metric"] == "corporate_action"
+        assert corp_ev[0]["freshness"] == "AVAILABLE"

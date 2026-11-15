@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal, is_cloud_mode
 from database.models import (
-    Asset, AssetDecisionSnapshot, WatchlistItem,
+    Asset, AssetDecisionSnapshot, CorporateAction, WatchlistItem,
     BankMetric, Document, FinancialStatement, MacroAnalysisLog, MacroCommodity, NormalizedIncome, Price
 )
 from services.decision.engine import build_decision_context
@@ -1118,6 +1118,61 @@ def _get_opportunity_evidence(db: Session, symbol: str, as_of: date) -> list[dic
     return evidence
 
 
+def _get_corporate_action_evidence(db: Session, symbol: str, as_of: date) -> list[dict[str, Any]]:
+    evidence: list[dict[str, Any]] = []
+    if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL", "PORTFOLIO"):
+        return evidence
+    try:
+        sym = symbol.strip().upper()
+        actions = (
+            db.query(CorporateAction)
+            .filter(CorporateAction.symbol == sym, CorporateAction.action_date <= as_of)
+            .order_by(CorporateAction.action_date.desc(), CorporateAction.id.desc())
+            .all()
+        )
+        deduped: list[CorporateAction] = []
+        seen: set[tuple[Any, ...]] = set()
+        for ca in actions:
+            key = (
+                ca.action_date,
+                (ca.action_type or "").strip().upper(),
+                round(float(ca.value), 4) if ca.value is not None else None,
+                round(float(ca.ratio), 4) if ca.ratio is not None else None,
+                (ca.notes or "").strip(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(ca)
+        if deduped:
+            parts: list[str] = []
+            for ca in deduped[:4]:
+                act_lbl = (ca.action_type or "CORPORATE_ACTION").strip().upper()
+                detail = ca.notes.strip() if ca.notes else ""
+                if not detail:
+                    if ca.ratio is not None:
+                        detail = f"ratio={ca.ratio:g}"
+                    elif ca.value is not None:
+                        detail = f"value={ca.value:g}"
+                parts.append(f"{ca.action_date.isoformat()} [{act_lbl}]" + (f": {detail}" if detail else ""))
+            evidence.append({
+                "claim_type": "FACT",
+                "responsible_module": "corporate_actions",
+                "metric": "corporate_action",
+                "symbol": sym,
+                "value": len(deduped),
+                "unit": "events",
+                "source": next((c.source for c in deduped if c.source), None) or "CANONICAL_CORPORATE_ACTION",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "observation_date": deduped[0].action_date.isoformat(),
+                "note": f"Sự kiện quyền & chia tách/cổ tức của {sym} (gần nhất trước {as_of.isoformat()}): " + " | ".join(parts) + ".",
+            })
+    except Exception:
+        pass
+    return evidence
+
+
 def _get_dividend_evidence(db: Session, symbol: str, as_of: date) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     try:
@@ -1150,6 +1205,7 @@ def _get_dividend_evidence(db: Session, symbol: str, as_of: date) -> list[dict[s
                 "observation_date": as_of.isoformat(),
                 "note": f"Tổng mức chi trả cổ tức tiền mặt TTM của {symbol} là {summary.ttm_cash_dividend:,.0f} đ/cp. Tổng cổ tức năm tài chính gần nhất là {summary.fiscal_year_cash_dividend:,.0f} đ/cp (tỷ suất {summary.fiscal_year_dividend_yield:.2f}%). Lũy kế lịch sử: {summary.historical_cumulative_dividend:,.0f} đ/cp.",
             })
+        evidence.extend(_get_corporate_action_evidence(db, symbol, as_of))
     except Exception:
         pass
     return evidence
@@ -1970,9 +2026,12 @@ class AITools:
                 opp_ev = _get_opportunity_evidence(db, normalized, as_of)
                 evidence.extend(opp_ev)
 
-            # Dividend expansion (Q15)
+            # Dividend & corporate action expansion (Q3, Q15)
             q_lower_str = (question or "").lower()
-            if normalized and any(w in q_lower_str for w in ("cổ tức", "dividend", "yield")):
+            if normalized and any(w in q_lower_str for w in (
+                "cổ tức", "co tuc", "chia tách", "chia tach", "tách cổ phiếu", "tach co phieu",
+                "điều chỉnh", "dieu chinh", "dividend", "yield", "split", "rights", "trước chia", "truoc chia",
+            )):
                 div_ev = _get_dividend_evidence(db, normalized, as_of)
                 evidence.extend(div_ev)
 

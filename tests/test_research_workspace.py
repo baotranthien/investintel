@@ -350,3 +350,87 @@ def test_historical_backtest_endpoint(db_session):
     assert "data_quality" in data
     assert "initial_capital" in data
     assert data["initial_capital"] == 100000000.0
+
+
+def test_research_dedupes_corporate_actions_and_feeds_liquidity_beta(db_session):
+    symbol = f"LIQ{uuid4().hex[:7].upper()}"
+    asset = Asset(
+        symbol=symbol,
+        name="Liquidity & Dedup Test",
+        asset_type="STOCK",
+        exchange="HOSE",
+        sector="TECHNOLOGY",
+    )
+    db_session.add(asset)
+    db_session.flush()
+
+    base_day = date(2026, 9, 1)
+    for idx in range(15):
+        db_session.add(Price(
+            asset_id=asset.id,
+            observation_date=date.fromordinal(base_day.toordinal() + idx),
+            raw_close=50_000.0 + idx * 200.0,
+            adjusted_close=50_000.0 + idx * 200.0,
+            volume=500_000,
+            source="LOTUSMARKET",
+            status="VALID",
+        ))
+
+    statement = FinancialStatement(
+        asset_id=asset.id,
+        symbol=symbol,
+        statement_type="INCOME_STATEMENT",
+        fiscal_period_end=date(2025, 12, 31),
+        fiscal_year=2025,
+        period_type="ANNUAL",
+        publication_date=date(2026, 2, 15),
+        source_name="CANONICAL_TEST_SOURCE",
+        status="VALID",
+    )
+    db_session.add(statement)
+    db_session.flush()
+    db_session.add(NormalizedIncome(
+        statement_id=statement.id,
+        symbol=symbol,
+        fiscal_period_end=date(2025, 12, 31),
+        fiscal_year=2025,
+        period_type="ANNUAL",
+        revenue=2_000_000_000_000,
+        net_income=400_000_000_000,
+        net_income_parent=400_000_000_000,
+        eps_basic=4_000,
+    ))
+
+    # Insert duplicate identical CorporateAction rows
+    for _ in range(3):
+        db_session.add(CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 5, 19),
+            ex_date=date(2026, 5, 19),
+            action_type="CASH_DIVIDEND",
+            value=1_000,
+            source="LOTUSMARKET",
+            notes="2025 Final Cash Dividend",
+        ))
+    db_session.commit()
+
+    with _client_for_session(db_session) as client:
+        response = client.get(f"/api/v1/research/{symbol}", params={"as_of": "2026-09-30"})
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    corp_actions = [item for item in payload["timeline"] if item["kind"] == "CORPORATE_ACTION"]
+    assert len(corp_actions) == 1
+
+    liq_cat = next((c for c in payload["risk"]["categories"] if c["name"] == "Liquidity"), None)
+    assert liq_cat is not None
+    assert liq_cat["drivers"]
+    assert not any("STUB_DATA" in drv for drv in liq_cat["drivers"])
+
+    mkt_cat = next((c for c in payload["risk"]["categories"] if c["name"] == "Market"), None)
+    assert mkt_cat is not None
+    assert not any("STUB_DATA" in drv for drv in mkt_cat["drivers"])
+
+    for metric in payload["factors"]["scores"].values():
+        assert metric.get("unit") != "score_100"

@@ -1263,7 +1263,7 @@ class AIAnalyst:
                 continue
             if m_canon in ("singapore_crack_spread", "brent_close") and not fb_has_oil:
                 continue
-            if m_low in ("brent_close", "pearson_correlation", "market_regime", "market_breadth_pct", "dcf_base", "composite_fair_value_base", "peer_median_pe", "peer_median_pb", "peer_median_roe", "revenue_commodity_correlation", "interest_coverage", "market_regime_vnindex", "screened_count", "matched_count", "matching_symbols", "ccc", "roic", "net_debt_ebitda", "total_equity", "dividend_yield", "cash_dividend"):
+            if m_low in ("brent_close", "pearson_correlation", "market_regime", "market_breadth_pct", "dcf_base", "composite_fair_value_base", "peer_median_pe", "peer_median_pb", "peer_median_roe", "revenue_commodity_correlation", "interest_coverage", "market_regime_vnindex", "screened_count", "matched_count", "matching_symbols", "ccc", "roic", "net_debt_ebitda", "total_equity", "dividend_yield", "cash_dividend", "corporate_action"):
                 seen_fb_keys.add((dedup_sym, m_canon))
             if c.metric == "brent_close" and c.value is not None:
                 fallback_claims.append(AIClaim(
@@ -1429,6 +1429,7 @@ class AIAnalyst:
                 "singapore_crack_spread",
                 "vnindex_close",
                 "hose_foreign_net_flow",
+                "corporate_action",
             ) and (c.note or c.value is not None) and c.claim_type in ("FACT", "MODEL_OUTPUT") and getattr(c, "data_origin", None) not in ("SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED"):
                 seen_fb_keys.add((dedup_sym, m_canon))
                 if c.note:

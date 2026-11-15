@@ -37,21 +37,6 @@ export function StatusBar(): JSX.Element {
   const [mouseCoord, setMouseCoord] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const mountTimeout = setTimeout(() => {
-      setMounted(true);
-    }, 0);
-
-    // Mouse coordinates tracker
-    let rafId: number;
-    const onMove = (e: MouseEvent) => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        setMouseCoord({ x: e.clientX, y: e.clientY });
-      });
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
-
-    // Clock
     const updateClock = () => {
       const now = new Date();
       setTime(
@@ -66,8 +51,25 @@ export function StatusBar(): JSX.Element {
 
     updateClock();
     const clockTimer = setInterval(updateClock, 1000);
+    return () => clearInterval(clockTimer);
+  }, [locale]);
 
-    // Health polling
+  useEffect(() => {
+    const mountTimeout = setTimeout(() => {
+      setMounted(true);
+    }, 0);
+
+    // Mouse coordinates tracker
+    let rafId: number;
+    const onMove = (e: MouseEvent) => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setMouseCoord({ x: e.clientX, y: e.clientY });
+      });
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+
+    // Health polling (independent of locale hydration/toggles)
     let active = true;
     const checkHealth = async () => {
       if (document.hidden) return;
@@ -107,13 +109,12 @@ export function StatusBar(): JSX.Element {
     return () => {
       active = false;
       clearTimeout(mountTimeout);
-      clearInterval(clockTimer);
       clearInterval(pollInterval);
       cancelAnimationFrame(rafId);
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [locale]);
+  }, []);
 
   const meta = describeStatus(healthStatus ?? (mounted ? "AVAILABLE" : null), locale);
 
