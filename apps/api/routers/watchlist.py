@@ -1,5 +1,5 @@
 from datetime import date, datetime, time, timezone
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ from services.common.cache import watchlist_cache
 from services.market.trading_hours import get_effective_trading_date
 
 router = APIRouter(prefix="/api/v1/watchlist", tags=["watchlist"])
+_UNSET_THRESHOLD = object()
 
 
 def _metric_value(metric: Any, key: str):
@@ -98,16 +99,31 @@ def _compare_watchlist_snapshots(previous: dict[str, Any], current: dict[str, An
     return changes
 
 
-def _item_view(session: Session, item: WatchlistItem, asset: Asset, as_of: date) -> dict[str, Any]:
-    research = build_research_workspace(session, asset.symbol, as_of)
-    snapshots = session.query(WatchlistSnapshot).filter(
-        WatchlistSnapshot.watchlist_id == item.id
-    ).order_by(WatchlistSnapshot.captured_at.desc(), WatchlistSnapshot.id.desc()).limit(2).all()
+def _item_view(
+    session: Session,
+    item: WatchlistItem,
+    asset: Asset,
+    as_of: date,
+    preloaded_research: Optional[ResearchWorkspace] = None,
+    preloaded_snapshots: Optional[list[Any]] = None,
+    preloaded_threshold: Any = _UNSET_THRESHOLD,
+) -> dict[str, Any]:
+    research = preloaded_research if preloaded_research is not None else build_research_workspace(session, asset.symbol, as_of)
+    if preloaded_snapshots is not None:
+        snapshots_data = preloaded_snapshots
+    else:
+        snaps = session.query(WatchlistSnapshot).filter(
+            WatchlistSnapshot.watchlist_id == item.id
+        ).order_by(WatchlistSnapshot.captured_at.desc(), WatchlistSnapshot.id.desc()).limit(2).all()
+        snapshots_data = [s.snapshot_data for s in snaps]
     changes = []
-    if len(snapshots) >= 2:
-        account = session.get(PersonalPortfolio, PORTFOLIO_ID)
-        threshold = float(account.material_change_threshold) if account and account.material_change_threshold is not None else None
-        changes = _compare_watchlist_snapshots(snapshots[1].snapshot_data, snapshots[0].snapshot_data, threshold)
+    if len(snapshots_data) >= 2:
+        if preloaded_threshold is not _UNSET_THRESHOLD:
+            threshold = preloaded_threshold
+        else:
+            account = session.get(PersonalPortfolio, PORTFOLIO_ID)
+            threshold = float(account.material_change_threshold) if account and account.material_change_threshold is not None else None
+        changes = _compare_watchlist_snapshots(snapshots_data[1], snapshots_data[0], threshold)
 
     price_metric = research.price if research else {}
     valuation_metrics = research.valuation["metrics"] if research else {}
@@ -193,10 +209,87 @@ def get_watchlist(
     if cached_val is not None:
         return cached_val
 
+    eff_date = get_effective_trading_date()
     rows = session.query(WatchlistItem, Asset).join(Asset, WatchlistItem.asset_id == Asset.id).order_by(
         WatchlistItem.last_changed_at.desc(), Asset.symbol
     ).offset(offset).limit(limit).all()
-    res = [_item_view(session, item, asset, get_effective_trading_date()) for item, asset in rows]
+
+    if not rows:
+        watchlist_cache.set(cache_key, [])
+        return []
+
+    # Preload shared datasets, macro dashboard, event records, portfolio threshold & snapshots in batches
+    # to eliminate N+1 database round-trips across Supabase WAN.
+    from database.models import DataSource, EventRecord
+    from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+    from services.fundamentals.repository import FinancialRepository
+    from services.macro.engine import MacroEngine
+
+    symbols = [asset.symbol.upper() for _, asset in rows if asset.symbol]
+    assets_by_symbol = {asset.symbol.upper(): asset for _, asset in rows if asset.symbol}
+
+    account = session.get(PersonalPortfolio, PORTFOLIO_ID)
+    threshold = float(account.material_change_threshold) if account and account.material_change_threshold is not None else None
+
+    datasets_by_sym = FinancialRepository(session).get_financial_datasets_batch(
+        symbols,
+        as_of_date=eff_date,
+        assets_by_symbol=assets_by_symbol,
+    )
+    try:
+        macro_dash = MacroEngine.get_dashboard(eff_date, session)
+    except Exception:
+        macro_dash = None
+
+    event_records = session.query(EventRecord, DataSource).outerjoin(
+        DataSource, EventRecord.source_id == DataSource.id
+    ).filter(
+        EventRecord.published_at.is_not(None),
+        EventRecord.published_at <= datetime.combine(eff_date, time.max),
+    ).order_by(EventRecord.published_at.desc()).limit(200).all()
+
+    snapshots_by_wid: dict[int, list[Any]] = {item.id: [] for item, _ in rows}
+    if is_postgres_session(session):
+        rpc_snaps = call_pg_rpc(
+            session,
+            "rpc_get_watchlist_snapshot",
+            {"p_as_of": eff_date, "p_limit": limit, "p_offset": offset},
+        )
+        if isinstance(rpc_snaps, list):
+            for entry in rpc_snaps:
+                wid = entry.get("id")
+                if wid in snapshots_by_wid:
+                    snapshots_by_wid[wid] = list(entry.get("recent_snapshots") or [])
+    else:
+        wid_list = [item.id for item, _ in rows]
+        all_snaps = session.query(WatchlistSnapshot).filter(
+            WatchlistSnapshot.watchlist_id.in_(wid_list)
+        ).order_by(WatchlistSnapshot.captured_at.desc(), WatchlistSnapshot.id.desc()).all()
+        for snap in all_snaps:
+            bucket = snapshots_by_wid.get(snap.watchlist_id)
+            if bucket is not None and len(bucket) < 2:
+                bucket.append(snap.snapshot_data)
+
+    res = []
+    for item, asset in rows:
+        sym = asset.symbol.upper()
+        pre_ws = build_research_workspace(
+            session,
+            asset.symbol,
+            eff_date,
+            preloaded_dataset=datasets_by_sym.get(sym),
+            preloaded_macro_dashboard=macro_dash,
+            preloaded_event_records=event_records,
+        )
+        res.append(_item_view(
+            session,
+            item,
+            asset,
+            eff_date,
+            preloaded_research=pre_ws,
+            preloaded_snapshots=snapshots_by_wid.get(item.id, []),
+            preloaded_threshold=threshold,
+        ))
     watchlist_cache.set(cache_key, res)
     return res
 

@@ -476,6 +476,11 @@ export type AIStatus = {
     | "MODEL_NOT_FOUND";
   available: boolean;
   provider: string;
+  active_provider?: string;
+  provider_priority?: string[];
+  fallback_enabled?: boolean;
+  groq?: { available?: boolean; model?: string; has_api_key?: boolean; key_count?: number; timeout_seconds?: number };
+  gemini?: { available?: boolean; model?: string; has_api_key?: boolean; key_count?: number; timeout_seconds?: number };
   version?: string | null;
   models: string[];
   configured_models?: Record<string, string>;
@@ -1165,8 +1170,51 @@ export type SystemDiagnostics = {
   };
 };
 
+export type SystemObservability = {
+  status: string;
+  components: {
+    database: { status: string; backend: string; latency_ms?: number | null };
+    redis?: { status: string; latency_ms?: number | null };
+    ai_provider: {
+      status: string;
+      provider: string;
+      available: boolean;
+      model?: string | null;
+      reason?: string | null;
+    };
+  };
+  background_jobs: {
+    total: number;
+    success: number;
+    failed: number;
+    running: number;
+    latest_status?: string | null;
+  };
+  ingestion: {
+    total_runs: number;
+    successful_runs: number;
+    failed_runs: number;
+  };
+  data_freshness: {
+    latest_price_date?: string | null;
+    latest_macro_date?: string | null;
+    latest_statement_date?: string | null;
+    total_price_records?: number;
+    total_statements?: number;
+    total_lineages?: number;
+    assets_with_prices_count?: number;
+    duplicate_prices_count?: number;
+  };
+  environment?: string;
+  timestamp: number;
+};
+
 export const getSystemDiagnostics = (signal?: AbortSignal) => {
   return apiGet<SystemDiagnostics>("/api/v1/system/diagnostics", signal);
+};
+
+export const getSystemObservability = (signal?: AbortSignal) => {
+  return apiGet<SystemObservability>("/api/v1/system/observability", signal);
 };
 
 export const triggerAutomationPipeline = (symbols?: string[]) => {

@@ -247,3 +247,55 @@ def test_gemini_provider_remaps_retired_aliases_and_includes_schema():
             assert '"properties"' in payload["contents"][0]["parts"][0]["text"]
 
     asyncio.run(_run())
+
+
+def test_groq_six_key_ring_rotation_on_rate_limit_and_12s_timeout(monkeypatch):
+    import httpx
+    from services.ai.config import load_groq_api_keys
+
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("GROQ_API_KEYS", "unit_dummy_groq_alpha_key_001,unit_dummy_groq_alpha_key_002")
+    monkeypatch.setenv("GROQ_API_KEY_1", "unit_dummy_groq_alpha_key_001")  # duplicate of CSV entry
+    monkeypatch.setenv("GROQ_API_KEY_3", "unit_dummy_groq_alpha_key_003")
+    monkeypatch.setenv("GROQ_API_KEY_4", "unit_dummy_groq_alpha_key_004")
+    monkeypatch.setenv("GROQ_API_KEY_5", "unit_dummy_groq_alpha_key_005")
+    monkeypatch.setenv("GROQ_API_KEY_6", "unit_dummy_groq_alpha_key_006")
+
+    keys = load_groq_api_keys()
+    assert len(keys) == 6
+    cfg = GatewayConfig.from_env()
+    assert cfg.provider_priority[0] == "groq"
+
+    async def _run():
+        called_headers: list[str] = []
+
+        async def _fake_post(url, headers=None, json=None, **kwargs):
+            auth = (headers or {}).get("Authorization", "")
+            called_headers.append(auth)
+            attempt = len(called_headers)
+            if attempt in (1, 2):
+                resp = MagicMock()
+                resp.status_code = 429
+                resp.text = "Too Many Requests"
+                return resp
+            if attempt in (3, 4, 5):
+                raise httpx.ReadTimeout("Simulated >12s Groq stall")
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {
+                "choices": [{"message": {"content": "<think>internal step</think>Key slot 6 ok"}}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 4, "total_tokens": 9},
+            }
+            return resp
+
+        with patch("httpx.AsyncClient.post", side_effect=_fake_post):
+            provider = GroqProvider()
+            assert provider.timeout_seconds == 12.0
+            assert provider.status()["key_count"] == 6
+            out = await provider.generate("Phân tích FPT")
+            assert out == "Key slot 6 ok"
+            assert len(called_headers) == 6
+            assert len(set(called_headers)) == 6
+
+    asyncio.run(_run())
+

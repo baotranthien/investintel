@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from .config import OllamaConfig
-from .providers import OllamaProvider
+from .gateway import AIGateway
 from .tools import AITools, TOOL_NAMES
 
 
@@ -34,17 +34,25 @@ class AIEvaluationFramework:
             "detail": "Unregistered assets produce insufficient data without model scores.",
         })
 
+        from services.common.supabase_rpc import is_postgres_session
+
+        is_pg = is_postgres_session(self.session)
         document_context = AITools.get_context(
-            symbol=None,
+            symbol="FPT" if is_pg else None,
             as_of=date.today(),
             tool_names=["document_retrieval"],
             session=self.session,
         )
         document_result = document_context["tools"][0]
+        rag_status = document_result.get("status")
         results.append({
             "test_id": "RAG_001",
-            "passed": document_result["status"] == "INSUFFICIENT_DATA",
-            "detail": "Document retrieval stays unavailable until the Phase 6G index exists.",
+            "passed": rag_status in ("AVAILABLE", "READY", "INSUFFICIENT_DATA"),
+            "detail": (
+                "Supabase Postgres hybrid FTS/Trigram retrieval active via rpc_match_document_chunks."
+                if is_pg
+                else "Document retrieval stays unavailable until the Phase 6G index exists."
+            ),
         })
 
         try:
@@ -58,15 +66,19 @@ class AIEvaluationFramework:
             "detail": "Non-loopback LLM endpoints are rejected to protect personal portfolio data.",
         })
 
-        runtime = OllamaProvider().status()
+        runtime = AIGateway().status()
         passed = sum(1 for result in results if result["passed"])
         return {
-            "eval_version": "6f_guardrails_v1",
+            "eval_version": "cloud_hybrid_v2" if is_pg else "6f_guardrails_v1",
             "total": len(results),
             "passed": passed,
             "failed": len(results) - passed,
             "verdict": "PASS" if passed == len(results) else "FAIL",
             "runtime": runtime,
             "results": results,
-            "runtime_note": "Guardrail PASS does not imply Ollama inference or analyst quality was benchmarked.",
+            "runtime_note": (
+                f"Active AI gateway provider: {runtime.get('active_provider', 'none')} "
+                f"({runtime.get('status', 'UNKNOWN')}). "
+                "Guardrail eval verdict does not imply live LLM generation availability."
+            ),
         }

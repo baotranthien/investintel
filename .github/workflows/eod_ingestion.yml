@@ -39,7 +39,7 @@ jobs:
         id: trigger
         run: |
           set -e
-          API_URL="https://investintel-api.onrender.com/api/v1/system/cron/run-ingestion"
+          API_URL="https://trading-flax-chi.vercel.app/api/v1/system/cron/run-ingestion"
 
           # Prepare JSON payload with validated universe & dataset scope
           SYMBOLS_JSON="null"
@@ -98,7 +98,7 @@ jobs:
       - name: Verify Ingestion History & Observability
         if: always()
         run: |
-          HISTORY_URL="https://investintel-api.onrender.com/api/v1/system/cron/history?limit=3"
+          HISTORY_URL="https://trading-flax-chi.vercel.app/api/v1/system/cron/history?limit=3"
           echo "Fetching execution history from: $HISTORY_URL"
           curl -s -X GET "$HISTORY_URL" \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" | jq .

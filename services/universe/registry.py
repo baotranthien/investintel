@@ -519,10 +519,35 @@ class UniverseRegistry:
         - Breakdown by exchange, asset type, and index membership
         """
         constituents = cls.load_constituent_sources()
+        expected_symbols = set(constituents.keys()) | {"VN30", "VN100"}
+
+        from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+        if is_postgres_session(session):
+            rpc_ov = call_pg_rpc(session, "rpc_get_universe_overview")
+            if isinstance(rpc_ov, dict) and rpc_ov.get("total_active") is not None:
+                active_syms = {str(s).upper() for s in (rpc_ov.get("active_symbols") or [])}
+                resolved = [sym for sym in expected_symbols if sym in active_syms]
+                unresolved = [sym for sym in expected_symbols if sym not in active_syms]
+                return {
+                    "status": "HEALTHY" if not unresolved else "PARTIAL",
+                    "total_canonical_instruments": int(rpc_ov["total_active"]),
+                    "expected_symbols_count": len(expected_symbols),
+                    "resolved_count": len(resolved),
+                    "unresolved_count": len(unresolved),
+                    "unresolved_symbols": unresolved,
+                    "breakdown_by_exchange": dict(rpc_ov.get("by_exchange") or {}),
+                    "breakdown_by_asset_type": dict(rpc_ov.get("by_type") or {}),
+                    "index_membership": {
+                        "VN100_active_members": int(rpc_ov.get("vn100_active_members") or 0),
+                        "VN30_active_members": int(rpc_ov.get("vn30_active_members") or 0),
+                    },
+                    "sample_constituents": list(rpc_ov.get("sample_constituents") or []),
+                }
+
         universe = cls.get_canonical_universe(session)
         universe_by_sym = {u.symbol: u for u in universe}
 
-        expected_symbols = set(constituents.keys()) | {"VN30", "VN100"}
         resolved = [sym for sym in expected_symbols if sym in universe_by_sym]
         unresolved = [sym for sym in expected_symbols if sym not in universe_by_sym]
 

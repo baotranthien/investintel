@@ -136,7 +136,12 @@ class InvestmentAlertsEngine:
         if current_price and eps:
             try:
                 from apps.api.routers.valuation import _load_fundamentals_for_valuation
-                funds = _load_fundamentals_for_valuation(sym, as_of) or {}
+                funds = _load_fundamentals_for_valuation(
+                    sym,
+                    as_of_date=as_of,
+                    session=self.session,
+                    dataset=dataset,
+                ) or {}
                 val_builder = ValuationSnapshotBuilder(sym, sector)
                 val_snap = val_builder.build(funds, current_price, as_of)
                 if val_snap and val_snap.composite_fair_value:

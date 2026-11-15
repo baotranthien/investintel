@@ -53,84 +53,160 @@ def _build_portfolio_dashboard(
     session: Session,
     as_of: date,
 ) -> tuple[dict[str, Any], dict[str, Asset], dict[str, Any]]:
-    account = session.get(PersonalPortfolio, PORTFOLIO_ID)
-    holdings_rows = []
-    if account is not None:
-        holdings_rows = session.query(PortfolioHolding, Asset).join(
-            Asset, PortfolioHolding.asset_id == Asset.id
-        ).filter(PortfolioHolding.portfolio_id == PORTFOLIO_ID).order_by(Asset.symbol).all()
-    targets = {
-        target.asset_id: float(target.target_weight)
-        for target in session.query(PortfolioTarget).filter(PortfolioTarget.portfolio_id == PORTFOLIO_ID).all()
-    } if account else {}
+    from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
 
-    assets_by_symbol: dict[str, Asset] = {asset.symbol: asset for _, asset in holdings_rows}
-    latest_prices_by_aid: dict[int, Price] = {}
-    asset_ids = [asset.id for _, asset in holdings_rows]
-    if asset_ids:
-        ranked_prices = (
-            session.query(
-                Price.id.label("price_id"),
-                func.row_number()
-                .over(
-                    partition_by=Price.asset_id,
-                    order_by=Price.observation_date.desc(),
-                )
-                .label("rn"),
-            )
-            .filter(
-                Price.asset_id.in_(asset_ids),
-                Price.status == "VALID",
-                Price.observation_date <= as_of,
-            )
-            .subquery()
+    rpc_snap = (
+        call_pg_rpc(
+            session,
+            "rpc_get_portfolio_snapshot",
+            {"p_portfolio_id": PORTFOLIO_ID, "p_as_of": as_of},
         )
-        price_rows = (
-            session.query(Price)
-            .join(ranked_prices, Price.id == ranked_prices.c.price_id)
-            .filter(ranked_prices.c.rn == 1)
-            .all()
-        )
-        latest_prices_by_aid = {pr.asset_id: pr for pr in price_rows}
+        if is_postgres_session(session)
+        else None
+    )
 
     holdings = []
-    for holding, asset in holdings_rows:
-        latest_price = latest_prices_by_aid.get(asset.id)
-        current_price = None
-        price_date = None
-        price_status = "INSUFFICIENT_DATA"
-        price_source = None
-        if latest_price is not None:
-            current_price = float(latest_price.adjusted_close if latest_price.adjusted_close is not None else latest_price.raw_close)
-            price_date = latest_price.observation_date
-            price_status = "STALE" if (as_of - price_date).days > 7 else "AVAILABLE"
-            price_source = latest_price.source
-        quantity = Decimal(holding.quantity)
-        average_cost = Decimal(holding.average_cost)
-        cost_basis = quantity * average_cost
-        market_value = quantity * Decimal(str(current_price)) if current_price is not None else None
-        holdings.append({
-            "id": holding.id,
-            "symbol": asset.symbol,
-            "name": asset.name,
-            "sector": asset.sector,
-            "asset_type": asset.asset_type,
-            "quantity": float(quantity),
-            "average_cost": float(average_cost),
-            "acquisition_date": holding.acquisition_date,
-            "role": holding.role,
-            "horizon": holding.horizon,
-            "notes": holding.notes,
-            "current_price": current_price,
-            "price_as_of": price_date,
-            "price_source": price_source,
-            "price_status": price_status,
-            "cost_basis": float(cost_basis),
-            "market_value": float(market_value) if market_value is not None else None,
-            "unrealized_pnl": float(market_value - cost_basis) if market_value is not None else None,
-            "target_weight": targets.get(asset.id),
-            "current_weight": None,
-        })
+    assets_by_symbol: dict[str, Asset] = {}
+    base_currency = "VND"
+    single_limit: Optional[float] = None
+    sector_limit: Optional[float] = None
+
+    if isinstance(rpc_snap, dict) and "holdings" in rpc_snap:
+        account_dict = rpc_snap.get("account") or {}
+        if account_dict:
+            base_currency = account_dict.get("base_currency") or "VND"
+            if account_dict.get("single_name_limit") is not None:
+                single_limit = float(account_dict["single_name_limit"])
+            if account_dict.get("sector_limit") is not None:
+                sector_limit = float(account_dict["sector_limit"])
+        targets = {
+            int(t["asset_id"]): float(t["target_weight"])
+            for t in (rpc_snap.get("targets") or [])
+            if t.get("asset_id") is not None
+        }
+        rpc_holdings = rpc_snap.get("holdings") or []
+        asset_ids = [int(h["asset_id"]) for h in rpc_holdings if h.get("asset_id") is not None]
+        if asset_ids:
+            for a_row in session.query(Asset).filter(Asset.id.in_(asset_ids)).all():
+                assets_by_symbol[a_row.symbol] = a_row
+
+        for h in rpc_holdings:
+            aid = h.get("asset_id")
+            current_price = float(h["current_price"]) if h.get("current_price") is not None else None
+            price_as_of_raw = h.get("price_as_of")
+            price_date = date.fromisoformat(price_as_of_raw) if isinstance(price_as_of_raw, str) else price_as_of_raw
+            acq_raw = h.get("acquisition_date")
+            acq_date = date.fromisoformat(acq_raw) if isinstance(acq_raw, str) else acq_raw
+            price_status = "INSUFFICIENT_DATA"
+            if current_price is not None and price_date is not None:
+                price_status = "STALE" if (as_of - price_date).days > 7 else "AVAILABLE"
+            quantity = Decimal(str(h["quantity"]))
+            average_cost = Decimal(str(h["average_cost"]))
+            cost_basis = quantity * average_cost
+            market_value = quantity * Decimal(str(current_price)) if current_price is not None else None
+            holdings.append({
+                "id": h["id"],
+                "symbol": h["symbol"],
+                "name": h["name"],
+                "sector": h.get("sector"),
+                "asset_type": h.get("asset_type"),
+                "quantity": float(quantity),
+                "average_cost": float(average_cost),
+                "acquisition_date": acq_date,
+                "role": h.get("role"),
+                "horizon": h.get("horizon"),
+                "notes": h.get("notes"),
+                "current_price": current_price,
+                "price_as_of": price_date,
+                "price_source": h.get("price_source"),
+                "price_status": price_status,
+                "cost_basis": float(cost_basis),
+                "market_value": float(market_value) if market_value is not None else None,
+                "unrealized_pnl": float(market_value - cost_basis) if market_value is not None else None,
+                "target_weight": targets.get(aid) if aid is not None else None,
+                "current_weight": None,
+            })
+    else:
+        account = session.get(PersonalPortfolio, PORTFOLIO_ID)
+        base_currency = account.base_currency if account else "VND"
+        single_limit = float(account.single_name_limit) if account and account.single_name_limit is not None else None
+        sector_limit = float(account.sector_limit) if account and account.sector_limit is not None else None
+        holdings_rows = []
+        if account is not None:
+            holdings_rows = session.query(PortfolioHolding, Asset).join(
+                Asset, PortfolioHolding.asset_id == Asset.id
+            ).filter(PortfolioHolding.portfolio_id == PORTFOLIO_ID).order_by(Asset.symbol).all()
+        targets = {
+            target.asset_id: float(target.target_weight)
+            for target in session.query(PortfolioTarget).filter(PortfolioTarget.portfolio_id == PORTFOLIO_ID).all()
+        } if account else {}
+
+        assets_by_symbol = {asset.symbol: asset for _, asset in holdings_rows}
+        latest_prices_by_aid: dict[int, Price] = {}
+        asset_ids = [asset.id for _, asset in holdings_rows]
+        if asset_ids:
+            ranked_prices = (
+                session.query(
+                    Price.id.label("price_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=Price.asset_id,
+                        order_by=Price.observation_date.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    Price.asset_id.in_(asset_ids),
+                    Price.status == "VALID",
+                    Price.observation_date <= as_of,
+                )
+                .subquery()
+            )
+            price_rows = (
+                session.query(Price)
+                .join(ranked_prices, Price.id == ranked_prices.c.price_id)
+                .filter(ranked_prices.c.rn == 1)
+                .all()
+            )
+            latest_prices_by_aid = {pr.asset_id: pr for pr in price_rows}
+
+        for holding, asset in holdings_rows:
+            latest_price = latest_prices_by_aid.get(asset.id)
+            current_price = None
+            price_date = None
+            price_status = "INSUFFICIENT_DATA"
+            price_source = None
+            if latest_price is not None:
+                current_price = float(latest_price.adjusted_close if latest_price.adjusted_close is not None else latest_price.raw_close)
+                price_date = latest_price.observation_date
+                price_status = "STALE" if (as_of - price_date).days > 7 else "AVAILABLE"
+                price_source = latest_price.source
+            quantity = Decimal(holding.quantity)
+            average_cost = Decimal(holding.average_cost)
+            cost_basis = quantity * average_cost
+            market_value = quantity * Decimal(str(current_price)) if current_price is not None else None
+            holdings.append({
+                "id": holding.id,
+                "symbol": asset.symbol,
+                "name": asset.name,
+                "sector": asset.sector,
+                "asset_type": asset.asset_type,
+                "quantity": float(quantity),
+                "average_cost": float(average_cost),
+                "acquisition_date": holding.acquisition_date,
+                "role": holding.role,
+                "horizon": holding.horizon,
+                "notes": holding.notes,
+                "current_price": current_price,
+                "price_as_of": price_date,
+                "price_source": price_source,
+                "price_status": price_status,
+                "cost_basis": float(cost_basis),
+                "market_value": float(market_value) if market_value is not None else None,
+                "unrealized_pnl": float(market_value - cost_basis) if market_value is not None else None,
+                "target_weight": targets.get(asset.id),
+                "current_weight": None,
+            })
 
     all_prices_available = bool(holdings) and all(item["market_value"] is not None for item in holdings)
     any_stale = any(item["price_status"] == "STALE" for item in holdings)
@@ -157,9 +233,6 @@ def _build_portfolio_dashboard(
         {"role": role, "market_value": value, "weight": value / float(total_value)}
         for role, value in role_values.items()
     ] if total_value is not None and total_value > 0 else []
-
-    single_limit = float(account.single_name_limit) if account and account.single_name_limit is not None else None
-    sector_limit = float(account.sector_limit) if account and account.sector_limit is not None else None
     warnings = []
     if holdings and not all_prices_available:
         missing_symbols = [item["symbol"] for item in holdings if item["market_value"] is None]
@@ -277,7 +350,7 @@ def _build_portfolio_dashboard(
             "total_value": float(total_value) if total_value is not None else None,
             "cost_basis": float(cost_basis_total),
             "unrealized_pnl": float(total_pnl) if total_pnl is not None else None,
-            "currency": account.base_currency if account else "VND",
+            "currency": base_currency,
             "value_status": "AVAILABLE" if total_value is not None else "INSUFFICIENT_DATA",
         },
         "holdings": holdings,

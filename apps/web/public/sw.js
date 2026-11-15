@@ -1,5 +1,5 @@
 // Service Worker for InvestIntel PWA
-const CACHE_NAME = "investintel-shell-v3";
+const CACHE_NAME = "investintel-shell-v4";
 const STATIC_ASSETS = [
   "/manifest.json",
   "/favicon.ico",
@@ -29,6 +29,11 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
+
+  // Never intercept streaming SSE endpoints or mutations
+  if (url.pathname.startsWith("/api/v1/ai/chat/stream") || event.request.method !== "GET") {
+    return;
+  }
 
   // For API calls: Network-first. NEVER hide stale market data behind opaque cache.
   if (url.pathname.startsWith("/api/")) {

@@ -107,32 +107,41 @@ export default function ValuationDashboard() {
   const SYMBOLS = ["FPT", "VCB", "MBB", "MWG", "HPG"];
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchData() {
       setLoading(true);
       setError("");
       try {
-        const valRes = await fetch(`/api/v1/valuation/${symbol}`);
+        const [valRes, facRes] = await Promise.all([
+          fetch(`/api/v1/valuation/${symbol}`, { signal: controller.signal }),
+          fetch(`/api/v1/factors/${symbol}`, { signal: controller.signal }),
+        ]);
         if (!valRes.ok) throw new Error(t("Không thể tải dữ liệu định giá.", "Failed to fetch valuation data."));
-        const valData = (await valRes.json()) as ValuationResponse;
-
-        const facRes = await fetch(`/api/v1/factors/${symbol}`);
         if (!facRes.ok) throw new Error(t("Không thể tải hồ sơ nhân tố.", "Failed to fetch factor profile."));
-        const facData = (await facRes.json()) as FactorResponse;
-
+        const [valData, facData] = (await Promise.all([valRes.json(), facRes.json()])) as [
+          ValuationResponse,
+          FactorResponse,
+        ];
+        if (controller.signal.aborted) return;
         setValuationData(valData);
         setFactorData(facData);
       } catch (err: unknown) {
+        if (controller.signal.aborted) return;
         setError(
           err instanceof Error
             ? err.message
             : t("Đã xảy ra lỗi không xác định.", "An unknown error occurred.")
         );
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
-    fetchData();
-  }, [symbol, t]);
+    void fetchData();
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol]);
 
   const factorList = factorData
     ? [

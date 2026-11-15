@@ -657,11 +657,12 @@ export function TacticalGateway({
     [isBreaching, router]
   );
 
-  // Sync top opportunity stocks so Card 04 reflects live signals
+  // Sync top opportunity stocks lazily only when the gateway overlay is open
   useEffect(() => {
-    if (topStocks && topStocks.length > 0) return;
+    if (!isGatewayOpen || (topStocks && topStocks.length > 0)) return;
     let active = true;
-    getOpportunityScanner(DEFAULT_OPP_FILTERS)
+    const controller = new AbortController();
+    getOpportunityScanner(DEFAULT_OPP_FILTERS, controller.signal)
       .then((data) => {
         if (!active) return;
         if (data?.results && data.results.length > 0) {
@@ -681,8 +682,9 @@ export function TacticalGateway({
       .catch(() => { });
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [topStocks]);
+  }, [isGatewayOpen, topStocks]);
 
   // Initialize gateway visibility from localStorage + sessionStorage + query param + custom event
   useEffect(() => {

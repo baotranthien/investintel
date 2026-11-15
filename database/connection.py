@@ -81,7 +81,13 @@ def get_database_url() -> str:
         return DEFAULT_SQLITE_URL
 
     if env_url.startswith("postgresql"):
-        # Neon cold-start resilience: bounded retry for connection establishment
+        # On Vercel serverless / Supavisor pooler, skip import-time blocking TCP probe
+        # so cold-start Latency stays < 1s; keep bounded retry loop for local/pytest.
+        in_pytest = bool(os.getenv("PYTEST_CURRENT_TEST"))
+        is_vercel_runtime = os.getenv("VERCEL") == "1" or os.getenv("CLOUD_MODE", "").lower() in {"1", "true", "yes"}
+        if is_vercel_runtime and not in_pytest:
+            return env_url
+        # Postgres cold-start resilience: bounded retry for connection establishment
         max_attempts = int(os.getenv("DB_CONNECT_RETRIES", "3"))
         last_exc = None
         for attempt in range(1, max_attempts + 1):
@@ -115,11 +121,21 @@ engine_kwargs = {"echo": False, "future": True}
 if DATABASE_URL.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 elif DATABASE_URL.startswith("postgresql"):
-    # Conservative pool limits suitable for Neon Free (20 max connections)
-    engine_kwargs["pool_size"] = int(os.getenv("DB_POOL_SIZE", "5"))
-    engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-    engine_kwargs["pool_pre_ping"] = True
-    engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE", "300"))
+    use_null_pool = (
+        ":6543" in DATABASE_URL
+        or "pooler.supabase" in DATABASE_URL
+        or os.getenv("DB_USE_NULL_POOL", "").lower() in {"1", "true", "yes"}
+        or os.getenv("VERCEL") == "1"
+    )
+    engine_kwargs["connect_args"] = {"connect_timeout": int(os.getenv("DB_CONNECT_TIMEOUT", "5"))}
+    if use_null_pool:
+        from sqlalchemy.pool import NullPool
+        engine_kwargs["poolclass"] = NullPool
+    else:
+        engine_kwargs["pool_size"] = int(os.getenv("DB_POOL_SIZE", "5"))
+        engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE", "300"))
 
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 

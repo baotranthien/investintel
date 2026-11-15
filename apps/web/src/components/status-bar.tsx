@@ -147,7 +147,7 @@ export function StatusBar(): JSX.Element {
           </span>
         </div>
         <span className={styles.divider}>·</span>
-        <span>{t("Xử lý cục bộ", "Local-first")}</span>
+        <span>{t("Supabase · Cloud AI", "Supabase · Cloud AI")}</span>
         <span className={styles.divider}>·</span>
         <span className={styles.coordDisplay}>
           COORD X: {mouseCoord.x.toString().padStart(4, "0")} {"//"} Y: {mouseCoord.y.toString().padStart(4, "0")}

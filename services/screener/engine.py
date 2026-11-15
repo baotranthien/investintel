@@ -92,6 +92,96 @@ class StockScreenerEngine:
                 total_screened = cached_total
 
         if not base_stocks:
+            from datetime import timedelta
+            from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+            # Fast Supabase RPC path for live screener requests (uses mv_daily_screener_metrics)
+            if is_postgres_session(self.session) and as_of >= (date.today() - timedelta(days=3)):
+                rpc_rows = call_pg_rpc(
+                    self.session,
+                    "rpc_get_screener_rows",
+                    {"p_universe": criteria.universe, "p_sector": criteria.sector, "p_limit": 500},
+                )
+                if isinstance(rpc_rows, list) and (rpc_rows or criteria.sector):
+                    from services.fundamentals.sector_models import get_sector_for_symbol
+                    from services.valuation.builder import ValuationSnapshotBuilder
+
+                    total_screened = len(rpc_rows)
+                    computed_base_rpc: List[ScreenedStock] = []
+                    for row in rpc_rows:
+                        sym = str(row.get("symbol") or "").upper()
+                        if not sym:
+                            continue
+                        price = row.get("current_price")
+                        shares = row.get("shares_outstanding")
+                        pe_val = row.get("pe")
+                        pb_val = row.get("pb")
+                        roe = row.get("roe")
+                        gm = row.get("gross_margin")
+                        nm = row.get("net_margin")
+                        de = row.get("de_ratio")
+                        cr = row.get("current_ratio")
+                        rev_ttm = row.get("revenue_ttm")
+                        ni_ttm = row.get("net_income_ttm")
+                        total_eq = row.get("total_equity")
+                        sec = get_sector_for_symbol(sym, row.get("sector") or "GENERAL")
+
+                        eps = ((ni_ttm * 1e9) / shares) if (ni_ttm is not None and shares and shares > 0) else (
+                            (price / pe_val) if (price and pe_val and pe_val > 0) else None
+                        )
+                        bvps = ((total_eq * 1e9) / shares) if (total_eq is not None and shares and shares > 0) else (
+                            (price / pb_val) if (price and pb_val and pb_val > 0) else None
+                        )
+
+                        comp_fv = None
+                        mos_pct = None
+                        if price and eps:
+                            try:
+                                fund_for_val = {
+                                    "symbol": sym,
+                                    "sector": sec,
+                                    "eps_ttm": eps,
+                                    "bvps": bvps,
+                                    "shares_outstanding": shares or 1_000_000_000,
+                                    "revenue_ttm": rev_ttm,
+                                    "net_income_ttm": ni_ttm,
+                                    "roe": roe,
+                                    "use_dynamic_assumptions": True,
+                                    "operating_margin": nm,
+                                }
+                                val_snap = ValuationSnapshotBuilder(sym, sec).build(fund_for_val, price, as_of)
+                                if val_snap and val_snap.composite_fair_value:
+                                    base = val_snap.composite_fair_value.range.base
+                                    if base and base > 0:
+                                        comp_fv = round(base, 0)
+                                        mos_pct = round(((base - price) / base) * 100, 1)
+                            except Exception:
+                                pass
+
+                        computed_base_rpc.append(ScreenedStock(
+                            symbol=sym,
+                            name=row.get("name") or f"{sym} Corporation",
+                            sector=sec,
+                            current_price=price,
+                            market_cap_billion_vnd=row.get("market_cap_billion_vnd"),
+                            pe=pe_val,
+                            pb=pb_val,
+                            roe=roe,
+                            gross_margin=gm,
+                            net_margin=nm,
+                            de_ratio=de,
+                            current_ratio=cr,
+                            composite_fair_value_base=comp_fv,
+                            margin_of_safety_pct=mos_pct,
+                            passed_filters=[],
+                            data_status="CANONICAL_DATABASE",
+                        ))
+
+                    base_stocks = computed_base_rpc
+                    if use_cache:
+                        _SCREENER_BASE_CACHE[cache_key] = (time.time(), total_screened, base_stocks)
+
+        if not base_stocks:
             # 1. Resolve asset universe
             query = self.session.query(Asset).filter(Asset.status == "ACTIVE")
             if criteria.universe in ("VN30", "VN100"):

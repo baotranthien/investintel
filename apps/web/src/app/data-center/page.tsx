@@ -11,6 +11,7 @@ import styles from "./page.module.css";
 export default function DataCenter(): JSX.Element {
   const { locale, t } = useLocale();
   const numLocale = locale === "en" ? "en-US" : "vi-VN";
+  const [syncNotice, setSyncNotice] = React.useState<string | null>(null);
 
   const resource = useCachedResource<DataProvider[]>(
     "data-center:providers",
@@ -40,6 +41,23 @@ export default function DataCenter(): JSX.Element {
           </p>
         </div>
       </header>
+
+      {syncNotice && (
+        <div
+          role="status"
+          style={{
+            marginBottom: "16px",
+            padding: "10px 14px",
+            borderRadius: "8px",
+            background: "rgba(59, 130, 246, 0.12)",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+            fontSize: "13px",
+            color: "var(--ink)",
+          }}
+        >
+          {syncNotice}
+        </div>
+      )}
 
       {loading ? (
         <div className={styles.grid}>
@@ -122,16 +140,17 @@ export default function DataCenter(): JSX.Element {
               <button
                 type="button"
                 className={styles.actionButton}
-                onClick={() =>
-                  alert(
+                onClick={() => {
+                  resource.reload();
+                  setSyncNotice(
                     t(
-                      "Tính năng kích hoạt thủ công chỉ khả dụng trong quyền quản trị nội bộ.",
-                      "Manual sync trigger is restricted to internal administrative privileges."
+                      `Đã làm mới trạng thái ${p.provider}. Dữ liệu EOD tự động đồng bộ mỗi ngày qua lịch GitHub Actions / Cron lúc 16:05 ICT.`,
+                      `Refreshed ${p.provider} telemetry. EOD datasets synchronize automatically after market close via scheduled ingestion.`
                     )
-                  )
-                }
+                  );
+                }}
               >
-                {t("Kích hoạt đồng bộ ngay", "Trigger Sync Now")}
+                {t("Làm mới & Kiểm tra luồng", "Refresh Feed Status")}
               </button>
             </article>
           ))}

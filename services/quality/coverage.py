@@ -89,6 +89,58 @@ class DataCoverageService:
         as_of: Optional[date] = None,
     ) -> Optional[InstrumentCoverageReport]:
         target_date = as_of or date.today()
+        from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+        if is_postgres_session(session):
+            cleaned_sym = (raw_symbol or "").strip().upper()
+            rpc_payload = call_pg_rpc(
+                session,
+                "rpc_get_instrument_coverage",
+                {"p_symbol": cleaned_sym, "p_as_of": target_date},
+            )
+            if rpc_payload is None:
+                # Try resolving symbol aliases (e.g. "FPT.VN", "^VNINDEX") before falling back
+                inst_alias = UniverseRegistry.resolve_instrument(session, raw_symbol)
+                if inst_alias and inst_alias.symbol.upper() != cleaned_sym:
+                    rpc_payload = call_pg_rpc(
+                        session,
+                        "rpc_get_instrument_coverage",
+                        {"p_symbol": inst_alias.symbol, "p_as_of": target_date},
+                    )
+            if isinstance(rpc_payload, dict) and rpc_payload.get("symbol"):
+                raw_datasets = rpc_payload.get("datasets") or {}
+                parsed_datasets: Dict[str, DatasetQuality] = {
+                    k: DatasetQuality(
+                        dataset=v.get("dataset", k),
+                        exists=bool(v.get("exists")),
+                        record_count=int(v.get("record_count") or 0),
+                        latest_date=v.get("latest_date"),
+                        oldest_date=v.get("oldest_date"),
+                        age_days=v.get("age_days"),
+                        source=v.get("source"),
+                        data_origin=v.get("data_origin"),
+                        status=v.get("status", "INSUFFICIENT_DATA"),
+                        eligible_for_analyst=bool(v.get("eligible_for_analyst")),
+                        exclusion_reason=v.get("exclusion_reason"),
+                        details=dict(v.get("details") or {}),
+                    )
+                    for k, v in raw_datasets.items()
+                    if isinstance(v, dict)
+                }
+                return InstrumentCoverageReport(
+                    symbol=rpc_payload["symbol"],
+                    canonical_symbol=rpc_payload.get("canonical_symbol", rpc_payload["symbol"]),
+                    name=rpc_payload.get("name") or rpc_payload["symbol"],
+                    exchange=rpc_payload.get("exchange") or "HOSE",
+                    asset_type=rpc_payload.get("asset_type") or "STOCK",
+                    as_of_date=rpc_payload.get("as_of_date") or target_date.isoformat(),
+                    overall_status=rpc_payload.get("overall_status") or "INSUFFICIENT_DATA",
+                    analyst_ready=bool(rpc_payload.get("analyst_ready")),
+                    datasets=parsed_datasets,
+                    eligible_evidence_count=int(rpc_payload.get("eligible_evidence_count") or 0),
+                    missing_datasets=list(rpc_payload.get("missing_datasets") or []),
+                )
+
         instrument = UniverseRegistry.resolve_instrument(session, raw_symbol)
         if not instrument:
             return None
@@ -116,10 +168,19 @@ class DataCoverageService:
                 DataLineage.record_table == "prices",
                 DataLineage.record_id == str(latest_price.id),
             ).first()
-            data_origin = "LINEAGED_INGESTION" if lineage else (
-                "STATIC_OR_SEEDED" if (latest_price.source or "").upper() in {"HOSE_CSV", "MARKETDATACSV"}
-                else "SEEDED_OR_UNTRACED"
+            source_upper = (latest_price.source or "").upper()
+            is_canonical_feed = any(
+                tag in source_upper
+                for tag in ("DNSE", "LOTUSMARKET", "VNDIRECT", "VIETCAP", "VIETSTOCK", "KBS", "ENTRADE")
             )
+            if lineage:
+                data_origin = "LINEAGED_INGESTION"
+            elif is_canonical_feed:
+                data_origin = "CANONICAL_MARKET_FEED"
+            elif source_upper in {"HOSE_CSV", "MARKETDATACSV"}:
+                data_origin = "STATIC_OR_SEEDED"
+            else:
+                data_origin = "SEEDED_OR_UNTRACED"
             # Market prices stale if older than 7 calendar days
             price_status = "STALE" if age_days > 7 else "AVAILABLE"
             is_eligible = price_status == "AVAILABLE" and data_origin not in {"SEEDED_OR_UNTRACED", "STATIC_OR_SEEDED"}
@@ -351,8 +412,19 @@ class DataCoverageService:
         Runs a comprehensive diagnostic audit across all canonical instruments.
         Returns aggregate statistics and transparent gap reasons.
         """
-        universe = UniverseRegistry.get_canonical_universe(session)
         target_date = as_of or date.today()
+        from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+        if is_postgres_session(session):
+            rpc_audit = call_pg_rpc(
+                session,
+                "rpc_get_universe_coverage_audit",
+                {"p_as_of": target_date},
+            )
+            if isinstance(rpc_audit, dict) and "summary" in rpc_audit:
+                return rpc_audit
+
+        universe = UniverseRegistry.get_canonical_universe(session)
 
         total = len(universe)
         fully_available = 0

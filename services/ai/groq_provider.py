@@ -47,8 +47,16 @@ def _normalize_dict_keys(d: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _strip_think_tags(text: str) -> str:
+    """Remove model reasoning `<think>...</think>` blocks if emitted before answer/JSON."""
+    if not text or "<think>" not in text:
+        return text
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    return cleaned or text
+
+
 def _clean_json(text: str) -> dict[str, Any]:
-    cleaned = text.strip()
+    cleaned = _strip_think_tags(text).strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned)
@@ -75,30 +83,47 @@ def _normalize_groq_model(candidate: str | None, fallback: str = _DEFAULT_GROQ_M
 
 
 class GroqProvider:
-    """High-speed Groq LPU provider (Qwen3 32B / Llama / OSS models)."""
+    """High-speed Groq LPU provider with multi-key failover and 12s per-key SLA timeout."""
 
     def __init__(
         self,
         api_key: str | None = None,
         model: str | None = None,
-        timeout_seconds: float = 30.0,
+        timeout_seconds: float | None = None,
+        api_keys: list[str] | None = None,
     ):
-        self.api_key = (api_key if api_key is not None else (os.getenv("GROQ_API_KEY") or "")).strip()
+        if api_keys is not None:
+            self.api_keys = [k.strip() for k in api_keys if k and len(k.strip()) > 15]
+        elif api_key is not None:
+            cleaned = api_key.strip()
+            self.api_keys = [cleaned] if len(cleaned) > 15 else []
+        else:
+            from .config import load_groq_api_keys
+            self.api_keys = load_groq_api_keys()
+
+        self.api_key = self.api_keys[0] if self.api_keys else ""
+        self._key_index = 0
         # Default to qwen/qwen3.8-27b (ultra-fast 500+ tok/s with superior multilingual & Vietnamese financial reasoning)
         raw_model = model if model is not None else (os.getenv("GROQ_MODEL") or _DEFAULT_GROQ_MODEL)
         self.model = _normalize_groq_model(raw_model)
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = (
+            float(timeout_seconds)
+            if timeout_seconds is not None
+            else float(os.getenv("GROQ_TIMEOUT_SECONDS", "12.0"))
+        )
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
 
     def is_available(self) -> bool:
-        return bool(self.api_key and len(self.api_key) > 15)
+        return len(self.api_keys) > 0
 
     def status(self) -> dict[str, Any]:
         return {
             "provider": "groq",
             "available": self.is_available(),
             "model": self.model,
-            "has_api_key": bool(self.api_key),
+            "has_api_key": bool(self.api_keys),
+            "key_count": len(self.api_keys),
+            "timeout_seconds": self.timeout_seconds,
         }
 
     async def generate(self, prompt: str, system: str = "", model: str | None = None) -> str:
@@ -140,11 +165,6 @@ class GroqProvider:
             ):
                 model_to_use = m_str
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-
         messages: list[dict[str, str]] = []
         effective_system = system or ""
         if json_mode and "json" not in effective_system.lower():
@@ -169,39 +189,74 @@ class GroqProvider:
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
 
-        timeout = httpx.Timeout(self.timeout_seconds, connect=5.0)
+        timeout = httpx.Timeout(self.timeout_seconds, connect=4.0)
+        key_count = len(self.api_keys)
+        start_idx = self._key_index % key_count
+        last_exc: Exception | None = None
+
         async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                response = await client.post(self.base_url, headers=headers, json=payload)
-                if response.status_code == 429:
-                    raise AIProviderRateLimitError("Groq API rate limit exceeded (HTTP 429: Too Many Requests / Quota Exhausted).")
-                if response.status_code in (401, 403):
-                    raise AIProviderAuthError(f"Groq API authentication failed (HTTP {response.status_code}): {response.text[:200]}")
-                if response.status_code == 400:
-                    raise AIProviderInvalidRequestError(f"Groq API invalid request (HTTP 400): {response.text[:200]}")
-                response.raise_for_status()
-
-                data = response.json()
-                choices = data.get("choices", [])
-                if not choices:
-                    raise AIProviderError("Groq returned no choices in response.")
-
-                content = choices[0].get("message", {}).get("content", "")
-                usage = data.get("usage", {})
-                metadata = {
-                    "model": model_to_use,
-                    "prompt_eval_count": usage.get("prompt_tokens"),
-                    "eval_count": usage.get("completion_tokens"),
-                    "total_tokens": usage.get("total_tokens"),
-                    "provider": "groq",
+            for offset in range(key_count):
+                idx = (start_idx + offset) % key_count
+                active_key = self.api_keys[idx]
+                headers = {
+                    "Authorization": f"Bearer {active_key}",
+                    "Content-Type": "application/json",
                 }
-                return content, metadata
-            except httpx.TimeoutException as exc:
-                raise AIProviderTimeoutError(f"Groq API request timed out ({self.timeout_seconds}s).") from exc
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    raise AIProviderRateLimitError("Groq API rate limit exceeded (HTTP 429).") from exc
-                raise AIProviderError(f"Groq API failed with HTTP {exc.response.status_code}: {exc.response.text[:200]}") from exc
-            except httpx.NetworkError as exc:
-                raise AIProviderUnavailableError(f"Groq API network unreachable: {exc}") from exc
+                try:
+                    response = await client.post(self.base_url, headers=headers, json=payload)
+                    if response.status_code == 429:
+                        raise AIProviderRateLimitError("Groq API rate limit exceeded (HTTP 429: Too Many Requests / Quota Exhausted).")
+                    if response.status_code in (401, 403):
+                        raise AIProviderAuthError(f"Groq API authentication failed (HTTP {response.status_code}): {response.text[:200]}")
+                    if response.status_code == 400:
+                        raise AIProviderInvalidRequestError(f"Groq API invalid request (HTTP 400): {response.text[:200]}")
+                    response.raise_for_status()
+
+                    data = response.json()
+                    choices = data.get("choices", [])
+                    if not choices:
+                        raise AIProviderError("Groq returned no choices in response.")
+
+                    content = _strip_think_tags(choices[0].get("message", {}).get("content", ""))
+                    usage = data.get("usage", {})
+                    self._key_index = idx
+                    metadata = {
+                        "model": model_to_use,
+                        "prompt_eval_count": usage.get("prompt_tokens"),
+                        "eval_count": usage.get("completion_tokens"),
+                        "total_tokens": usage.get("total_tokens"),
+                        "provider": "groq",
+                        "key_slot": idx + 1,
+                        "keys_configured": key_count,
+                    }
+                    return content, metadata
+                except AIProviderInvalidRequestError:
+                    raise
+                except (AIProviderRateLimitError, AIProviderAuthError) as exc:
+                    last_exc = exc
+                except httpx.TimeoutException as exc:
+                    last_exc = AIProviderTimeoutError(f"Groq API request timed out ({self.timeout_seconds}s).")
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 429:
+                        last_exc = AIProviderRateLimitError("Groq API rate limit exceeded (HTTP 429).")
+                    else:
+                        last_exc = AIProviderError(
+                            f"Groq API failed with HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+                        )
+                except httpx.NetworkError as exc:
+                    last_exc = AIProviderUnavailableError(f"Groq API network unreachable: {exc}")
+                except AIProviderError as exc:
+                    last_exc = exc
+
+                self._key_index = (idx + 1) % key_count
+                if offset + 1 < key_count:
+                    logger.warning(
+                        "Groq key slot %d/%d failed (%s). Rotating immediately to next key.",
+                        idx + 1,
+                        key_count,
+                        last_exc,
+                    )
+
+        assert last_exc is not None
+        raise last_exc
 

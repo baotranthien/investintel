@@ -98,6 +98,55 @@ def redact_secrets(text: str) -> str:
     return text
 
 
+def collect_api_keys(
+    multi_env: str,
+    numbered_prefix: str,
+    single_envs: tuple[str, ...],
+    *,
+    max_slots: int = 12,
+    min_length: int = 16,
+) -> list[str]:
+    """Collect deduplicated API keys from single, numbered (`_1.._12`), and CSV env vars."""
+    candidates: list[str] = []
+    for env_name in single_envs:
+        val = (os.getenv(env_name) or "").strip()
+        if val:
+            candidates.append(val)
+
+    raw_multi = os.getenv(multi_env) or ""
+    if raw_multi:
+        for chunk in re.split(r"[,;\r\n]+", raw_multi):
+            cleaned = chunk.strip()
+            if cleaned:
+                candidates.append(cleaned)
+
+    for idx in range(1, max_slots + 1):
+        val = (os.getenv(f"{numbered_prefix}_{idx}") or "").strip()
+        if val:
+            candidates.append(val)
+
+    seen: set[str] = set()
+    keys: list[str] = []
+    for key in candidates:
+        low = key.lower()
+        if len(key) < min_length or low.startswith("your_") or (key.startswith("<") and key.endswith(">")):
+            continue
+        if key not in seen:
+            seen.add(key)
+            keys.append(key)
+    return keys
+
+
+def load_groq_api_keys() -> list[str]:
+    """Load configured Groq API keys (GROQ_API_KEY, GROQ_API_KEYS, GROQ_API_KEY_1..12)."""
+    return collect_api_keys("GROQ_API_KEYS", "GROQ_API_KEY", ("GROQ_API_KEY",))
+
+
+def load_gemini_api_keys() -> list[str]:
+    """Load configured Gemini API keys (GEMINI_API_KEY, GOOGLE_API_KEY, GEMINI_API_KEYS, GEMINI_API_KEY_1..12)."""
+    return collect_api_keys("GEMINI_API_KEYS", "GEMINI_API_KEY", ("GEMINI_API_KEY", "GOOGLE_API_KEY"))
+
+
 @dataclass(frozen=True)
 class GatewayConfig:
     provider_priority: tuple[str, ...] = ("ollama",)
@@ -107,29 +156,25 @@ class GatewayConfig:
 
     @classmethod
     def from_env(cls) -> "GatewayConfig":
+        def _default_priority() -> tuple[str, ...]:
+            default_list: list[str] = []
+            if load_groq_api_keys():
+                default_list.append("groq")
+            if load_gemini_api_keys():
+                default_list.append("gemini")
+            default_list.append("ollama")
+            return tuple(default_list)
+
         order_env = os.getenv("AI_PROVIDER_ORDER")
         if order_env:
-            providers = tuple(
+            parsed = tuple(
                 p.strip().lower()
                 for p in order_env.split(",")
                 if p.strip() and p.strip().lower() in ("groq", "gemini", "ollama")
             )
-            if not providers:
-                default_list = []
-                if os.getenv("GROQ_API_KEY"):
-                    default_list.append("groq")
-                if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
-                    default_list.append("gemini")
-                default_list.append("ollama")
-                providers = tuple(default_list)
+            providers = parsed or _default_priority()
         else:
-            default_list = []
-            if os.getenv("GROQ_API_KEY"):
-                default_list.append("groq")
-            if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
-                default_list.append("gemini")
-            default_list.append("ollama")
-            providers = tuple(default_list)
+            providers = _default_priority()
         max_attempts = int(os.getenv("AI_GATEWAY_MAX_UPSTREAM_ATTEMPTS", "2"))
         return cls(
             provider_priority=providers,

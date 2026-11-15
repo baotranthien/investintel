@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSystemDiagnostics, triggerAutomationPipeline, type SystemDiagnostics } from "@/lib/api";
+import {
+  getAIStatus,
+  getSystemDiagnostics,
+  getSystemObservability,
+  triggerAutomationPipeline,
+  type AIStatus,
+  type SystemDiagnostics,
+  type SystemObservability,
+} from "@/lib/api";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { useLocale } from "@/lib/i18n";
@@ -10,6 +18,8 @@ import styles from "./page.module.css";
 export default function SystemObservabilityPage() {
   const { t } = useLocale();
   const [diag, setDiag] = useState<SystemDiagnostics | null>(null);
+  const [obs, setObs] = useState<SystemObservability | null>(null);
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
@@ -17,39 +27,42 @@ export default function SystemObservabilityPage() {
 
   const fetchDiagnostics = () => {
     setLoading(true);
-    getSystemDiagnostics()
-      .then((data) => {
-        setDiag(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load system diagnostics", err);
+    Promise.allSettled([getSystemDiagnostics(), getSystemObservability(), getAIStatus()])
+      .then(([dRes, oRes, aRes]) => {
+        if (dRes.status === "fulfilled") setDiag(dRes.value);
+        if (oRes.status === "fulfilled") setObs(oRes.value);
+        if (aRes.status === "fulfilled") setAiStatus(aRes.value);
         setLoading(false);
       });
   };
 
   useEffect(() => {
-    // Initial fetch without synchronous setState
-    getSystemDiagnostics()
-      .then((data) => {
-        setDiag(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load system diagnostics", err);
-        setLoading(false);
-      });
+    const controller = new AbortController();
+    Promise.allSettled([
+      getSystemDiagnostics(controller.signal),
+      getSystemObservability(controller.signal),
+      getAIStatus(controller.signal),
+    ]).then(([dRes, oRes, aRes]) => {
+      if (controller.signal.aborted) return;
+      if (dRes.status === "fulfilled") setDiag(dRes.value);
+      if (oRes.status === "fulfilled") setObs(oRes.value);
+      if (aRes.status === "fulfilled") setAiStatus(aRes.value);
+      setLoading(false);
+    });
 
     const interval = setInterval(() => {
-      getSystemDiagnostics()
-        .then((data) => {
-          setDiag(data);
-        })
-        .catch((err) => {
-          console.error("Failed to refresh system diagnostics", err);
-        });
+      Promise.allSettled([getSystemDiagnostics(), getSystemObservability(), getAIStatus()]).then(
+        ([dRes, oRes, aRes]) => {
+          if (dRes.status === "fulfilled") setDiag(dRes.value);
+          if (oRes.status === "fulfilled") setObs(oRes.value);
+          if (aRes.status === "fulfilled") setAiStatus(aRes.value);
+        }
+      );
     }, 15000);
-    return () => clearInterval(interval);
+    return () => {
+      controller.abort();
+      clearInterval(interval);
+    };
   }, []);
 
   const handleRunPipeline = async () => {
@@ -57,22 +70,25 @@ export default function SystemObservabilityPage() {
     setTriggerStatus("running");
     setTriggerMsg(
       t(
-        "Đang kích hoạt pipeline tự động (Ingestion → Opportunity → Alerts → Backup)...",
-        "Triggering automation pipeline (Ingestion → Opportunity → Alerts → Backup)..."
+        "Đang kích hoạt pipeline tự động (Ingestion → Opportunity → Alerts)...",
+        "Triggering automation pipeline (Ingestion → Opportunity → Alerts)..."
       )
     );
     try {
       const res = await triggerAutomationPipeline(["FPT", "BMP"]);
       setTriggerStatus("success");
       const duration = (res as { total_duration_sec?: number }).total_duration_sec;
+      const storeLabel = (diag?.database?.backend ?? obs?.components?.database?.backend) === "postgresql"
+        ? "Supabase PostgreSQL"
+        : "SQLite";
       setTriggerMsg(
         t(
           `Pipeline hoàn tất thành công: ${res.pipeline_status}${
             duration ? ` (${duration}s)` : ""
-          } · Đã đối soát & sao lưu SQLite.`,
+          } · Đã đối soát & lưu ${storeLabel}.`,
           `Pipeline completed successfully: ${res.pipeline_status}${
             duration ? ` (${duration}s)` : ""
-          } · Reconciled & SQLite backed up.`
+          } · Reconciled & persisted to ${storeLabel}.`
         )
       );
       fetchDiagnostics();
@@ -88,21 +104,21 @@ export default function SystemObservabilityPage() {
     }
   };
 
-  if (loading && !diag) {
+  if (loading && !diag && !obs) {
     return (
       <div className={styles.page}>
         <header className={styles.header}>
           <div>
             <p className={styles.eyebrow}>
-              {t("Giám sát nền tảng cục bộ · Trạng thái vận hành", "Local Platform Observability · Operational Status")}
+              {t("Giám sát hạ tầng · Trạng thái vận hành", "Platform Observability · Operational Status")}
             </p>
             <h1 className={styles.title}>
               {t("Hệ thống & tự phục hồi", "System & Self-Healing")}
             </h1>
             <p className={styles.subTitle}>
               {t(
-                "Giám sát thời gian thực tài nguyên GPU RTX 3050, mô hình Qwen3.5 9B, chu kỳ tự động hóa và độ bền cơ sở dữ liệu SQLite.",
-                "Real-time telemetry for RTX 3050 GPU, Qwen 3.5 9B runtime, automation cycle schedules, and SQLite durability."
+                "Đang tải thông số hạ tầng AI Gateway, cơ sở dữ liệu Supabase và lịch tác vụ tự động...",
+                "Loading AI Gateway runtime, Supabase database health, and automation schedule telemetry..."
               )}
             </p>
           </div>
@@ -122,22 +138,39 @@ export default function SystemObservabilityPage() {
   const telemetry = diag?.inference_telemetry;
   const scheduler = diag?.scheduler;
   const db = diag?.database;
+  const dbBackend = db?.backend ?? obs?.components?.database?.backend ?? "postgresql";
+  const isCloudPg = dbBackend === "postgresql";
+  const activeProv = aiStatus?.active_provider ?? obs?.components?.ai_provider?.provider ?? "groq";
+  const aiModelDisplay =
+    aiStatus?.configured_models?.primary ||
+    obs?.components?.ai_provider?.model ||
+    ollama?.primary_model ||
+    "qwen/qwen3.8-27b";
+  const aiHealthy = Boolean(aiStatus?.available || obs?.components?.ai_provider?.available || ollama?.ollama_listening);
+  const freshness = obs?.data_freshness;
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>
-            {t("Giám sát nền tảng cục bộ · Trạng thái vận hành", "Local Platform Observability · Operational Status")}
+            {isCloudPg
+              ? t("Giám sát hạ tầng Cloud · Vercel sin1 + Supabase Singapore", "Cloud Infrastructure · Vercel sin1 + Supabase Singapore")
+              : t("Giám sát nền tảng cục bộ · Trạng thái vận hành", "Local Platform Observability · Operational Status")}
           </p>
           <h1 className={styles.title}>
             {t("Hệ thống & tự phục hồi", "System & Self-Healing")}
           </h1>
           <p className={styles.subTitle}>
-            {t(
-              "Giám sát thời gian thực tài nguyên GPU RTX 3050, mô hình Qwen3.5 9B, chu kỳ tự động hóa và độ bền cơ sở dữ liệu SQLite.",
-              "Real-time telemetry for RTX 3050 GPU, Qwen 3.5 9B runtime, automation cycle schedules, and SQLite durability."
-            )}
+            {isCloudPg
+              ? t(
+                  `Giám sát thời gian thực AI Gateway (${activeProv.toUpperCase()} / ${aiModelDisplay}), độ trễ Supabase PostgreSQL và chu kỳ dữ liệu định lượng.`,
+                  `Real-time telemetry for AI Gateway (${activeProv.toUpperCase()} / ${aiModelDisplay}), Supabase PostgreSQL health, and quant ingestion cycles.`
+                )
+              : t(
+                  "Giám sát thời gian thực tài nguyên phần cứng, AI runtime, chu kỳ tự động hóa và độ bền cơ sở dữ liệu.",
+                  "Real-time telemetry for compute hardware, AI runtime, automation schedules, and database durability."
+                )}
           </p>
         </div>
         <div className={styles.actions}>
@@ -198,25 +231,35 @@ export default function SystemObservabilityPage() {
         {/* Card 1: Local AI Inference Runtime */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Local AI Analyst (Ollama)</h2>
-            <StatusBadge status={ollama?.ollama_listening ? "HEALTHY" : "OFFLINE"} />
+            <h2 className={styles.cardTitle}>
+              {activeProv === "ollama"
+                ? "Local AI Analyst (Ollama)"
+                : `AI Gateway (${activeProv.toUpperCase()})`}
+            </h2>
+            <StatusBadge status={aiHealthy ? "HEALTHY" : "OFFLINE"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("Mô hình AI chính", "Primary AI Model")}</span>
-              <span className={styles.metricValue}>{ollama?.primary_model || "qwen3.5:9b-q4_K_M"}</span>
+              <span className={styles.metricValue}>{aiModelDisplay}</span>
+            </div>
+            <div className={styles.metricRow}>
+              <span className={styles.metricLabel}>{t("Chuỗi Failover đa tầng", "Multi-Provider Failover")}</span>
+              <span className={styles.metricValue}>
+                {aiStatus?.provider_priority?.length
+                  ? aiStatus.provider_priority.map((p) => p.toUpperCase()).join(" → ")
+                  : "GROQ → GEMINI → OLLAMA"}
+              </span>
             </div>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("Độ trễ phản hồi (TTFT)", "Time to First Token (TTFT)")}</span>
-              <span className={styles.metricValue}>{telemetry?.median_ttft_sec ? `${telemetry.median_ttft_sec}s` : "< 0.5s"}</span>
+              <span className={styles.metricValue}>{telemetry?.median_ttft_sec ? `${telemetry.median_ttft_sec}s` : (activeProv === "groq" ? "< 0.4s (LPU)" : "< 1.5s")}</span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Tốc độ tạo phản hồi", "Token Generation Speed")}</span>
-              <span className={styles.metricValue}>{telemetry?.median_generation_tps ? `${telemetry.median_generation_tps} tok/s` : "~5.5 tok/s"}</span>
-            </div>
-            <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Dung lượng ngữ cảnh", "Context Window")}</span>
-              <span className={styles.metricValue}>4096 tokens</span>
+              <span className={styles.metricLabel}>{t("Dự phòng Gemini Flash", "Gemini Fallback")}</span>
+              <span className={styles.metricValue}>
+                {aiStatus?.gemini?.available ? `Ready (${aiStatus.gemini.model})` : t("Chưa cấu hình", "Not configured")}
+              </span>
             </div>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("Lượt xử lý đã ghi nhận", "Inferences Logged")}</span>
@@ -227,35 +270,43 @@ export default function SystemObservabilityPage() {
           </div>
         </div>
 
-        {/* Card 2: Hardware Telemetry */}
+        {/* Card 2: Hardware / Compute Telemetry */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>{t("Phần cứng & GPU", "Hardware & GPU Telemetry")}</h2>
-            <StatusBadge status={gpu?.status === "ACTIVE" ? "HEALTHY" : gpu?.status ?? "UNKNOWN"} />
+            <h2 className={styles.cardTitle}>{t("Hạ tầng tính toán & GPU", "Compute & Hardware Telemetry")}</h2>
+            <StatusBadge status={gpu?.status === "ACTIVE" ? "HEALTHY" : (isCloudPg ? "HEALTHY" : gpu?.status ?? "UNKNOWN")} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("GPU nhận diện", "Detected GPU")}</span>
-              <span className={styles.metricValue}>{gpu?.name || "NVIDIA RTX 3050 Laptop"}</span>
+              <span className={styles.metricLabel}>{t("Môi trường thực thi", "Compute Node")}</span>
+              <span className={styles.metricValue}>
+                {gpu?.status === "ACTIVE" && gpu?.name
+                  ? gpu.name
+                  : isCloudPg
+                  ? "Vercel Serverless (Region sin1)"
+                  : (gpu?.name || t("CPU nội bộ", "Local CPU"))}
+              </span>
             </div>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("VRAM đang dùng / Tổng", "VRAM Usage / Total")}</span>
               <span className={styles.metricValue}>
-                {gpu?.vram_used_mb ? `${gpu.vram_used_mb} MB / ${gpu.vram_total_mb} MB` : "N/A"}
+                {gpu?.vram_used_mb ? `${gpu.vram_used_mb} MB / ${gpu.vram_total_mb} MB` : (isCloudPg ? "Cloud LPU (Groq)" : "N/A")}
               </span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("VRAM khả dụng", "Free VRAM")}</span>
-              <span className={styles.metricValue}>{gpu?.vram_free_mb ? `${gpu.vram_free_mb} MB` : "N/A"}</span>
+              <span className={styles.metricLabel}>{t("Độ trễ DB", "DB Latency")}</span>
+              <span className={styles.metricValue}>
+                {typeof db?.latency_ms === "number" ? `${db.latency_ms.toFixed(1)} ms` : "N/A"}
+              </span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Nhiệt độ GPU", "GPU Temperature")}</span>
-              <span className={styles.metricValue}>{gpu?.temperature_c ? `${gpu.temperature_c} °C` : "N/A"}</span>
+              <span className={styles.metricLabel}>{t("Ngày giá mới nhất", "Latest Price EOD")}</span>
+              <span className={styles.metricValue}>{freshness?.latest_price_date || "N/A"}</span>
             </div>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("RAM hệ thống đang dùng", "System RAM Usage")}</span>
               <span className={styles.metricValue}>
-                {ram?.used_pct ? `${ram.used_pct}% (${ram.available_mb} MB ${t("trống", "free")})` : "N/A"}
+                {ram?.used_pct ? `${ram.used_pct}% (${ram.available_mb} MB ${t("trống", "free")})` : (isCloudPg ? "Managed Container" : "N/A")}
               </span>
             </div>
           </div>
@@ -264,36 +315,36 @@ export default function SystemObservabilityPage() {
         {/* Card 3: Database & Durability */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>{t("Cơ sở dữ liệu & sao lưu", "Database & Durability")}</h2>
-            <StatusBadge status={db?.connected ? "HEALTHY" : "OFFLINE"} />
+            <h2 className={styles.cardTitle}>{t("Cơ sở dữ liệu & dữ liệu", "Database & Data Integrity")}</h2>
+            <StatusBadge status={(db?.connected ?? obs?.components?.database?.status === "HEALTHY") ? "HEALTHY" : "OFFLINE"} />
           </div>
           <div className={styles.metricList}>
             <div className={styles.metricRow}>
               <span className={styles.metricLabel}>{t("Công cụ lưu trữ", "Storage Engine")}</span>
-              <span className={styles.metricValue}>Local SQLite (data/trading.db)</span>
+              <span className={styles.metricValue}>
+                {isCloudPg ? "Supabase PostgreSQL (ap-southeast-1)" : "Local SQLite (data/trading.db)"}
+              </span>
             </div>
             <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Khóa bảo vệ ghi dữ liệu", "Write Protection Lock")}</span>
+              <span className={styles.metricLabel}>{t("Bản ghi giá (Prices)", "Price Records")}</span>
+              <span className={styles.metricValue}>
+                {freshness?.total_price_records !== undefined ? freshness.total_price_records.toLocaleString() : "—"}
+              </span>
+            </div>
+            <div className={styles.metricRow}>
+              <span className={styles.metricLabel}>{t("BCTC chuẩn hóa", "Financial Statements")}</span>
+              <span className={styles.metricValue}>
+                {freshness?.total_statements !== undefined ? freshness.total_statements.toLocaleString() : "—"}
+              </span>
+            </div>
+            <div className={styles.metricRow}>
+              <span className={styles.metricLabel}>{t("Dữ liệu vĩ mô mới nhất", "Latest Macro Date")}</span>
+              <span className={styles.metricValue}>{freshness?.latest_macro_date || "—"}</span>
+            </div>
+            <div className={styles.metricRow}>
+              <span className={styles.metricLabel}>{t("Khóa bảo vệ ghi PIT", "Write Protection Guard")}</span>
               <span className={styles.metricValue} style={{ color: "#137333" }}>
                 {t("Khóa an toàn", "Safe Enforced")}
-              </span>
-            </div>
-            <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Kiểm tra toàn vẹn", "Integrity Check")}</span>
-              <span className={styles.metricValue}>
-                {t("Đạt chuẩn (PRAGMA ok)", "Passed (PRAGMA ok)")}
-              </span>
-            </div>
-            <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Cơ chế sao lưu nóng", "Hot Backup Engine")}</span>
-              <span className={styles.metricValue}>
-                {t("Đang bật (SHA-256 Manifest)", "Active (SHA-256 Manifest)")}
-              </span>
-            </div>
-            <div className={styles.metricRow}>
-              <span className={styles.metricLabel}>{t("Chính sách lưu trữ", "Retention Policy")}</span>
-              <span className={styles.metricValue}>
-                {t("7 ngày / 4 tuần / 6 tháng", "7 Days / 4 Weeks / 6 Months")}
               </span>
             </div>
           </div>

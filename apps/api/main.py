@@ -65,8 +65,10 @@ async def lifespan(app: FastAPI):
     prewarm_task = None
     ai_prewarm_task = None
 
-    # Pre-warm opportunity scanner cache in worker thread so the event loop stays responsive
-    if not is_pytest:
+    # Pre-warm opportunity scanner cache in persistent workers; skip on Vercel serverless cold starts
+    is_vercel_serverless = os.getenv("VERCEL") == "1" or bool(os.getenv("VERCEL_ENV"))
+    should_prewarm = not is_pytest and (not is_vercel_serverless or os.getenv("PREWARM_ON_STARTUP", "").lower() in {"1", "true"})
+    if should_prewarm:
         def _run_opportunity_cache_prewarm() -> None:
             from database.connection import SessionLocal
             from services.common.cache import opportunity_cache
@@ -298,9 +300,9 @@ def system_observability():
         ai_reason = str(exc)
 
     # Background Job & Data Freshness statistics
-    job_stats = {"total": 0, "success": 0, "failed": 0, "running": 0}
-    ingestion_stats = {"total_runs": 0, "successful_runs": 0, "failed_runs": 0}
-    freshness = {
+    job_stats: dict = {"total": 0, "success": 0, "failed": 0, "running": 0, "latest_status": None}
+    ingestion_stats: dict = {"total_runs": 0, "successful_runs": 0, "failed_runs": 0}
+    freshness: dict = {
         "latest_price_date": None,
         "latest_macro_date": None,
         "total_price_records": 0,
@@ -310,60 +312,78 @@ def system_observability():
 
     if db_health.get("connected"):
         try:
-            from database.models import AnalystAutomationJob, DataRun, Price, MacroObservation, Asset, DataSource
+            from database.models import AnalystAutomationJob, DataRun, Price, MacroObservation, Asset
             from database.connection import SessionLocal
+            from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
             session = SessionLocal()
             try:
-                from sqlalchemy import func
-                job_stats["total"] = session.query(AnalystAutomationJob).count()
-                job_stats["success"] = session.query(AnalystAutomationJob).filter_by(status="SUCCESS").count()
-                job_stats["failed"] = session.query(AnalystAutomationJob).filter_by(status="FAILED").count()
-                job_stats["running"] = session.query(AnalystAutomationJob).filter_by(status="RUNNING").count()
+                rpc_obs = call_pg_rpc(session, "rpc_get_system_observability") if is_postgres_session(session) else None
+                if isinstance(rpc_obs, dict) and "background_jobs" in rpc_obs:
+                    job_stats = dict(rpc_obs.get("background_jobs") or job_stats)
+                    ingestion_stats = dict(rpc_obs.get("ingestion") or ingestion_stats)
+                    freshness = dict(rpc_obs.get("data_freshness") or freshness)
+                else:
+                    from sqlalchemy import func
+                    job_stats["total"] = session.query(AnalystAutomationJob).count()
+                    job_stats["success"] = session.query(AnalystAutomationJob).filter_by(status="SUCCESS").count()
+                    job_stats["failed"] = session.query(AnalystAutomationJob).filter_by(status="FAILED").count()
+                    job_stats["running"] = session.query(AnalystAutomationJob).filter_by(status="RUNNING").count()
+                    latest_job = session.query(AnalystAutomationJob.status).order_by(AnalystAutomationJob.id.desc()).first()
+                    job_stats["latest_status"] = latest_job[0] if latest_job else None
 
-                ingestion_stats["total_runs"] = session.query(DataRun).count()
-                ingestion_stats["successful_runs"] = session.query(DataRun).filter_by(status="SUCCESS").count()
-                ingestion_stats["failed_runs"] = session.query(DataRun).filter_by(status="FAILURE").count()
+                    ingestion_stats["total_runs"] = session.query(DataRun).count()
+                    ingestion_stats["successful_runs"] = session.query(DataRun).filter_by(status="SUCCESS").count()
+                    ingestion_stats["failed_runs"] = session.query(DataRun).filter_by(status="FAILURE").count()
 
-                latest_price = session.query(func.max(Price.observation_date)).scalar()
-                if latest_price:
-                    freshness["latest_price_date"] = latest_price.isoformat()
+                    latest_price = session.query(func.max(Price.observation_date)).scalar()
+                    if latest_price:
+                        freshness["latest_price_date"] = latest_price.isoformat()
 
-                latest_macro = session.query(func.max(MacroObservation.observation_date)).scalar()
-                if latest_macro:
-                    freshness["latest_macro_date"] = latest_macro.isoformat()
+                    latest_macro = session.query(func.max(MacroObservation.observation_date)).scalar()
+                    if latest_macro:
+                        freshness["latest_macro_date"] = latest_macro.isoformat()
 
-                freshness["total_price_records"] = session.query(Price).count()
-                freshness["lotusmarket_price_records"] = (
-                    session.query(Price)
-                    .filter(Price.source == "LOTUSMARKET")
-                    .count()
-                )
-                price_counts_query = (
-                    session.query(Asset.symbol, func.count(Price.id))
-                    .join(Price, Price.asset_id == Asset.id)
-                    .group_by(Asset.symbol)
-                    .all()
-                )
-                freshness["price_counts_by_symbol"] = {sym: cnt for sym, cnt in price_counts_query}
-                freshness["assets_with_prices_count"] = len(freshness["price_counts_by_symbol"])
+                    freshness["total_price_records"] = session.query(Price).count()
+                    freshness["lotusmarket_price_records"] = (
+                        session.query(Price)
+                        .filter(Price.source == "LOTUSMARKET")
+                        .count()
+                    )
+                    price_counts_query = (
+                        session.query(Asset.symbol, func.count(Price.id))
+                        .join(Price, Price.asset_id == Asset.id)
+                        .group_by(Asset.symbol)
+                        .all()
+                    )
+                    freshness["price_counts_by_symbol"] = {sym: cnt for sym, cnt in price_counts_query}
+                    freshness["assets_with_prices_count"] = len(freshness["price_counts_by_symbol"])
 
-                # Check canonical duplicates
-                dup_count = (
-                    session.query(Price.asset_id, Price.observation_date)
-                    .group_by(Price.asset_id, Price.observation_date)
-                    .having(func.count(Price.id) > 1)
-                    .count()
-                )
-                freshness["duplicate_prices_count"] = dup_count
+                    # Check canonical duplicates
+                    dup_count = (
+                        session.query(Price.asset_id, Price.observation_date)
+                        .group_by(Price.asset_id, Price.observation_date)
+                        .having(func.count(Price.id) > 1)
+                        .count()
+                    )
+                    freshness["duplicate_prices_count"] = dup_count
             finally:
                 session.close()
         except Exception:
             pass
 
+    latest_job_failed = (
+        job_stats.get("latest_status") == "FAILED"
+        or (job_stats.get("latest_status") is None and job_stats["failed"] > 0 and job_stats["success"] == 0)
+    )
     overall = "HEALTHY"
     if db_status == "UNAVAILABLE":
         overall = "UNAVAILABLE"
-    elif db_status == "DEGRADED" or (ai_status not in ("HEALTHY", "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD") and os.getenv("APP_ENV") != "production") or job_stats["failed"] > 0:
+    elif (
+        db_status == "DEGRADED"
+        or (ai_status not in ("HEALTHY", "LOCAL_MODEL_NOT_AVAILABLE_IN_CLOUD") and os.getenv("APP_ENV") != "production")
+        or latest_job_failed
+    ):
         overall = "DEGRADED"
 
     return {

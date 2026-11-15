@@ -506,14 +506,19 @@ def get_valuation_scenarios(symbol: str, as_of: Optional[str] = Query(None)):
     }
 
 
-@router.get("/{symbol}/sensitivity")
-def get_valuation_sensitivity(symbol: str):
+def compute_valuation_sensitivity(
+    symbol: str,
+    session: Optional[Session] = None,
+    fundamentals: Optional[dict] = None,
+    as_of: Optional[date] = None,
+) -> dict:
     """
-    Returns WACC × Terminal Growth sensitivity matrix.
+    Computes WACC × Terminal Growth sensitivity matrix reusing session/fundamentals when supplied.
     Returns INSUFFICIENT_DATA — requires real DCF base revenue from DB.
     """
     sym = symbol.upper()
-    fundamentals = _load_fundamentals_for_valuation(sym)
+    if fundamentals is None:
+        fundamentals = _load_fundamentals_for_valuation(sym, as_of_date=as_of, session=session)
     if not fundamentals or not fundamentals.get("revenue_ttm"):
         return {
             "symbol": sym,
@@ -554,6 +559,15 @@ def get_valuation_sensitivity(symbol: str):
         "revenue_ttm_source": fundamentals.get("sources", []),
         "matrix": matrix
     }
+
+
+@router.get("/{symbol}/sensitivity")
+def get_valuation_sensitivity(symbol: str):
+    """
+    Returns WACC × Terminal Growth sensitivity matrix.
+    Returns INSUFFICIENT_DATA — requires real DCF base revenue from DB.
+    """
+    return compute_valuation_sensitivity(symbol)
 
 
 @router.get("/{symbol}/confidence")

@@ -75,33 +75,46 @@ def _normalize_gemini_model(candidate: str | None, fallback: str = _DEFAULT_GEMI
 
 
 class GeminiProvider:
-    """High-throughput Gemini Flash provider with automatic token usage and structured outputs."""
+    """High-throughput Gemini Flash provider with multi-key failover and structured outputs."""
 
     def __init__(
         self,
         api_key: str | None = None,
         model: str | None = None,
-        timeout_seconds: float = 35.0,
+        timeout_seconds: float | None = None,
+        api_keys: list[str] | None = None,
     ):
-        self.api_key = (
-            api_key
-            if api_key is not None
-            else (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "")
-        ).strip()
+        if api_keys is not None:
+            self.api_keys = [k.strip() for k in api_keys if k and len(k.strip()) > 15]
+        elif api_key is not None:
+            cleaned = api_key.strip()
+            self.api_keys = [cleaned] if len(cleaned) > 15 else []
+        else:
+            from .config import load_gemini_api_keys
+            self.api_keys = load_gemini_api_keys()
+
+        self.api_key = self.api_keys[0] if self.api_keys else ""
+        self._key_index = 0
         raw_model = model if model is not None else (os.getenv("GEMINI_MODEL") or _DEFAULT_GEMINI_MODEL)
         self.model = _normalize_gemini_model(raw_model)
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = (
+            float(timeout_seconds)
+            if timeout_seconds is not None
+            else float(os.getenv("GEMINI_TIMEOUT_SECONDS", "20.0"))
+        )
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     def is_available(self) -> bool:
-        return bool(self.api_key and len(self.api_key) > 15)
+        return len(self.api_keys) > 0
 
     def status(self) -> dict[str, Any]:
         return {
             "provider": "gemini",
             "available": self.is_available(),
             "model": self.model,
-            "has_api_key": bool(self.api_key),
+            "has_api_key": bool(self.api_keys),
+            "key_count": len(self.api_keys),
+            "timeout_seconds": self.timeout_seconds,
         }
 
     async def generate(self, prompt: str, system: str = "", model: str | None = None) -> str:
@@ -136,8 +149,6 @@ class GeminiProvider:
         if model and model.strip().lower().startswith("gemini"):
             model_to_use = _normalize_gemini_model(model, fallback=model_to_use)
 
-        url = f"{self.base_url}/models/{model_to_use}:generateContent?key={self.api_key}"
-
         gen_config: dict[str, Any] = {"temperature": 0.2}
         if json_mode:
             gen_config["responseMimeType"] = "application/json"
@@ -156,40 +167,63 @@ class GeminiProvider:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
 
         timeout = httpx.Timeout(self.timeout_seconds, connect=5.0)
+        key_count = len(self.api_keys)
+        start_idx = self._key_index % key_count
+        last_exc: Exception | None = None
+
         async with httpx.AsyncClient(timeout=timeout) as client:
-            try:
-                response = await client.post(url, json=payload)
-                if response.status_code == 429:
-                    raise AIProviderRateLimitError("Gemini API rate limit exceeded (HTTP 429: Too Many Requests / Quota Exhausted).")
-                if response.status_code in (401, 403):
-                    raise AIProviderAuthError(f"Gemini API authentication failed (HTTP {response.status_code}): {response.text[:200]}")
-                response.raise_for_status()
+            for offset in range(key_count):
+                idx = (start_idx + offset) % key_count
+                active_key = self.api_keys[idx]
+                url = f"{self.base_url}/models/{model_to_use}:generateContent?key={active_key}"
+                try:
+                    response = await client.post(url, json=payload)
+                    if response.status_code == 429:
+                        raise AIProviderRateLimitError("Gemini API rate limit exceeded (HTTP 429: Too Many Requests / Quota Exhausted).")
+                    if response.status_code in (401, 403):
+                        raise AIProviderAuthError(f"Gemini API authentication failed (HTTP {response.status_code}): {response.text[:200]}")
+                    response.raise_for_status()
 
-                data = response.json()
-                candidates = data.get("candidates", [])
-                if not candidates:
-                    raise AIProviderError("Gemini returned no candidates in response.")
+                    data = response.json()
+                    candidates = data.get("candidates", [])
+                    if not candidates:
+                        raise AIProviderError("Gemini returned no candidates in response.")
 
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if not parts:
-                    raise AIProviderError("Gemini candidate has no text parts.")
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if not parts:
+                        raise AIProviderError("Gemini candidate has no text parts.")
 
-                text = parts[0].get("text", "")
-                usage = data.get("usageMetadata", {})
-                metadata = {
-                    "model": model_to_use,
-                    "prompt_eval_count": usage.get("promptTokenCount"),
-                    "eval_count": usage.get("candidatesTokenCount"),
-                    "total_tokens": usage.get("totalTokenCount"),
-                    "provider": "gemini",
-                }
-                return text, metadata
-            except httpx.TimeoutException as exc:
-                raise AIProviderTimeoutError(f"Gemini API request timed out ({self.timeout_seconds}s).") from exc
-            except httpx.HTTPStatusError as exc:
-                if exc.response.status_code == 429:
-                    raise AIProviderRateLimitError("Gemini API rate limit exceeded (HTTP 429).") from exc
-                raise AIProviderError(f"Gemini API failed with HTTP {exc.response.status_code}: {exc.response.text[:200]}") from exc
-            except httpx.NetworkError as exc:
-                raise AIProviderUnavailableError(f"Gemini API network unreachable: {exc}") from exc
+                    text = parts[0].get("text", "")
+                    usage = data.get("usageMetadata", {})
+                    self._key_index = idx
+                    metadata = {
+                        "model": model_to_use,
+                        "prompt_eval_count": usage.get("promptTokenCount"),
+                        "eval_count": usage.get("candidatesTokenCount"),
+                        "total_tokens": usage.get("totalTokenCount"),
+                        "provider": "gemini",
+                        "key_slot": idx + 1,
+                        "keys_configured": key_count,
+                    }
+                    return text, metadata
+                except (AIProviderRateLimitError, AIProviderAuthError) as exc:
+                    last_exc = exc
+                except httpx.TimeoutException:
+                    last_exc = AIProviderTimeoutError(f"Gemini API request timed out ({self.timeout_seconds}s).")
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 429:
+                        last_exc = AIProviderRateLimitError("Gemini API rate limit exceeded (HTTP 429).")
+                    else:
+                        last_exc = AIProviderError(
+                            f"Gemini API failed with HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+                        )
+                except httpx.NetworkError as exc:
+                    last_exc = AIProviderUnavailableError(f"Gemini API network unreachable: {exc}")
+                except AIProviderError as exc:
+                    last_exc = exc
+
+                self._key_index = (idx + 1) % key_count
+
+        assert last_exc is not None
+        raise last_exc
 

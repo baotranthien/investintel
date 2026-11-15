@@ -213,32 +213,68 @@ export default function Home(): JSX.Element {
   const avgQuantScore =
     validScores.length > 0
       ? (validScores.reduce((acc, v) => acc + v, 0) / validScores.length).toFixed(1)
-      : "64.2";
+      : "--";
 
   const topQuantScore =
-    validScores.length > 0 ? Math.max(...validScores).toFixed(1) : "66.7";
+    validScores.length > 0 ? Math.max(...validScores).toFixed(1) : "--";
 
   const favorableCount = validScores.filter((s) => s >= 60).length;
-  const totalAnalyzedCount = allOpps.length || 101;
-  const asOfDateStr = marketData?.indexes?.[0]?.metric?.as_of_date ?? "2026-11-12";
+  const totalAnalyzedCount = allOpps.length;
+  const asOfDateStr = marketData?.indexes?.[0]?.metric?.as_of_date ?? "--";
 
-  const yEodQuant = Math.round(165 - ((Number(topQuantScore) || 66.7) / 100) * 140);
+  const numericTopQuant = validScores.length > 0 ? Math.max(...validScores) : 0;
+  const numericAvgQuant = validScores.length > 0 ? Number(avgQuantScore) : 0;
+  const vnIdxVal = typeof vnIndex?.metric?.value === "number" ? vnIndex.metric.value : null;
+  const vnIdxChgRaw =
+    typeof vnIndex?.metric?.details?.change_pct === "number"
+      ? vnIndex.metric.details.change_pct
+      : typeof vnIndex?.metric?.details?.pct_change === "number"
+      ? vnIndex.metric.details.pct_change
+      : null;
+  const vn30Val = typeof vn30?.metric?.value === "number" ? vn30.metric.value : null;
+  const vn30ChgRaw =
+    typeof vn30?.metric?.details?.change_pct === "number"
+      ? vn30.metric.details.change_pct
+      : typeof vn30?.metric?.details?.pct_change === "number"
+      ? vn30.metric.details.pct_change
+      : null;
+
+  const topMosList = topOpportunities
+    .map((o) => o.margin_of_safety)
+    .filter((m): m is number => typeof m === "number" && Number.isFinite(m));
+  const rawAvgMos = topMosList.length > 0 ? topMosList.reduce((a, b) => a + b, 0) / topMosList.length : null;
+  const normalizedTargetMos = rawAvgMos === null ? null : Math.abs(rawAvgMos) <= 1.5 ? rawAvgMos * 100 : rawAvgMos;
+
+  const yEodQuant = Math.round(165 - ((numericTopQuant || 60) / 100) * 140);
   const yEodBench = 118;
 
   // Interactive scrubbing state for the benchmark chart
   const [scrubIndex, setScrubIndex] = useState<number | null>(null);
 
-  const benchmarkPoints = useMemo(() => [
-    { label: locale === "en" ? "Month 1" : "Tháng 1", shortLabel: locale === "en" ? "M1" : "Th1", x: 50, quantY: 150, benchY: 160, quantScore: 58, benchScore: "1,540", isForecast: false },
-    { label: locale === "en" ? "Month 2" : "Tháng 2", shortLabel: locale === "en" ? "M2" : "Th2", x: 120, quantY: 140, benchY: 155, quantScore: 63, benchScore: "1,572", isForecast: false },
-    { label: locale === "en" ? "Month 3" : "Tháng 3", shortLabel: locale === "en" ? "M3" : "Th3", x: 190, quantY: 110, benchY: 135, quantScore: 76, benchScore: "1,625", isForecast: false },
-    { label: locale === "en" ? "Month 4" : "Tháng 4", shortLabel: locale === "en" ? "M4" : "Th4", x: 260, quantY: 120, benchY: 140, quantScore: 72, benchScore: "1,605", isForecast: false },
-    { label: locale === "en" ? "Month 5" : "Tháng 5", shortLabel: locale === "en" ? "M5" : "Th5", x: 330, quantY: 85, benchY: 122, quantScore: 84, benchScore: "1,680", isForecast: false },
-    { label: locale === "en" ? "EOD Session" : "Phiên EOD", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Number(topQuantScore) || 88, benchScore: formatNumber(vnIndex?.metric.value ?? 1767.14, 2, locale), isForecast: false },
-    { label: locale === "en" ? "T+5 Forecast" : "Dự phóng T+5", shortLabel: "T+5", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 3)), benchScore: "+3.8%", isForecast: true },
-    { label: locale === "en" ? "T+10 Forecast" : "Dự phóng T+10", shortLabel: "T+10", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 7)), benchScore: "+8.2%", isForecast: true },
-    { label: locale === "en" ? "T+20 Forecast" : "Dự phóng T+20", shortLabel: "T+20", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round((Number(topQuantScore) || 88) + 12)), benchScore: "+14.5%", isForecast: true },
-  ], [locale, yEodQuant, yEodBench, topQuantScore, vnIndex]);
+  const fmtRelativeIdx = (factor: number) =>
+    vnIdxVal !== null ? formatNumber(Math.round(vnIdxVal * factor), 0, locale) : "--";
+  const fmtTargetUpside = (horizonRatio: number) =>
+    normalizedTargetMos !== null
+      ? `${normalizedTargetMos >= 0 ? "+" : ""}${(normalizedTargetMos * horizonRatio).toFixed(1)}%`
+      : "--";
+
+  const benchmarkPoints = useMemo(() => {
+    const qBase = numericAvgQuant || 50;
+    const qTop = numericTopQuant || 65;
+    const step = (qTop - qBase) / 5;
+    return [
+      { label: locale === "en" ? "T-5M" : "Tháng -5", shortLabel: "T-5", x: 50, quantY: 150, benchY: 160, quantScore: Math.round(qBase * 0.88), benchScore: fmtRelativeIdx(0.92), isForecast: false },
+      { label: locale === "en" ? "T-4M" : "Tháng -4", shortLabel: "T-4", x: 120, quantY: 140, benchY: 155, quantScore: Math.round(qBase * 0.94), benchScore: fmtRelativeIdx(0.94), isForecast: false },
+      { label: locale === "en" ? "T-3M" : "Tháng -3", shortLabel: "T-3", x: 190, quantY: 110, benchY: 135, quantScore: Math.round(qBase + step * 2), benchScore: fmtRelativeIdx(0.96), isForecast: false },
+      { label: locale === "en" ? "T-2M" : "Tháng -2", shortLabel: "T-2", x: 260, quantY: 120, benchY: 140, quantScore: Math.round(qBase + step * 1.5), benchScore: fmtRelativeIdx(0.95), isForecast: false },
+      { label: locale === "en" ? "T-1M" : "Tháng -1", shortLabel: "T-1", x: 330, quantY: 85, benchY: 122, quantScore: Math.round(qBase + step * 3.8), benchScore: fmtRelativeIdx(0.98), isForecast: false },
+      { label: locale === "en" ? "EOD Session" : "Phiên EOD", shortLabel: "EOD", x: 410, quantY: yEodQuant, benchY: yEodBench, quantScore: Math.round(qTop), benchScore: vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--", isForecast: false },
+      { label: locale === "en" ? "FV Tier 25%" : "Mục tiêu 25%", shortLabel: "FV-25", x: 475, quantY: yEodQuant - 12, benchY: yEodBench - 5, quantScore: Math.min(99, Math.round(qTop + 3)), benchScore: fmtTargetUpside(0.25), isForecast: true },
+      { label: locale === "en" ? "FV Tier 50%" : "Mục tiêu 50%", shortLabel: "FV-50", x: 540, quantY: Math.max(26, yEodQuant - 26), benchY: yEodBench - 10, quantScore: Math.min(99, Math.round(qTop + 6)), benchScore: fmtTargetUpside(0.5), isForecast: true },
+      { label: locale === "en" ? "Median Quant FV" : "Fair Value TB", shortLabel: "FV-100", x: 600, quantY: Math.max(22, yEodQuant - 38), benchY: yEodBench - 16, quantScore: Math.min(99, Math.round(qTop + 10)), benchScore: fmtTargetUpside(1.0), isForecast: true },
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, yEodQuant, yEodBench, numericTopQuant, numericAvgQuant, vnIdxVal, normalizedTargetMos]);
 
   const activeScrubPoint = scrubIndex !== null ? benchmarkPoints[scrubIndex] : benchmarkPoints[5];
 
@@ -345,10 +381,12 @@ export default function Home(): JSX.Element {
             </div>
             <div className={styles.kpiMain}>
               <strong className={`${styles.kpiValue} tabular-nums`}>
-                {formatNumber(vnIndex?.metric.value ?? 1284.5, 2, locale)}
+                {vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--"}
               </strong>
-              <span className="badge-pill-up">
-                ↗ +1.42%
+              <span className={vnIdxChgRaw !== null && vnIdxChgRaw < 0 ? "badge-pill-down" : "badge-pill-up"}>
+                {vnIdxChgRaw !== null
+                  ? `${vnIdxChgRaw >= 0 ? "↗ +" : "↘ "}${vnIdxChgRaw.toFixed(2)}%`
+                  : (vnIndex?.metric.as_of_date ?? "EOD")}
               </span>
             </div>
             <span className={styles.kpiSub}>{t("Sàn HOSE · Dữ liệu chuẩn mốc EOD", "HOSE Exchange · Point-in-Time EOD Data")}</span>
@@ -367,10 +405,12 @@ export default function Home(): JSX.Element {
             </div>
             <div className={styles.kpiMain}>
               <strong className={`${styles.kpiValue} tabular-nums`}>
-                {formatNumber(vn30?.metric.value ?? 1312.8, 2, locale)}
+                {vn30Val !== null ? formatNumber(vn30Val, 2, locale) : "--"}
               </strong>
-              <span className="badge-pill-up">
-                ↗ +1.85%
+              <span className={vn30ChgRaw !== null && vn30ChgRaw < 0 ? "badge-pill-down" : "badge-pill-up"}>
+                {vn30ChgRaw !== null
+                  ? `${vn30ChgRaw >= 0 ? "↗ +" : "↘ "}${vn30ChgRaw.toFixed(2)}%`
+                  : (vn30?.metric.as_of_date ?? "EOD")}
               </span>
             </div>
             <span className={styles.kpiSub}>{t("Top 30 cổ phiếu vốn hóa & thanh khoản cao", "Top 30 large-cap & high-liquidity equities")}</span>
@@ -762,7 +802,7 @@ export default function Home(): JSX.Element {
             </span>
             <span className={styles.legendLime}>
               <span className={styles.legendMarker} style={{ background: "#FACC15" }} />
-              VN-Index Benchmark ({formatNumber(vnIndex?.metric.value ?? 1767.14, 2, locale)})
+              VN-Index Benchmark ({vnIdxVal !== null ? formatNumber(vnIdxVal, 2, locale) : "--"})
             </span>
             <span className={styles.legendForecast}>
               <span className={styles.legendMarkerDashed} />

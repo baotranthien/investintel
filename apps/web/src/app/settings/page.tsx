@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import Link from "next/link";
 import { useTheme } from "@/lib/theme";
 import { useLocale, LOCALE_STORAGE_KEY } from "@/lib/i18n";
+import { getAIStatus, getSystemDiagnostics, type AIStatus, type SystemDiagnostics } from "@/lib/api";
 import styles from "./page.module.css";
 
 const GRAPHICS_KEY = "investintel:graphics-quality";
@@ -128,6 +129,21 @@ export default function SettingsPage() {
   const [graphicsQuality, setGraphicsQuality] = useState<"high" | "balanced" | "eco" | "off">(getStoredGraphics);
   const [cacheMessage, setCacheMessage] = useState<string | null>(null);
   const [integrityStatus, setIntegrityStatus] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<AIStatus | null>(null);
+  const [sysDiag, setSysDiag] = useState<SystemDiagnostics | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.allSettled([
+      getAIStatus(controller.signal),
+      getSystemDiagnostics(controller.signal),
+    ]).then(([aiRes, diagRes]) => {
+      if (controller.signal.aborted) return;
+      if (aiRes.status === "fulfilled") setAiStatus(aiRes.value);
+      if (diagRes.status === "fulfilled") setSysDiag(diagRes.value);
+    });
+    return () => controller.abort();
+  }, []);
 
   const handleGraphicsChange = (quality: "high" | "balanced" | "eco" | "off") => {
     setGraphicsQuality(quality);
@@ -169,17 +185,26 @@ export default function SettingsPage() {
     }
   };
 
-  const handleCheckIntegrity = () => {
-    setIntegrityStatus(t("Đang kiểm tra tính toàn vẹn Point-in-Time...", "Verifying Point-in-Time database integrity..."));
-    setTimeout(() => {
+  const handleCheckIntegrity = async () => {
+    setIntegrityStatus(t("Đang kiểm tra kết nối và tính toàn vẹn cơ sở dữ liệu...", "Verifying live database connectivity and PIT integrity..."));
+    try {
+      const liveDiag = await getSystemDiagnostics();
+      setSysDiag(liveDiag);
+      const dbLabel = liveDiag.database.backend === "postgresql"
+        ? "Supabase PostgreSQL (ap-southeast-1)"
+        : "data/trading.db (SQLite)";
       setIntegrityStatus(
         t(
-          "Toàn vẹn hoàn hảo: Cơ sở dữ liệu data/trading.db hợp lệ (SHA-256 Verified, ALLOW_PRODUCTION_DB_WRITE=false).",
-          "Integrity Verified: Canonical database data/trading.db is authentic (SHA-256 Verified, ALLOW_PRODUCTION_DB_WRITE=false)."
+          `Kiểm định thành công: ${dbLabel} đang hoạt động (độ trễ ${liveDiag.database.latency_ms.toFixed(1)} ms, trạng thái ${liveDiag.database.status}).`,
+          `Integrity Verified: ${dbLabel} connected (${liveDiag.database.latency_ms.toFixed(1)} ms latency, status ${liveDiag.database.status}).`
         )
       );
-      setTimeout(() => setIntegrityStatus(null), 6000);
-    }, 600);
+    } catch {
+      setIntegrityStatus(
+        t("Không thể kiểm tra máy chủ cơ sở dữ liệu lúc này.", "Unable to reach database diagnostics endpoint.")
+      );
+    }
+    setTimeout(() => setIntegrityStatus(null), 6000);
   };
 
   const currentTheme = mounted ? theme : "system";
@@ -479,17 +504,24 @@ export default function SettingsPage() {
         <div className={styles.card}>
           <div className={styles.row}>
             <div className={styles.rowInfo}>
-              <span className={styles.rowLabel}>{t("Mô hình Cục bộ (Local LLM)", "Local LLM Runtime")}</span>
+              <span className={styles.rowLabel}>{t("Động cơ Suy luận AI Gateway", "AI Gateway Runtime")}</span>
               <span className={styles.rowDesc}>
-                {t(
-                  "Ollama runtime kết nối tới http://127.0.0.1:11434 (Qwen 2.5 9B Quantized / Fallback).",
-                  "Ollama runtime connected to http://127.0.0.1:11434 (Qwen 2.5 9B Quantized / Fallback)."
-                )}
+                {aiStatus?.active_provider && aiStatus.active_provider !== "ollama"
+                  ? t(
+                      `Đang chạy ${aiStatus.active_provider.toUpperCase()} (${aiStatus.configured_models?.primary ?? "qwen/qwen3.8-27b"}) · Failover đa tầng ${aiStatus.provider_priority?.map((p) => p.toUpperCase()).join(" → ") ?? "GROQ → GEMINI"}.`,
+                      `Active on ${aiStatus.active_provider.toUpperCase()} (${aiStatus.configured_models?.primary ?? "qwen/qwen3.8-27b"}) · Failover chain ${aiStatus.provider_priority?.map((p) => p.toUpperCase()).join(" → ") ?? "GROQ → GEMINI"}.`
+                    )
+                  : t(
+                      "Ollama / Hybrid Gateway (tự động chuyển Groq LPU → Gemini Flash → Ollama cục bộ).",
+                      "Ollama / Hybrid Gateway (auto-failover across Groq LPU → Gemini Flash → Local Ollama)."
+                    )}
               </span>
             </div>
-            <span className={`${styles.statusPill} ${styles.statusPillActive}`}>
+            <span className={`${styles.statusPill} ${aiStatus?.available !== false ? styles.statusPillActive : ""}`}>
               <span className={styles.statusDot} />
-              {t("Sẵn sàng (Localhost)", "Ready (Localhost)")}
+              {aiStatus?.active_provider && aiStatus.active_provider !== "ollama"
+                ? t(`Hoạt động (${aiStatus.active_provider.toUpperCase()})`, `Active (${aiStatus.active_provider.toUpperCase()})`)
+                : t("Sẵn sàng", "Ready")}
             </span>
           </div>
 
@@ -552,10 +584,15 @@ export default function SettingsPage() {
                 {t("Tính toàn vẹn Dữ liệu Point-in-Time", "Point-in-Time Data Integrity")}
               </span>
               <span className={styles.rowDesc}>
-                {t(
-                  "Kiểm tra hash và trạng thái Read-Only của kho dữ liệu định lượng data/trading.db.",
-                  "Verify cryptographic hash and Read-Only state of canonical data/trading.db store."
-                )}
+                {sysDiag?.database?.backend === "postgresql"
+                  ? t(
+                      "Kiểm tra kết nối, RPC và toàn vẹn dữ liệu Point-in-Time trên Supabase PostgreSQL.",
+                      "Verify connectivity, RPC readiness, and Point-in-Time integrity on Supabase PostgreSQL."
+                    )
+                  : t(
+                      "Kiểm tra trạng thái và toàn vẹn kho dữ liệu định lượng nội bộ.",
+                      "Verify state and Point-in-Time integrity of canonical quantitative datastore."
+                    )}
               </span>
             </div>
             <button

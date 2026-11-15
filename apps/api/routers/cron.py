@@ -275,12 +275,16 @@ async def run_cron_ingestion(
         })
         db.commit()
 
+        from services.common.supabase_rpc import refresh_screener_materialized_view
+        mv_refresh = refresh_screener_materialized_view(db)
+
         return {
             "status": job_status,
             "idempotency_key": idempotency_key,
             "as_of_date": target_date.isoformat(),
             "results_count": len(run_results),
             "quality_summary": quality_summary,
+            "mv_refresh": mv_refresh,
             "results": run_results,
         }
 

@@ -82,9 +82,14 @@ class InvestmentReportGenerator:
         dataset = repo.get_financial_dataset(sym, as_of_date=as_of) or {}
         builder = ValuationSnapshotBuilder(sym, sector)
 
-        # Load fundamentals dict for valuation builder
+        # Load fundamentals dict for valuation builder (reuse open session & preloaded dataset)
         from apps.api.routers.valuation import _load_fundamentals_for_valuation
-        fundamentals = _load_fundamentals_for_valuation(sym, as_of) or {}
+        fundamentals = _load_fundamentals_for_valuation(
+            sym,
+            as_of_date=as_of,
+            session=self.session,
+            dataset=dataset,
+        ) or {}
 
         val_snapshot = None
         base_fv = None
@@ -303,9 +308,14 @@ class InvestmentReportGenerator:
         ))
 
         # Section 11: Sensitivity Matrix
-        # Calculate WACC x Terminal Growth matrix
-        from apps.api.routers.valuation import get_valuation_sensitivity
-        sens = get_valuation_sensitivity(sym)
+        # Calculate WACC x Terminal Growth matrix (reuse precomputed fundamentals & session)
+        from apps.api.routers.valuation import compute_valuation_sensitivity
+        sens = compute_valuation_sensitivity(
+            sym,
+            session=self.session,
+            fundamentals=fundamentals,
+            as_of=as_of,
+        )
         matrix_table = []
         if sens and sens.get("matrix"):
             for wacc_k, row_v in sens["matrix"].items():

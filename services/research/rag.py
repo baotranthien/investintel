@@ -511,6 +511,71 @@ class LocalVectorStore(VectorStore):
         if not query or not query.strip():
             return []
 
+        from services.common.supabase_rpc import call_pg_rpc, is_postgres_session
+
+        if (
+            is_postgres_session(self.session)
+            and company is None
+            and source is None
+            and document_type is None
+            and language is None
+        ):
+            rpc_hits = call_pg_rpc(
+                self.session,
+                "rpc_match_document_chunks",
+                {
+                    "p_query": query.strip(),
+                    "p_ticker": ticker,
+                    "p_as_of": as_of_date or date.today(),
+                    "p_limit": limit,
+                    "p_exclude_synthetic": True,
+                },
+            )
+            if isinstance(rpc_hits, list) and not rpc_hits:
+                # plainto_tsquery AND-joins every word in long prompts; retry with top distinctive tokens
+                distinctive = sorted(set(_tokenize_rag(query)), key=lambda t: (-len(t), t))[:3]
+                if distinctive:
+                    rpc_hits = call_pg_rpc(
+                        self.session,
+                        "rpc_match_document_chunks",
+                        {
+                            "p_query": " ".join(distinctive),
+                            "p_ticker": ticker,
+                            "p_as_of": as_of_date or date.today(),
+                            "p_limit": limit,
+                            "p_exclude_synthetic": True,
+                        },
+                    )
+            if isinstance(rpc_hits, list) and rpc_hits:
+                return [
+                    {
+                        "citation_id": h.get("chunk_id"),
+                        "document_id": h.get("document_id"),
+                        "chunk_id": h.get("chunk_id"),
+                        "text": h.get("text"),
+                        "score": float(h.get("score") or 0.0),
+                        "bm25_score": float(h.get("score") or 0.0),
+                        "dense_score": 0.0,
+                        "retrieval_mode": h.get("retrieval_mode") or "POSTGRES_HYBRID_FTS_TRGM",
+                        "source": h.get("source"),
+                        "publication_date": h.get("publication_date"),
+                        "ticker": h.get("ticker"),
+                        "company": h.get("company"),
+                        "title": h.get("title"),
+                        "period": h.get("period"),
+                        "document_type": h.get("document_type"),
+                        "language": h.get("language"),
+                        "section": h.get("section"),
+                        "page_reference": h.get("page_reference"),
+                        "chunk_type": "prose",
+                        "is_synthetic": False,
+                        "metadata": {},
+                        "embedding_model": None,
+                        "embedding_version": None,
+                    }
+                    for h in rpc_hits[:limit]
+                ]
+
         q_token_list = _tokenize_rag(query)
         q_tokens = set(q_token_list)
         if not q_tokens:
