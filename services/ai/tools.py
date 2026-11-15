@@ -1123,6 +1123,8 @@ def _get_corporate_action_evidence(db: Session, symbol: str, as_of: date) -> lis
     if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL", "PORTFOLIO"):
         return evidence
     try:
+        from services.fundamentals.dividends import deduplicate_corporate_actions
+
         sym = symbol.strip().upper()
         actions = (
             db.query(CorporateAction)
@@ -1130,26 +1132,21 @@ def _get_corporate_action_evidence(db: Session, symbol: str, as_of: date) -> lis
             .order_by(CorporateAction.action_date.desc(), CorporateAction.id.desc())
             .all()
         )
-        deduped: list[CorporateAction] = []
-        seen: set[tuple[Any, ...]] = set()
-        for ca in actions:
-            key = (
-                ca.action_date,
-                (ca.action_type or "").strip().upper(),
-                round(float(ca.value), 4) if ca.value is not None else None,
-                round(float(ca.ratio), 4) if ca.ratio is not None else None,
-                (ca.notes or "").strip(),
-            )
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(ca)
+        deduped = deduplicate_corporate_actions(actions)
         if deduped:
+            priority_types = {"STOCK_DIVIDEND", "SPLIT", "REVERSE_SPLIT", "BONUS_SHARE", "CASH_DIVIDEND"}
+            prioritized = [ca for ca in deduped if (ca.action_type or "").strip().upper() in priority_types]
+            others = [ca for ca in deduped if (ca.action_type or "").strip().upper() not in priority_types]
+            selected_actions = (prioritized[:5] + others[: max(0, 6 - len(prioritized[:5]))])[:6]
+
             parts: list[str] = []
-            for ca in deduped[:4]:
+            for ca in selected_actions:
                 act_lbl = (ca.action_type or "CORPORATE_ACTION").strip().upper()
                 detail = ca.notes.strip() if ca.notes else ""
-                if not detail:
+                if ca.ratio is not None and "%" not in detail:
+                    pct_str = f"{float(ca.ratio) * 100:g}%"
+                    detail = f"{detail} ({pct_str})" if detail else f"ratio={ca.ratio:g} ({pct_str})"
+                elif not detail:
                     if ca.ratio is not None:
                         detail = f"ratio={ca.ratio:g}"
                     elif ca.value is not None:
@@ -1165,7 +1162,7 @@ def _get_corporate_action_evidence(db: Session, symbol: str, as_of: date) -> lis
                 "source": next((c.source for c in deduped if c.source), None) or "CANONICAL_CORPORATE_ACTION",
                 "data_origin": "CANONICAL_DATABASE",
                 "freshness": "AVAILABLE",
-                "observation_date": deduped[0].action_date.isoformat(),
+                "observation_date": selected_actions[0].action_date.isoformat(),
                 "note": f"Sự kiện quyền & chia tách/cổ tức của {sym} (gần nhất trước {as_of.isoformat()}): " + " | ".join(parts) + ".",
             })
     except Exception:
@@ -2030,7 +2027,9 @@ class AITools:
             q_lower_str = (question or "").lower()
             if normalized and any(w in q_lower_str for w in (
                 "cổ tức", "co tuc", "chia tách", "chia tach", "tách cổ phiếu", "tach co phieu",
-                "điều chỉnh", "dieu chinh", "dividend", "yield", "split", "rights", "trước chia", "truoc chia",
+                "cổ phiếu thưởng", "co phieu thuong", "không hưởng quyền", "khong huong quyen",
+                "điều chỉnh", "dieu chinh", "dividend", "yield", "split", "rights",
+                "trước chia", "truoc chia", "sau chia",
             )):
                 div_ev = _get_dividend_evidence(db, normalized, as_of)
                 evidence.extend(div_ev)

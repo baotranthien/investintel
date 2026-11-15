@@ -592,3 +592,120 @@ class TestStatusClassifierContracts:
         assert corp_ev, "Expected corporate action summary evidence for seeded BMP"
         assert corp_ev[0]["metric"] == "corporate_action"
         assert corp_ev[0]["freshness"] == "AVAILABLE"
+
+    def test_split_dividend_prompt_selection_verdict_and_critic(self):
+        import json
+
+        from services.ai.analyst import AIAnalyst
+        from services.ai.prompt_registry import (
+            build_chat_prompt,
+            extract_requested_metric_groups,
+        )
+        from services.ai.schemas import AICitation, AIClaim
+
+        question = (
+            "Kiem tra gia co phieu FPT ngay hom nay va giai thich tai sao "
+            "gia giam hoac khac so voi vung gia truoc chia tach co tuc."
+        )
+        groups = extract_requested_metric_groups(question)
+        assert "dividends" in groups
+        assert "corporate_action" in groups["dividends"]
+
+        # Simulate crowded evidence register where corporate_action is near the tail
+        ev_reg = [
+            {
+                "id": f"E{i:03d}",
+                "claim_type": "FACT",
+                "responsible_module": "fundamentals",
+                "metric": m,
+                "symbol": "FPT",
+                "value": 10.0 + i,
+                "unit": "%",
+                "source": "HOSE_FILING",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+            }
+            for i, m in enumerate(
+                ["price", "pe", "pb", "roe", "roa", "gross_margin", "net_margin", "revenue", "net_income", "de_ratio"],
+                start=1,
+            )
+        ]
+        ev_reg.extend([
+            {
+                "id": "E020",
+                "claim_type": "FACT",
+                "responsible_module": "corporate_actions",
+                "metric": "dividend_yield",
+                "symbol": "FPT",
+                "value": 3.99,
+                "unit": "%",
+                "source": "CANONICAL_CORPORATE_ACTION",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "note": "Tỷ suất cổ tức TTM 3.99%",
+            },
+            {
+                "id": "E021",
+                "claim_type": "FACT",
+                "responsible_module": "corporate_actions",
+                "metric": "corporate_action",
+                "symbol": "FPT",
+                "value": 12,
+                "unit": "events",
+                "source": "VNDIRECT_EVENTS",
+                "data_origin": "CANONICAL_DATABASE",
+                "freshness": "AVAILABLE",
+                "note": "Sự kiện quyền & chia tách/cổ tức của FPT: 2026-09-10 [STOCK_DIVIDEND]: Tỷ lệ 100:10 (10%)",
+            },
+        ])
+        prompt_str = build_chat_prompt(question, {"symbol": "FPT", "as_of_date": "2026-11-13", "evidence_register": ev_reg})
+        prompt_json = json.loads(prompt_str.split("Bằng chứng (JSON):\n", 1)[1].split("\n\nTrả lời tiếng Việt", 1)[0])
+        selected_metrics = {item["metric"] for item in prompt_json["verifiable_evidence"]}
+        assert "corporate_action" in selected_metrics, f"Missing corporate_action in {selected_metrics}"
+
+        citations = [
+            AICitation(
+                id="E001",
+                claim_type="FACT",
+                responsible_module="market",
+                metric="price",
+                symbol="FPT",
+                value=50100.0,
+                unit="VND",
+                source="LOTUSMARKET",
+                data_origin="CANONICAL_DATABASE",
+                freshness="AVAILABLE",
+            ),
+            AICitation(
+                id="E021",
+                claim_type="FACT",
+                responsible_module="corporate_actions",
+                metric="corporate_action",
+                symbol="FPT",
+                value=12,
+                unit="events",
+                source="VNDIRECT_EVENTS",
+                data_origin="CANONICAL_DATABASE",
+                freshness="AVAILABLE",
+                note="Sự kiện quyền & chia tách/cổ tức của FPT: 2026-09-10 [STOCK_DIVIDEND]: Tỷ lệ 100:10 (10%)",
+            ),
+        ]
+        analyst = AIAnalyst()
+        verdict_claims, verdict_cids = analyst._build_investment_verdict_claims(
+            citations=citations,
+            structured_summary=None,
+            extracted_symbols=["FPT"],
+            existing_claims=[],
+            question=question,
+        )
+        assert "E021" in verdict_cids
+        assert any("STOCK_DIVIDEND" in c.text for c in verdict_claims)
+
+        false_unc = AIClaim(
+            claim_type="UNCERTAINTY",
+            text="Không có dữ liệu xác nhận sự kiện tách cổ tức gần đây gây lệch giá.",
+            citation_ids=[],
+        )
+        cleaned, corrections = analyst._run_critic_verifier_pass([false_unc, *verdict_claims], citations)
+        assert corrections == 1
+        assert all("Không có dữ liệu xác nhận" not in c.text for c in cleaned)

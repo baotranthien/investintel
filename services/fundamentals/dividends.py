@@ -295,3 +295,85 @@ class DividendYieldEngine:
             note=note,
         )
 
+
+def _strip_diacritics_lower(text: str) -> str:
+    import unicodedata
+
+    nfkd = unicodedata.normalize("NFKD", text or "")
+    stripped = "".join(ch for ch in nfkd if not unicodedata.combining(ch))
+    return stripped.replace("đ", "d").replace("Đ", "D").lower()
+
+
+def deduplicate_corporate_actions(actions: list[CorporateAction]) -> list[CorporateAction]:
+    """Collapse bilingual EN/VI and generic CORPORATE_EVENT duplicate rows into canonical events."""
+    import re
+
+    best_by_key: dict[tuple[Any, ...], CorporateAction] = {}
+    rank_by_key: dict[tuple[Any, ...], tuple[int, int, int]] = {}
+    type_priority = {
+        "STOCK_DIVIDEND": 0,
+        "CASH_DIVIDEND": 0,
+        "SPLIT": 0,
+        "REVERSE_SPLIT": 0,
+        "BONUS_SHARE": 0,
+        "RIGHTS_ISSUE": 1,
+        "LISTING_CHANGE": 2,
+        "CORPORATE_EVENT": 9,
+    }
+
+    for ca in actions:
+        act_type = (ca.action_type or "").strip().upper()
+        raw_note = (ca.notes or "").strip()
+        norm_note = re.sub(r"\s+", " ", _strip_diacritics_lower(raw_note))
+        val_sig = round(float(ca.value), 4) if ca.value is not None else None
+        rat_sig = round(float(ca.ratio), 4) if ca.ratio is not None else None
+
+        is_agm = any(k in norm_note for k in ("annual general meeting", "dhdcd", "dai hoi dong co dong"))
+        if is_agm:
+            years = re.findall(r"\b20\d{2}\b", norm_note)
+            agm_kind = "EXTRA" if ("extraordinary" in norm_note or "bat thuong" in norm_note) else "ANNUAL"
+            key: tuple[Any, ...] = (ca.action_date, "AGM", agm_kind, years[0] if years else None)
+        else:
+            if act_type in ("CASH_DIVIDEND",):
+                group = "CASH_DIVIDEND"
+            elif act_type in ("STOCK_DIVIDEND", "BONUS_SHARE", "SPLIT", "REVERSE_SPLIT"):
+                group = "EQUITY_DISTRIBUTION"
+            elif act_type == "LISTING_CHANGE":
+                group = "LISTING_CHANGE"
+            elif act_type == "CORPORATE_EVENT":
+                if rat_sig is not None or any(
+                    k in norm_note
+                    for k in ("exercise rate", "ty le", "100:", "co phieu thuong", "stock dividend", "chia tach", "split")
+                ):
+                    group = "EQUITY_DISTRIBUTION"
+                elif val_sig is not None and any(k in norm_note for k in ("dividend", "co tuc")):
+                    group = "CASH_DIVIDEND"
+                elif val_sig is not None and any(k in norm_note for k in ("number of shares", "so luong", "listing")):
+                    group = "LISTING_CHANGE"
+                else:
+                    group = "CORPORATE_EVENT"
+            else:
+                group = act_type or "CORPORATE_EVENT"
+
+            if val_sig is not None or rat_sig is not None:
+                key = (ca.action_date, group, val_sig, rat_sig)
+            else:
+                key = (ca.action_date, group, None, None, norm_note)
+
+        has_non_ascii = any(ord(ch) > 127 for ch in raw_note)
+        rank = (
+            type_priority.get(act_type, 5),
+            0 if has_non_ascii else 1,
+            -(ca.id or 0),
+        )
+        if key not in rank_by_key or rank < rank_by_key[key]:
+            rank_by_key[key] = rank
+            best_by_key[key] = ca
+
+    return sorted(
+        best_by_key.values(),
+        key=lambda item: (item.action_date, item.id or 0),
+        reverse=True,
+    )
+
+

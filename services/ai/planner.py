@@ -166,7 +166,7 @@ class QueryPlanner:
         # 8. Check for Dividend / Corporate Action queries (Q15: cổ tức, chia tách, dividend yield)
         is_dividend_query = bool(
             re.search(
-                r"\b(cổ\s*tức|co\s*tuc|chia\s*tách|chia\s*tach|tách\s*cổ\s*phiếu|tach\s*co\s*phieu|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|ty\s*suat\s*co\s*tuc|chi\s*trả\s*cổ\s*tức|chi\s*tra\s*co\s*tuc)\b",
+                r"\b(cổ\s*tức|co\s*tuc|chia\s*tách|chia\s*tach|tách\s*cổ\s*phiếu|tach\s*co\s*phieu|cổ\s*phiếu\s*thưởng|co\s*phieu\s*thuong|trước\s*chia|truoc\s*chia|sau\s*chia|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|ty\s*suat\s*co\s*tuc|chi\s*trả\s*cổ\s*tức|chi\s*tra\s*co\s*tuc)\b",
                 q_lower,
             )
         )

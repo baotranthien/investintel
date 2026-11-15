@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from database.models import Asset, CorporateAction, DataLineage, DataSource, EventRecord, Price
 from services.factors.engine import FactorEngine
+from services.fundamentals.dividends import deduplicate_corporate_actions
 from services.fundamentals.engine import TTMEngine
 from services.fundamentals.repository import FinancialRepository
 from services.fundamentals.sector_models import get_sector_model
@@ -433,18 +434,7 @@ def build_research_workspace(
         CorporateAction.symbol == normalized_symbol,
         CorporateAction.action_date <= as_of,
     ).order_by(CorporateAction.action_date.desc(), CorporateAction.id.desc()).all()
-    seen_action_keys: set[tuple[Any, ...]] = set()
-    for action in actions:
-        dedup_key = (
-            action.action_date,
-            (action.action_type or "").strip().upper(),
-            round(float(action.value), 4) if action.value is not None else None,
-            round(float(action.ratio), 4) if action.ratio is not None else None,
-            (action.notes or "").strip(),
-        )
-        if dedup_key in seen_action_keys:
-            continue
-        seen_action_keys.add(dedup_key)
+    for action in deduplicate_corporate_actions(actions):
         timeline.append(TimelineItem(
             id=f"action-{action.id}",
             date=action.action_date.isoformat(),

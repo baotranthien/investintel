@@ -1453,6 +1453,7 @@ class AIAnalyst:
                 structured_summary=structured_summary,
                 extracted_symbols=extracted_symbols,
                 existing_claims=fallback_claims,
+                question=question or "",
             )
             fallback_claims.extend(verdict_claims)
         fallback_claims.append(AIClaim(
@@ -1462,12 +1463,29 @@ class AIAnalyst:
         ))
         return fallback_claims
 
+    def _select_fallback_citations(
+        self,
+        citations: list[AICitation],
+        claims: list[AIClaim],
+        limit: int = 25,
+    ) -> list[AICitation]:
+        """Keep citations referenced by fallback claims first, then fill up to limit with verifiable evidence."""
+        cited_ids = {cid for fc in claims for cid in (fc.citation_ids or [])}
+        selected = [c for c in citations if c.id in cited_ids]
+        for c in citations:
+            if len(selected) >= limit:
+                break
+            if c.id not in cited_ids and self._has_verifiable_evidence([c]):
+                selected.append(c)
+        return selected
+
     def _build_investment_verdict_claims(
         self,
         citations: list[AICitation],
         structured_summary: dict[str, Any] | None,
         extracted_symbols: list[str],
         existing_claims: list[AIClaim] | None = None,
+        question: str = "",
     ) -> tuple[list[AIClaim], set[str]]:
         """
         Deterministically builds grounded investment valuation comparison and actionable
@@ -1636,6 +1654,24 @@ class AIAnalyst:
             npl_c = _get("npl_ratio")
             peer_pe_c = _get("peer_median_pe", f"{sym}_PEERS")
             peer_roe_c = _get("peer_median_roe", f"{sym}_PEERS")
+
+            q_div_norm = _strip_vietnamese_accents((question or "").lower())
+            if any(
+                k in q_div_norm
+                for k in (
+                    "co tuc", "chia tach", "tach co", "truoc chia", "sau chia",
+                    "dividend", "split", "co phieu thuong", "khong huong quyen",
+                )
+            ):
+                for corp_m in ("corporate_action", "cash_dividend", "dividend_yield"):
+                    corp_c = _get(corp_m)
+                    if corp_c and corp_c.note and corp_m not in already_cited_metrics and corp_c.id not in used_cids:
+                        used_cids.add(corp_c.id)
+                        verdict_claims.append(AIClaim(
+                            claim_type="FACT" if corp_c.claim_type == "FACT" else "MODEL_OUTPUT",
+                            text=corp_c.note,
+                            citation_ids=[corp_c.id],
+                        ))
 
             # Require at least 2 core financial/valuation metrics so single-metric unit tests remain unaffected
             core_present = sum(1 for x in (price_c, pe_c, pb_c, roe_c, fv_c, mos_c, opp_c, nim_c) if x is not None)
@@ -1986,6 +2022,19 @@ class AIAnalyst:
                         drop_false_missing = True
                     elif "vn100" in txt_low and "portfolio_nav" in all_verified_metrics:
                         drop_false_missing = True
+                    elif (
+                        any(k in txt_low for k in ("cổ tức", "co tuc", "chia tách", "chia tach", "tách cổ", "tach co", "dividend", "split"))
+                        and bool({"corporate_action", "cash_dividend", "dividend_yield"} & all_verified_metrics)
+                    ):
+                        drop_false_missing = True
+            if (
+                not drop_false_missing
+                and claim.claim_type == "UNCERTAINTY"
+                and any(p in txt_low for p in ("không có dữ liệu xác nhận", "chưa có dữ liệu xác nhận", "không xác nhận được", "chưa ghi nhận sự kiện"))
+                and any(k in txt_low for k in ("cổ tức", "co tuc", "chia tách", "chia tach", "tách cổ", "tach co", "dividend", "split"))
+                and bool({"corporate_action", "cash_dividend", "dividend_yield"} & all_verified_metrics)
+            ):
+                drop_false_missing = True
 
             if drop_false_missing:
                 corrections += 1
@@ -2405,6 +2454,7 @@ class AIAnalyst:
                         structured_summary=structured_summary,
                         extracted_symbols=extracted_symbols,
                         existing_claims=fallback_claims,
+                        question=question,
                     )
                     if verdict_claims:
                         existing_texts_set = {c.text for c in fallback_claims}
@@ -2413,7 +2463,7 @@ class AIAnalyst:
                                 fallback_claims.append(vc)
                                 existing_texts_set.add(vc.text)
 
-                verifiable_cits = [c for c in citations if self._has_verifiable_evidence([c])][:25]
+                verifiable_cits = self._select_fallback_citations(citations, fallback_claims)
 
                 sym_label = ", ".join(extracted_symbols) if extracted_symbols else (canonical_symbol or symbol or "")
                 sym_str = f"cổ phiếu {sym_label} " if sym_label else ""
@@ -2644,6 +2694,7 @@ class AIAnalyst:
                             structured_summary=structured_summary,
                             extracted_symbols=extracted_symbols,
                             existing_claims=fallback_claims,
+                            question=question,
                         )
                         if verdict_claims:
                             existing_texts_set = {c.text for c in fallback_claims}
@@ -2652,7 +2703,7 @@ class AIAnalyst:
                                     fallback_claims.append(vc)
                                     existing_texts_set.add(vc.text)
 
-                    verifiable_cits = [c for c in citations if self._has_verifiable_evidence([c])][:25]
+                    verifiable_cits = self._select_fallback_citations(citations, fallback_claims)
 
                     sym_label = ", ".join(extracted_symbols) if extracted_symbols else (canonical_symbol or symbol or "")
                     sym_str = f"cổ phiếu {sym_label} " if sym_label else ""
@@ -2785,6 +2836,7 @@ class AIAnalyst:
                 structured_summary=structured_summary,
                 extracted_symbols=extracted_symbols,
                 existing_claims=cited_claims,
+                question=question,
             )
             if verdict_claims:
                 cited_claims.extend(verdict_claims)

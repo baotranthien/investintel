@@ -215,8 +215,8 @@ METRIC_CATEGORY_PATTERNS: dict[str, tuple[list[str], set[str]]] = {
         {"peer_median_pe", "peer_median_pb", "peer_median_roe"},
     ),
     "dividends": (
-        [r"\b(cổ\s*tức|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|chính\s*sách\s*cổ\s*tức|chi\s*trả\s*cổ\s*tức)\b"],
-        {"dividend_yield", "cash_dividend", "dividend_payout_ratio"},
+        [r"\b(cổ\s*tức|dividend|dividend\s*yield|tỷ\s*suất\s*cổ\s*tức|chính\s*sách\s*cổ\s*tức|chi\s*trả\s*cổ\s*tức|chia\s*tách|tách\s*cổ\s*phiếu|tách\s*cổ\s*tức|cổ\s*phiếu\s*thưởng|trước\s*chia|sau\s*chia|không\s*hưởng\s*quyền|stock\s*split|stock\s*dividend|corporate\s*action)\b"],
+        {"dividend_yield", "cash_dividend", "dividend_payout_ratio", "corporate_action"},
     ),
     "working_capital_cycle": (
         [r"\b(ccc|chu\s*kỳ\s*tiền|dio|dso|dpo|vòng\s*quay\s*tồn\s*kho|vòng\s*quay\s*phải\s*thu|quản\s*lý\s*hàng\s*tồn\s*kho|quản\s*lý\s*vốn\s*lưu\s*động)\b"],
@@ -519,6 +519,11 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                 s += 130
             if ("dong tien" in q_stripped or "tien" in q_stripped) and m in {"cfo", "fcf", "cash", "cfo_to_ni", "fcf_to_ni"}:
                 s += 110
+            if any(term in q_stripped for term in ("co tuc", "chia tach", "tach", "chia thuong", "truoc chia", "sau chia", "dividend", "split", "quyen", "ex-date")):
+                if m == "corporate_action":
+                    s += 320
+                elif m in {"cash_dividend", "dividend_yield"}:
+                    s += 220
             return s
 
         # 2. Dynamic context budget based on requested metric complexity & multi-ticker count
@@ -647,6 +652,7 @@ def build_chat_prompt(question: str, context: dict[str, Any]) -> str:
                         "revenue": 2,
                         "net_income": 2,
                         "price_change": 2,
+                        "dividends": 4,
                     }
                     take_count = take_map.get(cat_name, max(2, multi_sym_count) if multi_sym_count > 1 else 1)
                     for item in cat_items[:take_count]:

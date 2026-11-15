@@ -401,17 +401,83 @@ def test_research_dedupes_corporate_actions_and_feeds_liquidity_beta(db_session)
         eps_basic=4_000,
     ))
 
-    # Insert duplicate identical CorporateAction rows
-    for _ in range(3):
-        db_session.add(CorporateAction(
+    # Insert bilingual EN/VI and generic CORPORATE_EVENT duplicates across action types
+    bilingual_rows = [
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 9, 10),
+            action_type="CORPORATE_EVENT",
+            ratio=0.1,
+            source="VNDIRECT_EVENTS",
+            notes="Exercise rate 100:10",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 9, 10),
+            action_type="STOCK_DIVIDEND",
+            ratio=0.1,
+            source="VNDIRECT_EVENTS",
+            notes="Tỷ lệ 100:10",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 8, 20),
+            action_type="LISTING_CHANGE",
+            value=8_517_301,
+            source="VNDIRECT_EVENTS",
+            notes="Number of shares 8,517,301 shares",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 8, 20),
+            action_type="LISTING_CHANGE",
+            value=8_517_301,
+            source="VNDIRECT_EVENTS",
+            notes="Số lượng 8,517,301 CP",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 8, 20),
+            action_type="LISTING_CHANGE",
+            value=2_302_000,
+            source="VNDIRECT_EVENTS",
+            notes="Số lượng 2,302,000 CP",
+        ),
+        CorporateAction(
             symbol=symbol,
             action_date=date(2026, 5, 19),
             ex_date=date(2026, 5, 19),
             action_type="CASH_DIVIDEND",
             value=1_000,
-            source="LOTUSMARKET",
-            notes="2025 Final Cash Dividend",
-        ))
+            source="VNDIRECT_EVENTS",
+            notes="Second Dividend payment 2025 (1000 VND/share)",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 5, 19),
+            ex_date=date(2026, 5, 19),
+            action_type="CASH_DIVIDEND",
+            value=1_000,
+            source="VNDIRECT_EVENTS",
+            notes="Trả cổ tức đợt 2/2025 (1000 đ/cp)",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 2, 5),
+            action_type="RIGHTS_ISSUE",
+            source="VNDIRECT_EVENTS",
+            notes="Annual General Meeting of Shareholders 2026",
+        ),
+        CorporateAction(
+            symbol=symbol,
+            action_date=date(2026, 2, 5),
+            action_type="CORPORATE_EVENT",
+            source="VNDIRECT_EVENTS",
+            notes="ĐHĐCĐ thường niên năm 2026",
+        ),
+    ]
+    for row in bilingual_rows:
+        db_session.add(row)
     db_session.commit()
 
     with _client_for_session(db_session) as client:
@@ -421,7 +487,9 @@ def test_research_dedupes_corporate_actions_and_feeds_liquidity_beta(db_session)
     assert response.status_code == 200
     payload = response.json()
     corp_actions = [item for item in payload["timeline"] if item["kind"] == "CORPORATE_ACTION"]
-    assert len(corp_actions) == 1
+    assert len(corp_actions) == 5, f"Expected 5 canonical corporate actions, got {corp_actions}"
+    stock_div = next(item for item in corp_actions if item["date"] == "2026-09-10")
+    assert stock_div["title"] == "STOCK_DIVIDEND"
 
     liq_cat = next((c for c in payload["risk"]["categories"] if c["name"] == "Liquidity"), None)
     assert liq_cat is not None
