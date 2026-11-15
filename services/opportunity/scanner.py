@@ -79,6 +79,9 @@ def _universe_symbols(session: Session, universe: str, as_of: date) -> Optional[
         return None
 
 
+_UNSET_DATASET = object()
+
+
 def _item_for_asset(
     session: Session,
     asset: Asset,
@@ -89,6 +92,7 @@ def _item_for_asset(
     macro_data: Any = None,
     past_closes: Optional[list[float]] = None,
     bank_metric: Optional[Any] = None,
+    dataset: Any = _UNSET_DATASET,
 ) -> ScannerItem:
     if latest_price is None:
         latest_price = session.query(Price).filter(
@@ -111,7 +115,8 @@ def _item_for_asset(
             "source": latest_price.source,
         }
 
-    dataset = repository.get_financial_dataset(asset.symbol, as_of_date=as_of, asset=asset) if repository else None
+    if dataset is _UNSET_DATASET:
+        dataset = repository.get_financial_dataset(asset.symbol, as_of_date=as_of, asset=asset) if repository else None
     resolved_sector = get_sector_for_symbol(asset.symbol, dataset.get("sector") if dataset else asset.sector)
     has_financials = bool(
         dataset and (dataset.get("income_annual") or dataset.get("income_quarters") or dataset.get("balance_annual"))
@@ -474,6 +479,12 @@ def build_opportunity_scanner(
         items = list(_SCANNER_CACHE[cache_key][1])
     else:
         with FinancialRepository(session=session) as repository:
+            assets_by_sym = {a.symbol.upper(): a for a in assets if a.symbol}
+            datasets_by_sym = repository.get_financial_datasets_batch(
+                list(assets_by_sym.keys()),
+                as_of_date=as_of,
+                assets_by_symbol=assets_by_sym,
+            )
             items = []
             for asset in assets:
                 try:
@@ -487,6 +498,7 @@ def build_opportunity_scanner(
                         macro_data=object(),
                         past_closes=past_closes_map.get(asset.id),
                         bank_metric=bank_metric_map.get(asset.id),
+                        dataset=datasets_by_sym.get(asset.symbol.upper()) if asset.symbol else None,
                     )
                     items.append(item)
                 except Exception:

@@ -1,0 +1,60 @@
+# Executables and binaries
+*.exe
+InvestIntel.exe
+
+# Secrets and local environment files
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+authsecr.txt
+*secret*
+
+# Python
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Node.js / Next.js
+node_modules
+**/node_modules
+apps/web/node_modules
+.next
+out
+dist
+build
+
+# Local data and runtime state
+.run
+logs
+exports
+scratch
+scratch_fs_probe.json
+dump.rdb
+*.rdb
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Local untracked datasets/backups (keep tracked constituent lists for Dockerfile COPY data)
+data/backups
+data/documents
+data/macro
+data/*.json
+data/*.db
+data/market/*.csv
+
+# Agent local tooling and metadata
+.playwright-mcp
+.impeccable
+apps/web/.impeccable
+.agents
+skills-lock.json
+.vercel
+.git

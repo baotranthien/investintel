@@ -112,21 +112,19 @@ class PeerComparisonEngine:
         # 3. Default fallback
         return "GENERAL_PEERS", "Vietnam Market Peers", [sym]
 
-    def _get_stock_row(self, sym: str, as_of: date, is_target: bool = False) -> Optional[PeerMetricRow]:
-        asset = self.session.query(Asset).filter(Asset.symbol == sym).first()
+    def _build_stock_row(
+        self,
+        sym: str,
+        asset: Optional[Asset],
+        price: Optional[float],
+        dataset: Optional[dict],
+        as_of: date,
+        is_target: bool = False,
+    ) -> Optional[PeerMetricRow]:
         name = asset.name if asset else f"{sym} Corporation"
         from services.fundamentals.sector_models import get_sector_for_symbol
         sec = get_sector_for_symbol(sym, asset.sector if asset else None)
 
-        # Price lookup
-        price = None
-        if asset:
-            from services.market.canonical_price import CanonicalPriceResolver
-            price = CanonicalPriceResolver.get_latest_price_value(self.session, sym, as_of)
-
-        # Fundamentals lookup
-        repo = FinancialRepository(self.session)
-        dataset = repo.get_financial_dataset(sym, as_of_date=as_of)
         if not dataset:
             return PeerMetricRow(
                 symbol=sym,
@@ -183,6 +181,27 @@ class PeerComparisonEngine:
             net_income_ttm=snap.get("net_income_ttm"),
         )
 
+    def _get_stock_row(self, sym: str, as_of: date, is_target: bool = False) -> Optional[PeerMetricRow]:
+        asset = self.session.query(Asset).filter(Asset.symbol == sym).first()
+
+        # Price lookup
+        price = None
+        if asset:
+            from services.market.canonical_price import CanonicalPriceResolver
+            price = CanonicalPriceResolver.get_latest_price_value(self.session, sym, as_of)
+
+        # Fundamentals lookup
+        repo = FinancialRepository(self.session)
+        dataset = repo.get_financial_dataset(sym, as_of_date=as_of)
+        return self._build_stock_row(
+            sym=sym,
+            asset=asset,
+            price=price,
+            dataset=dataset,
+            as_of=as_of,
+            is_target=is_target,
+        )
+
     def compare_peers(self, symbol: str, as_of: Optional[date] = None) -> PeerComparisonResult:
         as_of = as_of or date.today()
         sym = symbol.upper()
@@ -200,16 +219,59 @@ class PeerComparisonEngine:
 
         group_id, group_name, peer_symbols = self.resolve_peer_symbols(sym, sector)
 
+        # Batch fetch assets, canonical prices, and financial datasets for target + peers
+        all_syms = list(dict.fromkeys([sym] + [p.upper() for p in peer_symbols if p]))
+        asset_map: dict[str, Asset] = {}
+        if all_syms:
+            for a in self.session.query(Asset).filter(Asset.symbol.in_(all_syms)).all():
+                if a.symbol:
+                    asset_map[a.symbol.upper()] = a
+        if asset and sym not in asset_map:
+            asset_map[sym] = asset
+
+        price_map: dict[str, object] = {}
+        syms_with_asset = [s for s in all_syms if s in asset_map]
+        if syms_with_asset:
+            from services.market.canonical_price import CanonicalPriceResolver
+            price_map = CanonicalPriceResolver.resolve_prices_batch(
+                self.session,
+                symbols=syms_with_asset,
+                as_of=as_of,
+            )
+
+        datasets_by_sym: dict[str, dict] = {}
+        if all_syms:
+            repo = FinancialRepository(self.session)
+            datasets_by_sym = repo.get_financial_datasets_batch(
+                all_syms,
+                as_of_date=as_of,
+                assets_by_symbol=asset_map,
+            )
+
+        def _row_for(s: str, is_target: bool) -> Optional[PeerMetricRow]:
+            cp = price_map.get(s)
+            price = getattr(cp, "price", None) if cp is not None else None
+            return self._build_stock_row(
+                sym=s,
+                asset=asset_map.get(s),
+                price=price,
+                dataset=datasets_by_sym.get(s),
+                as_of=as_of,
+                is_target=is_target,
+            )
+
         # Build metric row for target
-        target_row = self._get_stock_row(sym, as_of, is_target=True)
+        target_row = _row_for(sym, is_target=True)
 
         # Build metric rows for all peers
         peer_table: list[PeerMetricRow] = []
         for p_sym in peer_symbols:
-            if p_sym == sym:
-                peer_table.append(target_row)
+            p_norm = p_sym.upper()
+            if p_norm == sym:
+                if target_row is not None:
+                    peer_table.append(target_row)
             else:
-                row = self._get_stock_row(p_sym, as_of, is_target=False)
+                row = _row_for(p_norm, is_target=False)
                 if row:
                     peer_table.append(row)
 

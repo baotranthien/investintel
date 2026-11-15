@@ -18,6 +18,7 @@ from services.macro.engine import MacroEngine
 
 
 WorkspaceStatus = Literal["AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA"]
+_UNSET = object()
 EvidenceStatus = Literal["AVAILABLE", "STALE", "INSUFFICIENT_DATA", "NOT_MEANINGFUL"]
 ClaimType = Literal["FACT", "MODEL_OUTPUT", "INTERPRETATION", "HYPOTHESIS", "UNCERTAINTY"]
 
@@ -145,6 +146,9 @@ def build_research_workspace(
     session: Session,
     symbol: str,
     as_of: Optional[Union[date, datetime]] = None,
+    preloaded_dataset: Any = _UNSET,
+    preloaded_macro_dashboard: Any = _UNSET,
+    preloaded_event_records: Any = _UNSET,
 ) -> Optional[ResearchWorkspace]:
     as_of = as_of or date.today()
     as_of_d = as_of.date() if isinstance(as_of, datetime) else as_of
@@ -191,8 +195,11 @@ def build_research_workspace(
             price_origin = "STATIC_OR_SEEDED" if (price.source or "").upper() in {"HOSE_CSV", "MARKETDATACSV"} else "LINEAGED_INGESTION"
         price_status = "STALE" if (as_of_d - price.observation_date).days > 7 else "AVAILABLE"
 
-    with FinancialRepository(session=session) as repository:
-        dataset = repository.get_financial_dataset(normalized_symbol, as_of_date=as_of)
+    if preloaded_dataset is not _UNSET:
+        dataset = preloaded_dataset
+    else:
+        with FinancialRepository(session=session) as repository:
+            dataset = repository.get_financial_dataset(normalized_symbol, as_of_date=as_of)
 
     profile = dataset["profile"] if dataset else {
         "symbol": asset.symbol,
@@ -382,10 +389,13 @@ def build_research_workspace(
             data_origin="CANONICAL_FINANCIAL_STATEMENTS" if has_financials else None,
         )
 
-    events_query = session.query(EventRecord, DataSource).outerjoin(
-        DataSource, EventRecord.source_id == DataSource.id
-    ).filter(EventRecord.published_at.is_not(None), EventRecord.published_at <= datetime.combine(as_of, time.max))
-    event_records = events_query.order_by(EventRecord.published_at.desc()).limit(200).all()
+    if preloaded_event_records is not _UNSET:
+        event_records = preloaded_event_records
+    else:
+        events_query = session.query(EventRecord, DataSource).outerjoin(
+            DataSource, EventRecord.source_id == DataSource.id
+        ).filter(EventRecord.published_at.is_not(None), EventRecord.published_at <= datetime.combine(as_of, time.max))
+        event_records = events_query.order_by(EventRecord.published_at.desc()).limit(200).all()
     events: list[dict[str, Any]] = []
     timeline: list[TimelineItem] = []
     for event, source in event_records:
@@ -779,17 +789,16 @@ def build_research_workspace(
                 ),
             )
         if current_price and current_price > 0:
-            cash_divs = (
-                session.query(CorporateAction)
-                .filter(
-                    CorporateAction.symbol == normalized_symbol,
-                    CorporateAction.action_type == "CASH_DIVIDEND",
-                    CorporateAction.action_date <= as_of_d,
-                    CorporateAction.action_date >= as_of_d - timedelta(days=365),
-                    CorporateAction.value.isnot(None),
+            cutoff_div = as_of_d - timedelta(days=365)
+            cash_divs = [
+                ca for ca in actions
+                if (
+                    ca.action_type == "CASH_DIVIDEND"
+                    and ca.action_date is not None
+                    and cutoff_div <= ca.action_date <= as_of_d
+                    and ca.value is not None
                 )
-                .all()
-            )
+            ]
             if cash_divs:
                 total_div = sum(float(ca.value or 0.0) for ca in cash_divs)
                 div_yield = total_div / current_price
@@ -935,10 +944,13 @@ def build_research_workspace(
 
     # Macro Engine
     macro_dash = None
-    try:
-        macro_dash = MacroEngine.get_dashboard(as_of_d, session)
-    except Exception:
-        pass
+    if preloaded_macro_dashboard is not _UNSET:
+        macro_dash = preloaded_macro_dashboard
+    else:
+        try:
+            macro_dash = MacroEngine.get_dashboard(as_of_d, session)
+        except Exception:
+            pass
 
     # Opportunity Engine
     opp = None

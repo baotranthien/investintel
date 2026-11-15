@@ -51,6 +51,29 @@ def _clean_json(text: str) -> dict[str, Any]:
     return parsed
 
 
+_DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
+_LEGACY_GEMINI_ALIASES = frozenset(
+    {
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-exp",
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+    }
+)
+
+
+def _normalize_gemini_model(candidate: str | None, fallback: str = _DEFAULT_GEMINI_MODEL) -> str:
+    """Keep active Gemini model names and map retired Flash aliases to the live rolling Flash Lite model."""
+    if not candidate:
+        return fallback
+    cleaned = candidate.strip()
+    if not cleaned or cleaned.lower() in _LEGACY_GEMINI_ALIASES:
+        return fallback
+    return cleaned
+
+
 class GeminiProvider:
     """High-throughput Gemini Flash provider with automatic token usage and structured outputs."""
 
@@ -65,8 +88,8 @@ class GeminiProvider:
             if api_key is not None
             else (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "")
         ).strip()
-        # Default to gemini-1.5-flash which has 15 RPM / 1500 RPD free tier limit
-        self.model = (model if model is not None else (os.getenv("GEMINI_MODEL") or "gemini-1.5-flash")).strip()
+        raw_model = model if model is not None else (os.getenv("GEMINI_MODEL") or _DEFAULT_GEMINI_MODEL)
+        self.model = _normalize_gemini_model(raw_model)
         self.timeout_seconds = timeout_seconds
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -93,7 +116,7 @@ class GeminiProvider:
         model: str | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         text, metadata = await self._generate_internal(
-            prompt, system=system, model=model, json_mode=True
+            prompt, schema=schema, system=system, model=model, json_mode=True
         )
         data = _clean_json(text)
         return data, metadata
@@ -101,6 +124,7 @@ class GeminiProvider:
     async def _generate_internal(
         self,
         prompt: str,
+        schema: dict[str, Any] | None = None,
         system: str = "",
         model: str | None = None,
         json_mode: bool = False,
@@ -108,11 +132,9 @@ class GeminiProvider:
         if not self.is_available():
             raise AIProviderAuthError("GEMINI_API_KEY is not configured or too short.")
 
-        model_to_use = self.model
+        model_to_use = _normalize_gemini_model(self.model)
         if model and model.strip().lower().startswith("gemini"):
-            model_to_use = model.strip()
-        if model_to_use == "gemini-1.5-flash":
-            model_to_use = "gemini-2.0-flash"
+            model_to_use = _normalize_gemini_model(model, fallback=model_to_use)
 
         url = f"{self.base_url}/models/{model_to_use}:generateContent?key={self.api_key}"
 
@@ -120,8 +142,14 @@ class GeminiProvider:
         if json_mode:
             gen_config["responseMimeType"] = "application/json"
 
+        user_content = prompt
+        if json_mode and schema:
+            schema_str = json.dumps(schema, separators=(",", ":"))
+            if schema_str not in user_content:
+                user_content = f"{user_content}\n\nOutput only valid JSON matching this JSON Schema:\n{schema_str}"
+
         payload: dict[str, Any] = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "contents": [{"role": "user", "parts": [{"text": user_content}]}],
             "generationConfig": gen_config,
         }
         if system:

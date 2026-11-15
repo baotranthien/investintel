@@ -227,6 +227,37 @@ def test_csrf_origin_validation_on_mutation(auth_client):
 def test_database_url_normalization():
     assert normalize_database_url("postgres://user:pass@host/db") == "postgresql://user:pass@host/db"
     assert normalize_database_url("postgresql://user:pass@host/db") == "postgresql://user:pass@host/db"
+    assert (
+        normalize_database_url(
+            "postgres://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x"
+        )
+        == "postgresql://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
+    assert (
+        normalize_database_url(
+            "postgres://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require"
+        )
+        == "postgresql://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+    )
+
+
+def test_cloud_mode_falls_back_to_postgres_url_and_strips_supa():
+    with patch.dict(
+        os.environ,
+        {
+            "CLOUD_MODE": "true",
+            "DATABASE_URL": "",
+            "POSTGRES_URL": "postgres://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require&supa=base-pooler.x",
+        },
+        clear=False,
+    ):
+        with patch("psycopg2.connect") as mock_connect:
+            resolved = get_database_url()
+            assert (
+                resolved
+                == "postgresql://user:pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+            )
+            mock_connect.assert_called_once()
 
 
 def test_cloud_mode_refuses_sqlite_fallback():
@@ -261,18 +292,33 @@ def test_cron_endpoint_unauthorized_without_secret(auth_client):
 
 
 def test_cron_endpoint_idempotency(auth_client):
+    import contextlib
+    import sys
+
     client, _, _ = auth_client
     valid_headers = {"X-Cron-Secret": "test-cron-secret-12345"}
 
-    try:
-        from routers import cron
-    except ImportError:
-        from apps.api.routers import cron
+    if "apps.api.routers.cron" not in sys.modules and "routers.cron" not in sys.modules:
+        try:
+            from apps.api.routers import cron as _cron  # noqa: F401
+        except ImportError:
+            from routers import cron as _cron  # noqa: F401
 
-    # Mock ingestion cycle to return sample results quickly
-    with patch.object(cron, "run_ingestion_cycle", new_callable=AsyncMock) as mock_ingest, \
-         patch("services.ingestion.scheduler.run_ingestion_cycle", new_callable=AsyncMock):
-        mock_ingest.return_value = [{"provider": "DNSE", "status": "SUCCESS"}]
+    cron_modules = [
+        sys.modules[name]
+        for name in ("apps.api.routers.cron", "routers.cron")
+        if name in sys.modules
+    ]
+
+    # Mock ingestion cycle across whichever module alias `apps.api.main` bound
+    with contextlib.ExitStack() as stack:
+        mocks = [
+            stack.enter_context(patch.object(mod, "run_ingestion_cycle", new_callable=AsyncMock))
+            for mod in cron_modules
+        ]
+        stack.enter_context(patch("services.ingestion.scheduler.run_ingestion_cycle", new_callable=AsyncMock))
+        for mock_ingest in mocks:
+            mock_ingest.return_value = [{"provider": "DNSE", "status": "SUCCESS"}]
 
         # First execution -> SUCCESS
         resp1 = client.post(
@@ -338,3 +384,307 @@ def test_ai_gateway_ollama_not_assumed_in_cloud():
         assert gateway.is_ollama_reachable() is False
         eligible = gateway.get_eligible_providers()
         assert "ollama" not in eligible
+
+
+def test_lifespan_prewarm_runs_off_event_loop():
+    import asyncio
+    import threading
+    from apps.api.main import lifespan
+
+    observed_threads = []
+    main_loop_thread = threading.current_thread()
+
+    def _fake_scanner(*args, **kwargs):
+        observed_threads.append(threading.current_thread())
+        return {"items": []}
+
+    real_sleep = asyncio.sleep
+
+    async def _fast_sleep(delay, *args, **kwargs):
+        await real_sleep(0)
+
+    async def _run_lifespan():
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "CLOUD_MODE": "true",
+                    "ALLOW_PRODUCTION_DB_WRITE": "false",
+                    "ALLOW_MARKET_DATA_SYNC": "false",
+                    "APP_AUTH_ENABLED": "false",
+                },
+            ),
+            patch("apps.api.main.asyncio.sleep", side_effect=_fast_sleep),
+            patch("services.opportunity.scanner.build_opportunity_scanner", side_effect=_fake_scanner),
+        ):
+            saved = os.environ.pop("PYTEST_CURRENT_TEST", None)
+            try:
+                async with lifespan(app):
+                    for _ in range(20):
+                        if len(observed_threads) >= 2:
+                            break
+                        await real_sleep(0.02)
+            finally:
+                if saved is not None:
+                    os.environ["PYTEST_CURRENT_TEST"] = saved
+
+    from services.common.cache import opportunity_cache
+
+    try:
+        asyncio.run(_run_lifespan())
+        assert len(observed_threads) == 2
+        assert all(t is not main_loop_thread for t in observed_threads)
+    finally:
+        opportunity_cache.clear()
+
+
+def test_financial_repository_batch_parity(db_session):
+    from datetime import date, datetime
+    from sqlalchemy import event
+    from database.models import Asset
+    from services.fundamentals.repository import FinancialRepository
+
+    repo = FinancialRepository(db_session)
+    symbols = ["BMP", "FPT", "VCB", "PLX", "UNKNOWN_XYZ"]
+
+    for as_of in (None, date(2026, 3, 15), datetime(2026, 3, 15, 10, 0, 0)):
+        batch_result = repo.get_financial_datasets_batch(symbols, as_of_date=as_of)
+        assert set(batch_result.keys()) == set(symbols)
+        assert batch_result["UNKNOWN_XYZ"] is None
+        for sym in symbols:
+            single_result = repo.get_financial_dataset(sym, as_of_date=as_of)
+            assert batch_result[sym] == single_result
+
+    assets = db_session.query(Asset).filter(Asset.symbol.in_(["BMP", "FPT", "VCB"])).all()
+    assets_by_sym = {a.symbol: a for a in assets}
+    query_count = 0
+
+    def _count_queries(conn, cursor, statement, parameters, context, executemany):
+        nonlocal query_count
+        query_count += 1
+
+    sa_engine = db_session.get_bind().engine
+    event.listen(sa_engine, "before_cursor_execute", _count_queries)
+    try:
+        prefetched = repo.get_financial_datasets_batch(
+            ["BMP", "FPT", "VCB", "PLX"],
+            assets_by_symbol=assets_by_sym,
+        )
+    finally:
+        event.remove(sa_engine, "before_cursor_execute", _count_queries)
+
+    assert query_count <= 8
+    assert prefetched["BMP"] == repo.get_financial_dataset("BMP")
+
+
+def test_market_regime_engine_batched_queries(db_session):
+    from datetime import date, timedelta
+    from sqlalchemy import event, or_
+    from database.models import Asset, IndexMembership, Price
+    from services.macro.engine import MarketRegimeEngine
+
+    base_day = date(2026, 4, 1)
+    bench = db_session.query(Asset).filter(Asset.symbol == "VN100").first()
+    if not bench:
+        bench = Asset(symbol="VN100", name="VN100 Index", asset_type="INDEX", exchange="HOSE", status="ACTIVE")
+        db_session.add(bench)
+        db_session.flush()
+
+    for idx in range(25):
+        obs = base_day + timedelta(days=idx)
+        if not db_session.query(Price).filter(Price.asset_id == bench.id, Price.observation_date == obs).first():
+            db_session.add(
+                Price(
+                    asset_id=bench.id,
+                    observation_date=obs,
+                    raw_close=1200.0 + idx,
+                    adjusted_close=1200.0 + idx,
+                    volume=1000000,
+                    status="VALID",
+                )
+            )
+    latest_day = base_day + timedelta(days=24)
+    prev_day = base_day + timedelta(days=23)
+
+    memberships = (
+        db_session.query(IndexMembership)
+        .filter(
+            IndexMembership.index_symbol == "VN100",
+            IndexMembership.start_date <= latest_day,
+            or_(IndexMembership.end_date.is_(None), IndexMembership.end_date >= latest_day),
+        )
+        .all()
+    )
+    member_syms = list(dict.fromkeys(m.symbol for m in memberships if m.symbol))
+    if not member_syms:
+        member_syms = ["BMP", "FPT", "VCB"]
+        for sym in member_syms:
+            db_session.add(IndexMembership(index_symbol="VN100", symbol=sym, start_date=base_day, end_date=None))
+
+    assets_by_sym = {
+        a.symbol: a
+        for a in db_session.query(Asset).filter(Asset.symbol.in_(member_syms)).all()
+    }
+    target_syms = member_syms[:60]
+    for sym in target_syms:
+        if sym not in assets_by_sym:
+            asset = Asset(symbol=sym, name=sym, asset_type="STOCK", exchange="HOSE", status="ACTIVE")
+            db_session.add(asset)
+            assets_by_sym[sym] = asset
+    db_session.flush()
+    for idx, sym in enumerate(target_syms):
+        asset = assets_by_sym[sym]
+        if idx % 3 == 0:
+            prev_px, cur_px = 100.0, 105.0
+        elif idx % 3 == 1:
+            prev_px, cur_px = 120.0, 118.0
+        else:
+            prev_px, cur_px = 90.0, 90.0
+        for obs, px in ((prev_day, prev_px), (latest_day, cur_px)):
+            existing = db_session.query(Price).filter(Price.asset_id == asset.id, Price.observation_date == obs).first()
+            if existing:
+                existing.raw_close = px
+                existing.adjusted_close = px
+                existing.status = "VALID"
+            else:
+                db_session.add(
+                    Price(
+                        asset_id=asset.id,
+                        observation_date=obs,
+                        raw_close=px,
+                        adjusted_close=px,
+                        volume=500000,
+                        status="VALID",
+                    )
+                )
+    db_session.flush()
+
+    query_count = 0
+
+    def _count_queries(conn, cursor, statement, parameters, context, executemany):
+        nonlocal query_count
+        query_count += 1
+
+    sa_engine = db_session.get_bind().engine
+    event.listen(sa_engine, "before_cursor_execute", _count_queries)
+    try:
+        regime = MarketRegimeEngine.determine_regime(as_of=latest_day, session=db_session, benchmark="VN100")
+    finally:
+        event.remove(sa_engine, "before_cursor_execute", _count_queries)
+
+    assert regime.regime != "INSUFFICIENT_DATA"
+    assert regime.covered_members == len(target_syms)
+    assert query_count <= 5
+
+
+def test_factor_screener_batched_queries(db_session):
+    from sqlalchemy import event
+    from database.connection import engine as default_engine
+
+    query_count = 0
+
+    def _count_queries(conn, cursor, statement, parameters, context, executemany):
+        nonlocal query_count
+        query_count += 1
+
+    with patch.dict(os.environ, {"APP_AUTH_ENABLED": "false"}):
+        with TestClient(app) as client:
+            event.listen(default_engine, "before_cursor_execute", _count_queries)
+            try:
+                resp = client.get("/api/v1/factors/screener")
+            finally:
+                event.remove(default_engine, "before_cursor_execute", _count_queries)
+
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["count"] > 0
+            assert len(data["results"]) == data["count"]
+            assert query_count <= 15
+
+            single_resp = client.get("/api/v1/factors/BMP")
+            assert single_resp.status_code == 200
+            assert single_resp.json()["symbol"] == "BMP"
+
+
+def test_macro_observations_batched_queries(db_session):
+    from datetime import date
+    from sqlalchemy import event
+    from services.macro.observations import get_latest_macro_series
+
+    query_count = 0
+
+    def _count_queries(conn, cursor, statement, parameters, context, executemany):
+        nonlocal query_count
+        query_count += 1
+
+    sa_engine = db_session.get_bind().engine
+    event.listen(sa_engine, "before_cursor_execute", _count_queries)
+    try:
+        res = get_latest_macro_series(db_session, date(2026, 11, 13))
+    finally:
+        event.remove(sa_engine, "before_cursor_execute", _count_queries)
+
+    assert res.status in ("AVAILABLE", "PARTIAL", "INSUFFICIENT_DATA")
+    assert query_count <= 6
+
+
+def test_peer_comparison_batched_queries(db_session):
+    from datetime import date
+    from sqlalchemy import event
+    from services.valuation.peers import PeerComparisonEngine
+
+    query_count = 0
+
+    def _count_queries(conn, cursor, statement, parameters, context, executemany):
+        nonlocal query_count
+        query_count += 1
+
+    sa_engine = db_session.get_bind().engine
+    event.listen(sa_engine, "before_cursor_execute", _count_queries)
+    try:
+        res = PeerComparisonEngine(db_session).compare_peers("FPT", as_of=date(2026, 11, 13))
+    finally:
+        event.remove(sa_engine, "before_cursor_execute", _count_queries)
+
+    assert res.target_symbol == "FPT"
+    assert res.peers_evaluated >= 1
+    assert query_count <= 16
+
+
+def test_ai_context_bounded_queries_in_cloud_mode(db_session):
+    from datetime import date
+    from sqlalchemy import event
+    from services.ai.tools import AITools
+
+    statements: list[str] = []
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    sa_engine = db_session.get_bind().engine
+    saved_pytest = os.environ.pop("PYTEST_CURRENT_TEST", None)
+    try:
+        with patch.dict(os.environ, {"CLOUD_MODE": "true"}):
+            event.listen(sa_engine, "before_cursor_execute", _capture)
+            try:
+                ctx = AITools.get_context(
+                    "FPT",
+                    date(2026, 11, 13),
+                    session=db_session,
+                    question="Danh gia ROE va dinh gia FPT?",
+                )
+            finally:
+                event.remove(sa_engine, "before_cursor_execute", _capture)
+    finally:
+        if saved_pytest is not None:
+            os.environ["PYTEST_CURRENT_TEST"] = saved_pytest
+
+    assert ctx["symbol"] == "FPT"
+    assert ctx["decision_state"] == "AVAILABLE"
+    assert len(ctx.get("evidence", [])) > 0
+    assert len(statements) <= 115
+    inserts = [stmt for stmt in statements if stmt.lstrip().upper().startswith("INSERT")]
+    assert not inserts, f"Unexpected INSERTs: {inserts}"
+
+
+

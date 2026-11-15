@@ -123,6 +123,17 @@ class StockScreenerEngine:
                 res = d.get(k) if isinstance(d, dict) else None
                 return res.get("value") if isinstance(res, dict) else res
 
+            assets_by_sym = {
+                a.symbol.upper(): a
+                for a in assets
+                if a.symbol and not a.symbol.startswith("^")
+            }
+            datasets_by_sym = self.repo.get_financial_datasets_batch(
+                list(assets_by_sym.keys()),
+                as_of_date=as_of,
+                assets_by_symbol=assets_by_sym,
+            )
+
             computed_base: List[ScreenedStock] = []
             for asset in assets:
                 sym = asset.symbol.upper()
@@ -133,7 +144,7 @@ class StockScreenerEngine:
                 price = latest_prices.get(sym)
 
                 # Load Fundamentals
-                dataset = self.repo.get_financial_dataset(sym, as_of_date=as_of)
+                dataset = datasets_by_sym.get(sym)
                 if not dataset or not dataset.get("income_annual"):
                     continue
 

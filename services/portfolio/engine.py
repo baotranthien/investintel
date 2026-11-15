@@ -1,13 +1,16 @@
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 from math import isclose
 from typing import Any, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database.models import (
     Asset,
+    DataSource,
     DcaPlan,
+    EventRecord,
     ManualPortfolioTransaction,
     PersonalPortfolio,
     PersonalPortfolioSnapshot,
@@ -18,6 +21,8 @@ from database.models import (
     WatchlistSnapshot,
     WatchlistThesisRevision,
 )
+from services.fundamentals.repository import FinancialRepository
+from services.macro.engine import MacroEngine
 from services.research.workspace import build_research_workspace
 
 PORTFOLIO_ID = "personal"
@@ -44,7 +49,10 @@ def canonical_asset(session: Session, symbol: str) -> Optional[Asset]:
     return asset
 
 
-def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
+def _build_portfolio_dashboard(
+    session: Session,
+    as_of: date,
+) -> tuple[dict[str, Any], dict[str, Asset], dict[str, Any]]:
     account = session.get(PersonalPortfolio, PORTFOLIO_ID)
     holdings_rows = []
     if account is not None:
@@ -56,13 +64,38 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
         for target in session.query(PortfolioTarget).filter(PortfolioTarget.portfolio_id == PORTFOLIO_ID).all()
     } if account else {}
 
+    assets_by_symbol: dict[str, Asset] = {asset.symbol: asset for _, asset in holdings_rows}
+    latest_prices_by_aid: dict[int, Price] = {}
+    asset_ids = [asset.id for _, asset in holdings_rows]
+    if asset_ids:
+        ranked_prices = (
+            session.query(
+                Price.id.label("price_id"),
+                func.row_number()
+                .over(
+                    partition_by=Price.asset_id,
+                    order_by=Price.observation_date.desc(),
+                )
+                .label("rn"),
+            )
+            .filter(
+                Price.asset_id.in_(asset_ids),
+                Price.status == "VALID",
+                Price.observation_date <= as_of,
+            )
+            .subquery()
+        )
+        price_rows = (
+            session.query(Price)
+            .join(ranked_prices, Price.id == ranked_prices.c.price_id)
+            .filter(ranked_prices.c.rn == 1)
+            .all()
+        )
+        latest_prices_by_aid = {pr.asset_id: pr for pr in price_rows}
+
     holdings = []
     for holding, asset in holdings_rows:
-        latest_price = session.query(Price).filter(
-            Price.asset_id == asset.id,
-            Price.status == "VALID",
-            Price.observation_date <= as_of,
-        ).order_by(Price.observation_date.desc()).first()
+        latest_price = latest_prices_by_aid.get(asset.id)
         current_price = None
         price_date = None
         price_status = "INSUFFICIENT_DATA"
@@ -158,10 +191,36 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
         "note": "Portfolio factor aggregation requires evidence-backed factor profiles.",
     }
 
+    workspaces_by_symbol: dict[str, Any] = {}
+    datasets_by_sym: dict[str, Any] = {}
     if all_prices_available and total_value and total_value > 0:
-        workspaces_by_symbol: dict[str, Any] = {
-            item["symbol"]: build_research_workspace(session, item["symbol"], as_of)
-            for item in holdings
+        holding_syms = [item["symbol"] for item in holdings]
+        datasets_by_sym = FinancialRepository(session).get_financial_datasets_batch(
+            holding_syms,
+            as_of_date=as_of,
+            assets_by_symbol=assets_by_symbol,
+        )
+        try:
+            macro_dash = MacroEngine.get_dashboard(as_of, session)
+        except Exception:
+            macro_dash = None
+        event_records = session.query(EventRecord, DataSource).outerjoin(
+            DataSource, EventRecord.source_id == DataSource.id
+        ).filter(
+            EventRecord.published_at.is_not(None),
+            EventRecord.published_at <= datetime.combine(as_of, time.max),
+        ).order_by(EventRecord.published_at.desc()).limit(200).all()
+
+        workspaces_by_symbol = {
+            sym: build_research_workspace(
+                session,
+                sym,
+                as_of,
+                preloaded_dataset=datasets_by_sym.get(sym),
+                preloaded_macro_dashboard=macro_dash,
+                preloaded_event_records=event_records,
+            )
+            for sym in holding_syms
         }
         if all(
             (ws := workspaces_by_symbol.get(item["symbol"])) is not None
@@ -209,7 +268,7 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
                 }
 
     latest_holding_date = max((h["price_as_of"] for h in holdings if h["price_as_of"] is not None), default=as_of)
-    return {
+    dashboard = {
         "portfolio_id": PORTFOLIO_ID,
         "as_of_date": latest_holding_date,
         "status": "EMPTY" if not holdings else "AVAILABLE" if all_prices_available and not any_stale else "PARTIAL",
@@ -236,15 +295,39 @@ def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
         "risk_exposure": risk_exposure,
         "factor_exposure": factor_exposure,
     }
+    return dashboard, assets_by_symbol, workspaces_by_symbol, datasets_by_sym
 
 
-def portfolio_fit(session: Session, as_of: date) -> dict[str, Any]:
-    dashboard = portfolio_dashboard(session, as_of)
+def portfolio_dashboard(session: Session, as_of: date) -> dict[str, Any]:
+    dashboard, _, _, _ = _build_portfolio_dashboard(session, as_of)
+    return dashboard
+
+
+def _build_portfolio_fit_from_state(
+    session: Session,
+    as_of: date,
+    dashboard: dict[str, Any],
+    assets_by_symbol: dict[str, Asset],
+    workspaces_by_symbol: dict[str, Any],
+) -> dict[str, Any]:
     fit_items = []
     multi_holding = len(dashboard["holdings"]) >= 2
     for holding in dashboard["holdings"]:
-        asset = canonical_asset(session, holding["symbol"])
-        research = build_research_workspace(session, holding["symbol"], as_of) if asset else None
+        asset = assets_by_symbol.get(holding["symbol"])
+        is_eligible_asset = bool(
+            asset
+            and asset.status == "ACTIVE"
+            and asset.asset_type in ("STOCK", "ETF", "MUTUAL_FUND")
+        )
+        if not is_eligible_asset:
+            asset = canonical_asset(session, holding["symbol"])
+        research = (
+            workspaces_by_symbol.get(holding["symbol"])
+            if (is_eligible_asset or asset is not None)
+            else None
+        )
+        if research is None and (is_eligible_asset or asset is not None):
+            research = build_research_workspace(session, holding["symbol"], as_of)
         sector_weight = next(
             (item["weight"] for item in dashboard["allocation"]["sector"] if item["sector"] == (holding["sector"] or "UNKNOWN")),
             None,
@@ -307,6 +390,33 @@ def portfolio_fit(session: Session, as_of: date) -> dict[str, Any]:
         else ("AVAILABLE" if all(item["status"] == "AVAILABLE" for item in fit_items) else "INSUFFICIENT_DATA")
     )
     return {"portfolio_id": PORTFOLIO_ID, "as_of_date": as_of, "status": overall_status, "items": fit_items}
+
+
+def get_portfolio_state(
+    session: Session,
+    as_of: date,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Computes portfolio dashboard, fit, per-holding workspaces, and preloaded financial datasets."""
+    dashboard, assets_by_symbol, workspaces_by_symbol, datasets_by_sym = _build_portfolio_dashboard(session, as_of)
+    fit = _build_portfolio_fit_from_state(
+        session,
+        as_of,
+        dashboard,
+        assets_by_symbol,
+        workspaces_by_symbol,
+    )
+    return dashboard, fit, workspaces_by_symbol, datasets_by_sym
+
+
+def get_portfolio_bundle(session: Session, as_of: date) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Computes both portfolio dashboard and fit in a single batched pass."""
+    dashboard, fit, _, _ = get_portfolio_state(session, as_of)
+    return dashboard, fit
+
+
+def portfolio_fit(session: Session, as_of: date) -> dict[str, Any]:
+    _, fit = get_portfolio_bundle(session, as_of)
+    return fit
 
 
 def dca_plan_view(session: Session, as_of: date) -> dict[str, Any]:

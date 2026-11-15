@@ -59,8 +59,23 @@ def _clean_json(text: str) -> dict[str, Any]:
     return parsed
 
 
+_DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b"
+_LEGACY_GROQ_ALIASES = frozenset({"llama-3.3-70b-versatile", "llama-3.1-70b-versatile"})
+_GROQ_MODEL_HINTS = ("llama", "mixtral", "gemma", "whisper", "deepseek", "qwen", "gpt-oss", "allam")
+
+
+def _normalize_groq_model(candidate: str | None, fallback: str = _DEFAULT_GROQ_MODEL) -> str:
+    """Keep active Groq model IDs and map Ollama ':' tags or retired aliases to the active default."""
+    if not candidate:
+        return fallback
+    cleaned = candidate.strip()
+    if not cleaned or ":" in cleaned or cleaned in _LEGACY_GROQ_ALIASES:
+        return fallback
+    return cleaned
+
+
 class GroqProvider:
-    """High-speed Groq LPU provider supporting Llama 3.3 70B & Llama 3.1 8B."""
+    """High-speed Groq LPU provider (Qwen3 32B / Llama / OSS models)."""
 
     def __init__(
         self,
@@ -70,7 +85,8 @@ class GroqProvider:
     ):
         self.api_key = (api_key if api_key is not None else (os.getenv("GROQ_API_KEY") or "")).strip()
         # Default to qwen/qwen3.8-27b (ultra-fast 500+ tok/s with superior multilingual & Vietnamese financial reasoning)
-        self.model = (model if model is not None else (os.getenv("GROQ_MODEL") or "qwen/qwen3.8-27b")).strip()
+        raw_model = model if model is not None else (os.getenv("GROQ_MODEL") or _DEFAULT_GROQ_MODEL)
+        self.model = _normalize_groq_model(raw_model)
         self.timeout_seconds = timeout_seconds
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
 
@@ -113,16 +129,14 @@ class GroqProvider:
         if not self.is_available():
             raise AIProviderAuthError("GROQ_API_KEY is not configured or invalid.")
 
-        # Determine appropriate Groq model: fallback legacy/local aliases to active Groq model
-        model_to_use = self.model
-        if ":" in model_to_use or model_to_use == "qwen/qwen3.8-27b":
-            model_to_use = "llama-3.3-70b-versatile"
+        # Preserve valid Groq model IDs while ignoring local Ollama ':' tags and mapping retired aliases.
+        model_to_use = _normalize_groq_model(self.model)
         if model:
             m_str = model.strip()
             if (
                 ":" not in m_str
-                and m_str != "qwen/qwen3.8-27b"
-                and ("/" in m_str or any(k in m_str.lower() for k in ("llama", "mixtral", "gemma", "whisper", "deepseek", "qwen")))
+                and m_str not in _LEGACY_GROQ_ALIASES
+                and ("/" in m_str or any(k in m_str.lower() for k in _GROQ_MODEL_HINTS))
             ):
                 model_to_use = m_str
 
@@ -140,8 +154,10 @@ class GroqProvider:
             messages.append({"role": "system", "content": effective_system})
 
         user_content = prompt
-        if json_mode and schema and "json" not in user_content.lower():
-            user_content = f"{user_content}\n\nOutput only valid JSON according to this schema:\n{json.dumps(schema)}"
+        if json_mode and schema:
+            schema_str = json.dumps(schema, separators=(",", ":"))
+            if schema_str not in user_content:
+                user_content = f"{user_content}\n\nOutput only valid JSON matching this JSON Schema:\n{schema_str}"
 
         messages.append({"role": "user", "content": user_content})
 

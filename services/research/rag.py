@@ -15,7 +15,7 @@ import unicodedata
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from database.connection import SessionLocal
+from database.connection import SessionLocal, is_cloud_mode
 from database.models import Document, DocumentChunk
 
 
@@ -824,9 +824,9 @@ class DocumentRAGService:
         limit: int = 5,
         auto_ingest_local: bool = False,
     ) -> dict[str, Any]:
-        if auto_ingest_local:
+        if auto_ingest_local and not is_cloud_mode():
             self.ingest_local_directory()
-        if self.session.query(Document).count() == 0:
+        if not is_cloud_mode() and self.session.query(Document).count() == 0:
             self.seed_fixture_documents()
 
         hits = self.vector_store.search(

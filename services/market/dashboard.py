@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from database.models import Asset, DataLineage, DataSource, EventRecord, Price
@@ -84,39 +85,107 @@ def _freshness_status(observation_date: date, as_of: date) -> MetricStatus:
     return "STALE" if (as_of - observation_date).days > 7 else "AVAILABLE"
 
 
+def _price_metrics_batch(session: Session, symbols: list[str], as_of: date) -> dict[str, MarketMetric]:
+    if not symbols:
+        return {}
+    assets = {
+        asset.symbol: asset
+        for asset in session.query(Asset).filter(Asset.symbol.in_(symbols)).all()
+    }
+    asset_ids = [asset.id for asset in assets.values()]
+    prices_by_aid: dict[int, Price] = {}
+    lineages_by_pid: dict[str, DataLineage] = {}
+
+    if asset_ids:
+        ranked_prices = (
+            session.query(
+                Price.id.label("price_id"),
+                func.row_number()
+                .over(
+                    partition_by=Price.asset_id,
+                    order_by=Price.observation_date.desc(),
+                )
+                .label("rn"),
+            )
+            .filter(
+                Price.asset_id.in_(asset_ids),
+                Price.status == "VALID",
+                Price.observation_date <= as_of,
+            )
+            .subquery()
+        )
+        price_rows = (
+            session.query(Price)
+            .join(ranked_prices, Price.id == ranked_prices.c.price_id)
+            .filter(ranked_prices.c.rn == 1)
+            .all()
+        )
+        prices_by_aid = {pr.asset_id: pr for pr in price_rows}
+
+        price_id_strs = [str(pr.id) for pr in price_rows]
+        if price_id_strs:
+            ranked_lineage = (
+                session.query(
+                    DataLineage.id.label("lin_id"),
+                    func.row_number()
+                    .over(
+                        partition_by=DataLineage.record_id,
+                        order_by=DataLineage.created_at.desc(),
+                    )
+                    .label("rn"),
+                )
+                .filter(
+                    DataLineage.record_table == "prices",
+                    DataLineage.record_id.in_(price_id_strs),
+                )
+                .subquery()
+            )
+            lineage_rows = (
+                session.query(DataLineage)
+                .join(ranked_lineage, DataLineage.id == ranked_lineage.c.lin_id)
+                .filter(ranked_lineage.c.rn == 1)
+                .all()
+            )
+            lineages_by_pid = {lin.record_id: lin for lin in lineage_rows}
+
+    metrics: dict[str, MarketMetric] = {}
+    for symbol in symbols:
+        asset = assets.get(symbol)
+        if asset is None:
+            metrics[symbol] = MarketMetric(
+                status="INSUFFICIENT_DATA",
+                note="Index is not registered as a canonical asset.",
+            )
+            continue
+        price = prices_by_aid.get(asset.id)
+        if price is None:
+            metrics[symbol] = MarketMetric(
+                status="INSUFFICIENT_DATA",
+                note="No valid canonical index price is available.",
+            )
+            continue
+        lineage = lineages_by_pid.get(str(price.id))
+        observation_status = _freshness_status(price.observation_date, as_of)
+        source = price.source or (lineage.raw_source if lineage else None)
+        data_origin = "SEEDED_OR_UNTRACED"
+        if lineage:
+            data_origin = "STATIC_OR_SEEDED" if (price.source or "").upper() in {"HOSE_CSV", "MARKETDATACSV"} else "LINEAGED_INGESTION"
+        metrics[symbol] = MarketMetric(
+            value=price.adjusted_close if price.adjusted_close is not None else price.raw_close,
+            unit="index_points",
+            as_of_date=price.observation_date,
+            retrieved_at=lineage.retrieved_at if lineage else price.created_at,
+            source=source,
+            status=observation_status,
+            data_origin=data_origin,
+            note="Canonical database record; source may be seeded or static. See provenance.",
+            details={"lineage_url": lineage.url if lineage else None},
+        )
+    return metrics
+
+
 def _price_metric(session: Session, symbol: str, as_of: date) -> MarketMetric:
-    asset = session.query(Asset).filter(Asset.symbol == symbol).first()
-    if asset is None:
-        return MarketMetric(status="INSUFFICIENT_DATA", note="Index is not registered as a canonical asset.")
-
-    price = session.query(Price).filter(
-        Price.asset_id == asset.id,
-        Price.status == "VALID",
-        Price.observation_date <= as_of,
-    ).order_by(Price.observation_date.desc()).first()
-    if price is None:
-        return MarketMetric(status="INSUFFICIENT_DATA", note="No valid canonical index price is available.")
-
-    lineage = session.query(DataLineage).filter(
-        DataLineage.record_table == "prices",
-        DataLineage.record_id == str(price.id),
-    ).order_by(DataLineage.created_at.desc()).first()
-    observation_status = _freshness_status(price.observation_date, as_of)
-    source = price.source or (lineage.raw_source if lineage else None)
-    data_origin = "SEEDED_OR_UNTRACED"
-    if lineage:
-        data_origin = "STATIC_OR_SEEDED" if (price.source or "").upper() in {"HOSE_CSV", "MARKETDATACSV"} else "LINEAGED_INGESTION"
-    return MarketMetric(
-        value=price.adjusted_close if price.adjusted_close is not None else price.raw_close,
-        unit="index_points",
-        as_of_date=price.observation_date,
-        retrieved_at=lineage.retrieved_at if lineage else price.created_at,
-        source=source,
-        status=observation_status,
-        data_origin=data_origin,
-        note="Canonical database record; source may be seeded or static. See provenance.",
-        details={"lineage_url": lineage.url if lineage else None},
-    )
+    return _price_metrics_batch(session, [symbol], as_of)[symbol]
 
 
 def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
@@ -125,8 +194,9 @@ def build_market_dashboard(session: Session, as_of: date) -> MarketDashboard:
         "VN100": "VN100 Index",
         "VN300": "VN300 Index",
     }
+    index_metrics = _price_metrics_batch(session, list(index_names.keys()), as_of)
     indexes = [
-        MarketIndexQuote(symbol=symbol, name=name, metric=_price_metric(session, symbol, as_of))
+        MarketIndexQuote(symbol=symbol, name=name, metric=index_metrics[symbol])
         for symbol, name in index_names.items()
     ]
 

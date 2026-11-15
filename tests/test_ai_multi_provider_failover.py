@@ -181,3 +181,69 @@ def test_gateway_status_cloud_groq_active_when_ollama_disabled(monkeypatch):
     assert st["active_provider"] == "groq"
     assert st["configured_models"]["primary"] == "qwen/qwen3.8-27b"
     assert st["reason"] is None
+
+
+def test_groq_provider_preserves_qwen3_and_remaps_retired_aliases():
+    async def _run():
+        captured_payloads = []
+
+        async def _fake_post(url, headers=None, json=None, **kwargs):
+            captured_payloads.append(json)
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {
+                "choices": [{"message": {"content": '{"answer": "ok", "claims": [], "uncertainty": []}'}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18},
+            }
+            return resp
+
+        with patch("httpx.AsyncClient.post", side_effect=_fake_post):
+            provider = GroqProvider(api_key="unit-test-groq-placeholder", model="qwen/qwen3.8-27b")
+            data, _ = await provider.generate_structured(
+                prompt="Bằng chứng (JSON): {}",
+                schema={"type": "object", "properties": {"answer": {"type": "string"}}},
+                model="qwen3.5:9b-q4_K_M",
+            )
+            assert data["answer"] == "ok"
+            assert captured_payloads[0]["model"] == "qwen/qwen3.8-27b"
+            assert '"properties"' in captured_payloads[0]["messages"][-1]["content"]
+
+            retired = GroqProvider(api_key="unit-test-groq-placeholder", model="llama-3.3-70b-versatile")
+            assert retired.status()["model"] == "qwen/qwen3.8-27b"
+            await retired.generate("Phân tích FPT", model="llama-3.3-70b-versatile")
+            assert captured_payloads[1]["model"] == "qwen/qwen3.8-27b"
+
+    asyncio.run(_run())
+
+
+def test_gemini_provider_remaps_retired_aliases_and_includes_schema():
+    async def _run():
+        captured_calls = []
+
+        async def _fake_post(url, json=None, **kwargs):
+            captured_calls.append((url, json))
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {
+                "candidates": [{"content": {"parts": [{"text": '{"answer": "ok", "claims": [], "uncertainty": []}'}]}}],
+                "usageMetadata": {"promptTokenCount": 12, "candidatesTokenCount": 9, "totalTokenCount": 21},
+            }
+            return resp
+
+        with patch("httpx.AsyncClient.post", side_effect=_fake_post):
+            provider = GeminiProvider(api_key="unit-test-gemini-placeholder", model="gemini-1.5-flash")
+            assert provider.status()["model"] == "gemini-flash-lite-latest"
+
+            data, meta = await provider.generate_structured(
+                prompt="Bằng chứng (JSON): {}",
+                schema={"type": "object", "properties": {"text": {"type": "string"}}},
+                model="gemini-2.0-flash",
+            )
+            assert data["answer"] == "ok"
+            assert meta["model"] == "gemini-flash-lite-latest"
+            url, payload = captured_calls[0]
+            assert "/models/gemini-flash-lite-latest:generateContent" in url
+            assert payload["generationConfig"]["responseMimeType"] == "application/json"
+            assert '"properties"' in payload["contents"][0]["parts"][0]["text"]
+
+    asyncio.run(_run())

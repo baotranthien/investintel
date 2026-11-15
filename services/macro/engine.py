@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional
+from typing import Any, List, Optional
 from sqlalchemy.orm import Session
 
 from .models import MacroDashboard, MacroRegimeState, MacroVariable, MarketRegime, MarketBreadth
@@ -120,9 +120,7 @@ class MarketRegimeEngine:
 
         try:
             from sqlalchemy import or_
-            from datetime import datetime, time
 
-            as_of_dt = datetime.combine(as_of, time.max)
             index_prices = session.query(Price).join(Asset, Price.asset_id == Asset.id).filter(
                 Asset.symbol == benchmark_upper,
                 Price.status == "VALID",
@@ -158,14 +156,47 @@ class MarketRegimeEngine:
             unchanged = 0
             covered_members = 0
 
+            member_symbols = [m.symbol for m in unique_memberships if m.symbol]
+            prices_by_member: dict[str, list[Any]] = {}
+            if member_symbols:
+                from sqlalchemy import func
+                ranked_subq = (
+                    session.query(
+                        Asset.symbol.label("sym"),
+                        Price.observation_date.label("observation_date"),
+                        Price.adjusted_close.label("adjusted_close"),
+                        Price.raw_close.label("raw_close"),
+                        func.row_number()
+                        .over(
+                            partition_by=Asset.symbol,
+                            order_by=Price.observation_date.desc(),
+                        )
+                        .label("rn"),
+                    )
+                    .join(Asset, Price.asset_id == Asset.id)
+                    .filter(
+                        Asset.symbol.in_(member_symbols),
+                        Price.status == "VALID",
+                        Price.observation_date <= benchmark_date,
+                    )
+                    .subquery()
+                )
+                recent_member_rows = (
+                    session.query(
+                        ranked_subq.c.sym,
+                        ranked_subq.c.observation_date,
+                        ranked_subq.c.adjusted_close,
+                        ranked_subq.c.raw_close,
+                    )
+                    .filter(ranked_subq.c.rn <= 2)
+                    .order_by(ranked_subq.c.sym, ranked_subq.c.rn)
+                    .all()
+                )
+                for row in recent_member_rows:
+                    prices_by_member.setdefault(row.sym, []).append(row)
+
             for membership in unique_memberships:
-                member_prices = session.query(Price).join(
-                    Asset, Price.asset_id == Asset.id
-                ).filter(
-                    Asset.symbol == membership.symbol,
-                    Price.status == "VALID",
-                    Price.observation_date <= benchmark_date,
-                ).order_by(Price.observation_date.desc()).limit(2).all()
+                member_prices = prices_by_member.get(membership.symbol, [])
                 if len(member_prices) < 2 or member_prices[0].observation_date != benchmark_date:
                     continue
                 latest_value = member_prices[0].adjusted_close or member_prices[0].raw_close

@@ -15,8 +15,9 @@ Historical valuation percentiles return INSUFFICIENT_DATA if < 3 years of data.
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from typing import Any, Optional
 from datetime import date
+from sqlalchemy.orm import Session
 
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -125,17 +126,30 @@ def _compute_beta_and_wacc(
     return round(beta, 3), round(cost_of_equity, 4), round(wacc, 4)
 
 
-def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = None) -> dict:
+_UNSET_DATASET = object()
+
+
+def _load_fundamentals_for_valuation(
+    symbol: str,
+    as_of_date: Optional[date] = None,
+    session: Optional[Session] = None,
+    peer_res: Optional[Any] = None,
+    dataset: Any = _UNSET_DATASET,
+) -> dict:
     """
     Loads real fundamental data from canonical database.
     Returns dict with keys needed by ValuationSnapshotBuilder.
     Returns None if insufficient data.
     """
     sym = symbol.upper()
-    with FinancialRepository() as repo:
-        dataset = repo.get_financial_dataset(sym, as_of_date=as_of_date)
-        if not dataset or not dataset["income_annual"]:
-            return None
+    if dataset is _UNSET_DATASET:
+        if session is not None:
+            dataset = FinancialRepository(session).get_financial_dataset(sym, as_of_date=as_of_date)
+        else:
+            with FinancialRepository() as repo:
+                dataset = repo.get_financial_dataset(sym, as_of_date=as_of_date)
+    if not dataset or not dataset["income_annual"]:
+        return None
 
     # Build fundamental snapshot to get computed TTM metrics
     from services.fundamentals.sector_models import get_sector_for_symbol
@@ -202,28 +216,31 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
     beta = 1.0
     cost_of_equity = 0.12
     wacc = 0.12
+    own_session = session is None
+    active_session = session if session is not None else SessionLocal()
     try:
-        session = SessionLocal()
-        try:
+        resolved_peers = peer_res
+        if resolved_peers is None:
             from services.valuation.peers import PeerComparisonEngine
-            peer_engine = PeerComparisonEngine(session)
-            peer_res = peer_engine.compare_peers(sym, as_of=as_of_date)
-            if peer_res and peer_res.peer_median_pe:
-                peer_pe = peer_res.peer_median_pe
-            if peer_res and peer_res.peer_median_pb:
-                peer_pb = peer_res.peer_median_pb
+            peer_engine = PeerComparisonEngine(active_session)
+            resolved_peers = peer_engine.compare_peers(sym, as_of=as_of_date)
+        if resolved_peers and resolved_peers.peer_median_pe:
+            peer_pe = resolved_peers.peer_median_pe
+        if resolved_peers and resolved_peers.peer_median_pb:
+            peer_pb = resolved_peers.peer_median_pb
 
-            beta, cost_of_equity, wacc = _compute_beta_and_wacc(
-                session=session,
-                sym=sym,
-                sector=canonical_sector,
-                de_ratio=de_ratio,
-                as_of_date=as_of_date,
-            )
-        finally:
-            session.close()
+        beta, cost_of_equity, wacc = _compute_beta_and_wacc(
+            session=active_session,
+            sym=sym,
+            sector=canonical_sector,
+            de_ratio=de_ratio,
+            as_of_date=as_of_date,
+        )
     except Exception:
         pass
+    finally:
+        if own_session:
+            active_session.close()
 
     return {
         "symbol": sym,
@@ -259,24 +276,28 @@ def _load_fundamentals_for_valuation(symbol: str, as_of_date: Optional[date] = N
     }
 
 
-def _get_latest_price(symbol: str, as_of_date: Optional[date] = None) -> Optional[float]:
+def _get_latest_price(symbol: str, as_of_date: Optional[date] = None, session: Optional[Session] = None) -> Optional[float]:
     """Gets the most recent canonical price for the symbol from DB via CanonicalPriceResolver."""
-    session = SessionLocal()
+    own_session = session is None
+    active_session = session if session is not None else SessionLocal()
     try:
         from services.market.canonical_price import CanonicalPriceResolver
-        return CanonicalPriceResolver.get_latest_price_value(session, symbol, as_of_date)
+        return CanonicalPriceResolver.get_latest_price_value(active_session, symbol, as_of_date)
     finally:
-        session.close()
+        if own_session:
+            active_session.close()
 
 
-def _get_asset_sector(symbol: str) -> Optional[str]:
+def _get_asset_sector(symbol: str, session: Optional[Session] = None) -> Optional[str]:
     """Gets sector from canonical assets table."""
-    session = SessionLocal()
+    own_session = session is None
+    active_session = session if session is not None else SessionLocal()
     try:
-        asset = session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
+        asset = active_session.query(Asset).filter(Asset.symbol == symbol.upper()).first()
         return asset.sector if asset else None
     finally:
-        session.close()
+        if own_session:
+            active_session.close()
 
 
 @router.get("/{symbol}")

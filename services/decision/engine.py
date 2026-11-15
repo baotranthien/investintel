@@ -15,7 +15,7 @@ from database.models import (
 )
 from services.macro.observations import get_latest_macro_series
 from services.market.dashboard import build_market_dashboard
-from services.portfolio.engine import PORTFOLIO_ID, compare_snapshots, portfolio_dashboard, portfolio_fit
+from services.portfolio.engine import PORTFOLIO_ID, compare_snapshots, get_portfolio_bundle, portfolio_dashboard, portfolio_fit
 from services.research.workspace import build_research_workspace
 from services.universe.registry import UniverseRegistry
 
@@ -28,15 +28,28 @@ def _asset_lookup(session: Session, symbol: str) -> Asset | None:
     return session.query(Asset).filter(Asset.symbol == normalized).first()
 
 
-def _snapshot_facts(session: Session, symbol: str, research: Any, as_of: date) -> dict[str, Any]:
+def _snapshot_facts(
+    session: Session,
+    symbol: str,
+    research: Any,
+    as_of: date,
+    market_data: dict[str, Any] | None = None,
+    macro_data: dict[str, Any] | None = None,
+    portfolio_data: dict[str, Any] | None = None,
+    fit_data: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if research is None:
         return {"as_of_date": as_of.isoformat(), "status": "INSUFFICIENT_DATA", "modules": {}, "evidence": {}}
 
     research_data = research.model_dump(mode="json")
-    market_data = build_market_dashboard(session, as_of).model_dump(mode="json")
-    macro_data = get_latest_macro_series(session, as_of).model_dump(mode="json")
-    portfolio_data = portfolio_dashboard(session, as_of)
-    fit_data = portfolio_fit(session, as_of)
+    market_data = market_data if market_data is not None else build_market_dashboard(session, as_of).model_dump(mode="json")
+    macro_data = macro_data if macro_data is not None else get_latest_macro_series(session, as_of).model_dump(mode="json")
+    if portfolio_data is None and fit_data is None:
+        portfolio_data, fit_data = get_portfolio_bundle(session, as_of)
+    elif portfolio_data is None:
+        portfolio_data = portfolio_dashboard(session, as_of)
+    elif fit_data is None:
+        fit_data = portfolio_fit(session, as_of)
     holding = next((item for item in portfolio_data["holdings"] if item["symbol"] == symbol), None)
     fit_item = next((item for item in fit_data["items"] if item["symbol"] == symbol), None)
     portfolio_facts = {
@@ -416,10 +429,33 @@ def _asset_module_changes(
     return changes
 
 
-def build_decision_context(session: Session, symbol: str, as_of: Optional[date] = None) -> dict[str, Any]:
+_UNSET = object()
+
+
+def build_decision_context(
+    session: Session,
+    symbol: str,
+    as_of: Optional[date] = None,
+    market_data: dict[str, Any] | None = None,
+    macro_data: dict[str, Any] | None = None,
+    portfolio_data: dict[str, Any] | None = None,
+    fit_data: dict[str, Any] | None = None,
+    preloaded_workspace: Any = None,
+    preloaded_dataset: Any = _UNSET,
+) -> dict[str, Any]:
     as_of = as_of or date.today()
     normalized_symbol = symbol.upper()
-    research = build_research_workspace(session, normalized_symbol, as_of)
+    if preloaded_workspace is not None:
+        research = preloaded_workspace
+    elif preloaded_dataset is not _UNSET:
+        research = build_research_workspace(
+            session,
+            normalized_symbol,
+            as_of,
+            preloaded_dataset=preloaded_dataset,
+        )
+    else:
+        research = build_research_workspace(session, normalized_symbol, as_of)
     asset = _asset_lookup(session, normalized_symbol)
 
     timeline = []
@@ -502,7 +538,16 @@ def build_decision_context(session: Session, symbol: str, as_of: Optional[date] 
             "evidence": {"claim_type": "UNCERTAINTY", "source": "asset_registry", "publication_date": as_of.isoformat(), "data_origin": "ASSET_REGISTRY", "note": "Registry presence is not direct investment evidence."},
         })
 
-    current_facts = _snapshot_facts(session, normalized_symbol, research, as_of)
+    current_facts = _snapshot_facts(
+        session,
+        normalized_symbol,
+        research,
+        as_of,
+        market_data=market_data,
+        macro_data=macro_data,
+        portfolio_data=portfolio_data,
+        fit_data=fit_data,
+    )
     modules = current_facts["modules"]
     previous_snapshots = session.query(AssetDecisionSnapshot).filter(
         AssetDecisionSnapshot.asset_id == asset.id if asset else False
@@ -637,8 +682,7 @@ def build_decision_context(session: Session, symbol: str, as_of: Optional[date] 
 
 
 def build_portfolio_decision_view(session: Session, as_of: date) -> dict[str, Any]:
-    dashboard = portfolio_dashboard(session, as_of)
-    fit = portfolio_fit(session, as_of)
+    dashboard, fit = get_portfolio_bundle(session, as_of)
     asset_by_id = {item.id: item.symbol for item in session.query(Asset).all()}
 
     allocation_drift = []

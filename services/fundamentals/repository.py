@@ -5,16 +5,17 @@ Enforces:
 2. Point-In-Time filtering: publication_date <= as_of_date.
 3. Provenance and audit trail tracing.
 """
-from datetime import date, datetime
-from typing import Optional, Dict, Any, List, Union
+from datetime import date, datetime, timezone
+from typing import Optional, Dict, Any, List, Union, Iterable
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from database.connection import SessionLocal
 from database.models import (
     Asset,
     CorporateAction,
     FinancialStatement,
+    FundamentalMetric,
     NormalizedIncome,
     NormalizedBalanceSheet,
     NormalizedCashFlow,
@@ -62,107 +63,210 @@ class FinancialRepository:
         as_of_date: Optional[Union[date, datetime]] = None,
         asset: Optional[Asset] = None,
     ) -> Optional[Dict[str, Any]]:
-        """
-        Loads point-in-time canonical financial records from database.
-        Returns:
-            dict containing income_quarters, income_annual, balance_annual,
-            cashflow_annual, shares_outstanding, sector, and provenance.
-        """
+        """Loads point-in-time canonical financial records from database for one symbol."""
         sym = symbol.upper()
+        assets_by_symbol = {sym: asset} if asset is not None else None
+        return self.get_financial_datasets_batch(
+            [sym],
+            as_of_date=as_of_date,
+            assets_by_symbol=assets_by_symbol,
+        ).get(sym)
 
-        def numeric(value):
-            return float(value) if value is not None else None
+    @staticmethod
+    def _chunked(items: List[Any], chunk_size: int = 3000) -> Iterable[List[Any]]:
+        for i in range(0, len(items), chunk_size):
+            yield items[i : i + chunk_size]
 
-        profile = self.get_company_profile(sym, asset=asset)
-        if not profile:
-            return None
+    @staticmethod
+    def _filter_statements_pit(
+        statements_raw: List[FinancialStatement],
+        cutoff_date: date,
+        cutoff_dt: datetime,
+    ) -> List[FinancialStatement]:
+        """Point-in-time intraday availability filtering for filings matching cutoff_date."""
+        filtered_statements: List[FinancialStatement] = []
+        for stmt in statements_raw:
+            if stmt.publication_date < cutoff_date:
+                # Published on an earlier calendar day: definitely available prior to cutoff
+                filtered_statements.append(stmt)
+                continue
 
-        # Build PIT query for statements
-        stmt_query = self._session.query(FinancialStatement).filter(
-            FinancialStatement.symbol == sym,
-            FinancialStatement.status == "VALID"
-        )
-        cutoff_date = None
-        cutoff_dt = None
+            if stmt.publication_date == cutoff_date:
+                # Same-day statement: check for explicit intraday publication timestamp
+                pub_ts = None
+                if stmt.raw_data and isinstance(stmt.raw_data, dict):
+                    raw_ts = stmt.raw_data.get("publication_timestamp")
+                    if raw_ts:
+                        try:
+                            pub_ts = datetime.fromisoformat(str(raw_ts))
+                        except Exception:
+                            pub_ts = None
+
+                # If explicit publication timestamp is recorded
+                if pub_ts is not None:
+                    if cutoff_dt.tzinfo is not None and pub_ts.tzinfo is None:
+                        pub_ts = pub_ts.replace(tzinfo=timezone.utc)
+                    elif cutoff_dt.tzinfo is None and pub_ts.tzinfo is not None:
+                        pub_ts = pub_ts.replace(tzinfo=None)
+
+                    if pub_ts <= cutoff_dt:
+                        filtered_statements.append(stmt)
+                else:
+                    # No verified intraday publication timestamp:
+                    # Contract Rule: if filing only has publication date without time,
+                    # and snapshot cutoff is intraday same day, do NOT assume it existed before cutoff.
+                    continue
+        return filtered_statements
+
+    def get_financial_datasets_batch(
+        self,
+        symbols: Iterable[str],
+        as_of_date: Optional[Union[date, datetime]] = None,
+        assets_by_symbol: Optional[Dict[str, Asset]] = None,
+    ) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Batch-loads point-in-time financial datasets across many symbols in constant query count."""
+        norm_syms = list(dict.fromkeys(s.upper() for s in symbols if s))
+        if not norm_syms:
+            return {}
+
+        results: Dict[str, Optional[Dict[str, Any]]] = {sym: None for sym in norm_syms}
+        asset_map: Dict[str, Asset] = {
+            k.upper(): v for k, v in (assets_by_symbol or {}).items() if k and v is not None
+        }
+        missing_asset_syms = [s for s in norm_syms if s not in asset_map]
+        if missing_asset_syms:
+            for chunk in self._chunked(missing_asset_syms):
+                for asset_row in self._session.query(Asset).filter(Asset.symbol.in_(chunk)).all():
+                    if asset_row.symbol:
+                        asset_map[asset_row.symbol.upper()] = asset_row
+
+        profiles: Dict[str, Dict[str, Any]] = {}
+        for sym in norm_syms:
+            profile = self.get_company_profile(sym, asset=asset_map.get(sym))
+            if profile:
+                profiles[sym] = profile
+
+        active_syms = list(profiles.keys())
+        if not active_syms:
+            return results
+
+        cutoff_date: Optional[date] = None
+        cutoff_dt: Optional[datetime] = None
         if as_of_date:
             if isinstance(as_of_date, datetime):
                 cutoff_dt = as_of_date
                 cutoff_date = as_of_date.date()
             else:
                 cutoff_date = as_of_date
-            stmt_query = stmt_query.filter(FinancialStatement.publication_date <= cutoff_date)
 
-        statements_raw = stmt_query.order_by(
-            FinancialStatement.fiscal_period_end.desc(),
-            FinancialStatement.version.desc()
-        ).all()
-
-        if not statements_raw:
-            return None
-
-        if cutoff_dt:
-            # Point-in-Time Intraday Availability Filtering:
-            # 1. Statements published strictly before cutoff_date are kept.
-            # 2. If publication_date == cutoff_date:
-            #    Rule: Do not assume a same-day filing existed before intraday cutoff
-            #    without verified pre-cutoff publication timestamp.
-            # 3. If created_at > cutoff_dt, the statement was ingested after cutoff and is excluded.
-            # 4. If updated_at > cutoff_dt, exclude records modified post-cutoff.
-            filtered_statements = []
-            for stmt in statements_raw:
-                if stmt.publication_date < cutoff_date:
-                    # Published on an earlier calendar day: definitely available prior to cutoff
-                    filtered_statements.append(stmt)
-                    continue
-
-                if stmt.publication_date == cutoff_date:
-                    # Same-day statement: check for explicit intraday publication timestamp
-                    pub_ts = None
-                    if stmt.raw_data and isinstance(stmt.raw_data, dict):
-                        raw_ts = stmt.raw_data.get("publication_timestamp")
-                        if raw_ts:
-                            try:
-                                pub_ts = datetime.fromisoformat(str(raw_ts))
-                            except Exception:
-                                pub_ts = None
-
-                    # If explicit publication timestamp is recorded
-                    if pub_ts is not None:
-                        if cutoff_dt.tzinfo is not None and pub_ts.tzinfo is None:
-                            from datetime import timezone
-                            pub_ts = pub_ts.replace(tzinfo=timezone.utc)
-                        elif cutoff_dt.tzinfo is None and pub_ts.tzinfo is not None:
-                            pub_ts = pub_ts.replace(tzinfo=None)
-
-                        if pub_ts <= cutoff_dt:
-                            filtered_statements.append(stmt)
-                    else:
-                        # No verified intraday publication timestamp:
-                        # Contract Rule: if filing only has publication date without time,
-                        # and snapshot cutoff is intraday same day, do NOT assume it existed before cutoff.
-                        continue
-
-            statements_raw = filtered_statements
+        statements_raw: List[FinancialStatement] = []
+        for chunk in self._chunked(active_syms):
+            stmt_query = self._session.query(FinancialStatement).filter(
+                FinancialStatement.symbol.in_(chunk),
+                FinancialStatement.status == "VALID",
+            )
+            if cutoff_date:
+                stmt_query = stmt_query.filter(FinancialStatement.publication_date <= cutoff_date)
+            statements_raw.extend(
+                stmt_query.order_by(
+                    FinancialStatement.fiscal_period_end.desc(),
+                    FinancialStatement.version.desc(),
+                ).all()
+            )
 
         if not statements_raw:
-            return None
+            return results
 
-        # Point-In-Time deduplication: for each (statement_type, fiscal_period_end, period_type),
-        # keep ONLY the latest revision visible on or before as_of_date
-        deduped = {}
+        if cutoff_dt and cutoff_date is not None:
+            statements_raw = self._filter_statements_pit(statements_raw, cutoff_date, cutoff_dt)
+            if not statements_raw:
+                return results
+
+        deduped_by_sym: Dict[str, Dict[tuple, FinancialStatement]] = {}
         for stmt in statements_raw:
+            sym = stmt.symbol.upper()
+            sym_dedup = deduped_by_sym.setdefault(sym, {})
             key = (stmt.statement_type, stmt.fiscal_period_end, stmt.period_type)
-            if key not in deduped:
-                deduped[key] = stmt
+            if key not in sym_dedup:
+                sym_dedup[key] = stmt
 
-        # Sort chronologically ascending for fundamental analysis
-        statements = sorted(deduped.values(), key=lambda s: (s.fiscal_period_end, s.statement_type))
+        stmts_by_sym: Dict[str, List[FinancialStatement]] = {
+            sym: sorted(sym_dedup.values(), key=lambda s: (s.fiscal_period_end, s.statement_type))
+            for sym, sym_dedup in deduped_by_sym.items()
+            if sym_dedup
+        }
+        syms_with_stmts = list(stmts_by_sym.keys())
+        if not syms_with_stmts:
+            return results
 
-        # Batch prefetch normalized rows to avoid N+1 queries per statement
-        stmt_ids = [s.id for s in statements]
-        inc_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedIncome).filter(NormalizedIncome.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
-        bal_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedBalanceSheet).filter(NormalizedBalanceSheet.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
-        cf_by_stmt = {r.statement_id: r for r in self._session.query(NormalizedCashFlow).filter(NormalizedCashFlow.statement_id.in_(stmt_ids)).all()} if stmt_ids else {}
+        all_stmt_ids = [s.id for sym_stmts in stmts_by_sym.values() for s in sym_stmts]
+        inc_by_stmt: Dict[Any, NormalizedIncome] = {}
+        bal_by_stmt: Dict[Any, NormalizedBalanceSheet] = {}
+        cf_by_stmt: Dict[Any, NormalizedCashFlow] = {}
+        for chunk in self._chunked(all_stmt_ids):
+            for row in self._session.query(NormalizedIncome).filter(NormalizedIncome.statement_id.in_(chunk)).all():
+                inc_by_stmt[row.statement_id] = row
+            for row in self._session.query(NormalizedBalanceSheet).filter(NormalizedBalanceSheet.statement_id.in_(chunk)).all():
+                bal_by_stmt[row.statement_id] = row
+            for row in self._session.query(NormalizedCashFlow).filter(NormalizedCashFlow.statement_id.in_(chunk)).all():
+                cf_by_stmt[row.statement_id] = row
+
+        sh_rows_by_sym: Dict[str, List[FundamentalMetric]] = {}
+        for chunk in self._chunked(syms_with_stmts):
+            for m in (
+                self._session.query(FundamentalMetric)
+                .filter(
+                    FundamentalMetric.symbol.in_(chunk),
+                    FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "TOTAL_SHARES", "LISTED_SHARES"]),
+                    FundamentalMetric.value.isnot(None),
+                    FundamentalMetric.value > 0,
+                )
+                .all()
+            ):
+                if m.symbol:
+                    sh_rows_by_sym.setdefault(m.symbol.upper(), []).append(m)
+
+        ca_rows_by_sym: Dict[str, List[CorporateAction]] = {}
+        for chunk in self._chunked(syms_with_stmts):
+            ca_query = self._session.query(CorporateAction).filter(CorporateAction.symbol.in_(chunk))
+            if cutoff_date:
+                ca_query = ca_query.filter(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date) <= cutoff_date)
+            for ca in ca_query.order_by(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date).asc()).all():
+                if ca.symbol:
+                    ca_rows_by_sym.setdefault(ca.symbol.upper(), []).append(ca)
+
+        for sym in syms_with_stmts:
+            results[sym] = self._assemble_financial_dataset(
+                sym=sym,
+                profile=profiles[sym],
+                statements=stmts_by_sym[sym],
+                inc_by_stmt=inc_by_stmt,
+                bal_by_stmt=bal_by_stmt,
+                cf_by_stmt=cf_by_stmt,
+                sh_rows=sh_rows_by_sym.get(sym, []),
+                ca_rows=ca_rows_by_sym.get(sym, []),
+                cutoff_date=cutoff_date,
+                as_of_date=as_of_date,
+            )
+        return results
+
+    @staticmethod
+    def _assemble_financial_dataset(
+        sym: str,
+        profile: Dict[str, Any],
+        statements: List[FinancialStatement],
+        inc_by_stmt: Dict[Any, NormalizedIncome],
+        bal_by_stmt: Dict[Any, NormalizedBalanceSheet],
+        cf_by_stmt: Dict[Any, NormalizedCashFlow],
+        sh_rows: List[FundamentalMetric],
+        ca_rows: List[CorporateAction],
+        cutoff_date: Optional[date],
+        as_of_date: Optional[Union[date, datetime]],
+    ) -> Dict[str, Any]:
+        """Assemble normalized statements, share count, and corporate actions for one symbol."""
+
+        def numeric(value):
+            return float(value) if value is not None else None
 
         # Statement IDs by statement_type
         inc_annual = []
@@ -318,33 +422,28 @@ class FinancialRepository:
         # a period-specific weighted-average share count from an older statement (e.g. 2023 pre-split).
         # Resolution order: OUTSTANDING_SHARES (1) > TOTAL_SHARES (2) > LISTED_SHARES (3).
         shares_outstanding = None
-        from database.models import FundamentalMetric
-        from sqlalchemy import case
-        metric_priority = case(
-            (FundamentalMetric.metric_id == "OUTSTANDING_SHARES", 1),
-            (FundamentalMetric.metric_id == "TOTAL_SHARES", 2),
-            (FundamentalMetric.metric_id == "LISTED_SHARES", 3),
-            else_=4,
+        priority_map = {
+            "OUTSTANDING_SHARES": 1,
+            "TOTAL_SHARES": 2,
+            "LISTED_SHARES": 3,
+        }
+        pit_sh_rows = [
+            m
+            for m in sh_rows
+            if not cutoff_date or (m.fiscal_period_end is not None and m.fiscal_period_end <= cutoff_date)
+        ]
+        candidate_rows = pit_sh_rows if pit_sh_rows else sh_rows
+        sh_metric = (
+            min(
+                candidate_rows,
+                key=lambda m: (
+                    priority_map.get(m.metric_id, 4),
+                    -(m.fiscal_period_end.toordinal() if m.fiscal_period_end else 0),
+                ),
+            )
+            if candidate_rows
+            else None
         )
-        sh_query = self._session.query(FundamentalMetric).filter(
-            FundamentalMetric.symbol == sym,
-            FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "TOTAL_SHARES", "LISTED_SHARES"]),
-            FundamentalMetric.value.isnot(None),
-            FundamentalMetric.value > 0,
-        )
-        if cutoff_date:
-            sh_query = sh_query.filter(FundamentalMetric.fiscal_period_end <= cutoff_date)
-        # metric_priority FIRST: OUTSTANDING(1) always beats LISTED(3)
-        # fiscal_period_end DESC is secondary: within same type, prefer newest
-        sh_metric = sh_query.order_by(metric_priority, FundamentalMetric.fiscal_period_end.desc()).first()
-        if not sh_metric:
-            # Fallback: ignore date filter (e.g. future-dated records)
-            sh_metric = self._session.query(FundamentalMetric).filter(
-                FundamentalMetric.symbol == sym,
-                FundamentalMetric.metric_id.in_(["OUTSTANDING_SHARES", "TOTAL_SHARES", "LISTED_SHARES"]),
-                FundamentalMetric.value.isnot(None),
-                FundamentalMetric.value > 0,
-            ).order_by(metric_priority, FundamentalMetric.fiscal_period_end.desc()).first()
         if sh_metric and sh_metric.value:
             shares_outstanding = int(float(sh_metric.value))
 
@@ -361,12 +460,7 @@ class FinancialRepository:
             if share_cap and share_cap > 0:
                 shares_outstanding = int(round(share_cap * 100_000))
 
-        # Load Point-in-Time CorporateActions and historical share checkpoints for IAS 33 weighted shares
-        from sqlalchemy import func
-        ca_query = self._session.query(CorporateAction).filter(CorporateAction.symbol == sym)
-        if cutoff_date:
-            ca_query = ca_query.filter(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date) <= cutoff_date)
-        ca_rows = ca_query.order_by(func.coalesce(CorporateAction.ex_date, CorporateAction.action_date).asc()).all()
+        # Preloaded Point-in-Time CorporateActions and historical share checkpoints for IAS 33 weighted shares
         corporate_actions = [
             {
                 "action_date": ca.action_date,
@@ -381,7 +475,10 @@ class FinancialRepository:
             for ca in ca_rows
         ]
 
-        sh_history_rows = sh_query.order_by(FundamentalMetric.fiscal_period_end.asc()).all()
+        sh_history_rows = sorted(
+            pit_sh_rows,
+            key=lambda m: (m.fiscal_period_end or date.min),
+        )
         shares_history = [
             {
                 "metric_id": m.metric_id,

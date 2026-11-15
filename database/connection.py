@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from pathlib import Path
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker, Session
@@ -37,17 +38,35 @@ def is_cloud_mode() -> bool:
     )
 
 
-def normalize_database_url(url: str) -> str:
-    """Normalize legacy postgres:// or add SSL requirements if remote."""
+_UNSUPPORTED_LIBPQ_QUERY_PARAMS = ("supa", "pgbouncer", "connection_limit", "pool_timeout")
+
+
+def normalize_database_url(url: str | None) -> str:
+    """Normalize legacy postgres:// scheme and strip non-libpq query params (e.g. supa/pgbouncer)."""
     if not url:
-        return url
+        return url or ""
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://") and "?" in url:
+        parsed = urlparse(url)
+        query_params = parse_qs(parsed.query, keep_blank_values=True)
+        changed = False
+        for key in _UNSUPPORTED_LIBPQ_QUERY_PARAMS:
+            if key in query_params:
+                query_params.pop(key, None)
+                changed = True
+        if changed:
+            url = urlunparse(parsed._replace(query=urlencode(query_params, doseq=True)))
     return url
 
 
 def get_database_url() -> str:
-    raw_env_url = os.getenv("DATABASE_URL")
+    raw_env_url = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("POSTGRES_URL")
+        or os.getenv("POSTGRES_URL_NON_POOLING")
+        or os.getenv("POSTGRES_PRISMA_URL")
+    )
     env_url = normalize_database_url(raw_env_url)
 
     # In cloud mode, SQLite fallback is strictly forbidden
@@ -209,6 +228,17 @@ def _enforce_canonical_sqlite_write_guard(session, flush_context, instances):
 
 
 def is_production_database_target() -> bool:
-    """Returns True if DATABASE_URL points to the Neon cloud PostgreSQL production cluster."""
-    url = os.getenv("DATABASE_URL", "").lower()
-    return "neon.tech" in url or "ep-" in url
+    """Returns True if configured URL points to a remote cloud PostgreSQL cluster (Neon/Supabase)."""
+    url = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("POSTGRES_URL")
+        or os.getenv("POSTGRES_URL_NON_POOLING")
+        or ""
+    ).lower()
+    return (
+        "neon.tech" in url
+        or "ep-" in url
+        or "supabase.co" in url
+        or "supabase.com" in url
+        or "pooler.supabase" in url
+    )

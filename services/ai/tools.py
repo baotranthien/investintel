@@ -5,7 +5,7 @@ from typing import Any, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from database.connection import SessionLocal
+from database.connection import SessionLocal, is_cloud_mode
 from database.models import (
     Asset, AssetDecisionSnapshot, WatchlistItem,
     BankMetric, FinancialStatement, MacroCommodity, NormalizedIncome, Price
@@ -14,8 +14,11 @@ from services.decision.engine import build_decision_context
 from services.events.engine import EventEngine
 from services.macro.observations import get_latest_macro_series
 from services.market.dashboard import build_market_dashboard
-from services.portfolio.engine import portfolio_dashboard, portfolio_fit
+from services.fundamentals.repository import FinancialRepository
+from services.portfolio.engine import get_portfolio_state
 from services.research.rag import DocumentRAGService
+
+_UNSET_ARG = object()
 
 
 TOOL_NAMES = (
@@ -343,7 +346,25 @@ def _get_commodity_evidence_and_series(
     return evidence, c_series, s_series
 
 
-def _get_valuation_dcf_evidence(db: Session, symbol: str, as_of: date) -> list[dict[str, Any]]:
+def _get_peer_comparison(db: Session, symbol: str, as_of: date) -> Any:
+    if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL"):
+        return None
+    try:
+        from services.valuation.peers import PeerComparisonEngine
+        return PeerComparisonEngine(db).compare_peers(symbol, as_of=as_of)
+    except Exception:
+        return None
+
+
+def _get_valuation_dcf_evidence(
+    db: Session,
+    symbol: str,
+    as_of: date,
+    peer_res: Any = None,
+    preloaded_dataset: Any = _UNSET_ARG,
+    asset_sector: Optional[str] = None,
+    latest_price: Optional[float] = None,
+) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL"):
         return evidence
@@ -354,9 +375,12 @@ def _get_valuation_dcf_evidence(db: Session, symbol: str, as_of: date) -> list[d
             from routers.valuation import _load_fundamentals_for_valuation, _get_latest_price, _get_asset_sector
         from services.fundamentals.sector_models import get_sector_for_symbol
         from services.valuation.builder import ValuationSnapshotBuilder
-        funds = _load_fundamentals_for_valuation(symbol, as_of)
-        price = _get_latest_price(symbol, as_of)
-        sector = _get_asset_sector(symbol) or get_sector_for_symbol(symbol) or "GENERAL"
+        load_kwargs: dict[str, Any] = {"session": db, "peer_res": peer_res}
+        if preloaded_dataset is not _UNSET_ARG:
+            load_kwargs["dataset"] = preloaded_dataset
+        funds = _load_fundamentals_for_valuation(symbol, as_of, **load_kwargs)
+        price = latest_price if latest_price is not None else _get_latest_price(symbol, as_of, session=db)
+        sector = asset_sector or _get_asset_sector(symbol, session=db) or get_sector_for_symbol(symbol) or "GENERAL"
         if funds and price:
             builder = ValuationSnapshotBuilder(symbol, sector)
             val_snap = builder.build(funds, price, as_of)
@@ -439,14 +463,19 @@ def _get_valuation_dcf_evidence(db: Session, symbol: str, as_of: date) -> list[d
     return evidence
 
 
-def _get_peer_median_evidence(db: Session, symbol: str, as_of: date) -> list[dict[str, Any]]:
+def _get_peer_median_evidence(
+    db: Session,
+    symbol: str,
+    as_of: date,
+    peer_res: Any = None,
+) -> list[dict[str, Any]]:
     evidence: list[dict[str, Any]] = []
     if not symbol or symbol.upper() in ("VN100", "VNINDEX", "VN30", "ALL"):
         return evidence
     try:
-        from services.valuation.peers import PeerComparisonEngine
-        peer_engine = PeerComparisonEngine(db)
-        peer_res = peer_engine.compare_peers(symbol, as_of=as_of)
+        if peer_res is None:
+            from services.valuation.peers import PeerComparisonEngine
+            peer_res = PeerComparisonEngine(db).compare_peers(symbol, as_of=as_of)
         if peer_res and peer_res.peer_median_pe is not None:
             group_sym = f"{symbol.upper()}_PEERS"
             evidence.append({
@@ -1002,6 +1031,15 @@ class AITools:
                     norm_symbols.append(norm)
 
             market_context = AITools.get_market_context(session=db, as_of=as_of)
+            portfolio_overview, portfolio_fit_data, portfolio_workspaces, preloaded_datasets = get_portfolio_state(db, as_of)
+            missing_ds_syms = [
+                s for s in norm_symbols
+                if s not in preloaded_datasets and s not in ("VN100", "VNINDEX", "VN30", "ALL", "UNIVERSE", "UNIVERSE_ALL")
+            ]
+            if missing_ds_syms:
+                preloaded_datasets.update(
+                    FinancialRepository(db).get_financial_datasets_batch(missing_ds_syms, as_of_date=as_of)
+                )
 
             # If multi-ticker comparison requested
             if len(norm_symbols) > 1:
@@ -1020,7 +1058,17 @@ class AITools:
                             "sector": asset.sector,
                             "registry_status": asset.status,
                         })
-                        decision = build_decision_context(db, sym, as_of)
+                        sym_dataset = preloaded_datasets.get(sym, _UNSET_ARG)
+                        dec_kwargs: dict[str, Any] = {
+                            "market_data": market_context.get("market"),
+                            "macro_data": market_context.get("macro"),
+                            "portfolio_data": portfolio_overview,
+                            "fit_data": portfolio_fit_data,
+                            "preloaded_workspace": portfolio_workspaces.get(sym),
+                        }
+                        if sym_dataset is not _UNSET_ARG:
+                            dec_kwargs["preloaded_dataset"] = sym_dataset
+                        decision = build_decision_context(db, sym, as_of, **dec_kwargs)
                         sym_evidence = decision.get("evidence", []) if decision else []
                         for ev in sym_evidence:
                             ev_copy = dict(ev)
@@ -1033,9 +1081,23 @@ class AITools:
                         combined_evidence.extend(bank_ev)
 
                         # DCF and Peer Medians expansion
-                        dcf_ev = _get_valuation_dcf_evidence(db, sym, as_of)
+                        peer_res = _get_peer_comparison(db, sym, as_of)
+                        target_price = (
+                            peer_res.target_metrics.current_price
+                            if (peer_res and getattr(peer_res, "target_metrics", None))
+                            else None
+                        )
+                        dcf_ev = _get_valuation_dcf_evidence(
+                            db,
+                            sym,
+                            as_of,
+                            peer_res=peer_res,
+                            preloaded_dataset=sym_dataset,
+                            asset_sector=asset.sector,
+                            latest_price=target_price,
+                        )
                         combined_evidence.extend(dcf_ev)
-                        peer_ev = _get_peer_median_evidence(db, sym, as_of)
+                        peer_ev = _get_peer_median_evidence(db, sym, as_of, peer_res=peer_res)
                         combined_evidence.extend(peer_ev)
                         opp_ev = _get_opportunity_evidence(db, sym, as_of)
                         combined_evidence.extend(opp_ev)
@@ -1071,7 +1133,7 @@ class AITools:
                     ticker=",".join(norm_symbols),
                     as_of_date=as_of,
                     limit=6,
-                    auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ),
+                    auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ and not is_cloud_mode()),
                 )
                 doc_payload = rag_docs if rag_docs["status"] == "AVAILABLE" else {
                     "status": "INSUFFICIENT_DATA",
@@ -1111,7 +1173,20 @@ class AITools:
             # Single symbol path (or no symbol)
             normalized = norm_symbols[0] if norm_symbols else None
             asset = db.query(Asset).filter(Asset.symbol == normalized).first() if normalized else None
-            decision = build_decision_context(db, normalized, as_of) if normalized else None
+            norm_dataset = preloaded_datasets.get(normalized, _UNSET_ARG) if normalized else _UNSET_ARG
+            if normalized:
+                dec_kwargs = {
+                    "market_data": market_context.get("market"),
+                    "macro_data": market_context.get("macro"),
+                    "portfolio_data": portfolio_overview,
+                    "fit_data": portfolio_fit_data,
+                    "preloaded_workspace": portfolio_workspaces.get(normalized),
+                }
+                if norm_dataset is not _UNSET_ARG:
+                    dec_kwargs["preloaded_dataset"] = norm_dataset
+                decision = build_decision_context(db, normalized, as_of, **dec_kwargs)
+            else:
+                decision = None
             modules = decision.get("snapshot", {}).get("modules", {}) if decision else {}
             events = AITools.get_recent_events(symbol=normalized, session=db, as_of=as_of)
             watchlist = db.query(WatchlistItem).filter(WatchlistItem.asset_id == asset.id).first() if asset else None
@@ -1130,8 +1205,8 @@ class AITools:
                 if (row.snapshot_data.get("facts", {}).get("as_of_date") or "") <= as_of.isoformat()
             ), None)
             portfolio_data = {
-                "portfolio": portfolio_dashboard(db, as_of),
-                "portfolio_fit": portfolio_fit(db, as_of),
+                "portfolio": portfolio_overview,
+                "portfolio_fit": portfolio_fit_data,
             }
             evidence = decision.get("evidence", []) if decision else []
             if normalized:
@@ -1144,14 +1219,25 @@ class AITools:
                 bank_ev = _get_bank_evidence(db, asset, as_of)
                 evidence.extend(bank_ev)
 
-            # DCF valuation expansion
+            # DCF valuation & Peer medians expansion
             if normalized:
-                dcf_ev = _get_valuation_dcf_evidence(db, normalized, as_of)
+                peer_res = _get_peer_comparison(db, normalized, as_of)
+                target_price = (
+                    peer_res.target_metrics.current_price
+                    if (peer_res and getattr(peer_res, "target_metrics", None))
+                    else None
+                )
+                dcf_ev = _get_valuation_dcf_evidence(
+                    db,
+                    normalized,
+                    as_of,
+                    peer_res=peer_res,
+                    preloaded_dataset=norm_dataset,
+                    asset_sector=(asset.sector if asset else None),
+                    latest_price=target_price,
+                )
                 evidence.extend(dcf_ev)
-
-            # Peer medians expansion
-            if normalized:
-                peer_ev = _get_peer_median_evidence(db, normalized, as_of)
+                peer_ev = _get_peer_median_evidence(db, normalized, as_of, peer_res=peer_res)
                 evidence.extend(peer_ev)
                 opp_ev = _get_opportunity_evidence(db, normalized, as_of)
                 evidence.extend(opp_ev)
@@ -1199,7 +1285,7 @@ class AITools:
                 ticker=normalized,
                 as_of_date=as_of,
                 limit=5,
-                auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ),
+                auto_ingest_local=("PYTEST_CURRENT_TEST" not in os.environ and not is_cloud_mode()),
             )
             document_payload = rag_docs if rag_docs["status"] == "AVAILABLE" else {
                 "status": "INSUFFICIENT_DATA",

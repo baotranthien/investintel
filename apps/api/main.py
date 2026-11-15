@@ -62,28 +62,37 @@ async def lifespan(app: FastAPI):
         except Exception as exc:
             logging.getLogger(__name__).warning("Reference data startup check: %s", exc)
 
-    # Pre-warm opportunity scanner cache in background task for fast first-response
+    prewarm_task = None
+    ai_prewarm_task = None
+
+    # Pre-warm opportunity scanner cache in worker thread so the event loop stays responsive
     if not is_pytest:
+        def _run_opportunity_cache_prewarm() -> None:
+            from database.connection import SessionLocal
+            from services.common.cache import opportunity_cache
+            from services.market.trading_hours import get_effective_trading_date
+            from services.opportunity.scanner import build_opportunity_scanner
+
+            eff_date = get_effective_trading_date()
+            with SessionLocal() as s:
+                res_all = build_opportunity_scanner(s, eff_date, universe="ALL")
+                cache_key_all = f"ALL_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
+                opportunity_cache.set(cache_key_all, res_all)
+
+                res_vn100 = build_opportunity_scanner(s, eff_date, universe="VN100")
+                cache_key_vn100 = f"VN100_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
+                opportunity_cache.set(cache_key_vn100, res_vn100)
+
         async def _prewarm_opportunity_cache():
             try:
                 await asyncio.sleep(1)
-                from database.connection import SessionLocal
-                from services.opportunity.scanner import build_opportunity_scanner
-                from services.common.cache import opportunity_cache
-                from services.market.trading_hours import get_effective_trading_date
-                eff_date = get_effective_trading_date()
-                with SessionLocal() as s:
-                    res_all = build_opportunity_scanner(s, eff_date, universe="ALL")
-                    cache_key_all = f"ALL_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
-                    opportunity_cache.set(cache_key_all, res_all)
-
-                    res_vn100 = build_opportunity_scanner(s, eff_date, universe="VN100")
-                    cache_key_vn100 = f"VN100_None_MEDIUM_TERM_None_None_None_None_None_None_{eff_date.isoformat()}"
-                    opportunity_cache.set(cache_key_vn100, res_vn100)
+                await asyncio.to_thread(_run_opportunity_cache_prewarm)
+            except asyncio.CancelledError:
+                return
             except Exception as exc:
                 logging.getLogger(__name__).warning("Scanner pre-warm: %s", exc)
 
-        asyncio.create_task(_prewarm_opportunity_cache())
+        prewarm_task = asyncio.create_task(_prewarm_opportunity_cache())
 
         async def _prewarm_ai_model():
             try:
@@ -93,16 +102,24 @@ async def lifespan(app: FastAPI):
                 if hasattr(gateway.provider, "prewarm"):
                     loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, gateway.provider.prewarm)
+            except asyncio.CancelledError:
+                return
             except Exception as exc:
                 logging.getLogger(__name__).warning("AI model pre-warm: %s", exc)
 
-        asyncio.create_task(_prewarm_ai_model())
+        ai_prewarm_task = asyncio.create_task(_prewarm_ai_model())
 
     try:
         yield
     finally:
         stop_event.set()
-        tasks = [t for t in (scheduler_task, analyst_task, realtime_task) if t is not None]
+        for bg_task in (prewarm_task, ai_prewarm_task):
+            if bg_task is not None and not bg_task.done():
+                bg_task.cancel()
+        tasks = [
+            t for t in (scheduler_task, analyst_task, realtime_task, prewarm_task, ai_prewarm_task)
+            if t is not None
+        ]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -211,7 +228,7 @@ def health_check_v1():
     }
 
 @app.get("/api/v1/system/info")
-async def system_info():
+def system_info():
     db_health = check_database_health()
     redis_health = check_redis_health()
     from services.ai.gateway import AIGateway
@@ -245,7 +262,7 @@ async def system_info():
 
 
 @app.get("/api/v1/system/observability")
-async def system_observability():
+def system_observability():
     db_health = check_database_health()
     redis_health = check_redis_health()
 
@@ -379,7 +396,7 @@ async def system_observability():
 
 
 @app.get("/api/v1/system/diagnostics")
-async def system_diagnostics():
+def system_diagnostics():
     """Real-time system, hardware telemetry, Ollama VRAM placement and inference metrics."""
     from services.ai.telemetry import get_hardware_diagnostics, get_ollama_runtime_status, get_inference_summary
     from services.scheduler.engine import local_scheduler

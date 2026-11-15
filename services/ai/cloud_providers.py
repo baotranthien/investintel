@@ -26,7 +26,8 @@ def _is_paid_allowed() -> bool:
 class GroqProvider:
     """Groq Cloud AI Provider using developer free tier."""
 
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    DEFAULT_MODEL = "qwen/qwen3.8-27b"
+    LEGACY_ALIASES = frozenset({"llama-3.3-70b-versatile", "llama-3.1-70b-versatile"})
     BASE_URL = "https://api.groq.com/openai/v1"
 
     def __init__(
@@ -36,7 +37,8 @@ class GroqProvider:
         timeout_seconds: float = 25.0,
     ):
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
-        self.model = model or os.getenv("GROQ_MODEL", self.DEFAULT_MODEL)
+        configured = (model or os.getenv("GROQ_MODEL", self.DEFAULT_MODEL)).strip()
+        self.model = self.DEFAULT_MODEL if configured in self.LEGACY_ALIASES or not configured else configured
         self.timeout_seconds = timeout_seconds
 
     @property
@@ -62,7 +64,8 @@ class GroqProvider:
         if not self.is_configured:
             raise AIProviderError("Groq API is not configured or disabled.")
 
-        model_to_use = model or self.model
+        raw_model = (model or self.model or self.DEFAULT_MODEL).strip()
+        model_to_use = self.DEFAULT_MODEL if raw_model in self.LEGACY_ALIASES or ":" in raw_model else raw_model
         headers = {
             "Authorization": f"Bearer {self.api_key.strip()}",
             "Content-Type": "application/json",
